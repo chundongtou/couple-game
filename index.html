@@ -216,12 +216,12 @@ function renderPList(){
     h+=`<div class="player-item"><div class="av" style="background:${p.g==='male'?'#3498db':'#e040fb'}">${p.g==='male'?'♂':'♀'}</div><div class="info">${p.name}</div><div class="del" onclick="delPlayer(${i})">✕</div></div>`;
   });
   document.getElementById('pList').innerHTML=h;
-  document.getElementById('startBtn').style.display=players.length>=1?'block':'none';
+  document.getElementById('startBtn').style.display=players.length>=2?'block':'none';
 }
 
 /* ===== 游戏列表 ===== */
 function goGames(){
-  if(players.length<1){toast('请先添加玩家');return}
+  if(players.length<2){toast('至少需要2位玩家才能开始游戏');return}
   showPage('gameListPage');
   document.getElementById('glSub').textContent=players.length+'位玩家就绪';
   let h='';GAMES.forEach(g=>{
@@ -290,9 +290,9 @@ function renderTD(c){
     +'<div class="wheel-pointer"></div>'
     +'<button class="wheel-go-btn" onclick="spinTDWheel()">GO</button>'
     +'</div>'
-    +'<div class="wheel-result" id="tdResult"><div class="text">Click GO to spin</div><div class="star">Truth + Dare</div></div>'
+    +'<div class="wheel-result" id="tdResult"><div class="text">点击GO旋转转盘</div><div class="star">💜真心话 + 🔥大冒险</div></div>'
     +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'td\')">Back</button>'
+    +'<button class="wheel-btn back" onclick="startGame(\'td\')">↩ 返回</button>'
     +'</div>';
   window._tdItems=items;window._tdAngle=0;window._tdSpinning=false;
   setTimeout(function(){var cv=document.getElementById('tCanvas');if(cv)drawWheel(cv,items.map(function(x){return x.text}),colors)},50);
@@ -313,8 +313,8 @@ function spinTDWheel(){
     var idx=Math.floor(((360-finalAngle+seg/2)%360)/seg)%n;
     var p=getRandPlayer();
     var item=items[idx];
-    var icon=item.type==='truth'?'Truth':'Dare';
-    var action=item.type==='truth'?'Must answer!':'Must do it!';
+    var icon=item.type==='truth'?'💜 真心话':'🔥 大冒险';
+    var action=item.type==='truth'?'必须回答！':'必须执行！';
     document.getElementById('tdResult').innerHTML=
       '<div class="text">'+item.text+'</div><div class="star">'+icon+'</div><div class="player-tag">'+p.name+' '+action+'</div>';
   },4600);
@@ -678,7 +678,7 @@ function renderPunish(c){
     </div>
     <div class="wheel-result" id="punishResult"><div class="text">点击GO抽取惩罚</div></div>
     <div class="wheel-btns">
-      <button class="wheel-btn back" onclick="startGame('punish')">Restart</button>
+      <button class="wheel-btn back" onclick="startGame('punish')">🔄 重来</button>
     </div>`;
   window._punishItems=items;window._punishAngle=0;window._punishSpinning=false;
   setTimeout(()=>{let cv=document.getElementById('pCanvas');if(cv)drawWheel(cv,items,colors)},50);
