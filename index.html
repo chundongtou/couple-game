@@ -2,855 +2,708 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>💕 情侣升温游戏</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>情侣升温游戏</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0a0a1a;color:#e0e0e0;min-height:100vh;overflow-x:hidden}
-.header{background:linear-gradient(135deg,#1a0a2e,#16213e);padding:20px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(255,255,255,0.1)}
-.header h1{font-size:22px;color:#fff;margin-bottom:4px}
-.header .subtitle{font-size:13px;color:#888}
-.page{display:none;padding:16px;padding-bottom:80px;animation:fadeIn .3s}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#1a0a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;color:#fff;overflow-x:hidden}
+.page{display:none;min-height:100vh;padding-bottom:20px}
 .page.active{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(1080deg)}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes bombShake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-8px)}20%,40%,60%,80%{transform:translateX(8px)}}
-@keyframes explode{0%{transform:scale(1);opacity:1}50%{transform:scale(2);opacity:0.5}100%{transform:scale(3);opacity:0}}
-@keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-200px) rotate(720deg);opacity:0}}
-@keyframes bounce{0%,100%{transform:scale(1)}30%{transform:scale(1.2)}60%{transform:scale(0.9)}}
-@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
-@keyframes heartbeat{0%,100%{transform:scale(1)}14%{transform:scale(1.3)}28%{transform:scale(1)}42%{transform:scale(1.3)}70%{transform:scale(1)}}
+.header{background:linear-gradient(135deg,#6c2bd9,#e040fb);padding:16px 20px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,0.3)}
+.header h1{font-size:20px;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
+.header .sub{font-size:12px;opacity:0.8;margin-top:2px}
+.back-btn{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;cursor:pointer;padding:4px 8px}
+.reg-card{background:rgba(255,255,255,0.08);border-radius:16px;padding:30px 24px;margin:60px 20px 20px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1)}
+.reg-card h2{text-align:center;margin-bottom:20px;font-size:22px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;color:#ccc;margin-bottom:6px}
+.form-group input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:15px;outline:none}
+.form-group input::placeholder{color:rgba(255,255,255,0.4)}
+.gender-btns{display:flex;gap:10px}
+.gender-btn{flex:1;padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:transparent;color:#fff;font-size:15px;cursor:pointer;text-align:center;transition:all 0.3s}
+.gender-btn.sel{border-color:#e040fb;background:rgba(224,64,251,0.3)}
+.submit-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#6c2bd9,#e040fb);color:#fff;font-size:17px;font-weight:bold;cursor:pointer;margin-top:10px}
+.player-list{margin-top:20px}
+.player-item{display:flex;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;margin-bottom:8px}
+.player-item .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:10px}
+.player-item .info{flex:1;font-size:14px}
+.player-item .del{color:#ff4757;font-size:18px;cursor:pointer;padding:4px}
+.start-btn{display:block;margin:20px auto;padding:16px 40px;border-radius:14px;border:none;background:linear-gradient(135deg,#00b894,#00cec9);color:#fff;font-size:18px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,206,201,0.4)}
+.game-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px}
+.game-card{background:rgba(255,255,255,0.08);border-radius:14px;padding:18px 14px;text-align:center;cursor:pointer;transition:all 0.3s;border:1px solid rgba(255,255,255,0.08)}
+.game-card:active{transform:scale(0.95)}
+.game-card .icon{font-size:36px;margin-bottom:8px}
+.game-card .name{font-size:15px;font-weight:bold;margin-bottom:4px}
+.game-card .desc{font-size:11px;color:#aaa;line-height:1.3}
 
-/* Player bar */
-.player-bar{display:flex;gap:8px;padding:10px 0;overflow-x:auto;flex-wrap:nowrap}
-.player-chip{background:linear-gradient(135deg,#2d1b69,#1e3a5f);border-radius:20px;padding:6px 14px;font-size:13px;white-space:nowrap;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;gap:5px;flex-shrink:0}
-.player-chip .avatar{width:22px;height:22px;border-radius:50%;background:#9b59b6;display:flex;align-items:center;justify-content:center;font-size:11px}
-.player-chip.male .avatar{background:#3498db}
-.player-chip.female .avatar{background:#e91e63}
+/* ===== Canvas转盘样式 ===== */
+.wheel-wrap{position:relative;width:310px;height:310px;margin:20px auto 0}
+.wheel-wrap canvas{width:310px;height:310px;display:block}
+.wheel-pointer{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:30px solid #ffd700;z-index:10;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5))}
+.wheel-go-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#ff6b9d);border:4px solid #fff;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;z-index:10;box-shadow:0 4px 15px rgba(0,0,0,0.4);transition:transform 0.1s}
+.wheel-go-btn:active{transform:translate(-50%,-50%) scale(0.9)}
 
-/* Registration */
-.reg-box{background:rgba(255,255,255,0.05);border-radius:16px;padding:24px;margin:20px 0}
-.reg-box h2{font-size:18px;text-align:center;margin-bottom:16px;color:#fff}
-.reg-input{width:100%;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:16px;margin-bottom:12px;outline:none}
-.reg-input:focus{border-color:#9b59b6}
-.gender-row{display:flex;gap:12px;margin-bottom:16px}
-.gender-btn{flex:1;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:transparent;color:#ccc;text-align:center;cursor:pointer;font-size:16px;transition:all .3s}
-.gender-btn.male.active{border-color:#3498db;background:rgba(52,152,219,0.2);color:#3498db}
-.gender-btn.female.active{border-color:#e91e63;background:rgba(233,30,99,0.2);color:#e91e63}
-.btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:16px;font-weight:600;cursor:pointer;transition:all .3s;text-align:center}
-.btn:active{transform:scale(0.97)}
-.btn-primary{background:linear-gradient(135deg,#9b59b6,#8e44ad);color:#fff}
-.btn-danger{background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff}
-.btn-success{background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff}
-.btn-info{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff}
-.btn-warm{background:linear-gradient(135deg,#e91e63,#ff6b9d);color:#fff}
-.btn-small{padding:8px 16px;font-size:13px;width:auto;display:inline-block}
+.wheel-result{margin:20px auto 0;background:rgba(255,255,255,0.1);border-radius:14px;padding:20px;max-width:340px;text-align:center;min-height:60px}
+.wheel-result .text{font-size:17px;line-height:1.6}
+.wheel-result .star{color:#ffd700;font-size:14px;margin:6px 0}
+.wheel-result .player-tag{display:inline-block;padding:4px 14px;border-radius:20px;background:rgba(224,64,251,0.3);font-size:13px;margin:8px 4px 0}
+.wheel-btns{display:flex;gap:10px;margin-top:14px;justify-content:center}
+.wheel-btn{padding:10px 22px;border-radius:10px;border:none;font-size:14px;cursor:pointer;font-weight:bold}
+.wheel-btn.spin{background:linear-gradient(135deg,#6c2bd9,#e040fb);color:#fff}
+.wheel-btn.next{background:linear-gradient(135deg,#00b894,#00cec9);color:#fff}
+.wheel-btn.back{background:rgba(255,255,255,0.15);color:#fff}
 
-/* Game list */
-.game-card{background:rgba(255,255,255,0.06);border-radius:14px;padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:14px}
-.game-card:active{transform:scale(0.98);background:rgba(255,255,255,0.1)}
-.game-card .icon{font-size:32px;width:50px;height:50px;display:flex;align-items:center;justify-content:center;border-radius:12px;flex-shrink:0}
-.game-card .info h3{font-size:16px;color:#fff;margin-bottom:3px}
-.game-card .info p{font-size:12px;color:#888}
-.back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.1);color:#ccc;font-size:13px;cursor:pointer;margin-bottom:16px;border:none}
-.back-btn:active{background:rgba(255,255,255,0.2)}
-.game-title{font-size:24px;font-weight:700;text-align:center;margin-bottom:6px}
-.game-desc{text-align:center;color:#888;font-size:13px;margin-bottom:20px}
-.result-card{background:linear-gradient(135deg,rgba(155,89,182,0.2),rgba(233,30,99,0.2));border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:20px;margin:16px 0;text-align:center;animation:slideUp .4s}
-.result-card .text{font-size:20px;font-weight:700;color:#fff;margin-bottom:8px}
-.result-card .sub{font-size:13px;color:#888}
+/* ===== 真心话大冒险选择页 ===== */
+.td-select{display:flex;gap:16px;padding:20px;justify-content:center}
+.td-card{flex:1;max-width:160px;padding:30px 16px;border-radius:16px;text-align:center;cursor:pointer;transition:all 0.3s}
+.td-card.truth{background:linear-gradient(135deg,#6c2bd9,#a855f7)}
+.td-card.dare{background:linear-gradient(135deg,#ff6b6b,#ee5a24)}
+.td-card:active{transform:scale(0.95)}
+.td-card .td-icon{font-size:48px;margin-bottom:10px}
+.td-card .td-name{font-size:18px;font-weight:bold}
+.td-card .td-count{font-size:12px;opacity:0.7;margin-top:4px}
 
-/* Wheel */
-.wheel-wrap{width:280px;height:280px;margin:0 auto 20px;position:relative}
-.wheel-container{width:280px;height:280px;border-radius:50%;overflow:hidden;position:relative;border:4px solid #fff;box-shadow:0 0 30px rgba(155,89,182,0.5)}
-.wheel-seg{position:absolute;width:0;height:0;left:50%;top:0;transform-origin:50% 280px}
-.wheel-seg span{position:absolute;top:8px;left:-40px;width:80px;text-align:center;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wheel-pointer{position:absolute;top:-15px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:25px solid #e74c3c;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))}
-.wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:#fff;z-index:10;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 10px rgba(0,0,0,0.3)}
+/* ===== 数字炸弹 ===== */
+.bomb-wrap{text-align:center;padding:20px}
+.bomb-range{font-size:36px;color:#ff6b6b;margin:16px 0}
+.bomb-input{width:100px;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:22px;text-align:center;outline:none}
+.bomb-submit,.dice-submit,.king-submit,.guess-submit,.heart-submit,.rps-submit,.blind-submit,.whisper-submit,.punish-submit{margin-top:14px;padding:12px 30px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
 
-/* Buttons row */
-.btn-row{display:flex;gap:10px;margin:12px 0;flex-wrap:wrap;justify-content:center}
-.btn-choice{flex:1;min-width:120px;padding:14px;border-radius:12px;border:2px solid;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;background:transparent}
-.btn-choice.truth{border-color:#9b59b6;color:#9b59b6}
-.btn-choice.truth:active{background:#9b59b6;color:#fff}
-.btn-choice.dare{border-color:#e74c3c;color:#e74c3c}
-.btn-choice.dare:active{background:#e74c3c;color:#fff}
+/* ===== 骰子 ===== */
+.dice-wrap{text-align:center;padding:20px}
+.dice-box{width:80px;height:80px;margin:20px auto;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:transform 0.15s;background:#fff;color:#333}
+.dice-box.rolling{animation:diceRoll 0.12s infinite alternate}
+@keyframes diceRoll{from{transform:rotate(-15deg) scale(1.05)}to{transform:rotate(15deg) scale(1.1)}}
+.dice-result{margin-top:14px;font-size:16px;min-height:24px}
 
-/* Star rating */
-.stars{color:#f39c12;font-size:14px;letter-spacing:2px}
+/* ===== 国王 ===== */
+.king-wrap{text-align:center;padding:20px}
+.king-cards{display:flex;justify-content:center;gap:10px;margin:20px 0;flex-wrap:wrap}
+.king-card{width:56px;height:80px;border-radius:8px;background:linear-gradient(135deg,#2d3436,#636e72);border:2px solid rgba(255,255,255,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:all 0.4s}
+.king-card.show{background:linear-gradient(135deg,#6c2bd9,#a855f7);border-color:#a855f7}
+.king-card.is-king{background:linear-gradient(135deg,#ffd700,#ff6b9d);border-color:#ffd700;font-size:28px}
+.king-cmd{margin-top:16px;font-size:16px;min-height:24px;line-height:1.6;padding:0 10px}
 
-/* Number bomb */
-.bomb-input{width:100%;padding:14px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:24px;text-align:center;margin:10px 0}
-.bomb-range{display:flex;justify-content:space-between;color:#888;font-size:13px;margin:8px 0}
-.bomb-result{font-size:28px;font-weight:700;text-align:center;margin:16px 0;animation:bounce .5s}
+/* ===== 你比我猜 ===== */
+.guess-wrap{text-align:center;padding:16px}
+.guess-timer{font-size:32px;color:#00cec9;font-weight:bold;margin:10px 0}
+.guess-word-box{background:rgba(255,255,255,0.1);border-radius:12px;padding:24px;margin:12px 0}
+.guess-word{font-size:24px;font-weight:bold;margin-bottom:4px}
+.guess-btns{display:flex;gap:12px;justify-content:center;margin-top:16px}
+.guess-btn{padding:14px 30px;border-radius:12px;border:none;font-size:16px;font-weight:bold;cursor:pointer}
+.guess-btn.ok{background:linear-gradient(135deg,#00b894,#00cec9);color:#fff}
+.guess-btn.no{background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff}
+.guess-btn.skip{background:rgba(255,255,255,0.15);color:#fff}
+.guess-score{font-size:18px;margin-top:12px}
 
-/* Dice */
-.dice-area{width:120px;height:120px;margin:20px auto;perspective:600px;cursor:pointer}
-.dice{width:120px;height:120px;background:#fff;border-radius:16px;position:relative;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:16px;transition:transform .3s}
-.dice.rolling{animation:spin 1s ease-in-out}
-.dot{width:20px;height:20px;border-radius:50%;background:#1a0a2e;justify-self:center;align-self:center;display:none}
-.dot.show{display:block}
+/* ===== 心跳告白 ===== */
+.heart-wrap{text-align:center;padding:20px}
+.heart-timer{font-size:40px;color:#ff6b9d;font-weight:bold;margin:10px 0}
+.heart-desc{font-size:18px;margin:16px 0;line-height:1.7;min-height:60px;padding:0 10px}
+.heart-btns{display:flex;gap:12px;justify-content:center;margin-top:16px}
+.heart-btn{padding:12px 24px;border-radius:10px;border:none;font-size:15px;font-weight:bold;cursor:pointer}
 
-/* King */
-.king-cards{display:flex;gap:10px;justify-content:center;margin:20px 0;flex-wrap:wrap}
-.king-card{width:70px;height:100px;border-radius:10px;background:linear-gradient(135deg,#f39c12,#e67e22);display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;transition:all .4s;transform-style:preserve-3d;position:relative}
-.king-card.flipped{transform:rotateY(180deg)}
-.king-card .face{position:absolute;backface-visibility:hidden;font-size:28px}
-.king-card .back{backface-visibility:hidden;transform:rotateY(180deg)}
+/* ===== 石头剪刀布 ===== */
+.rps-wrap{text-align:center;padding:20px}
+.rps-btns{display:flex;justify-content:center;gap:20px;margin:20px 0}
+.rps-btn{width:70px;height:70px;border-radius:50%;font-size:32px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center}
+.rps-btn:active{transform:scale(0.9);background:rgba(255,255,255,0.2)}
+.rps-result{font-size:18px;margin:14px 0;min-height:24px}
+.rps-punish{margin-top:10px;font-size:15px;min-height:24px;line-height:1.5;padding:0 10px}
 
-/* Tissue */
-.tissue-progress{width:100%;height:20px;background:rgba(255,255,255,0.1);border-radius:10px;margin:16px 0;overflow:hidden}
-.tissue-bar{height:100%;background:linear-gradient(90deg,#f39c12,#e74c3c);border-radius:10px;transition:width 0.5s}
+/* ===== 蒙眼寻宝 ===== */
+.blind-wrap{text-align:center;padding:20px}
+.blind-desc{font-size:14px;color:#aaa;margin-bottom:10px;line-height:1.5;padding:0 10px}
+.blind-body{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}
+.blind-part{padding:14px 6px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all 0.3s}
+.blind-part:active{transform:scale(0.9);background:rgba(224,64,251,0.2);border-color:#e040fb}
+.blind-part .bp-icon{font-size:28px}
+.blind-part .bp-name{font-size:11px;margin-top:4px;color:#aaa}
+.blind-result{margin-top:14px;font-size:16px;min-height:24px;line-height:1.5;padding:0 10px}
 
-/* Guess word */
-.guess-word{font-size:28px;font-weight:700;text-align:center;padding:30px;background:rgba(255,255,255,0.08);border-radius:16px;margin:16px 0;min-height:90px;display:flex;align-items:center;justify-content:center}
-.guess-timer{font-size:36px;font-weight:700;text-align:center;color:#e74c3c}
+/* ===== 悄悄话 ===== */
+.whisper-wrap{text-align:center;padding:20px}
+.whisper-card{background:linear-gradient(135deg,#2d1b69,#1a1a2e);border:1px solid rgba(224,64,251,0.3);border-radius:16px;padding:30px 20px;margin:20px 0;min-height:100px;display:flex;align-items:center;justify-content:center}
+.whisper-card .text{font-size:18px;line-height:1.6;font-style:italic;color:#e0b0ff}
 
-/* Heart */
-.hb-stage{font-size:22px;font-weight:700;text-align:center;color:#e91e63;margin-bottom:8px}
-.hb-prompt{font-size:14px;text-align:center;color:#ccc;margin-bottom:16px;line-height:1.5}
-.hb-timer{font-size:48px;font-weight:700;text-align:center;color:#e91e63;animation:heartbeat 1s infinite;margin:10px 0}
-.hb-action{font-size:16px;text-align:center;padding:12px;background:rgba(233,30,99,0.15);border-radius:10px;margin:8px 0;color:#fff}
+/* ===== 惩罚轮盘（同Canvas转盘） ===== */
 
-/* RPS */
-.rps-btns{display:flex;gap:16px;justify-content:center;margin:20px 0}
-.rps-btn{width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);font-size:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s}
-.rps-btn:active{transform:scale(0.9);border-color:#9b59b6;background:rgba(155,89,182,0.2)}
-.rps-result{font-size:18px;text-align:center;padding:12px;border-radius:10px;margin:10px 0}
+/* ===== Player Bar ===== */
+.player-bar{display:flex;gap:8px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.player-bar::-webkit-scrollbar{display:none}
+.player-chip{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);border-radius:20px;padding:4px 10px 4px 6px;font-size:12px;white-space:nowrap;flex-shrink:0}
+.player-chip .chip-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px}
+.player-chip.current{background:rgba(224,64,251,0.3);border:1px solid #e040fb}
 
-/* Blind */
-.blind-parts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
-.blind-part{padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);text-align:center;cursor:pointer;font-size:14px;transition:all .3s}
-.blind-part:active{border-color:#9b59b6;background:rgba(155,89,182,0.2)}
-
-/* Punish wheel */
-.pw-wrap{width:300px;height:300px;margin:0 auto 20px;position:relative}
-.pw-container{width:300px;height:300px;border-radius:50%;overflow:hidden;position:relative;border:4px solid #fff;box-shadow:0 0 30px rgba(231,76,60,0.5)}
-.pw-seg{position:absolute;width:0;height:0;left:50%;top:0;transform-origin:50% 300px}
-.pw-seg span{position:absolute;top:10px;left:-45px;width:90px;text-align:center;font-size:10px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* Whisper */
-.whisper-text{font-size:18px;text-align:center;padding:20px;background:rgba(255,255,255,0.08);border-radius:16px;margin:16px 0;line-height:1.6;font-style:italic}
-.whisper-meter{height:12px;background:rgba(255,255,255,0.1);border-radius:6px;margin:12px 0;overflow:hidden}
-.whisper-fill{height:100%;background:linear-gradient(90deg,#ff6b9d,#e91e63);border-radius:6px;transition:width 1s}
-
-/* Tab bar */
-.tab-bar{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(10,10,26,0.95);border-top:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(10px);z-index:100}
-.tab-item{flex:1;padding:8px 0;text-align:center;cursor:pointer;transition:all .3s}
-.tab-item .tab-icon{font-size:20px}
-.tab-item .tab-label{font-size:11px;color:#888;margin-top:2px}
-.tab-item.active .tab-label{color:#9b59b6}
-
-/* Misc */
-.section-title{font-size:16px;font-weight:600;margin:16px 0 8px;color:#ccc}
-.empty-msg{text-align:center;padding:40px;color:#666;font-size:14px}
-.divider{height:1px;background:rgba(255,255,255,0.1);margin:16px 0}
-.text-center{text-align:center}
-.text-purple{color:#9b59b6}
-.text-red{color:#e74c3c}
-.text-pink{color:#e91e63}
-.mb10{margin-bottom:10px}
-.mb16{margin-bottom:16px}
-.hidden{display:none!important}
+/* ===== Toast ===== */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.88);color:#fff;padding:16px 28px;border-radius:14px;font-size:15px;z-index:9999;display:none;text-align:center;max-width:85%;line-height:1.5}
+.toast.show{display:block;animation:tin 0.3s ease}
+@keyframes tin{from{opacity:0;transform:translate(-50%,-50%) scale(0.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>💕 情侣升温游戏</h1>
-  <div class="subtitle">11款甜蜜刺激的互动游戏</div>
-</div>
 
-<!-- Page: Register -->
-<div id="page-reg" class="page active">
-  <div class="reg-box">
-    <h2>👋 注册玩家</h2>
-    <input class="reg-input" id="reg-name" placeholder="输入你的昵称" maxlength="10">
-    <div class="gender-row">
-      <div class="gender-btn male" onclick="selectGender('male')">👨 男生</div>
-      <div class="gender-btn female" onclick="selectGender('female')">👩 女生</div>
-    </div>
-    <button class="btn btn-primary" onclick="addPlayer()">✅ 加入游戏</button>
-  </div>
-  <div id="player-list-reg"></div>
-  <div style="margin-top:16px">
-    <button class="btn btn-warm" onclick="startPlay()">🎮 开始游戏</button>
-  </div>
-</div>
+<div id="regPage" class="page active">
+<div class="header"><h1>💋 情侣升温游戏</h1><div class="sub">添加玩家，开始激情之旅</div></div>
+<div class="reg-card">
+<h2>👤 加入游戏</h2>
+<div class="form-group"><label>昵称</label><input id="regName" placeholder="输入你的昵称" maxlength="8"></div>
+<div class="form-group"><label>性别</label>
+<div class="gender-btns">
+<div class="gender-btn" onclick="selGender(this)">♂ 男</div>
+<div class="gender-btn" onclick="selGender(this)">♀ 女</div>
+</div></div>
+<button class="submit-btn" onclick="addPlayer()">➕ 加入</button>
+<div class="player-list" id="pList"></div>
+<button class="start-btn" id="startBtn" style="display:none" onclick="goGames()">🚀 开始游戏</button>
+</div></div>
 
-<!-- Page: Game List -->
-<div id="page-list" class="page">
-  <div class="player-bar" id="player-bar"></div>
-  <div id="game-list"></div>
-</div>
+<div id="gameListPage" class="page">
+<div class="header"><h1>🎮 选择游戏</h1><div class="sub" id="glSub"></div></div>
+<div class="game-grid" id="gameGrid"></div></div>
 
-<!-- Page: Game -->
-<div id="page-game" class="page">
-  <button class="back-btn" onclick="goBack()">← 返回游戏列表</button>
-  <div class="player-bar" id="player-bar-game"></div>
-  <div id="game-content"></div>
-</div>
+<div id="gamePage" class="page">
+<div class="header"><div class="back-btn" onclick="goGames()">←</div><h1 id="gTitle">游戏</h1></div>
+<div class="player-bar" id="pBar"></div>
+<div id="gContent"></div></div>
 
-<!-- Page: Player Add (accessible during game) -->
-<div id="page-add" class="page">
-  <div class="reg-box">
-    <h2>➕ 添加玩家</h2>
-    <input class="reg-input" id="add-name" placeholder="输入昵称" maxlength="10">
-    <div class="gender-row">
-      <div class="gender-btn male" onclick="selectAddGender('male')">👨 男生</div>
-      <div class="gender-btn female" onclick="selectAddGender('female')">👩 女生</div>
-    </div>
-    <button class="btn btn-primary" onclick="doAddPlayer()">✅ 添加</button>
-    <button class="btn btn-info" style="margin-top:8px" onclick="goBackToGame()">← 返回</button>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
-<div class="tab-bar">
-  <div class="tab-item active" onclick="switchTab('list')" id="tab-list"><div class="tab-icon">🎮</div><div class="tab-label">游戏</div></div>
-  <div class="tab-item" onclick="switchTab('add')" id="tab-add"><div class="tab-icon">➕</div><div class="tab-label">加人</div></div>
-</div>
 <script>
-// ============ STATE ============
-let players = JSON.parse(localStorage.getItem('tg_players') || '[]');
-let currentGame = null;
-let addGender = 'male';
+const GAMEDATA={"truths": ["你对伴侣最深的幻想是什么？具体描述", "你有没有偷偷拍过什么照片？", "你有没有叫过对方奇怪的称呼？", "你做过最大的春梦对象是谁？", "你最想让对方做什么刺激的事？", "你最受不了对方什么声音？", "你最受不了对方亲你哪里？", "你最想在什么节日做刺激的事？", "你最想尝试什么新鲜的？", "你最受不了对方什么声音？", "你最想在什么镜子前被看？", "你最想让对方做什么刺激的事？", "你做过什么不可描述的事？", "你偷看过对方洗澡吗？什么感觉？", "你有没有偷偷买过情趣用品？", "你最受不了对方什么动作？", "你第一次看到对方身体时什么反应？", "你在外面最想和对方做什么刺激的事？", "你最想在什么场景？", "你偷偷看过什么小电影？", "你最想让对方怎么玩弄你？", "你最想在什么交通工具上亲热？", "你最受不了对方什么？", "你最想在什么镜子前做？", "你最想尝试什么角色？", "你最受不了对方什么？", "你最想被绑在什么地方？", "你最想尝试什么情趣内衣？", "你最受不了对方做什么？", "你最受不了对方什么动作？", "你最想尝试什么多人场景？", "你最想尝试什么姿势？", "你最想让对方在你脖子上做什么？", "你最想尝试什么S还是M？", "你最想让对方吻你哪里最敏感？", "你最想在什么特殊地方做？", "你最想听到对方叫你什么？", "你最想在什么公共场合做？", "你最想尝试什么视频通话？", "你最想让对方怎样玩你？", "你最想让对方做什么？", "你有没有假装高潮过？", "你最想被对方怎样拥抱？", "你最想尝试什么角色扮演？", "你最受不了对方什么触碰？", "你最想被对方怎样？", "你有没有幻想过邻居？", "你最想被对方怎样对待？", "你最想让对方在你脖子上做什么？", "你最想在什么镜子前做？", "你最受不了对方什么？", "你最想被对方怎样从后面抱？", "你最想让对方吻你最敏感的部位？", "你最受不了对方穿什么诱惑你？", "你最想在什么场景下被绑？", "你最想让对方在你身上做什么？", "你最想在什么地方亲热？", "你最想让对方吻你哪里？", "你最想让对方吻你哪里？", "你最想让对方帮你做什么？", "你最想让对方在你身上画什么？", "你最受不了的调情方式是什么？", "你最想被对方怎样对待？", "你最想穿什么给对方看？", "你最想被对方怎样对待？", "你最想在什么公共场合做？", "你最想被怎样对待？", "你最想让对方帮你做什么？", "你最想让对方在你身上做什么？", "你最想让对方怎么玩弄你？", "你最想让对方在你身上画什么？", "你最受不了什么？", "你最想让对方穿什么？", "你做过最大胆的性幻想是谁？", "你最想在什么地方做口？", "你最受不了对方手指做什么？", "你最受不了对方什么吻？", "你最想让对方用道具做什么？", "你最受不了对方怎么抱你？", "你最受不了对方咬你哪里？", "你最想让对方做什么？", "你最想让对方用脚帮你做什么？", "你最想让对方用丝袜做什么？", "你最想尝试什么SM道具？", "你偷偷收藏过什么暧昧的东西？", "你最想尝试什么没做过的？", "你最想尝试什么情趣内衣？", "你最想让对方帮你脱衣服？", "你最想在什么地方做？", "你最受不了对方吸你哪里？", "你偷偷看伴侣身体哪个部位最多？", "你最受不了对方什么？", "你最想让对方帮你按摩哪里？", "你最受不了对方什么眼神？", "你最受不了对方穿什么？", "你最想让对方用脚帮你做什么？", "你最受不了对方怎么挑逗你？", "你最想尝试什么？", "你最受不了对方的什么技巧？", "你偷偷幻想过几个人？", "你最想尝试什么SM？", "你最想尝试什么？", "你最想让对方用道具做什么？", "你什么时候最想和对方亲热？", "你最受不了对方穿什么诱惑你？", "你最想让对方用什么绑住你？", "你最想尝试什么情趣内衣？", "你做过最刺激的梦是什么？", "你最受不了对方什么声音？", "你最想尝试什么没做过的姿势？", "你最想被对方怎样对待？", "你做过最刺激的春梦是什么？", "你最想让对方做什么？", "你最想被对方怎样从后面拥抱？", "你最想尝试什么？", "你最想让对方怎样挑逗你？", "你做过最刺激的梦是什么？", "你最想在什么公共场所做？", "你有没有自慰过想对方？", "你最想让对方吻你哪里最敏感？", "你最想尝试什么SM道具？", "你最想被怎样绑住？", "你最受不了对方咬你哪里？", "你最想被对方怎样抱着？", "你最想被怎样对待？", "你做过最大的春梦对象是谁？", "你最想让对方用嘴做多久？", "你对对方说过的最骚的话是什么？", "你最想让对方怎样挑逗你？", "你做过最害羞的事是什么？", "你最受不了对方什么触碰？", "你最想让对方吻你最敏感的部位？", "你最想在什么镜子前做？", "你最受不了对方吸你哪里？", "你最想尝试什么情趣内衣？", "你最受不了对方什么触碰？", "你最想在什么场景下和对方亲热？", "你最想让对方做什么？", "你最受不了对方什么触碰？", "你最受不了对方什么话？", "你最受不了对方亲你耳朵？", "你最想尝试什么视频通话？", "你最想在什么交通工具上亲热？", "你有没有偷偷买过情趣用品？", "你最受不了对方什么声音？", "你最想在什么地方？", "你最想让对方用嘴帮你做什么？", "你最受不了对方亲你耳朵？", "你有没有自慰过想对方？", "你最想被对方怎样按在墙上？", "你最想让对方做什么刺激的事？", "你最想尝试什么新鲜的？", "你最想尝试什么角色扮演？", "你有没有在车里做过？", "你最受不了对方什么吻？", "你最想尝试什么S还是M？", "你最想在什么特殊日子和对方做什么？", "你最想被对方绑在什么地方？", "你最受不了对方舔你哪里？", "你最想被对方怎样从前面抱？", "你最受不了对方什么？", "你最想被怎样绑住？", "你做过什么不可描述的梦？", "你最想尝试什么道具？", "你偷偷摸过对方哪里？", "你最想在什么场景下被绑？", "你最想被对方怎样对待？", "你最想尝试什么刺激的地方？", "你最想尝试什么多人场景？", "你最想让对方穿什么给你看？", "你最想让对方怎么绑你？", "你有没有叫过对方奇怪的称呼？", "你最受不了对方什么？", "你最想让对方怎么挑逗你？", "你最受不了对方手指做什么？", "你最想让对方帮你做什么？", "你有没有幻想过邻居？", "你有没有假装高潮过？", "你偷偷下载过什么羞羞的APP吗？", "你最想被对方怎样按在墙上？", "你最受不了对方怎么抱你？", "你最想让对方怎么绑你？", "你最想在浴缸里和对方做什么？", "你最想让对方吻你身体哪个部位？", "你最想在什么公共场所做？", "你最想在什么节日做刺激的事？", "你最想让对方帮你脱衣服？", "你最想尝试什么角色？", "你做过什么春梦？梦到了谁？", "你最想让对方做什么？", "你最想在什么地方做？", "你偷偷看过什么小电影？", "你最想被对方怎样对待？", "你最想让对方怎么碰你？", "你最想被对方怎样从前面抱？", "你最想让对方帮你按摩哪里？", "你最想让对方用什么绑你？", "你最想在什么地方做口？", "你最想在什么地点和对方亲热？", "你最想被对方怎么对待？", "你最想让对方帮你做什么？", "你做过最刺激的事？", "你最想被对方绑起来做什么？", "你最想在什么地方？", "你最想在什么场景？", "你最受不了对方什么眼神？"], "dares": ["趴在对方身上亲吻全身", "从对方的脖子一直亲到肚子", "趴在对方身上做俯卧撑同时亲吻", "让对方从背后抱住你亲你脖子", "让对方从脚趾亲到头顶", "含住对方的嘴唇说三个字", "让对方用舌头在你身上画画", "从背后抱住对方亲吻脖子持续15秒", "让对方把手伸进你衣服里摸10秒", "用舌头帮对方擦掉嘴角的东西", "让对方亲你的脚心10秒", "让对方亲你脚趾", "让对方骑在你脖子上", "在对方大腿内侧留下吻痕", "让对方把你公主抱然后亲吻", "在对方脖子上做吸草莓持续10秒", "让对方把你举起来贴在墙上亲", "在对方耳边吹气持续30秒", "在对方身上留下3个吻痕", "让对方帮你做全身精油按摩", "直接骑在对方身上做任何事，持续3分钟", "让对方把手放在你胸口10秒", "把脸埋在对方胸口持续10秒", "用嘴帮对方亲掉脸上的东西", "用嘴亲对方膝盖窝持续5秒", "让对方帮你做全套口的服务", "让对方骑在你身上摇晃持续1分钟", "让对方把你绑起来然后亲吻全身", "用嘴帮对方亲掉全身的水珠", "用舌头舔对方的手背持续5秒", "让对方躺在你身上10分钟不能动", "用嘴解开对方最后一颗扣子", "让对方帮你在全身盖满吻痕", "含住对方的耳垂说情话持续30秒", "让对方闻你脖子的味道", "让对方把手伸进你裤子里10秒", "趴在对方身上做50个深吻", "让对方摸你屁股10秒", "让对方帮你做全套按摩持续2分钟", "用嘴咬对方的耳朵持续5秒", "让对方看你最私密的地方", "用舌头舔对方的喉结", "用舌头舔对方的下巴", "从背后抱住对方把脸埋在头发里30秒", "在对方耳边说最羞耻的话持续1分钟", "模仿最骚的叫声", "把对方压在身下持续10秒", "用嘴帮对方脱掉上衣", "让对方用嘴帮你吹耳朵", "让对方摸你全身最敏感的地方10秒", "让对方用身体贴着你不准分开3分钟", "让对方帮你脱掉最后一件衣服", "用手帮对方按摩大腿内侧1分钟", "把对方按在墙上强吻10秒", "让对方帮你从下到上亲一遍", "让对方把你压在墙上亲吻", "用嘴含住对方的嘴唇持续10秒", "在对方胸口留下5个吻", "让对方把手放在你肚子上10秒", "在对方大腿内侧咬一口留下印记", "让对方把手伸进你衣服里到处摸", "在对方胸口写字让对方猜", "让对方在你身上打一个爱的印章", "用舌头舔对方的耳垂持续10秒", "让对方舔你的每一根手指", "让对方看你做最羞耻的事", "模仿AV里的一个动作", "在对方锁骨上留一个深深的吻痕", "用嘴帮对方解开内衣扣", "用嘴亲对方肚子持续10秒", "用手指在对方大腿上画圈圈持续30秒", "用嘴帮对方拉下拉链", "让对方帮你解开衣服", "让对方坐你腿上做任何事持续2分钟", "让对方从后面抱住你贴在一起", "让对方亲你全身最想被亲的地方", "含住对方的手指舔10秒", "让对方帮你穿上衣服一件件穿", "用舌头舔对方的锁骨持续15秒", "趴在对方耳边喘气30秒", "在对方胸口做30秒的呼吸", "在对方耳边说最骚的情话持续30秒", "让对方骑在你身上做任何事持续2分钟", "让对方公主抱你持续30秒", "让对方在你耳边连续说10句骚话", "让对方在你身上骑5分钟", "用手托住对方屁股10秒", "用嘴亲对方肚脐持续10秒", "抱着对方摇晃持续1分钟", "在对方手心写一个字让TA猜", "背对背贴在一起持续30秒", "给对方一个长达10秒的法式热吻", "让对方躺在你腿上5分钟", "帮对方吹头发持续2分钟", "让对方靠在你怀里看电视", "和对方互相喂水果吃5分钟", "把对方壁咚10秒", "和对方一起做一个爱心", "用脸蹭对方的脸持续15秒", "帮对方脱鞋子和袜子", "帮对方梳头持续2分钟", "亲对方的额头3次", "从背后环抱对方持续30秒", "抱着对方做5个深蹲", "让对方躺在你怀里10分钟", "在对方肩膀上靠5分钟", "牵着对方的手10秒不许说话", "帮对方揉肚子持续1分钟", "帮对方整理衣领同时深情对视", "亲对方额头持续15秒", "帮对方擦嘴持续10秒", "让对方公主抱你持续10秒", "让对方趴你身上休息5分钟", "和对方十指相扣持续30秒", "帮对方穿鞋子", "帮对方洗脸持续30秒", "面对面坐在一起10秒不能动", "公主抱对方持续30秒", "帮对方按摩手臂持续2分钟", "在对方耳朵边吹气5秒", "让对方帮你暖手30秒", "让对方帮你吹眼睛", "让对方坐在你腿上聊天5分钟", "用额头贴着对方额头持续30秒", "和对方脸贴脸持续30秒", "用双手捧着对方的脸亲一口", "含情脉脉对视30秒", "帮对方按摩肩膀5分钟", "让对方靠在你肩膀上10分钟", "互相喂对方吃东西持续30秒", "把对方举高高10秒", "背对方走10步", "把对方抱起来转3圈", "用鼻子蹭对方的鼻子持续10秒", "抱着对方转3圈", "在对方脖子上种一个草莓", "把对方背起来走20步", "在对方耳边说悄悄话持续1分钟", "亲对方额头5秒", "和对方拥抱30秒", "让对方坐在你旁边紧贴着", "和对方脸贴脸10秒", "背对方走10步", "在对方耳边吹一口气", "让对方靠在你身上看手机", "帮对方吹凉食物", "和对方一起跳舞30秒", "帮对方整理衣领", "让对方公主抱你走5步", "和对方一起做一个爱心拍照", "把对方的手放在你口袋里取暖", "和对方一起做爱心蛋糕", "和对方互相喂一口吃的", "让对方帮你吹汤", "在对方手背亲一口", "帮对方盖好被子", "让对方帮你擦汗", "让对方帮你暖手", "让对方靠着你肩膀10分钟", "坐在对方腿上聊天5分钟", "在对方耳边说情话30秒", "帮对方按摩肩膀3分钟", "让对方躺在你腿上闭眼休息", "含情脉脉对视30秒", "帮对方按摩脚踝", "让对方公主抱你10秒", "牵着对方的手走一圈", "帮对方戴上/摘下饰品", "让对方躺在你腿上5分钟", "帮对方按摩手指1分钟", "帮对方按摩脖子", "抱着对方轻轻摇晃", "把对方背起来", "和对方一起看星星10分钟", "在对方手心写字让TA猜", "从背后环抱对方持续30秒", "帮对方按摩小腿", "和对方深情对视10秒", "和对方一起做搞怪表情拍照", "抱着对方摇晃30秒", "把对方壁咚10秒", "帮对方揉眼睛", "和对方十指相扣持续30秒", "让对方帮你拿掉头发上的东西", "帮对方穿外套", "帮对方梳头2分钟", "抱着对方30秒", "和对方额头碰额头10秒", "帮对方按摩手掌30秒", "和对方做同款动作合影", "给对方一个飞吻", "帮对方戴好帽子", "帮对方把衣领理好", "用额头贴着对方额头3秒", "在对方耳边说一句话", "帮对方整理袖口", "帮对方擦掉嘴角的东西", "帮对方拍掉身上的灰尘", "帮对方把眼镜摘下来", "帮对方整理头发", "帮对方揉揉肩", "让对方靠着你休息5分钟", "给对方一个拥抱10秒", "牵着对方的手走10步", "和对方碰一下鼻子", "让对方靠在你肩膀上", "和对方碰杯然后干杯", "帮对方拿纸巾擦嘴"], "bombs": ["让对方从背后抱住你贴在一起", "让对方把你压在墙上亲吻", "骑在对方身上做任何事持续2分钟", "把对方按在墙上强吻10秒", "让对方亲你全身最敏感的地方", "从背后抱住对方亲吻脖子15秒", "让对方帮你全身盖满吻痕", "含住对方耳垂说情话持续30秒", "用嘴帮对方亲掉全身水珠", "在对方身上骑5分钟", "让对方帮你从下到上亲一遍", "含住对方的嘴唇持续10秒", "让对方在你耳边喘气30秒", "让对方在你身上骑着做任何事", "让对方把你绑起来然后亲吻全身", "让对方把你举起来贴墙亲", "让对方用舌头在你身上画画", "让对方看你的全身30秒", "让对方把手伸进你衣服里摸10秒", "用舌头舔对方耳垂持续10秒", "让对方骑在你身上持续1分钟", "让对方在你胸口做呼吸30秒", "让对方帮你做全套按摩2分钟", "让对方摸你全身最敏感的地方", "让对方看最私密的地方", "让对方看你做最羞耻的事", "让对方在你身上留下5个吻痕", "让对方帮你脱掉最后一件衣服", "让对方舔你每一根手指", "用嘴帮对方解开内衣扣", "在对方耳边连续说10句骚话", "让对方用手托住你屁股10秒", "把对方公主抱然后一起倒在床上", "让对方从脚趾亲到头顶", "让对方用身体贴着你不分开3分钟", "让对方帮你做口的服务1分钟", "让对方坐你腿上做任何事1分钟", "让对方用嘴帮你亲耳朵", "让对方亲你脚趾10秒", "在对方锁骨上留一个深深的吻痕"], "kings": ["命令1号帮3号暖手30秒", "命令1号坐在3号腿上聊天5分钟", "命令3号和4号互相喂吃的30秒", "命令1号公主抱3号转一圈", "命令1号帮3号按摩脚趾1分钟", "命令1号把3号举高高10秒", "命令4号帮1号盖好被子", "命令2号和3号背对背贴在一起30秒", "命令3号和5号互相喂水果吃3分钟", "命令4号帮2号吹凉食物", "命令5号帮1号戴上饰品", "命令2号和3号碰鼻子10秒", "命令1号和3号一起做爱心", "命令1号和5号一起跳舞30秒", "命令2号让1号靠肩膀上5分钟", "命令4号帮1号按摩脚踝1分钟", "命令2号和3号面对面坐10秒", "命令5号帮1号梳头2分钟", "命令4号从背后环抱2号30秒", "命令3号背2号走10步", "命令5号帮2号整理衣领并深情对视", "命令4号靠在1号肩膀上5分钟", "命令3号帮1号按摩肩膀3分钟", "命令5号让3号躺在腿上5分钟", "命令1号帮4号按摩手掌30秒", "命令1号和4号拥抱30秒", "命令2号帮3号按摩小腿2分钟", "命令2号在3号耳边说情话30秒", "命令1号把3号壁咚10秒", "命令2号和3号当众热吻15秒", "命令5号在2号耳边吹气5秒", "命令4号让2号靠着休息10分钟", "命令3号帮4号按摩大腿2分钟", "命令1号帮5号整理头发", "命令2号亲1号额头5秒", "命令2号和4号额头贴在一起30秒", "命令3号帮1号暖脚30秒", "命令4号帮1号穿鞋子", "命令1号帮4号按摩手臂2分钟", "命令4号帮2号擦嘴10秒", "命令1号和3号手牵手走一圈", "命令2号帮4号按摩脖子2分钟", "命令3号和5号一起看星星10分钟", "命令2号在1号手背亲一口", "命令5号坐在1号腿上聊天3分钟", "命令2号和4号抱在一起转3圈", "命令1号和5号脸贴脸30秒", "命令3号帮2号拿掉头发上的东西", "命令2号和5号十指相扣10秒", "命令1号帮2号按摩手指1分钟"], "punishes": ["让对方看你的全身30秒", "让对方帮你做全套服务1分钟", "让对方帮你脱掉最后一件衣服", "在对方胸口做深呼吸30秒", "让对方把你举起来贴在墙上亲", "让对方用嘴帮你亲耳朵", "让对方用身体贴着你不分开3分钟", "让对方把你公主抱然后亲吻", "让对方从脚趾亲到头顶", "让对方骑在你身上1分钟", "含住对方嘴唇10秒", "从后面抱住对方亲脖子15秒", "在对方锁骨上留吻痕", "骑在对方身上持续2分钟", "让对方在你耳边连续说10句骚话", "让对方摸你大腿内侧1分钟", "让对方在你身上骑着做任何事", "让对方坐你腿上做任何事", "让对方用舌头在你身上画画", "让对方亲你全身最敏感的部位", "让对方帮你做口的服务1分钟", "让对方从下到上亲你一遍", "让对方在你脖子上留下3个吻痕", "用嘴帮对方脱上衣", "让对方在你全身盖满吻痕", "在对方耳边喘气30秒", "让对方舔你每根手指", "让对方把你压在身下10秒", "含住对方耳垂30秒", "让对方把脸埋在你胸口10秒", "让对方用手托住你屁股10秒", "把对方按在墙上亲10秒", "在对方身上留下5个吻痕", "让对方从背后抱住你贴在一起3分钟", "让对方帮你全身按摩2分钟", "让对方看你最私密的地方", "让对方在你身上骑5分钟", "让对方帮你全身精油按摩", "让对方把你绑起来亲吻全身", "让对方看你做最羞耻的事"]};
 
-const GAMES = [
-  {id:'truth_dare',name:'真心话大冒险',icon:'💜',desc:'转盘决定，刺激问答+亲密惩罚',color:'#9b59b6'},
-  {id:'number_bomb',name:'数字炸弹',icon:'💣',desc:'猜数字踩雷就爆炸',color:'#e74c3c'},
-  {id:'dice',name:'骰子大冒险',icon:'🎲',desc:'摇骰子决定谁受罚',color:'#3498db'},
-  {id:'king',name:'国王游戏',icon:'👑',desc:'国王命令，亲密互动',color:'#f39c12'},
-  {id:'tissue',name:'传纸条',icon:'🧻',desc:'越传越短的暧昧纸巾',color:'#e67e22'},
-  {id:'guess',name:'你比我猜',icon:'🤫',desc:'暧昧词语限时挑战',color:'#1abc9c'},
-  {id:'heartbeat',name:'心跳告白',icon:'💓',desc:'三阶升温，越玩越甜',color:'#e91e63'},
-  {id:'rps',name:'石头剪刀布',icon:'✊',desc:'输了接受赢的指定惩罚',color:'#2ecc71'},
-  {id:'blind',name:'蒙眼寻宝',icon:'🙈',desc:'蒙眼摸猜部位',color:'#8e44ad'},
-  {id:'punish',name:'惩罚大转盘',icon:'🎡',desc:'20格转盘，命运不可控',color:'#e74c3c'},
-  {id:'whisper',name:'悄悄话挑战',icon:'🤫',desc:'3厘米耳语，心跳加速',color:'#ff6b9d'},
+const GAMES=[
+{id:'td',icon:'💜',name:'真心话大冒险',desc:'先选大冒险还是真心话，然后转盘决定具体内容'},
+{id:'bomb',icon:'💣',name:'数字炸弹',desc:'1-100猜数字，踩中炸弹接受惩罚'},
+{id:'dice',icon:'🎲',name:'骰子大冒险',desc:'摇骰子决定命运'},
+{id:'king',icon:'👑',name:'国王游戏',desc:'抽到K的人是国王'},
+{id:'guess',icon:'🤫',name:'你比我猜',desc:'60秒内猜出尽可能多的暧昧词'},
+{id:'heart',icon:'💓',name:'心跳告白',desc:'三阶升温挑战'},
+{id:'rps',icon:'✊',name:'石头剪刀布',desc:'输的人接受惩罚'},
+{id:'blind',icon:'🙈',name:'蒙眼寻宝',desc:'蒙眼猜对方触碰你哪里'},
+{id:'whisper',icon:'🤫',name:'悄悄话挑战',desc:'50句暧昧耳语'},
+{id:'tissue',icon:'🧻',name:'传纸条',desc:'嘴对嘴传递纸巾'},
+{id:'punish',icon:'🎡',name:'惩罚大转盘',desc:'随机抽取刺激惩罚'}
 ];
 
-function shuffle(arr){let a=[...arr];for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function rand(arr){return arr[Math.floor(Math.random()*arr.length)]}
-function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min}
-function savePlayers(){localStorage.setItem('tg_players',JSON.stringify(players))}
-function pairPlayers(){
-  let m=players.filter(p=>p.gender==='male'),f=players.filter(p=>p.gender==='female'),pairs=[];
-  let minLen=Math.min(m.length,f.length);
-  for(let i=0;i<minLen;i++)pairs.push({male:m[i],female:f[i]});
-  return pairs;
-}
-function getPlayerAvatar(p){return p.gender==='male'?'👨':'👩'}
-function showPage(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-}
-function showTab(id){
-  document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-}
-function renderPlayerBar(containerId){
-  let el=document.getElementById(containerId);if(!el)return;
-  el.innerHTML=players.map(p=>`<div class="player-chip ${p.gender}"><div class="avatar">${getPlayerAvatar(p)}</div>${p.name}</div>`).join('');
-}
-function switchTab(t){
-  if(t==='list'){
-    if(players.length===0){showPage('reg');showTab('list')}
-    else{showPage('list');renderGameList();renderPlayerBar('player-bar')}
-  }else if(t==='add'){
-    showPage('add');showTab('add')
-  }
-}
+let players=[],selG=null,curGame=null;
 
-// ============ REGISTRATION ============
-let selectedGender='male';
-function selectGender(g){
-  selectedGender=g;
-  document.querySelectorAll('#page-reg .gender-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('#page-reg .gender-btn.'+g).classList.add('active');
-}
-function selectAddGender(g){
-  addGender=g;
-  document.querySelectorAll('#page-add .gender-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('#page-add .gender-btn.'+g).classList.add('active');
-}
+/* ===== 工具 ===== */
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function randItem(a){return a[Math.floor(Math.random()*a.length)]}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.className='toast show';setTimeout(()=>t.className='toast',2000)}
+function renderBar(){let h='';players.forEach((p,i)=>{h+=`<div class="player-chip"><span class="chip-av" style="background:${p.g==='male'?'#3498db':'#e040fb'}">${p.g==='male'?'♂':'♀'}</span>${p.name}</div>`});document.getElementById('pBar').innerHTML=h}
+function getRandPlayer(){return players.length?randItem(players):{name:'玩家',g:'male'}}
+
+/* ===== 注册 ===== */
+let regGender=null;
+function selGender(el){document.querySelectorAll('.gender-btn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');regGender=el.textContent.includes('男')?'male':'female'}
 function addPlayer(){
-  let name=document.getElementById('reg-name').value.trim();
-  if(!name){alert('请输入昵称');return}
-  players.push({name,gender:selectedGender});
-  savePlayers();
-  document.getElementById('reg-name').value='';
-  renderRegList();
+  let name=document.getElementById('regName').value.trim();
+  if(!name){toast('请输入昵称');return}
+  if(!regGender){toast('请选择性别');return}
+  if(players.find(p=>p.name===name)){toast('昵称已存在');return}
+  players.push({name,g:regGender});
+  document.getElementById('regName').value='';
+  document.querySelectorAll('.gender-btn').forEach(b=>b.classList.remove('sel'));
+  regGender=null;
+  renderPList();
 }
-function doAddPlayer(){
-  let name=document.getElementById('add-name').value.trim();
-  if(!name){alert('请输入昵称');return}
-  players.push({name,gender:addGender});
-  savePlayers();
-  document.getElementById('add-name').value='';
-  alert(name+' 已加入！');
-}
-function removePlayer(i){
-  players.splice(i,1);savePlayers();renderRegList();
-}
-function renderRegList(){
-  let el=document.getElementById('player-list-reg');
-  if(!players.length){el.innerHTML='<div class="empty-msg">还没有玩家，先添加至少1人</div>';return}
-  el.innerHTML='<div class="section-title">已加入的玩家 ('+players.length+'人)</div>'+
-    players.map((p,i)=>`<div class="player-chip ${p.gender}" style="display:inline-flex;margin:4px"><div class="avatar">${getPlayerAvatar(p)}</div>${p.name}<span onclick="removePlayer(${i})" style="margin-left:6px;cursor:pointer;opacity:0.6">✕</span></div>`).join('');
-}
-function startPlay(){
-  if(players.length===0){alert('请先添加至少1位玩家');return}
-  showPage('list');renderGameList();renderPlayerBar('player-bar');
+function delPlayer(i){players.splice(i,1);renderPList()}
+function renderPList(){
+  let h='';players.forEach((p,i)=>{
+    h+=`<div class="player-item"><div class="av" style="background:${p.g==='male'?'#3498db':'#e040fb'}">${p.g==='male'?'♂':'♀'}</div><div class="info">${p.name}</div><div class="del" onclick="delPlayer(${i})">✕</div></div>`;
+  });
+  document.getElementById('pList').innerHTML=h;
+  document.getElementById('startBtn').style.display=players.length>=1?'block':'none';
 }
 
-// ============ GAME LIST ============
-function renderGameList(){
-  let el=document.getElementById('game-list');
-  el.innerHTML=GAMES.map(g=>`<div class="game-card" onclick="openGame('${g.id}')"><div class="icon" style="background:${g.color}22">${g.icon}</div><div class="info"><h3>${g.name}</h3><p>${g.desc}</p></div></div>`).join('');
-}
-function openGame(id){
-  currentGame=id;
-  showPage('game');renderPlayerBar('player-bar-game');
-  renderGameContent(id);
-}
-function goBack(){
-  currentGame=null;
-  showPage('list');renderGameList();renderPlayerBar('player-bar');
-}
-function goBackToGame(){
-  if(currentGame){showPage('game')}
-  else{showPage('list');renderGameList()}
+/* ===== 游戏列表 ===== */
+function goGames(){
+  if(players.length<1){toast('请先添加玩家');return}
+  showPage('gameListPage');
+  document.getElementById('glSub').textContent=players.length+'位玩家就绪';
+  let h='';GAMES.forEach(g=>{
+    h+=`<div class="game-card" onclick="startGame('${g.id}')"><div class="icon">${g.icon}</div><div class="name">${g.name}</div><div class="desc">${g.desc}</div></div>`;
+  });
+  document.getElementById('gameGrid').innerHTML=h;
 }
 
+/* ===== 开始游戏 ===== */
+function startGame(id){
+  curGame=id;showPage('gamePage');renderBar();
+  let g=GAMES.find(x=>x.id===id);
+  document.getElementById('gTitle').textContent=g.icon+' '+g.name;
+  let c=document.getElementById('gContent');
+  if(id==='td') renderTD(c);
+  else if(id==='bomb') renderBomb(c);
+  else if(id==='dice') renderDice(c);
+  else if(id==='king') renderKing(c);
+  else if(id==='guess') renderGuess(c);
+  else if(id==='heart') renderHeart(c);
+  else if(id==='rps') renderRPS(c);
+  else if(id==='blind') renderBlind(c);
+  else if(id==='whisper') renderWhisper(c);
+  else if(id==='tissue') renderTissue(c);
+  else if(id==='punish') renderPunish(c);
+}
 
-const TRUTHS = [
-"你第一次看到对方身体是什么感觉？","你偷偷幻想过和对方做什么？","你最喜欢对方身体哪个部位？","你在什么场合最想吻对方？","你做过最暧昧的春梦里有对方吗？","你和对方最亲密的接触是怎样的？","你晚上想对方会做什么？","你偷偷拍过对方的照片吗？","你想在哪里和对方发生第一次？","对方做什么你会瞬间脸红？","你闻过对方的衣物吗？什么感受？","你想和对方尝试哪些刺激的事？","你觉得对方在床上会是什么风格？","你在什么情况下会对对方有冲动？","你最想对对方做的最过分的事是什么？","你觉得对方的嘴唇尝起来什么味道？","你幻想过和对方在哪些地方亲热？","你最喜欢对方穿什么？","你摸过对方的大腿吗？什么感觉？","你想听对方在你耳边说什么？","你和对方接吻时脑子里在想什么？","你最想和对方尝试什么没做过的事？","你觉得对方的体香是什么味道？","你在什么时候最想抱住对方？","你想在对方身上留下什么印记？","你偷看过对方洗澡吗？","你最想和对方在什么地方亲热？","你觉得对方会喜欢什么方式的亲密？","你想听对方叫你什么亲密称呼？","你最渴望对方对你做什么？","你和对方分开时最想做什么？","你觉得对方嘴唇的触感怎么样？","你最想在哪天给对方惊喜？","你会在意对方的身材变化吗？","你最想和对方一起体验什么新事物？","你觉得对方的拥抱温暖吗？","你想在什么气氛下和对方亲热？","你最想要对方怎样亲你？","你会因为对方的什么举动想亲对方？","你最渴望的身体接触是什么？","你想在哪里留下和对方的回忆？","你觉得和对方亲热需要什么氛围？","你想给对方一个什么样的惊喜？","你最想对方怎么夸你？","你觉得对方看到你裸体会怎样？","你会在对方面前故意撒娇吗？","你最喜欢对方亲你哪里？","你想让对方怎么撩你？","你会主动牵对方的手吗？为什么？","你想和对方一起看什么类型的电影？","你觉得对方最性感的时刻是什么时候？","你想和对方一起泡澡吗？","你在对方身上最想闻到什么气味？","你会给对方写情书吗？会写什么？","你觉得接吻最舒服的姿势是什么？","你想对方用什么方式叫你起床？","你想和对方一起做什么疯狂的事？","你觉得对方穿什么最性感？","你最想在什么节日和对方庆祝？","你想和对方一起做什么刺激的事？"
-];
-
-const DARES = [
-{text:"亲吻对方脸颊10秒",star:2},{text:"公主抱对方15秒",star:2},{text:"十指相扣对视30秒",star:2},{text:"在对方耳边吹一口气",star:2},{text:"帮对方按摩肩膀1分钟",star:3},{text:"用身体写一个字让对方猜",star:3},{text:"轻轻咬对方耳垂5秒",star:3},{text:"在对方脖子上亲一口",star:3},{text:"从背后抱住对方5秒",star:3},{text:"轻舔对方手指",star:4},{text:"面对面坐对方腿上10秒",star:4},{text:"在对方锁骨上留一个吻痕",star:4},{text:"对方坐你腿上30秒",star:4},{text:"含住对方耳垂说话",star:4},{text:"用舌头舔对方手掌",star:4},{text:"亲吻对方的额头10秒",star:3},{text:"在对方耳边说3句情话",star:3},{text:"互相按摩大腿2分钟",star:4},{text:"让对方蒙眼抚摸你的脸",star:3},{text:"用膝盖顶住对方的背做俯卧撑",star:4},{text:"把对方压在墙上亲吻15秒",star:5},{text:"和对方舌吻10秒",star:5},{text:"让对方骑在你身上做俯卧撑10个",star:5},{text:"含住对方的嘴唇轻轻吮吸",star:5},{text:"在对方身上最敏感的部位亲一口",star:5},{text:"让对方坐在你腿上摇晃30秒",star:5},{text:"帮对方脱掉一件衣服",star:5},{text:"用舌头从对方脖子舔到锁骨",star:5},{text:"互相咬嘴唇10秒",star:4},{text:"趴对方身上1分钟不能动",star:5},{text:"用舌头画对方的手指",star:4},{text:"亲吻对方的眼睛、鼻子、嘴唇各5秒",star:4},{text:"让对方把手伸进你衣服里10秒",star:5},{text:"在对方胸口画圈圈",star:5},{text:"背对对方坐他腿上10秒",star:4},{text:"轻轻抚摸对方的大腿内侧",star:5},{text:"和对方舌吻30秒",star:5},{text:"让对方把头埋进你怀里10秒",star:4},{text:"按对方的指示做任何事持续1分钟",star:5}
-];
-
-const BOMB_PUNISH = [
-"坐对方腿上2分钟","在对方锁骨上留吻痕","和对方舌吻15秒","含住对方耳垂说话","让对方骑在你身上","帮对方脱一件衣服","用舌头舔对方手掌","互相按摩大腿2分钟","在对方胸口画圈","把头埋进对方怀里","轻咬对方耳垂10秒","用嘴喂对方喝水","对方坐你腿上30秒","从背后抱住对方耳语","互相含住嘴唇吮吸","让对方蒙眼摸你的脸","在对方脖子种草莓","让对方坐在你腿上摇","用舌头画对方手指","趴对方身上不能动","亲吻对方眼睛鼻子嘴唇","让对方把手伸进衣服","在对方胸口画圈圈","背对坐对方腿上","轻轻抚摸大腿内侧","和对方舌吻30秒","帮对方解开一颗扣子","用舌头从脖子舔到锁骨","互相咬嘴唇10秒","用膝盖顶住对方做俯卧撑","含住对方嘴唇吮吸10秒","在对方身上最敏感部位亲","按对方指示做任何事1分钟","在对方耳边轻声叫名字","坐在对方腿上扭动30秒","用手捧着对方的脸对视30秒"
-];
-
-const DICE_ACTS = [
-"给对方一个拥抱","亲对方额头","帮对方按肩膀","在对方耳边说情话","做10个深蹲","唱歌给对方听","模仿动物叫","喝3口水","给对方喂吃的","猜对方今天穿什么颜色内衣","给对方一个大大的吻","让对方捏你脸10秒","学对方说话方式","跳一段性感舞蹈","摆3个卖萌pose","学3种撒娇方式","模仿对方的招牌动作","对对方说3句肉麻情话","给对方按摩脚","让对方随便在你脸上画画","和对方额头贴额头30秒","给对方一个公主抱","模仿对方笑的声音","猜对方最喜欢的亲密动作","让对方摸你的头说喜欢你","用眼神和对方对视30秒不许笑","用气声给对方念一段情话","用手指在对方手心写字让对方猜","把对方当人肉靠枕趴1分钟","轻轻拽对方衣角撒娇","让对方双手捧着你的脸","趴在对方背上30秒","用鼻尖蹭对方的脸","轻轻亲一下对方的下巴","从背后环抱住对方10秒","用嘴唇轻触对方手心","用脸蹭对方的肩膀","学婴儿哭然后说要抱抱","用手指轻轻划过对方嘴唇","用嘴唇蹭对方的耳垂","亲对方的眉心","让对方用下巴蹭你的头","用手托着对方下巴亲一口","把脸贴在对方颈窝里","用牙齿轻轻咬对方肩膀","用手指穿过对方头发轻轻拉","让对方把耳朵凑过来你说悄悄话","轻轻弹一下对方额头然后亲一下","用嘴唇蹭对方耳垂5秒","趴在对方腿上撒娇"
-];
-
-const KING_CMDS = [
-{p1:true,text:"公主抱对方15秒"},{p1:true,text:"亲吻对方的脸颊"},{p1:true,text:"从背后抱住对方30秒"},{p1:true,text:"把对方抱在怀里"},{p1:true,text:"帮对方整理头发"},{p1:true,text:"背对方走5步"},{p1:true,text:"亲吻对方额头"},{p1:true,text:"含住对方耳垂说情话"},{p1:true,text:"帮对方按摩肩膀"},{p1:true,text:"抱着对方轻轻摇晃"},{p1:true,text:"坐在对方腿上10秒"},{p1:true,text:"亲吻对方的锁骨"},{p1:true,text:"用舌头舔对方手掌"},{p1:true,text:"互相含住嘴唇5秒"},{p1:true,text:"让对方坐在你腿上"},{p1:true,text:"帮对方解开一颗扣子"},{p1:true,text:"在对方耳边吹气"},{p1:true,text:"用膝盖顶住对方做俯卧撑"},{p1:true,text:"趴对方身上不能动1分钟"},{p1:true,text:"互相按摩大腿2分钟"},{p1:true,text:"在对方胸口画圈"},{p1:true,text:"用舌头画对方手指"},{p1:true,text:"含住对方嘴唇吮吸"},{p1:true,text:"在对方脖子种草莓"},{p1:true,text:"让对方骑在你身上"},{p1:true,text:"帮对方脱一件衣服"},{p1:true,text:"和对方舌吻15秒"},{p1:true,text:"按对方指示做任何事30秒"},{p1:true,text:"面对面坐对方腿上30秒"},{p1:true,text:"轻轻咬对方耳垂5秒"},{p1:true,text:"用舌头从脖子舔到锁骨"},{p1:true,text:"把对方压在墙上亲吻"},{p1:true,text:"互相摸对方的脸10秒"},{p1:true,text:"用手捧着对方的脸对视"},{p1:true,text:"让对方把手伸进你衣服里"},{p1:true,text:"背对对方坐他腿上"},{p1:true,text:"轻轻抚摸大腿内侧"},{p1:true,text:"让对方蒙眼摸你的脸"},{p1:true,text:"在对方耳朵上亲一口"},{p1:true,text:"用嘴唇蹭对方耳垂"},{p1:true,text:"和对方额头贴30秒"},{p1:true,text:"亲对方的眉心"},{p1:true,text:"让对方抱着你说爱你"},{p1:true,text:"用脸蹭对方的颈窝"},{p1:true,text:"轻轻拽对方衣角撒娇"},{p1:true,text:"用鼻尖蹭对方的脸"},{p1:true,text:"让对方双手捧着你的脸"},{p1:true,text:"给对方一个最温柔的拥抱"},{p1:true,text:"用膝盖顶住对方做俯卧撑"}
-];
-
-const GUESS_WORDS = ["壁咚","公主抱","亲亲","暧昧短信","牵手","拥抱","摸头","撩头发","暧昧","撒娇","脸红","心跳加速","吃醋","同居","偷亲","早安吻","晚安吻","共浴","调情","挑逗","眼神拉丝","接吻","亲密","缠绵","耳鬓厮磨","十指相扣","热吻","情话","撩","甜言蜜语","含情脉脉","怦然心动","如胶似漆","干柴烈火","亲吻","拥抱","牵手","壁咚","公主抱","偷亲","摸头","撩","脸红","吃醋","共浴"];
-
-const HEART_STAGES = [
-{name:"指尖轻触",time:10,prompt:"轻轻牵起对方的手，十指相扣，感受彼此的心跳",actions:["十指相扣牵手","手心贴着手心","轻轻挠手心","用手指在对方手心画圈","握手时拇指摩挲对方手背"]},
-{name:"摇篮拥抱",time:15,prompt:"从背后轻轻环抱住对方，下巴搁在对方肩膀上，感受彼此的体温",actions:["从背后环抱","下巴搁肩膀","轻轻摇晃","在耳边呼吸","轻轻蹭头发"]},
-{name:"额头之吻",time:20,prompt:"捧着对方的脸，看着彼此的眼睛，慢慢靠近，在额头上留下一个温柔的吻",actions:["额头之吻","鼻尖碰鼻尖","对视不许笑","慢慢靠近额头","额头贴额头呼吸"]}
-];
-
-const RPS_PUNISH = [
-"输的人要亲赢家的脸","输的人要抱住赢家10秒","输的人要夸赢家3句情话","输的人要模仿赢家笑","输的人要给赢家按摩肩膀","输的人要学3种撒娇","输的人要喝一杯水","输的人要给赢家一个大大的拥抱","输的人要说5句肉麻情话","输的人要在赢家耳边吹气","输的人要被赢家捏脸10秒","输的人要含住赢家耳垂","输的人要趴在赢家腿上1分钟","输的人要在赢家脖子上亲一口","输的人要让赢家骑在身上","输的人要帮赢家脱一件衣服","输的人要和赢家舌吻10秒","输的人要让赢家坐在腿上","输的人要按赢家指示做任何事30秒","输的人要在赢家胸口画圈","输的人要互相含住嘴唇","输的人要轻轻舔赢家手指","输的人要让赢家蒙眼摸脸","输的人要在赢家锁骨留吻痕","输的人要趴在赢家身上不能动","输的人要让赢家把手伸进衣服","输的人要背对坐赢家腿上","输的人要轻轻抚摸赢家大腿","输的人要从背后环抱赢家","输的人要面对面坐赢家腿上","输的人要帮赢家按摩大腿","输的人要在赢家耳边说情话","输的人要含住赢家嘴唇吮吸","输的人要亲吻赢家眉心","输的人要用舌头舔赢家手掌","输的人要用脸蹭赢家颈窝","输的人要轻轻咬赢家耳垂","输的人要面对面坐赢家腿上30秒","输的人要互相揉对方的脸","输的人要让赢家指定一个惩罚"
-];
-
-const BLIND_PARTS = ["脸颊","耳朵","脖子","手背","手臂","肩膀","锁骨","大腿","膝盖","额头","嘴唇","鼻子","下巴","头发","小腿","脚踝","手指","脖子后面","耳垂","肩膀"];
-const BLIND_TOUCH = ["轻轻抚摸","画圈圈","轻抚","用手掌覆盖","用手指划过","轻捏","轻轻揉","慢慢摸","用指尖触碰","用嘴唇碰"];
-
-const PUNISH_LIST = [
-{text:"坐在他腿上2分钟",emoji:"🪑"},{text:"亲吻对方的锁骨",emoji:"💋"},{text:"和对方舌吻10秒",emoji:"👅"},{text:"含住对方耳垂说话",emoji:"👂"},{text:"让对方骑在你身上",emoji:"🏃"},{text:"帮对方脱一件衣服",emoji:"👕"},{text:"用舌头舔对方手掌",emoji:"🤲"},{text:"互相按摩大腿2分钟",emoji:"💆"},{text:"在对方胸口画圈圈",emoji:"⭕"},{text:"把头埋进对方怀里10秒",emoji:"🤗"},{text:"轻咬对方耳垂5秒",emoji:"🦷"},{text:"用嘴喂对方喝水",emoji:"💧"},{text:"背对坐对方腿上10秒",emoji:"🪑"},{text:"从背后抱住对方耳语",emoji:"👂"},{text:"互相含住嘴唇吮吸",emoji:"💋"},{text:"让对方蒙眼摸你的脸",emoji:"🙈"},{text:"在对方脖子种草莓",emoji:"🍓"},{text:"让对方坐在你腿上摇",emoji:"🪑"},{text:"用舌头画对方手指",emoji:"👅"},{text:"趴对方身上不能动1分钟",emoji:"🛏️"},
-{text:"亲吻对方眼睛鼻子嘴唇",emoji:"💋"},{text:"让对方把手伸进你衣服里",emoji:"👕"},{text:"在对方锁骨留吻痕",emoji:"💋"},{text:"用膝盖顶住对方做俯卧撑",emoji:"💪"},{text:"和对方舌吻30秒",emoji:"👅"},{text:"面对面坐对方腿上30秒",emoji:"🪑"},{text:"让对方坐你腿上30秒",emoji:"🪑"},{text:"帮对方解开一颗扣子",emoji:"👕"},{text:"用舌头从脖子舔到锁骨",emoji:"👅"},{text:"互相咬嘴唇10秒",emoji:"💋"},
-{text:"按对方指示做任何事1分钟",emoji:"🎯"},{text:"在对方耳朵上亲一口",emoji:"💋"},{text:"轻轻抚摸大腿内侧",emoji:"🤲"},{text:"把对方压在墙上亲吻15秒",emoji:"🧱"},{text:"让对方双手捧着你的脸",emoji:"🤲"},{text:"用鼻尖蹭对方的脸",emoji:"👃"},{text:"趴在对方腿上撒娇",emoji:"🥺"},{text:"给对方一个温柔的拥抱",emoji:"🤗"},{text:"用嘴唇蹭对方耳垂",emoji:"💋"},{text:"背对对方坐腿上摇30秒",emoji:"🪑"}
-];
-
-const WHISPER_WORDS = ["我想和你一起洗澡","你身上好香","今晚我想和你睡","你好性感","我想亲你","你的嘴唇好软","我想抱你","你的眼睛好迷人","你穿这样是想勾引我吗","我想要你","你的声音好性感","你好想吃你","你今天好香","我想摸你","你让我好心动","我好喜欢听你叫我的名字","你好想在你耳边说情话","你的身体好温暖","我想吻你全身","你好想看你现在的样子","你知道你有多性感吗","我想从背后抱着你","你好想躺在你怀里","你的锁骨好性感","我想抱着你睡","你好想牵你的手","你让我脸红了","你的手好大好温暖","你好想和你待在一起","我想听你的心跳","你是我见过最性感的人","我想亲你的脖子","你的呼吸好热","我想抱着你轻轻摇","你好想在你腿上坐一会","我想听你叫我宝贝","你笑起来好可爱","我想和你十指相扣","你的味道让我上瘾","我想在你怀里赖一会","你好想在你耳边吹气","你今天特别好看","我想给你一个大大的拥抱","你好想看你的腹肌","我想从背后抱住你","你今天穿得好好看","我好想你","你的嘴唇好想亲","我想和你独处","你好想被你抱着"]
-
-
-function renderGameContent(id){
-  let el=document.getElementById('game-content');
-  switch(id){
-    case 'truth_dare':renderTruthDare(el);break;
-    case 'number_bomb':renderNumberBomb(el);break;
-    case 'dice':renderDice(el);break;
-    case 'king':renderKing(el);break;
-    case 'tissue':renderTissue(el);break;
-    case 'guess':renderGuess(el);break;
-    case 'heartbeat':renderHeartbeat(el);break;
-    case 'rps':renderRPS(el);break;
-    case 'blind':renderBlind(el);break;
-    case 'punish':renderPunishWheel(el);break;
-    case 'whisper':renderWhisper(el);break;
+/* ===== Canvas转盘绘制 ===== */
+function drawWheel(canvas,items,colors){
+  let ctx=canvas.getContext('2d');
+  let W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,R=W/2-8,n=items.length;
+  ctx.clearRect(0,0,W,H);
+  // 外圈灯泡
+  for(let i=0;i<24;i++){
+    let a=(i/24)*Math.PI*2-Math.PI/2;
+    let bx=cx+Math.cos(a)*(R+4),by=cy+Math.sin(a)*(R+4);
+    ctx.beginPath();ctx.arc(bx,by,4,0,Math.PI*2);
+    ctx.fillStyle=i%2===0?'#ffd700':'#ff6b9d';ctx.fill();
+  }
+  // 扇形
+  let arc=Math.PI*2/n;
+  for(let i=0;i<n;i++){
+    let sa=arc*i-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,sa,sa+arc);ctx.closePath();
+    ctx.fillStyle=colors[i%colors.length];ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
+    // 文字
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(sa+arc/2);
+    ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    let txt=items[i];
+    if(txt.length>8) txt=txt.substring(0,7)+'…';
+    ctx.fillText(txt,R*0.62,0);
+    ctx.restore();
   }
 }
 
-// ============ 1. TRUTH OR DARE ============
-let TD_COLORS=['#e74c3c','#9b59b6','#3498db','#2ecc71','#f39c12','#e67e22','#1abc9c','#e91e63'];
-let WHEEL_SIZE=8;
-
-function renderTruthDare(el){
-  el.innerHTML=`
-    <div class="game-title">💜 真心话大冒险</div>
-    <div class="game-desc">转盘决定命运！${WHEEL_SIZE}格随机惩罚</div>
-    <div class="player-bar" id="td-players"></div>
-    <div class="btn-row">
-      <button class="btn-choice truth" onclick="startWheel('truth')">💜 真心话转盘</button>
-      <button class="btn-choice dare" onclick="startWheel('dare')">🔥 大冒险转盘</button>
-    </div>
-    <div class="wheel-wrap" id="td-wheel-wrap" style="display:none">
-      <div class="wheel-pointer"></div>
-      <div class="wheel-container" id="td-wheel"></div>
-      <div class="wheel-center" id="td-spin-btn" onclick="spinWheel()">GO</div>
-    </div>
-    <div id="td-result"></div>`;
-  renderPlayerBar('td-players');
+/* ===== 1. Truth + Dare combined wheel ===== */
+function renderTD(c){
+  var t=shuffle(GAMEDATA.truths.slice()).slice(0,4);
+  var d=shuffle(GAMEDATA.dares.slice()).slice(0,4);
+  var items=[];
+  for(var i=0;i<4;i++){items.push({text:t[i],type:'truth'});items.push({text:d[i],type:'dare'});}
+  var colors=items.map(function(x){return x.type==='truth'?'#6c2bd9':'#ff6b6b'});
+  c.innerHTML='<div class="wheel-wrap">'
+    +'<canvas id="tCanvas" width="620" height="620"></canvas>'
+    +'<div class="wheel-pointer"></div>'
+    +'<button class="wheel-go-btn" onclick="spinTDWheel()">GO</button>'
+    +'</div>'
+    +'<div class="wheel-result" id="tdResult"><div class="text">Click GO to spin</div><div class="star">Truth + Dare</div></div>'
+    +'<div class="wheel-btns">'
+    +'<button class="wheel-btn back" onclick="startGame(\'td\')">Back</button>'
+    +'</div>';
+  window._tdItems=items;window._tdAngle=0;window._tdSpinning=false;
+  setTimeout(function(){var cv=document.getElementById('tCanvas');if(cv)drawWheel(cv,items.map(function(x){return x.text}),colors)},50);
+}
+function spinTDWheel(){
+  if(window._tdSpinning)return;
+  window._tdSpinning=true;
+  var angle=1080+Math.random()*720;
+  window._tdAngle+=angle;
+  var cv=document.getElementById('tCanvas');
+  cv.style.transition='transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)';
+  cv.style.transform='rotate('+window._tdAngle+'deg)';
+  setTimeout(function(){
+    window._tdSpinning=false;
+    var items=window._tdItems;
+    var n=items.length,seg=360/n;
+    var finalAngle=window._tdAngle%360;
+    var idx=Math.floor(((360-finalAngle+seg/2)%360)/seg)%n;
+    var p=getRandPlayer();
+    var item=items[idx];
+    var icon=item.type==='truth'?'Truth':'Dare';
+    var action=item.type==='truth'?'Must answer!':'Must do it!';
+    document.getElementById('tdResult').innerHTML=
+      '<div class="text">'+item.text+'</div><div class="star">'+icon+'</div><div class="player-tag">'+p.name+' '+action+'</div>';
+  },4600);
 }
 
-let tdWheelAngle=0,tdSpinning=false,tdType='truth';
-let tdSegs=[];
-
-function startWheel(type){
-  tdType=type;tdSpinning=false;
-  let items=type==='truth'?shuffle(TRUTHS).slice(0,WHEEL_SIZE):shuffle(DARES).map(d=>d.text).slice(0,WHEEL_SIZE);
-  tdSegs=items;
-  let wrap=document.getElementById('td-wheel-wrap');
-  wrap.style.display='block';
-  renderWheelSegs('td-wheel',tdSegs);
-  tdWheelAngle=0;
-  document.getElementById('td-wheel').style.transform='rotate(0deg)';
-  document.getElementById('td-result').innerHTML='';
-}
-
-function renderWheelSegs(containerId,segs){
-  let el=document.getElementById(containerId);
-  let angle=360/segs.length;
-  el.innerHTML=segs.map((s,i)=>{
-    let a=i*angle;
-    return `<div class="wheel-seg" style="transform:rotate(${a}deg);border-left:140px solid transparent;border-right:140px solid transparent;border-top:140px solid ${TD_COLORS[i%TD_COLORS.length]};">
-      <span style="transform:rotate(45deg);top:${a<180?15:15}px;left:${a<180?'-30px':'-50px'};width:${a<180?70:90}px;font-size:${segLen(segs[i])>10?9:11}px">${segs[i]}</span></div>`;
-  }).join('');
-}
-function segLen(s){return s.length}
-
-function spinWheel(){
-  if(tdSpinning)return;tdSpinning=true;
-  let extra=360*8+Math.floor(Math.random()*360);
-  tdWheelAngle+=extra;
-  let wheel=document.getElementById('td-wheel');
-  wheel.style.transition='transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)';
-  wheel.style.transform=`rotate(${tdWheelAngle}deg)`;
-  document.getElementById('td-spin-btn').style.opacity='0.5';
-  setTimeout(()=>{
-    tdSpinning=false;
-    document.getElementById('td-spin-btn').style.opacity='1';
-    let final=tdWheelAngle%360;
-    let idx=Math.floor(((360-final)/360*8)%8);
-    if(idx<0)idx+=8;
-    let who=players.length>0?rand(players).name:'玩家';
-    let result=tdSegs[idx];
-    document.getElementById('td-result').innerHTML=`<div class="result-card"><div class="text">${result}</div><div class="sub">🎯 ${who} 必须执行！</div></div>`;
-    wheel.style.transition='none';
-  },4700);
-}
-
-// ============ 2. NUMBER BOMB ============
-let bombMin=1,bombMax=100,bombTarget=0;
-function renderNumberBomb(el){
-  bombTarget=randInt(2,99);bombMin=1;bombMax=100;
-  el.innerHTML=`
-    <div class="game-title">💣 数字炸弹</div>
-    <div class="game-desc">1-100之间有个炸弹，猜中就爆炸！</div>
-    <div class="player-bar" id="nb-players"></div>
-    <div class="bomb-range"><span>MIN: <span id="nb-min">${bombMin}</span></span><span>MAX: <span id="nb-max">${bombMax}</span></span></div>
-    <input class="bomb-input" id="nb-input" type="number" placeholder="输入数字" min="1" max="100">
-    <button class="btn btn-danger mb10" onclick="guessBomb()">💥 猜！</button>
-    <div id="nb-result"></div>`;
-  renderPlayerBar('nb-players');
+/* ===== 2. 数字炸弹 ===== */
+function renderBomb(c){
+  let bomb=Math.floor(Math.random()*100)+1;
+  window._bomb=bomb;window._bombMin=1;window._bombMax=100;
+  c.innerHTML=`
+    <div class="bomb-wrap">
+      <h2 style="margin-bottom:10px">💣 数字炸弹</h2>
+      <p style="color:#aaa;font-size:13px">炸弹藏在1-100之间，猜中就爆炸！</p>
+      <div class="bomb-range"><span id="bMin">${window._bombMin}</span><span class="slash">—</span><span id="bMax">${window._bombMax}</span></div>
+      <input class="bomb-input" id="bombInput" type="number" min="1" max="100" placeholder="?">
+      <div><button class="bomb-submit" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff" onclick="guessBomb()">💥 猜！</button></div>
+      <div class="bomb-msg" id="bombMsg"></div>
+      <div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame('bomb')">🔄 重来</button></div>
+    </div>`;
 }
 function guessBomb(){
-  let v=parseInt(document.getElementById('nb-input').value);
-  if(isNaN(v)||v<bombMin||v>bombMax){alert('请输入'+bombMin+'到'+bombMax+'之间的数字');return}
-  if(v===bombTarget){
-    document.getElementById('nb-result').innerHTML=`<div class="result-card" style="animation:bombShake .5s"><div class="bomb-result">💥 BOOM!</div><div class="sub">${rand(players).name} 踩雷了！惩罚：${rand(BOMB_PUNISH)}</div></div>`;
-    setTimeout(()=>renderNumberBomb(document.getElementById('game-content')),3000);
-  }else if(v<bombTarget){
-    bombMin=v+1;
-    document.getElementById('nb-min').textContent=bombMin;
-    document.getElementById('nb-result').innerHTML=`<div class="result-card"><div class="text">${v} 太小了！区间 ${bombMin}-${bombMax}</div></div>`;
+  let v=parseInt(document.getElementById('bombInput').value);
+  if(isNaN(v)||v<1||v>100){toast('请输入1-100的数字');return}
+  if(v===window._bomb){
+    let p=getRandPlayer();
+    let punish=randItem(GAMEDATA.bombs);
+    document.getElementById('bombMsg').innerHTML=`<div style="color:#ff4757;font-size:22px;margin:10px 0">💥 炸弹爆炸！！！</div><div>${p.name}：${punish}</div>`;
+    document.getElementById('bombInput').disabled=true;
+    document.querySelector('.bomb-submit').disabled=true;
+  }else if(v<window._bomb){
+    window._bombMin=Math.max(window._bombMin,v+1);
   }else{
-    bombMax=v-1;
-    document.getElementById('nb-max').textContent=bombMax;
-    document.getElementById('nb-result').innerHTML=`<div class="result-card"><div class="text">${v} 太大了！区间 ${bombMin}-${bombMax}</div></div>`;
+    window._bombMax=Math.min(window._bombMax,v-1);
   }
-  document.getElementById('nb-input').value='';
+  document.getElementById('bMin').textContent=window._bombMin;
+  document.getElementById('bMax').textContent=window._bombMax;
+  document.getElementById('bombInput').value='';
 }
 
-// ============ 3. DICE ============
-let diceVal=1,diceRolling=false;
-const DICE_FACES=[
-  [false,false,false,false,true,false,false,false,false],
-  [true,false,false,false,false,false,false,false,true],
-  [true,false,false,false,true,false,false,false,true],
-  [true,false,true,false,false,false,true,false,true],
-  [true,false,true,false,true,false,true,false,true],
-  [true,false,true,true,false,true,true,false,true]
-];
-function renderDice(el){
-  el.innerHTML=`
-    <div class="game-title">🎲 骰子大冒险</div>
-    <div class="game-desc">点击骰子摇一摇，最大指定惩罚，最小接受惩罚</div>
-    <div class="player-bar" id="dc-players"></div>
-    <div class="dice-area" onclick="rollDice()"><div class="dice" id="dice-box"></div></div>
-    <div class="text-center" style="font-size:14px;color:#888;margin:8px 0">点击骰子开始</div>
-    <div id="dc-result"></div>`;
-  renderPlayerBar('dc-players');
-  renderDiceFace(1);
-}
-function renderDiceFace(v){
-  let dots=DICE_FACES[v-1];
-  document.getElementById('dice-box').innerHTML=dots.map(d=>`<div class="dot ${d?'show':''}"></div>`).join('');
+/* ===== 3. 骰子 ===== */
+function renderDice(c){
+  let faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
+  c.innerHTML=`
+    <div class="dice-wrap">
+      <h2 style="margin-bottom:10px">🎲 骰子大冒险</h2>
+      <div class="dice-box" id="diceBox">🎲</div>
+      <div class="dice-result" id="diceResult">点击下方按钮摇骰子</div>
+      <button class="dice-submit" style="background:linear-gradient(135deg,#f39c12,#e67e22)" onclick="rollDice()">🎲 摇！</button>
+      <div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame('dice')">🔄 重来</button></div>
+    </div>`;
+  window._faces=faces;
 }
 function rollDice(){
-  if(diceRolling)return;diceRolling=true;
-  let box=document.getElementById('dice-box');
+  let box=document.getElementById('diceBox');
   box.classList.add('rolling');
-  let interval=setInterval(()=>{renderDiceFace(randInt(1,6))},80);
-  setTimeout(()=>{
-    clearInterval(interval);box.classList.remove('rolling');
-    diceVal=randInt(1,6);renderDiceFace(diceVal);
-    let who=rand(players).name;
-    let act=rand(DICE_ACTS);
-    document.getElementById('dc-result').innerHTML=`<div class="result-card"><div class="text">🎲 ${who} 摇出了 ${diceVal}</div><div class="sub">惩罚：${act}</div></div>`;
-    diceRolling=false;
-  },1000);
+  let count=0;let iv=setInterval(()=>{
+    box.textContent=window._faces[Math.floor(Math.random()*6)];
+    count++;
+    if(count>20){
+      clearInterval(iv);box.classList.remove('rolling');
+      let result=Math.floor(Math.random()*6);
+      box.textContent=window._faces[result];
+      let val=result+1;
+      let p=getRandPlayer();
+      let punish=randItem(GAMEDATA.punishes);
+      document.getElementById('diceResult').innerHTML=
+        `<div style="font-size:22px;margin-bottom:8px">🎲 ${val}点！</div><div>${p.name}：${punish}</div>`;
+    }
+  },80);
 }
 
-// ============ 4. KING GAME ============
-let kingCards=[],kingRevealed=false,kingCmd='';
-function renderKing(el){
-  kingRevealed=false;kingCmd='';
-  let nums=['A','2','3','4','5','6','7','8','9','10','J','Q'];
-  let suits=['♠','♥','♦','♣'];
-  kingCards=[];
-  for(let s of suits)for(let n of nums)kingCards.push(n+s);
-  kingCards.push('👑K');
-  kingCards=shuffle(kingCards).slice(0,13);
-  let kIdx=kingCards.indexOf('👑K');if(kIdx<0)kingCards[0]='👑K';
-  el.innerHTML=`
-    <div class="game-title">👑 国王游戏</div>
-    <div class="game-desc">翻到K就是国王，国王下令亲密互动！</div>
-    <div class="player-bar" id="kg-players"></div>
-    <div class="king-cards" id="kg-cards"></div>
-    <div id="kg-result"></div>`;
-  renderPlayerBar('kg-players');
-  renderKingCards();
-}
-function renderKingCards(){
-  document.getElementById('kg-cards').innerHTML=kingCards.map((c,i)=>`<div class="king-card" onclick="flipKing(${i})" id="kcard-${i}"><div class="face">${c.replace('👑','')}</div><div class="back">❓</div></div>`).join('');
-}
-function flipKing(i){
-  if(kingRevealed)return;
-  let card=document.getElementById('kcard-'+i);
-  card.classList.add('flipped');
-  if(kingCards[i]==='👑K'){
-    kingRevealed=true;
-    let cmd=rand(KING_CMDS);
-    let who1=rand(players).name,who2=rand(players.filter(p=>p.name!==who1));
-    kingCmd=cmd.text.replace('对方',who2);
-    document.getElementById('kg-result').innerHTML=`<div class="result-card"><div class="text">👑 ${who1} 是国王！</div><div class="sub">命令：${kingCmd}</div></div>`;
-  }else{
-    document.getElementById('kg-result').innerHTML=`<div class="result-card"><div class="sub">${kingCards[i]} — 不是国王，继续翻！</div></div>`;
-  }
-}
-
-// ============ 5. TISSUE PASS ============
-let tissueSize=100,tissueActive=false,tissueTimer=null;
-function renderTissue(el){
-  tissueSize=100;tissueActive=false;
-  let p1=players.length>=2?players[0]:{name:'玩家1',gender:'male'};
-  let p2=players.length>=2?players[1]:{name:'玩家2',gender:'female'};
-  el.innerHTML=`
-    <div class="game-title">🧻 传纸条</div>
-    <div class="game-desc">嘴对嘴传递纸巾，越传越短直到掉落！</div>
-    <div class="player-bar" id="tc-players"></div>
-    <div class="text-center mb16">
-      <span style="font-size:24px">${getPlayerAvatar(p1)} ${p1.name}</span>
-      <span style="margin:0 12px;font-size:20px">💋</span>
-      <span style="font-size:24px">${getPlayerAvatar(p2)} ${p2.name}</span>
-    </div>
-    <div class="tissue-progress"><div class="tissue-bar" id="tc-bar" style="width:100%"></div></div>
-    <div class="text-center mb10" id="tc-size" style="font-size:18px;color:#f39c12">纸巾长度：100%</div>
-    <button class="btn btn-warm mb10" id="tc-pass-btn" onclick="tissuePass()">💋 传递！</button>
-    <div id="tc-result"></div>`;
-  renderPlayerBar('tc-players');
-}
-function tissuePass(){
-  if(tissueSize<=0)return;
-  tissueSize-=randInt(8,20);
-  if(tissueSize<=0)tissueSize=0;
-  document.getElementById('tc-bar').style.width=tissueSize+'%';
-  document.getElementById('tc-size').textContent='纸巾长度：'+tissueSize+'%';
-  if(tissueSize<=0){
-    let loser=rand(players).name;
-    document.getElementById('tc-result').innerHTML=`<div class="result-card"><div class="text">😱 纸巾掉了！</div><div class="sub">${loser} 必须完成惩罚：${rand(BOMB_PUNISH)}</div></div>`;
-    document.getElementById('tc-pass-btn').disabled=true;
-  }
-}
-
-// ============ 6. GUESS WORD ============
-let guessList=[],guessIdx=0,guessScore=0,guessTimer=0,guessInterval=null;
-function renderGuess(el){
-  guessList=shuffle(GUESS_WORDS);guessIdx=0;guessScore=0;guessTimer=0;
-  el.innerHTML=`
-    <div class="game-title">🤫 你比我猜</div>
-    <div class="game-desc">60秒限时，猜对越多越好！</div>
-    <div class="player-bar" id="gw-players"></div>
-    <div class="guess-timer" id="gw-timer">60</div>
-    <div class="guess-word" id="gw-word">点击开始</div>
-    <div class="text-center mb10" style="color:#888" id="gw-score">得分：0 / ${guessList.length}</div>
-    <div class="btn-row">
-      <button class="btn btn-success btn-small" onclick="guessStart()">▶ 开始</button>
-      <button class="btn btn-danger btn-small" onclick="guessWrong()">❌ 没猜到</button>
-      <button class="btn btn-success btn-small" onclick="guessRight()">✅ 猜对了</button>
+/* ===== 4. 国王游戏 ===== */
+function renderKing(c){
+  let isKing=Math.random()<0.3;
+  let total=12;let kingIdx=isKing?Math.floor(Math.random()*total):-1;
+  let cards=[];
+  for(let i=0;i<total;i++) cards.push({idx:i,show:false,isKing:i===kingIdx});
+  window._kingCards=cards;window._kingRevealed=false;
+  c.innerHTML=`
+    <div class="king-wrap">
+      <h2 style="margin-bottom:10px">👑 国王游戏</h2>
+      <p style="color:#aaa;font-size:13px">翻一张牌，如果翻到K，你就是国王！</p>
+      <div class="king-cards" id="kingCards">${cards.map((_,i)=>`<div class="king-card" onclick="flipKing(${i})">🂠</div>`).join('')}</div>
+      <div class="king-cmd" id="kingCmd"></div>
+      <button class="king-submit" style="display:none;background:linear-gradient(135deg,#a855f7,#6c2bd9)" id="kingNewBtn" onclick="renderKing(document.getElementById('gContent'))">🔄 再来</button>
     </div>`;
-  renderPlayerBar('gw-players');
 }
-function guessStart(){
-  guessIdx=0;guessScore=0;guessTimer=60;
-  document.getElementById('gw-word').textContent=guessList[0];
-  document.getElementById('gw-score').textContent='得分：0 / '+guessList.length;
-  guessInterval=setInterval(()=>{
-    guessTimer--;
-    document.getElementById('gw-timer').textContent=guessTimer;
-    if(guessTimer<=0){
-      clearInterval(guessInterval);
-      document.getElementById('gw-word').textContent='时间到！';
-      document.getElementById('gw-result')&&(document.getElementById('gw-result').innerHTML='');
-    }
-  },1000);
-}
-function guessRight(){
-  if(guessTimer<=0)return;
-  guessScore++;guessIdx++;
-  if(guessIdx>=guessList.length){clearInterval(guessInterval);document.getElementById('gw-word').textContent='全部完成！';return}
-  document.getElementById('gw-word').textContent=guessList[guessIdx];
-  document.getElementById('gw-score').textContent='得分：'+guessScore+' / '+guessList.length;
-}
-function guessWrong(){
-  if(guessTimer<=0)return;
-  guessIdx++;
-  if(guessIdx>=guessList.length){clearInterval(guessInterval);document.getElementById('gw-word').textContent='完成！';return}
-  document.getElementById('gw-word').textContent=guessList[guessIdx];
-}
-
-// ============ 7. HEARTBEAT ============
-let hbStage=0,hbTimer=0,hbInterval=null,hbRunning=false;
-function renderHeartbeat(el){
-  hbStage=0;hbTimer=0;hbRunning=false;
-  el.innerHTML=`
-    <div class="game-title">💓 心跳告白</div>
-    <div class="game-desc">三阶升温，越玩越甜</div>
-    <div class="player-bar" id="hb-players"></div>
-    <div id="hb-content"></div>`;
-  renderPlayerBar('hb-players');
-  showHbStage();
-}
-function showHbStage(){
-  if(hbStage>=HEART_STAGES.length){
-    document.getElementById('hb-content').innerHTML=`<div class="result-card"><div class="text">🎉 完美通关！</div><div class="sub">三阶升温完成，你们的感情更进了一步！</div></div>`;
-    return;
+function flipKing(idx){
+  if(window._kingRevealed)return;
+  let cards=window._kingCards;
+  if(cards[idx].show)return;
+  cards[idx].show=true;
+  let els=document.querySelectorAll('.king-card');
+  if(cards[idx].isKing){
+    els[idx].className='king-card is-king';
+    els[idx].textContent='👑';
+    window._kingRevealed=true;
+    let cmd=randItem(GAMEDATA.kings);
+    document.getElementById('kingCmd').innerHTML=`<div style="font-size:20px;margin-bottom:8px">🎉 你是国王！</div><div>${cmd}</div>`;
+    document.getElementById('kingNewBtn').style.display='inline-block';
+  }else{
+    els[idx].className='king-card show';
+    els[idx].textContent='🂡';
+    // 其他未翻的也显示
+    cards.forEach((card,i)=>{
+      if(!card.show&&!card.isKing){
+        els[i].className='king-card show';
+        els[i].textContent='🂡';
+      }
+    });
+    window._kingRevealed=true;
+    document.getElementById('kingCmd').innerHTML=`<div style="color:#aaa">😢 没有翻到国王，再试一次！</div>`;
+    document.getElementById('kingNewBtn').style.display='inline-block';
   }
-  let s=HEART_STAGES[hbStage];
-  let progress=hbStage/HEART_STAGES.length*100;
-  document.getElementById('hb-content').innerHTML=`
-    <div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:16px"><div style="height:100%;width:${progress}%;background:#e91e63;border-radius:3px;transition:width 0.5s"></div></div>
-    <div class="hb-stage">💗 第${hbStage+1}阶：${s.name}</div>
-    <div class="hb-prompt">${s.prompt}</div>
-    <div class="hb-timer" id="hb-timer">${s.time}</div>
-    <div class="hb-action">${rand(s.actions)}</div>
-    <button class="btn btn-warm mb10" onclick="startHbTimer()">▶ 开始倒计时</button>
-    <button class="btn btn-success btn-small" onclick="hbNext()">跳过 →</button>`;
 }
-function startHbTimer(){
-  if(hbRunning)return;
-  hbRunning=true;
-  let s=HEART_STAGES[hbStage];
-  let t=s.time;
-  hbInterval=setInterval(()=>{
-    t--;
-    let el=document.getElementById('hb-timer');
-    if(el)el.textContent=t;
-    if(t<=0){
-      clearInterval(hbInterval);hbRunning=false;
-      hbStage++;showHbStage();
+
+/* ===== 5. 你比我猜 ===== */
+function renderGuess(c){
+  let words=shuffle([...GAMEDATA.guesses||[
+    "壁咚","公主抱","亲亲","抱抱","摸头杀","揉脸","牵手","十指相扣",
+    "背后拥抱","耳鬓厮磨","额头吻","锁骨吻","撩头发","霸道总裁","小奶狗",
+    "撒娇","吃醋","心跳加速","脸红","暧昧","对视","含情脉脉","脉脉含情",
+    "甜蜜暴击","心动","脸贴脸","蹭鼻子","咬耳朵","吹耳朵","轻咬嘴唇",
+    "舔手指","缠腰","壁咚杀","举高高","背背","夹腿","骑马","缠绵",
+    "依偎","蹭蹭","腻歪","撒狗粮","甜腻","腻歪","小蛮腰","翘臀",
+    "马甲线","人鱼线","腹肌","胸肌","翘臀杀","翘臀","大长腿","白皙",
+  ]]);
+  let idx=0,score=0,timeLeft=60,timer=null;
+  window._guessWords=words;window._guessIdx=0;window._guessScore=0;window._guessTime=60;
+  c.innerHTML=`
+    <div class="guess-wrap">
+      <h2>🤫 你比我猜</h2>
+      <div class="guess-timer" id="gTimer">60s</div>
+      <div class="guess-word-box"><div class="guess-word" id="gWord">${words[0]}</div></div>
+      <div class="guess-btns">
+        <button class="guess-btn ok" onclick="guessOk()">✅ 猜对</button>
+        <button class="guess-btn skip" onclick="guessSkip()">⏭ 跳过</button>
+        <button class="guess-btn no" onclick="guessEnd()">⏹ 结束</button>
+      </div>
+      <div class="guess-score">得分：<span id="gScore">0</span></div>
+    </div>`;
+  timer=setInterval(()=>{
+    window._guessTime--;
+    document.getElementById('gTimer').textContent=window._guessTime+'s';
+    if(window._guessTime<=10) document.getElementById('gTimer').style.color='#ff6b6b';
+    if(window._guessTime<=0){clearInterval(timer);guessEnd()}
+  },1000);
+  window._guessTimer=timer;
+}
+function guessOk(){
+  window._guessScore++;document.getElementById('gScore').textContent=window._guessScore;
+  window._guessIdx++;
+  if(window._guessIdx>=window._guessWords.length){guessEnd();return}
+  document.getElementById('gWord').textContent=window._guessWords[window._guessIdx];
+}
+function guessSkip(){
+  window._guessIdx++;
+  if(window._guessIdx>=window._guessWords.length){guessEnd();return}
+  document.getElementById('gWord').textContent=window._guessWords[window._guessIdx];
+}
+function guessEnd(){
+  if(window._guessTimer) clearInterval(window._guessTimer);
+  toast('游戏结束！得分：'+window._guessScore);
+}
+
+/* ===== 6. 心跳告白 ===== */
+function renderHeart(c){
+  let stages=[
+    {name:'第一阶 · 指尖轻触',time:30,desc:'闭眼，对方用指尖从你的额头轻轻滑到下巴'},
+    {name:'第二阶 · 摇篮拥抱',time:60,desc:'像抱婴儿一样抱着对方，轻轻摇晃'},
+    {name:'第三阶 · 额头之吻',time:120,desc:'额头相抵，深呼吸，然后慢慢亲吻额头'}
+  ];
+  window._hbStages=stages;window._hbStage=0;window._hbTime=stages[0].time;window._hbTimer=null;
+  c.innerHTML=`
+    <div class="heart-wrap">
+      <div class="heart-stage" id="hbStageName">${stages[0].name}</div>
+      <div class="heart-timer" id="hbTimer">${stages[0].time}s</div>
+      <div class="heart-desc" id="hbDesc">${stages[0].desc}</div>
+      <div class="heart-btns">
+        <button class="heart-btn" style="background:linear-gradient(135deg,#ff6b9d,#e040fb);color:#fff" id="hbStartBtn" onclick="startHeart()">💓 开始</button>
+        <button class="heart-btn" style="background:linear-gradient(135deg,#00b894,#00cec9);color:#fff;display:none" id="hbNextBtn" onclick="nextHeart()">➡ 下一阶</button>
+        <button class="heart-btn" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff" onclick="renderHeart(document.getElementById('gContent'))">🔄 重来</button>
+      </div>
+    </div>`;
+}
+function startHeart(){
+  document.getElementById('hbStartBtn').style.display='none';
+  window._hbTimer=setInterval(()=>{
+    window._hbTime--;
+    let el=document.getElementById('hbTimer');
+    el.textContent=window._hbTime+'s';
+    if(window._hbTime<=10) el.style.color='#ff6b6b';
+    if(window._hbTime<=0){
+      clearInterval(window._hbTimer);
+      let stage=window._hbStages[window._hbStage];
+      if(window._hbStage<window._hbStages.length-1){
+        document.getElementById('hbNextBtn').style.display='inline-block';
+        toast(stage.name+'完成！');
+      }else{
+        toast('🎉 全部完成！你们太甜了！');
+        document.getElementById('hbDesc').innerHTML='<div style="font-size:24px;margin-top:10px">🎉💕🎉</div><div>三阶升温全部完成！</div>';
+      }
     }
   },1000);
 }
-function hbNext(){
-  if(hbRunning){clearInterval(hbInterval);hbRunning=false}
-  hbStage++;showHbStage();
+function nextHeart(){
+  window._hbStage++;
+  if(window._hbStage>=window._hbStages.length)return;
+  let s=window._hbStages[window._hbStage];
+  window._hbTime=s.time;
+  document.getElementById('hbStageName').textContent=s.name;
+  document.getElementById('hbTimer').textContent=s.time+'s';
+  document.getElementById('hbTimer').style.color='#ff6b9d';
+  document.getElementById('hbDesc').textContent=s.desc;
+  document.getElementById('hbNextBtn').style.display='none';
+  document.getElementById('hbStartBtn').style.display='inline-block';
 }
 
-// ============ 8. ROCK PAPER SCISSORS ============
-function renderRPS(el){
-  el.innerHTML=`
-    <div class="game-title">✊ 石头剪刀布</div>
-    <div class="game-desc">输了接受赢的指定惩罚！</div>
-    <div class="player-bar" id="rps-players"></div>
-    <div class="text-center mb16" style="color:#888;font-size:14px">选一个手势</div>
-    <div class="rps-btns">
-      <div class="rps-btn" onclick="playRPS('rock')">✊</div>
-      <div class="rps-btn" onclick="playRPS('paper')">✋</div>
-      <div class="rps-btn" onclick="playRPS('scissors')">✌️</div>
-    </div>
-    <div id="rps-result"></div>`;
-  renderPlayerBar('rps-players');
+/* ===== 7. 石头剪刀布 ===== */
+function renderRPS(c){
+  let moves=['✊','✋','✌️'];
+  let names=['石头','剪刀','布'];
+  c.innerHTML=`
+    <div class="rps-wrap">
+      <h2 style="margin-bottom:10px">✊ 石头剪刀布</h2>
+      <p style="color:#aaa;font-size:13px">选一个，赢了指定对方做任何事！</p>
+      <div class="rps-btns">
+        <div class="rps-btn" onclick="playRPS(0)">✊</div>
+        <div class="rps-btn" onclick="playRPS(1)">✌️</div>
+        <div class="rps-btn" onclick="playRPS(2)">✋</div>
+      </div>
+      <div class="rps-result" id="rpsResult"></div>
+      <div class="rps-punish" id="rpsPunish"></div>
+      <div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame('rps')">🔄 重来</button></div>
+    </div>`;
+  window._rpsMoves=moves;window._rpsNames=names;
 }
-function playRPS(your){
-  let moves=['rock','paper','scissors'];
-  let emojis={rock:'✊',paper:'✋',scissors:'✌️'};
-  let win={rock:'scissors',paper:'rock',scissors:'paper'};
-  let comp=rand(moves);
+function playRPS(pIdx){
+  let cIdx=Math.floor(Math.random()*3);
+  let w=(pIdx-cIdx+3)%3;
+  let p=getRandPlayer();
   let result='';
-  if(your===comp)result='draw';
-  else if(win[your]===comp)result='win';
-  else result='lose';
-  let who=rand(players).name;
-  let punish=rand(RPS_PUNISH);
-  let rc=result==='win'?'#2ecc71':result==='lose'?'#e74c3c':'#f39c12';
-  document.getElementById('rps-result').innerHTML=`
-    <div class="result-card" style="border-color:${rc}">
-      <div style="font-size:36px;margin-bottom:8px">${emojis[your]} vs ${emojis[comp]}</div>
-      <div class="text" style="color:${rc}">${result==='win'?'🎉 你赢了！':result==='lose'?'😢 你输了！':'🤝 平局！'}</div>
-      <div class="sub">${result==='lose'?who+' 必须：'+punish:result==='win'?'你可以指定对手：'+punish:'再来一次！'}</div>
-    </div>`;
-}
-
-// ============ 9. BLIND TREASURE ============
-let blindPhase='guess'; // guess | result
-function renderBlind(el){
-  blindPhase='guess';
-  let who=rand(players).name;
-  let part=rand(BLIND_PARTS);
-  let touch=rand(BLIND_TOUCH);
-  let time=randInt(10,20);
-  el.innerHTML=`
-    <div class="game-title">🙈 蒙眼寻宝</div>
-    <div class="game-desc">蒙眼后猜触碰的部位</div>
-    <div class="player-bar" id="bd-players"></div>
-    <div class="result-card"><div class="sub">🙈 ${who} 被蒙上眼睛</div><div class="text" style="font-size:16px;color:#f39c12">等一下...${touch}某个部位 ${time}秒</div></div>
-    <div class="section-title">猜猜摸了哪里？</div>
-    <div class="blind-parts" id="bd-parts"></div>
-    <div id="bd-result"></div>`;
-  renderPlayerBar('bd-players');
-  let realPart=rand(BLIND_PARTS);
-  let partsEl=document.getElementById('bd-parts');
-  let showParts=shuffle([...new Set([realPart,...shuffle(BLIND_PARTS).slice(0,8)])]).slice(0,9);
-  partsEl.innerHTML=showParts.map(p=>`<div class="blind-part" onclick="guessBlind('${p}','${realPart}')">${p}</div>`).join('');
-}
-function guessBlind(guess,correct){
-  if(guess===correct){
-    document.getElementById('bd-result').innerHTML=`<div class="result-card"><div class="text">🎉 猜对了！就是${correct}</div><div class="sub">奖励：${rand(BOMB_PUNISH)}</div></div>`;
+  if(w===0) result='平局！再来一次！';
+  else if(w===1){
+    let punish=randItem(GAMEDATA.punishes);
+    result=`🎉 ${p.name}赢了！对方必须：${punish}`;
   }else{
-    document.getElementById('bd-result').innerHTML=`<div class="result-card"><div class="text">❌ 不对！摸的是${correct}</div><div class="sub">惩罚：${rand(BOMB_PUNISH)}</div></div>`;
+    let punish=randItem(GAMEDATA.punishes);
+    result=`😢 ${p.name}输了！你必须：${punish}`;
   }
+  document.getElementById('rpsResult').innerHTML=
+    `<div>你：${window._rpsMoves[pIdx]}（${window._rpsNames[pIdx]}）</div>
+     <div>电脑：${window._rpsMoves[cIdx]}（${window._rpsNames[cIdx]}）</div>`;
+  document.getElementById('rpsPunish').textContent=result;
 }
 
-// ============ 10. PUNISHMENT WHEEL ============
-let PW_SIZE=20;
-let PW_COLORS=['#e74c3c','#e91e63','#9b59b6','#3498db','#2ecc71','#f39c12','#1abc9c','#e67e22','#e74c3c','#e91e63','#9b59b6','#3498db','#2ecc71','#f39c12','#1abc9c','#e67e22','#e74c3c','#e91e63','#9b59b6','#3498db'];
-let pwSegs=[],pwAngle=0,pwSpinning=false;
+/* ===== 8. 蒙眼寻宝 ===== */
+function renderBlind(c){
+  let parts=[
+    {icon:'👄',name:'嘴唇'},{icon:'👃',name:'鼻子'},{icon:'👁',name:'眼睛'},
+    {icon:'👂',name:'耳朵'},{icon:'🤚',name:'手掌'},{icon:'💪',name:'手臂'},
+    {icon:'🦵',name:'大腿'},{icon:'🦶',name:'脚'},{icon:'💋',name:'脖子'},
+    {icon:'🫦',name:'锁骨'},{icon:'🤲',name:'腰'},{icon:'🫶',name:'肩膀'},
+  ];
+  c.innerHTML=`
+    <div class="blind-wrap">
+      <h2 style="margin-bottom:10px">🙈 蒙眼寻宝</h2>
+      <div class="blind-desc">一个人蒙眼，另一个人随机触摸一个部位，蒙眼的人要猜被触碰的是哪里</div>
+      <div class="blind-body">
+        ${parts.map((p,i)=>`<div class="blind-part" onclick="touchPart(${i})"><div class="bp-icon">${p.icon}</div><div class="bp-name">${p.name}</div></div>`).join('')}
+      </div>
+      <div class="blind-result" id="blindResult"></div>
+      <div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame('blind')">🔄 再来</button></div>
+    </div>`;
+  window._blindParts=parts;
+}
+function touchPart(idx){
+  let p=getRandPlayer();
+  let part=window._blindParts[idx];
+  let result=randItem([
+    `${p.name}正在用手指轻轻触碰你的${part.name}，你能感觉到吗？`,
+    `${p.name}把手放在了你的${part.name}上，猜对了吗？`,
+    `${p.name}偷偷摸了你的${part.name}，感觉到了吗？`,
+    `${p.name}的嘴唇靠近了你的${part.name}，猜到了吗？`,
+  ]);
+  document.getElementById('blindResult').innerHTML=`<div>${result}</div>`;
+}
 
-function renderPunishWheel(el){
-  pwSegs=shuffle(PUNISH_LIST).slice(0,PW_SIZE);
-  pwAngle=0;pwSpinning=false;
-  el.innerHTML=`
-    <div class="game-title">🎡 惩罚大转盘</div>
-    <div class="game-desc">${PW_SIZE}格随机惩罚，转到什么做什么！</div>
-    <div class="player-bar" id="pw-players"></div>
-    <div class="pw-wrap">
+/* ===== 9. 悄悄话 ===== */
+function renderWhisper(c){
+  let items=shuffle([...GAMEDATA.whispers||[
+    "在你耳边说一句最肉麻的情话","在你耳边轻轻喘气10秒","在你耳边咬着耳朵说想你了",
+    "在你耳边低声说三个字让你猜","在你耳边说一句骚话","在你耳边唱一首情歌",
+    "在你耳边讲一个最甜的故事","在你耳边说今天最想做的事","在你耳边念一段情书",
+    "在你耳边说最肉麻的晚安","在你耳边轻声叫你的昵称","在你耳边模仿心跳声30秒",
+    "在你耳边说你最性感的时刻","在你耳边说想抱你的理由","在你耳边说一句最撩人的话",
+    "在你耳边说你穿什么最好看","在你耳边描述理想中的约会","在你耳边说今天最想和你做的事",
+    "在你耳边说一句让人心跳加速的话","在你耳边说你最迷人的地方",
+  ]]);
+  let idx=0;
+  c.innerHTML=`
+    <div class="whisper-wrap">
+      <h2 style="margin-bottom:10px">🤫 悄悄话挑战</h2>
+      <div class="whisper-card"><div class="text" id="wText">${items[0]}</div></div>
+      <div class="wheel-btns">
+        <button class="wheel-btn back" onclick="startGame('whisper')">🔄 重来</button>
+        <button class="wheel-btn spin" onclick="nextWhisper()">➡ 下一句</button>
+      </div>
+    </div>`;
+  window._whisperItems=items;window._whisperIdx=0;
+}
+function nextWhisper(){
+  window._whisperIdx++;
+  if(window._whisperIdx>=window._whisperItems.length)window._whisperIdx=0;
+  document.getElementById('wText').textContent=window._whisperItems[window._whisperIdx];
+}
+
+/* ===== 10. 传纸条 ===== */
+function renderTissue(c){
+  let p1=getRandPlayer();
+  let remaining=60;
+  c.innerHTML=`
+    <div style="text-align:center;padding:20px">
+      <h2 style="margin-bottom:10px">🧻 传纸条</h2>
+      <p style="color:#aaa;font-size:13px">用嘴唇传递纸巾，越传越短！</p>
+      <div style="font-size:48px;margin:20px 0">🧻</div>
+      <div style="font-size:16px">${p1.name} 开始传递</div>
+      <div style="margin:16px 0"><div style="width:${remaining}%;height:8px;background:linear-gradient(90deg,#00b894,#00cec9);border-radius:4px;margin:0 auto;transition:width 0.5s"></div><div style="font-size:13px;color:#aaa;margin-top:6px">剩余：${remaining}%</div></div>
+      <button style="padding:12px 30px;border-radius:10px;border:none;background:linear-gradient(135deg,#00b894,#00cec9);color:#fff;font-size:16px;font-weight:bold;cursor:pointer" onclick="passTissue()">✅ 传递成功</button>
+      <button style="padding:12px 30px;border-radius:10px;border:none;background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff;font-size:16px;font-weight:bold;cursor:pointer;margin-left:10px" onclick="dropTissue()">😱 纸掉了</button>
+      <div id="tissueResult" style="margin-top:14px;font-size:16px"></div>
+    </div>`;
+  window._tissueRemaining=60;
+}
+function passTissue(){
+  window._tissueRemaining=Math.max(5,window._tissueRemaining-10);
+  if(window._tissueRemaining<=5){
+    let p=getRandPlayer();
+    let punish=randItem(GAMEDATA.punishes);
+    document.getElementById('tissueResult').innerHTML=`<div style="color:#ff4757">🎉 纸巾已经短到不能再传了！${p.name}：${punish}</div>`;
+    return;
+  }
+  let p=getRandPlayer();
+  document.getElementById('tissueResult').innerHTML=`<div>🧻 ${p.name}接过纸巾继续传（剩余${window._tissueRemaining}%）</div>`;
+}
+function dropTissue(){
+  let p=getRandPlayer();
+  let punish=randItem(GAMEDATA.punishes);
+  document.getElementById('tissueResult').innerHTML=`<div style="color:#ff4757">😱 ${p.name}的纸掉了！惩罚：${punish}</div>`;
+}
+
+/* ===== 11. 惩罚转盘 ===== */
+function renderPunish(c){
+  let items=shuffle([...GAMEDATA.punishes]).slice(0,10);
+  let colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65','#ff4444','#ff6b81'];
+  c.innerHTML=`
+    <div class="wheel-wrap">
+      <canvas id="pCanvas" width="620" height="620"></canvas>
       <div class="wheel-pointer"></div>
-      <div class="pw-container" id="pw-wheel"></div>
-      <div class="wheel-center" onclick="spinPunishWheel()" id="pw-spin">GO</div>
+      <button class="wheel-go-btn" onclick="spinPunish()">GO</button>
     </div>
-    <div id="pw-result"></div>`;
-  renderPlayerBar('pw-players');
-  renderPunishSegs();
+    <div class="wheel-result" id="punishResult"><div class="text">点击GO抽取惩罚</div></div>
+    <div class="wheel-btns">
+      <button class="wheel-btn back" onclick="startGame('punish')">Restart</button>
+    </div>`;
+  window._punishItems=items;window._punishAngle=0;window._punishSpinning=false;
+  setTimeout(()=>{let cv=document.getElementById('pCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
-
-function renderPunishSegs(){
-  let el=document.getElementById('pw-wheel');
-  let angle=360/PW_SIZE;
-  el.innerHTML=pwSegs.map((s,i)=>{
-    let a=i*angle;
-    return `<div class="pw-seg" style="transform:rotate(${a}deg);border-left:150px solid transparent;border-right:150px solid transparent;border-top:150px solid ${PW_COLORS[i%PW_COLORS.length]};">
-      <span style="transform:rotate(45deg);top:12px;font-size:${s.text.length>6?8:10}px">${s.emoji}</span></div>`;
-  }).join('');
-}
-
-function spinPunishWheel(){
-  if(pwSpinning)return;pwSpinning=true;
-  let extra=360*10+Math.floor(Math.random()*360);
-  pwAngle+=extra;
-  let wheel=document.getElementById('pw-wheel');
-  wheel.style.transition='transform 5s cubic-bezier(0.17,0.67,0.12,0.99)';
-  wheel.style.transform=`rotate(${pwAngle}deg)`;
-  document.getElementById('pw-spin').style.opacity='0.5';
+function spinPunish(){
+  if(window._punishSpinning)return;
+  window._punishSpinning=true;
+  let angle=1080+Math.random()*720;
+  window._punishAngle+=angle;
+  let cv=document.getElementById('pCanvas');
+  cv.style.transition='transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)';
+  cv.style.transform='rotate('+window._punishAngle+'deg)';
   setTimeout(()=>{
-    pwSpinning=false;
-    document.getElementById('pw-spin').style.opacity='1';
-    let final=pwAngle%360;
-    let idx=Math.floor(((360-final)/360*PW_SIZE)%PW_SIZE);
-    if(idx<0)idx+=PW_SIZE;
-    let p=pwSegs[idx];
-    let who=rand(players).name;
-    document.getElementById('pw-result').innerHTML=`<div class="result-card"><div class="text">${p.emoji} ${p.text}</div><div class="sub">🎯 ${who} 必须执行！</div></div>`;
-    wheel.style.transition='none';
-  },5200);
+    window._punishSpinning=false;
+    let items=window._punishItems;
+    let n=items.length,seg=360/n;
+    let finalAngle=window._punishAngle%360;
+    let idx=Math.floor(((360-finalAngle+seg/2)%360)/seg)%n;
+    let p=getRandPlayer();
+    document.getElementById('punishResult').innerHTML=
+      `<div class="text">${items[idx]}</div>
+       <div class="player-tag">🎯 ${p.name} 必须执行！</div>`;
+  },4600);
 }
 
-// ============ 11. WHISPER CHALLENGE ============
-let whisperIdx=0,whisperActive=false,whisperList=[];
-function renderWhisper(el){
-  whisperIdx=0;whisperActive=false;
-  whisperList=shuffle(WHISPER_WORDS);
-  el.innerHTML=`
-    <div class="game-title">🤫 悄悄话挑战</div>
-    <div class="game-desc">在对方耳边3厘米处轻声说出，对方猜你说的什么</div>
-    <div class="player-bar" id="wh-players"></div>
-    <div class="whisper-text" id="wh-text">${whisperList[0]}</div>
-    <div class="text-center mb10" style="color:#888;font-size:13px">说给对方听，然后让对方猜</div>
-    <div class="btn-row">
-<button class="btn btn-success btn-small" onclick="whisperRight()">✅ 猜对了</button>
-      <button class="btn btn-danger btn-small" onclick="whisperWrong()">❌ 没猜对</button>
-    </div>
-    <div id="wh-result"></div>`;
-  renderPlayerBar('wh-players');
-}
-function whisperRight(){
-  whisperIdx++;
-  if(whisperIdx>=whisperList.length){
-    document.getElementById('wh-text').textContent='🎉 全部完成！';
-    return;
-  }
-  document.getElementById('wh-text').textContent=whisperList[whisperIdx];
-}
-function whisperWrong(){
-  let who=rand(players).name;
-  document.getElementById('wh-result').innerHTML=`<div class="result-card"><div class="text">惩罚：${rand(BOMB_PUNISH)}</div><div class="sub">${who} 没猜对！</div></div>`;
-  whisperIdx++;
-  if(whisperIdx>=list.length){
-    document.getElementById('wh-text').textContent='🎉 完成！';
-    return;
-  }
-  setTimeout(()=>{document.getElementById('wh-text').textContent=list[whisperIdx]},1500);
-}
-
-// ============ INIT ============
-if(players.length>0){showPage('list');renderGameList();renderPlayerBar('player-bar')}
-else{renderRegList()}
 </script>
 </body>
 </html>
