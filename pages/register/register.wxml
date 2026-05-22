@@ -1,0 +1,52 @@
+<view class="reg-page">
+  <view class="reg-bg"></view>
+  
+  <!-- Logo区 -->
+  <view class="reg-logo">
+    <text class="reg-emoji">💕</text>
+    <text class="reg-title">情侣升温游戏</text>
+    <text class="reg-sub">注册后开始甜蜜互动</text>
+  </view>
+
+  <!-- 注册表单 -->
+  <view class="reg-form card">
+    <!-- 头像选择 -->
+    <view class="reg-section">
+      <text class="reg-label">选择头像</text>
+      <view class="reg-avatars">
+        <view class="reg-avatar-item {{selectedAvatar===item?'selected':''}}" 
+              wx:for="{{avatars}}" wx:key="*this" bindtap="pickAvatar" data-av="{{item}}">
+          <text>{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 昵称 -->
+    <view class="reg-section">
+      <text class="reg-label">你的昵称</text>
+      <input class="reg-input" placeholder="输入昵称" maxlength="8" value="{{nickname}}" bindinput="onInput" />
+    </view>
+
+    <!-- 性别 -->
+    <view class="reg-section">
+      <text class="reg-label">你的性别</text>
+      <view class="reg-genders">
+        <view class="reg-gender {{gender==='male'?'active':''}}" bindtap="pickGender" data-g="male">
+          <text class="reg-gender-icon">👦</text>
+          <text>男生</text>
+        </view>
+        <view class="reg-gender {{gender==='female'?'active':''}}" bindtap="pickGender" data-g="female">
+          <text class="reg-gender-icon">👧</text>
+          <text>女生</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加入按钮 -->
+  <view class="reg-btn-wrap">
+    <button class="btn-primary reg-btn" bindtap="doRegister">✨ 进入游戏大厅</button>
+  </view>
+
+  <text class="reg-tip">昵称将展示给房间内的其他玩家</text>
+</view>

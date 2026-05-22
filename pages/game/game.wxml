@@ -1,0 +1,259 @@
+<!-- 单人模式游戏选择列表 -->
+<view class="solo-game-list" wx:if="{{showGameList}}">
+  <view class="solo-list-title">选择一款游戏开始玩 🎮</view>
+  <view class="solo-game-card" wx:for="{{gameList}}" wx:key="id" bindtap="selectSoloGame" data-id="{{item.id}}">
+    <text class="solo-game-icon">{{item.icon}}</text>
+    <view class="solo-game-info">
+      <text class="solo-game-name">{{item.name}}</text>
+      <text class="solo-game-desc">{{item.desc}}</text>
+    </view>
+  </view>
+</view>
+
+<!-- 选择游戏后显示主页面 -->
+<view wx:if="{{!showGameList}}">
+  <!-- 返回按钮（单人模式） -->
+  <view class="back-bar" wx:if="{{soloMode}}" bindtap="backToGameList">
+    <text class="back-btn">← 返回游戏列表</text>
+  </view>
+
+  <!-- 顶部导航 -->
+  <view class="nav-bar" style="background:{{gameColor}}">
+    <view class="nav-back" bindtap="goBack">← 返回</view>
+    <view class="nav-title">{{gameName}}</view>
+    <view class="nav-right"></view>
+  </view>
+
+  <!-- 玩家选择栏 -->
+  <view class="player-bar" wx:if="{{activePlayers.length>1}}">
+    <text class="player-bar-label">在场玩家：</text>
+    <scroll-view scroll-x class="player-bar-scroll">
+      <view class="player-chip" wx:for="{{activePlayers}}" wx:key="id">
+        <text>{{item.avatar}}</text>
+        <text>{{item.nickname}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ===== 1. 真心话转盘 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='truth'}}">
+    <view class="roulette-wrap">
+      <view class="roulette-pointer">▼</view>
+      <view class="roulette" id="truthWheel" style="transform:rotate({{wheelAngle}}deg)">
+        <view class="seg" wx:for="{{wheelItems}}" wx:key="index" style="clip-path:{{index===0?'polygon(50% 50%,50% 0%,85.4% 14.6%)':index===1?'polygon(50% 50%,85.4% 14.6%,100% 50%)':index===2?'polygon(50% 50%,100% 50%,85.4% 85.4%)':index===3?'polygon(50% 50%,85.4% 85.4%,50% 100%)':index===4?'polygon(50% 50%,50% 100%,14.6% 85.4%)':index===5?'polygon(50% 50%,14.6% 85.4%,0% 50%)':index===6?'polygon(50% 50%,0% 50%,14.6% 14.6%)':'polygon(50% 50%,14.6% 14.6%,50% 0%)'}};background:{{index%2===0?'#a855f7':'#7c3aed'}}">
+          <text class="seg-text" style="transform:rotate({{index*45+22.5}}deg)">{{item}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="spin-btn" bindtap="spinTruthWheel">转！</view>
+    <view class="result-card" wx:if="{{truthResult}}">
+      <view class="result-type purple">💜 真心话</view>
+      <view class="result-target" wx:if="{{truthTarget}}">→ {{truthTarget.nickname}} {{truthTarget.avatar}}</view>
+      <view class="result-content">{{truthResult}}</view>
+    </view>
+    <view class="change-btn" wx:if="{{truthResult}}" bindtap="spinTruthWheel">换一个</view>
+  </view>
+
+  <!-- ===== 2. 大冒险转盘 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='dare'}}">
+    <view class="roulette-wrap">
+      <view class="roulette-pointer">▼</view>
+      <view class="roulette" id="dareWheel" style="transform:rotate({{wheelAngle}}deg)">
+        <view class="seg" wx:for="{{wheelItems}}" wx:key="index" style="clip-path:{{index===0?'polygon(50% 50%,50% 0%,85.4% 14.6%)':index===1?'polygon(50% 50%,85.4% 14.6%,100% 50%)':index===2?'polygon(50% 50%,100% 50%,85.4% 85.4%)':index===3?'polygon(50% 50%,85.4% 85.4%,50% 100%)':index===4?'polygon(50% 50%,50% 100%,14.6% 85.4%)':index===5?'polygon(50% 50%,14.6% 85.4%,0% 50%)':index===6?'polygon(50% 50%,0% 50%,14.6% 14.6%)':'polygon(50% 50%,14.6% 14.6%,50% 0%)'}};background:{{index%2===0?'#ef4444':'#dc2626'}}">
+          <text class="seg-text" style="transform:rotate({{index*45+22.5}}deg)">{{item}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="spin-btn" bindtap="spinDareWheel">转！</view>
+    <view class="result-card" wx:if="{{dareResult}}">
+      <view class="result-type red">🔥 大冒险</view>
+      <view class="result-target" wx:if="{{darePerformer}}">→ {{darePerformer.nickname}} {{darePerformer.avatar}}</view>
+      <view class="result-content">{{dareResult}}</view>
+    </view>
+    <view class="change-btn" wx:if="{{dareResult}}" bindtap="spinDareWheel">换一个</view>
+  </view>
+
+  <!-- ===== 3. 骰子大冒险 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='dice'}}">
+    <view class="dice-box">
+      <view class="dice {{diceAnim?'rolling':''}}" bindtap="rollDice">
+        <text class="dice-face">{{diceResult||'🎲'}}</text>
+      </view>
+      <view class="spin-btn" bindtap="rollDice">摇骰子</view>
+    </view>
+    <view class="result-card" wx:if="{{diceResult}}">
+      <view class="result-type gold">🎲 点数：{{diceResult}}</view>
+      <view class="result-content" wx:if="{{diceAction}}">{{diceAction}} {{dicePart}} {{diceTime}}</view>
+      <view class="result-content" wx:if="{{dicePunishment}}">{{dicePunishment}}</view>
+      <view class="result-target" wx:if="{{diceTarget}}">→ {{diceTarget.nickname}} {{diceTarget.avatar}}</view>
+    </view>
+  </view>
+
+  <!-- ===== 4. 国王游戏 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='king'}}">
+    <view class="king-info">
+      <text class="king-hint" wx:if="{{!kingCommand}}">每人选一张牌，翻牌看谁是国王！</text>
+      <text class="king-hint" wx:else>👑 {{kingPlayer.nickname}}是国王！</text>
+    </view>
+    <view class="king-cards">
+      <view class="king-card {{item.revealed?'revealed':'hidden'}}" wx:for="{{kingCards}}" wx:key="index" bindtap="revealKing" data-idx="{{index}}">
+        <text class="card-face">{{item.revealed?(item.isKing?'👑':'普通牌'):'?'}}</text>
+        <text class="card-name" wx:if="{{item.revealed}}">{{item.suit}}</text>
+      </view>
+    </view>
+    <view class="result-card" wx:if="{{kingCommand}}">
+      <view class="result-type gold">👑 国王指令</view>
+      <view class="result-content">{{kingCommand}}</view>
+    </view>
+    <view class="spin-btn" wx:if="{{kingCommand}}" bindtap="initKing">重新发牌</view>
+  </view>
+
+  <!-- ===== 5. 传纸巾 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='tissue'}}">
+    <view class="tissue-scene">
+      <view class="tissue-pair">
+        <text class="tissue-player">{{tissuePlayers[0].avatar}} {{tissuePlayers[0].nickname}}</text>
+        <text class="tissue-mid">💋 传纸条中 💋</text>
+        <text class="tissue-player">{{tissuePlayers[1].avatar}} {{tissuePlayers[1].nickname}}</text>
+      </view>
+      <view class="tissue-progress">
+        <view class="tissue-bar" style="width:{{tissueSize}}%"></view>
+      </view>
+      <text class="tissue-hint">纸巾剩余 {{tissueSize}}% — 嘴唇夹住纸巾传递给下一个人！</text>
+    </view>
+    <view class="tissue-btns">
+      <view class="spin-btn red" wx:if="{{!tissueDone}}" bindtap="tissueDropBtn">纸掉了！</view>
+      <view class="spin-btn" wx:if="{{!tissueDone}}" bindtap="passTissue">成功传递！</view>
+    </view>
+    <view class="result-card" wx:if="{{tissueDone}}">
+      <view class="result-type red">纸巾掉了！</view>
+      <view class="result-content">{{tissuePunishment}}</view>
+    </view>
+    <view class="spin-btn" wx:if="{{tissueDone}}" bindtap="initTissue">重新开始</view>
+  </view>
+
+  <!-- ===== 6. 蒙眼寻宝 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='blindfold'}}">
+    <view class="blindfold-scene">
+      <view class="blindfold-target" wx:if="{{guessTarget}}">
+        <text>{{guessTarget.avatar}} {{guessTarget.nickname}} 被蒙上了眼睛 🙈</text>
+      </view>
+      <text class="blindfold-hint">蒙眼人需要猜出摸到的是身体哪个部位！</text>
+      <view class="blindfold-score">猜对次数：{{guessCorrect}} / 3</view>
+    </view>
+    <view class="body-grid">
+      <view class="body-btn" wx:for="{{bodyParts}}" wx:key="index" bindtap="guessPart" data-part="{{item}}">
+        <text>{{item}}</text>
+      </view>
+    </view>
+    <view class="result-card" wx:if="{{guessResult}}">
+      <view class="result-type {{guessResult.indexOf('对')>-1?'green':'red'}}">{{guessResult}}</view>
+    </view>
+    <view class="spin-btn" wx:if="{{guessResult}}" bindtap="nextGuess">继续猜</view>
+    <view class="result-card" wx:if="{{guessDone}}">
+      <view class="result-type gold">蒙眼寻宝结束！</view>
+    </view>
+    <view class="spin-btn" wx:if="{{guessDone}}" bindtap="initGuess">重新开始</view>
+  </view>
+
+  <!-- ===== 7. 你比我猜 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='guess'}}">
+    <view class="guess-score">得分：{{guessWordScore}}</view>
+    <view class="guess-timer">
+      <view class="guess-circle">
+        <text class="guess-time">{{guessWordTimeLeft}}</text>
+      </view>
+    </view>
+    <view class="guess-word">{{guessWordCurrent||'点击开始'}}</view>
+    <view class="guess-btns" wx:if="{{guessWordTimeLeft>0 && guessWordCurrent}}">
+      <view class="spin-btn green" bindtap="guessWordCorrect">猜对了 ✓</view>
+      <view class="spin-btn red" bindtap="guessWordSkip">跳过 ✗</view>
+    </view>
+    <view class="spin-btn" bindtap="startGuessWord" wx:if="{{!guessWordTimer && !guessWordDone}}">开始</view>
+    <view class="result-card" wx:if="{{guessWordDone}}">
+      <view class="result-type purple">游戏结束！得分：{{guessWordScore}}</view>
+      <view class="result-content">{{guessWordPunishText}}</view>
+    </view>
+    <view class="spin-btn" wx:if="{{guessWordDone}}" bindtap="initGuessWord">重新开始</view>
+  </view>
+
+  <!-- ===== 8. 心跳告白 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='heartbeat'}}">
+    <view class="hb-progress">
+      <view class="hb-bar" style="width:{{hbStage*33+33}}%"></view>
+    </view>
+    <view class="hb-stage">第{{hbStage+1}}阶段 / 共3阶段</view>
+    <view class="hb-title">{{hbStage===0?'指尖轻触':hbStage===1?'摇篮拥抱':'额头之吻'}}</view>
+    <view class="hb-desc">{{hbStageDesc}}</view>
+    <view class="hb-timer" wx:if="{{hbStarted}}">{{hbTimeLeft}}</view>
+    <view class="hb-question" wx:if="{{hbQuestion}}">{{hbQuestion}}</view>
+    <view class="spin-btn" bindtap="startHB" wx:if="{{!hbStarted && !hbFinished}}">{{hbStage===0?'开始':'下一阶段'}}</view>
+    <view class="result-card" wx:if="{{hbFinished}}">
+      <view class="result-type pink">💓 全部通关！</view>
+      <view class="result-content">你们的心跳已经完全同步了！</view>
+    </view>
+    <view class="spin-btn" wx:if="{{hbFinished}}" bindtap="initHB">重新开始</view>
+  </view>
+
+  <!-- ===== 9. 石头剪刀布 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='rps'}}">
+    <view class="rps-title">{{rpsMyName}} vs {{rpsOppName}}</view>
+    <view class="rps-btns">
+      <view class="rps-btn" bindtap="playRPS" data-move="rock">
+        <text class="rps-emoji">✊</text>
+        <text>石头</text>
+      </view>
+      <view class="rps-btn" bindtap="playRPS" data-move="scissors">
+        <text class="rps-emoji">✌️</text>
+        <text>剪刀</text>
+      </view>
+      <view class="rps-btn" bindtap="playRPS" data-move="paper">
+        <text class="rps-emoji">🖐️</text>
+        <text>布</text>
+      </view>
+    </view>
+    <view class="result-card" wx:if="{{rpsResult}}">
+      <view class="result-type {{rpsPlayer===rpsComputer?'':rpsResult.indexOf('赢')>-1?'green':'red'}}">{{rpsResult}}</view>
+      <view class="result-content" wx:if="{{rpsPunishment}}">{{rpsPunishment}}</view>
+    </view>
+    <view class="spin-btn" wx:if="{{rpsResult && rpsPlayer!==rpsComputer}}" bindtap="initRPS">再来一局</view>
+  </view>
+
+  <!-- ===== 10. 惩罚大转盘（20格） ===== -->
+  <view class="game-area" wx:if="{{currentGame==='punish'}}">
+    <view class="roulette-wrap big">
+      <view class="roulette-pointer">▼</view>
+      <view class="roulette" id="punishWheel" style="transform:rotate({{rwWheelAngle}}deg)">
+        <view class="seg rw-seg" wx:for="{{rwWheelItems}}" wx:key="index" style="clip-path:{{index%5===0?'polygon(50% 50%,50% 0%,65.5% 7.6%)':index%5===1?'polygon(50% 50%,65.5% 7.6%,80.9% 20.6%)':index%5===2?'polygon(50% 50%,80.9% 20.6%,90.5% 41.2%)':index%5===3?'polygon(50% 50%,90.5% 41.2%,95.1% 65.5%)':'polygon(50% 50%,95.1% 65.5%,95.1% 90.5%)'}};background:{{item.color}}">
+          <text class="rw-text" style="transform:rotate({{index*18+9}}deg)">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="spin-btn" bindtap="spinPunishWheel">转！</view>
+    <view class="result-card" wx:if="{{rwResult}}">
+      <view class="result-type pink">{{rwResult.text}}</view>
+      <view class="result-target" wx:if="{{rwTarget}}">→ {{rwTarget.nickname}} {{rwTarget.avatar}}</view>
+    </view>
+    <view class="change-btn" wx:if="{{rwResult}}" bindtap="spinPunishWheel">换一个</view>
+  </view>
+
+  <!-- ===== 11. 悄悄话传声筒 ===== -->
+  <view class="game-area" wx:if="{{currentGame==='whisper'}}">
+    <view class="whisper-scene">
+      <text class="whisper-hint" wx:if="{{!whisperShow && !whisperDone}}">选一张任务卡，看看今天的悄悄话是什么！</text>
+      <view class="whisper-card" wx:if="{{whisperShow}}">
+        <text class="whisper-card-text">{{whisperContent}}</text>
+        <text class="whisper-card-sub">记住后点击关闭</text>
+      </view>
+    </view>
+    <view class="whisper-btns">
+      <view class="spin-btn" wx:if="{{!whisperShow && !whisperDone}}" bindtap="nextWhisper">翻开任务卡</view>
+      <view class="spin-btn red" wx:if="{{whisperShow}}" bindtap="hideWhisper">关闭卡片（已记住）</view>
+    </view>
+    <view class="result-card" wx:if="{{whisperDone}}">
+      <view class="result-type pink">💋 请大声说出你的悄悄话！</view>
+    </view>
+    <view class="spin-btn" wx:if="{{whisperDone}}" bindtap="resetWhisper">再来一次</view>
+  </view>
+
+</view>

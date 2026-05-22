@@ -1,0 +1,21 @@
+.reg-page { min-height: 100vh; padding: 0 40rpx; position: relative; overflow: hidden; }
+.reg-bg { position: fixed; top: -200rpx; right: -100rpx; width: 500rpx; height: 500rpx; background: radial-gradient(circle, rgba(255,107,157,0.2), transparent 70%); border-radius: 50%; }
+.reg-logo { text-align: center; padding-top: 180rpx; padding-bottom: 60rpx; position: relative; z-index: 1; }
+.reg-emoji { font-size: 100rpx; display: block; margin-bottom: 20rpx; }
+.reg-title { display: block; font-size: 48rpx; font-weight: bold; background: linear-gradient(135deg, #ff6b9d, #c44dff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.reg-sub { display: block; font-size: 26rpx; color: rgba(255,255,255,0.5); margin-top: 12rpx; }
+.reg-form { position: relative; z-index: 1; }
+.reg-section { margin-bottom: 36rpx; }
+.reg-section:last-child { margin-bottom: 0; }
+.reg-label { display: block; font-size: 26rpx; color: rgba(255,255,255,0.6); margin-bottom: 16rpx; }
+.reg-input { background: rgba(255,255,255,0.08); border-radius: 16rpx; padding: 24rpx; font-size: 30rpx; color: #fff; border: 2rpx solid rgba(255,255,255,0.1); }
+.reg-avatars { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.reg-avatar-item { width: 80rpx; height: 80rpx; display: flex; align-items: center; justify-content: center; font-size: 40rpx; background: rgba(255,255,255,0.06); border-radius: 50%; border: 3rpx solid transparent; transition: all 0.2s; }
+.reg-avatar-item.selected { border-color: #ff6b9d; background: rgba(255,107,157,0.2); transform: scale(1.15); }
+.reg-genders { display: flex; gap: 24rpx; }
+.reg-gender { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 28rpx 0; background: rgba(255,255,255,0.06); border-radius: 20rpx; border: 3rpx solid transparent; transition: all 0.2s; }
+.reg-gender.active { border-color: #ff6b9d; background: rgba(255,107,157,0.15); }
+.reg-gender-icon { font-size: 48rpx; margin-bottom: 8rpx; }
+.reg-btn-wrap { margin-top: 40rpx; position: relative; z-index: 1; }
+.reg-btn { width: 100%; height: 96rpx; line-height: 96rpx; }
+.reg-tip { display: block; text-align: center; font-size: 22rpx; color: rgba(255,255,255,0.3); margin-top: 24rpx; }

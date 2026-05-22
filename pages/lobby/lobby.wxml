@@ -1,0 +1,59 @@
+<view class="page">
+  <!-- 房间信息 -->
+  <view class="room-header">
+    <text class="room-label">房间码</text>
+    <text class="room-code">{{room.code}}</text>
+    <text class="room-tip">把房间码发给好友 或 点击下方分享</text>
+  </view>
+
+  <!-- 分享按钮 -->
+  <view class="share-btn" bindtap="shareRoom">
+    <text class="share-icon">📤</text>
+    <text class="share-text">微信邀请好友加入</text>
+  </view>
+
+  <!-- 已加入玩家 -->
+  <view class="players-section">
+    <text class="players-title">已加入 ({{room.players.length}}/10人)</text>
+    <view class="players-grid">
+      <view class="player-card" wx:for="{{room.players}}" wx:key="id">
+        <text class="player-avatar">{{item.avatar}}</text>
+        <text class="player-name">{{item.nickname}}</text>
+        <text class="player-gender">{{item.gender==='male'?'♂':'♀'}}</text>
+        <view class="player-host" wx:if="{{item.id===room.hostId}}">房主</view>
+      </view>
+      <!-- 空位 -->
+      <view class="player-card empty" wx:for="{{emptySlots}}" wx:key="*this">
+        <text class="player-avatar empty-avatar">+</text>
+        <text class="player-name empty-name">等待加入</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 等待提示 -->
+  <view class="wait-tip" wx:if="{{room.players.length<2}}">
+    <text>等待更多玩家加入...</text>
+  </view>
+
+  <!-- 选择游戏 -->
+  <view class="game-select" wx:if="{{isHost}}">
+    <text class="select-title">选择游戏</text>
+    <view class="game-list">
+      <view class="game-opt {{selectedGame===item.id?'active':''}}" 
+            wx:for="{{gameList}}" wx:key="id" bindtap="selectGame" data-id="{{item.id}}">
+        <text class="game-opt-icon">{{item.icon}}</text>
+        <text class="game-opt-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 开始按钮（房主可见） -->
+  <view class="bottom-bar" wx:if="{{isHost}}">
+    <button class="btn-primary start-btn" bindtap="startGame" disabled="{{room.players.length<2 || !selectedGame}}">
+      🎮 开始游戏
+    </button>
+  </view>
+  <view class="bottom-bar" wx:else>
+    <view class="wait-bar">等待房主开始游戏...</view>
+  </view>
+</view>

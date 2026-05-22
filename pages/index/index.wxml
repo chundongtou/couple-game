@@ -1,0 +1,75 @@
+<view class="page">
+  <!-- 顶部用户信息 -->
+  <view class="header">
+    <view class="header-user">
+      <text class="header-avatar">{{user.avatar}}</text>
+      <view class="header-info">
+        <text class="header-name">{{user.nickname}}</text>
+        <text class="header-gender">{{user.gender==='male'?'♂ 男生':'♀ 女生'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 单人模式 -->
+  <view class="solo-card" bindtap="goSolo">
+    <view class="solo-icon">🎮</view>
+    <view class="solo-text">
+      <text class="solo-title">单人模式</text>
+      <text class="solo-desc">直接开始游戏，无需创建房间</text>
+    </view>
+    <text class="solo-arrow">›</text>
+  </view>
+
+  <!-- 创建房间 -->
+  <view class="action-card" bindtap="createRoom">
+    <view class="action-icon">👥</view>
+    <view class="action-text">
+      <text class="action-title">创建房间</text>
+      <text class="action-desc">邀请ta一起甜蜜互动</text>
+    </view>
+    <text class="action-arrow">›</text>
+  </view>
+
+  <!-- 加入房间 -->
+  <view class="card join-card">
+    <text class="join-title">输入房间码加入</text>
+    <view class="join-row">
+      <input class="join-input" placeholder="输入4位房间码" maxlength="4" 
+             value="{{joinCode}}" bindinput="onCodeInput" type="number" />
+      <button class="btn-primary join-btn" bindtap="joinRoom">加入</button>
+    </view>
+  </view>
+
+  <!-- 我的房间列表 -->
+  <view class="section" wx:if="{{myRooms.length>0}}">
+    <text class="section-title">📋 我的房间</text>
+    <view class="room-item card" wx:for="{{myRooms}}" wx:key="roomId">
+      <view class="room-main" bindtap="enterRoom" data-id="{{item.roomId}}">
+        <view class="room-left">
+          <text class="room-code">{{item.code}}</text>
+          <text class="room-host">房间主: {{item.hostName}}</text>
+        </view>
+        <view class="room-right">
+          <text class="room-players">{{item.playerCount}}人</text>
+          <text class="room-status {{item.status==='playing'?'playing':''}}">
+            {{item.status==='waiting'?'等待中':'游戏中'}}
+          </text>
+        </view>
+      </view>
+      <view class="room-delete" catchtap="deleteRoom" data-id="{{item.roomId}}" data-index="{{index}}">
+        <text class="delete-icon">🗑️</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 游戏列表（预览） -->
+  <view class="section">
+    <text class="section-title">💕 情侣升温游戏</text>
+    <view class="game-grid">
+      <view class="game-item" wx:for="{{gameList}}" wx:key="id">
+        <text class="game-item-icon">{{item.icon}}</text>
+        <text class="game-item-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+</view>

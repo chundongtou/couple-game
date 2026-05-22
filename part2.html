@@ -1,0 +1,34 @@
+<div id="app">
+<!-- 注册页 -->
+<div id="registerPage" class="register">
+  <h1>💋 情侣升温</h1>
+  <p>加入游戏，升温感情</p>
+  <input class="reg-input" id="nickname" placeholder="输入你的昵称" maxlength="8">
+  <div class="gender-select">
+    <div class="gender-btn" data-g="male" onclick="selectGender('male')">♂ 男生</div>
+    <div class="gender-btn" data-g="female" onclick="selectGender('female')">♀ 女生</div>
+  </div>
+  <button class="start-btn" onclick="addPlayer()">加入游戏</button>
+  <div id="playerList" style="margin-top:24px;width:280px"></div>
+  <button id="startGameBtn" class="start-btn hidden" onclick="startGame()" style="margin-top:16px;background:linear-gradient(135deg,#27ae60,#2ecc71)">开始游戏</button>
+</div>
+
+<!-- 游戏列表 -->
+<div id="gameListPage" class="hidden">
+  <div class="header">
+    <h1>💋 情侣升温</h1>
+    <p id="playerCount"></p>
+  </div>
+  <div class="players-bar" id="barPlayers"></div>
+  <div class="game-grid" id="gameGrid"></div>
+</div>
+
+<!-- 游戏页面 -->
+<div id="gamePage" class="hidden game-page">
+  <button class="back-btn" onclick="goBack()">←</button>
+  <div class="game-title" id="gTitle"></div>
+  <div class="players-bar" id="gPlayers"></div>
+  <div id="gameContent"></div>
+</div>
+</div>
+
