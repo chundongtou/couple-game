@@ -13,22 +13,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .header h1{font-size:20px;text-shadow:0 1px 3px rgba(0,0,0,0.3)}
 .header .sub{font-size:12px;opacity:0.8;margin-top:2px}
 .back-btn{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;cursor:pointer;padding:4px 8px}
-.reg-card{background:rgba(255,255,255,0.08);border-radius:16px;padding:30px 24px;margin:60px 20px 20px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1)}
-.reg-card h2{text-align:center;margin-bottom:20px;font-size:22px}
-.form-group{margin-bottom:16px}
-.form-group label{display:block;font-size:13px;color:#ccc;margin-bottom:6px}
-.form-group input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:15px;outline:none}
-.form-group input::placeholder{color:rgba(255,255,255,0.4)}
-.gender-btns{display:flex;gap:10px}
-.gender-btn{flex:1;padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:transparent;color:#fff;font-size:15px;cursor:pointer;text-align:center;transition:all 0.3s}
-.gender-btn.sel{border-color:#e040fb;background:rgba(224,64,251,0.3)}
-.submit-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#6c2bd9,#e040fb);color:#fff;font-size:17px;font-weight:bold;cursor:pointer;margin-top:10px}
-.player-list{margin-top:20px}
-.player-item{display:flex;align-items:center;padding:10px 12px;background:rgba(255,255,255,0.06);border-radius:10px;margin-bottom:8px}
-.player-item .av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;margin-right:10px}
-.player-item .info{flex:1;font-size:14px}
-.player-item .del{color:#ff4757;font-size:18px;cursor:pointer;padding:4px}
-.start-btn{display:block;margin:20px auto;padding:16px 40px;border-radius:14px;border:none;background:linear-gradient(135deg,#00b894,#00cec9);color:#fff;font-size:18px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(0,206,201,0.4)}
 .game-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px}
 .game-card{background:rgba(255,255,255,0.08);border-radius:14px;padding:18px 14px;text-align:center;cursor:pointer;transition:all 0.3s;border:1px solid rgba(255,255,255,0.08);position:relative}
 .game-card:active{transform:scale(0.95)}
@@ -36,6 +20,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .game-card .name{font-size:15px;font-weight:bold;margin-bottom:4px}
 .game-card .desc{font-size:11px;color:#aaa;line-height:1.3}
 .game-card .badge{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#00b894,#00cec9);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:bold}
+.couple-banner{text-align:center;padding:30px 20px 10px}
+.couple-banner .hearts{font-size:40px;animation:pulse 2s infinite}
+.couple-banner .names{font-size:18px;margin-top:10px;color:#e0b0ff}
+.couple-banner .names span{margin:0 6px}
+.couple-banner .vs{color:#ffd700;font-size:14px;vertical-align:middle}
 
 .wheel-wrap{position:relative;width:310px;height:310px;margin:20px auto 0}
 .wheel-wrap canvas{width:310px;height:310px;display:block}
@@ -55,37 +44,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .bomb-wrap{text-align:center;padding:20px}
 .bomb-range{font-size:36px;color:#ff6b6b;margin:16px 0}
 .bomb-input{width:100px;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:22px;text-align:center;outline:none}
-.bomb-submit,.dice-submit,.king-submit,.guess-submit,.heart-submit,.rps-submit,.blind-submit,.whisper-submit,.punish-submit{margin-top:14px;padding:12px 30px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
+.bomb-submit,.dice-submit,.rps-submit{margin-top:14px;padding:12px 30px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
 
 .dice-wrap{text-align:center;padding:20px}
 .dice-box{width:80px;height:80px;margin:20px auto;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:transform 0.15s;background:#fff;color:#333}
 .dice-box.rolling{animation:diceRoll 0.12s infinite alternate}
 @keyframes diceRoll{from{transform:rotate(-15deg) scale(1.05)}to{transform:rotate(15deg) scale(1.1)}}
 .dice-result{margin-top:14px;font-size:16px;min-height:24px}
-
-.king-wrap{text-align:center;padding:20px}
-.king-cards{display:flex;justify-content:center;gap:10px;margin:20px 0;flex-wrap:wrap}
-.king-card{width:56px;height:80px;border-radius:8px;background:linear-gradient(135deg,#2d3436,#636e72);border:2px solid rgba(255,255,255,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:all 0.4s}
-.king-card.show{background:linear-gradient(135deg,#6c2bd9,#a855f7);border-color:#a855f7}
-.king-card.is-king{background:linear-gradient(135deg,#ffd700,#ff6b9d);border-color:#ffd700;font-size:28px}
-.king-cmd{margin-top:16px;font-size:16px;min-height:24px;line-height:1.6;padding:0 10px}
-
-.guess-wrap{text-align:center;padding:16px}
-.guess-timer{font-size:32px;color:#00cec9;font-weight:bold;margin:10px 0}
-.guess-word-box{background:rgba(255,255,255,0.1);border-radius:12px;padding:24px;margin:12px 0}
-.guess-word{font-size:24px;font-weight:bold;margin-bottom:4px}
-.guess-btns{display:flex;gap:12px;justify-content:center;margin-top:16px}
-.guess-btn{padding:14px 30px;border-radius:12px;border:none;font-size:16px;font-weight:bold;cursor:pointer}
-.guess-btn.ok{background:linear-gradient(135deg,#00b894,#00cec9);color:#fff}
-.guess-btn.no{background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff}
-.guess-btn.skip{background:rgba(255,255,255,0.15);color:#fff}
-.guess-score{font-size:18px;margin-top:12px}
-
-.heart-wrap{text-align:center;padding:20px}
-.heart-timer{font-size:40px;color:#ff6b9d;font-weight:bold;margin:10px 0}
-.heart-desc{font-size:18px;margin:16px 0;line-height:1.7;min-height:60px;padding:0 10px}
-.heart-btns{display:flex;gap:12px;justify-content:center;margin-top:16px}
-.heart-btn{padding:12px 24px;border-radius:10px;border:none;font-size:15px;font-weight:bold;cursor:pointer}
 
 .rps-wrap{text-align:center;padding:20px}
 .rps-phase{font-size:14px;color:#aaa;margin:8px 0}
@@ -100,61 +65,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .rps-p2{background:rgba(224,64,251,0.3)}
 .rps-vs{font-size:20px;margin:4px 12px;color:#ffd700}
 
-.blind-wrap{text-align:center;padding:20px}
-.blind-desc{font-size:14px;color:#aaa;margin-bottom:10px;line-height:1.5;padding:0 10px}
-.blind-timer{font-size:28px;color:#00cec9;font-weight:bold;margin:8px 0}
-.blind-score{font-size:16px;color:#ffd700;margin:4px 0}
-.blind-body{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
-.blind-part{padding:14px 6px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all 0.3s}
-.blind-part:active{transform:scale(0.9);background:rgba(224,64,251,0.2);border-color:#e040fb}
-.blind-part .bp-icon{font-size:28px}
-.blind-part .bp-name{font-size:11px;margin-top:4px;color:#aaa}
-.blind-result{margin-top:14px;font-size:16px;min-height:24px;line-height:1.5;padding:0 10px}
-
-.whisper-wrap{text-align:center;padding:20px}
-.whisper-card{background:linear-gradient(135deg,#2d1b69,#1a1a2e);border:1px solid rgba(224,64,251,0.3);border-radius:16px;padding:30px 20px;margin:20px 0;min-height:100px;display:flex;align-items:center;justify-content:center}
-.whisper-card .text{font-size:18px;line-height:1.6;font-style:italic;color:#e0b0ff}
-
-.tissue-wrap{text-align:center;padding:20px}
-.tissue-timer{font-size:28px;color:#00cec9;font-weight:bold;margin:8px 0}
-.tissue-bar{margin:12px auto}
-.tissue-bar-fill{height:8px;border-radius:4px;transition:width 0.5s}
-
-.player-bar{display:flex;gap:8px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.player-bar::-webkit-scrollbar{display:none}
-.player-chip{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);border-radius:20px;padding:4px 10px 4px 6px;font-size:12px;white-space:nowrap;flex-shrink:0}
-.player-chip .chip-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px}
-.player-chip.current{background:rgba(224,64,251,0.3);border:1px solid #e040fb}
-
 .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.88);color:#fff;padding:16px 28px;border-radius:14px;font-size:15px;z-index:9999;display:none;text-align:center;max-width:85%;line-height:1.5}
 .toast.show{display:block;animation:tin 0.3s ease}
 @keyframes tin{from{opacity:0;transform:translate(-50%,-50%) scale(0.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
 </style>
 </head>
 <body>
 
-<div id="regPage" class="page active">
-<div class="header"><h1>💋 情侣升温游戏</h1><div class="sub">添加玩家，开始激情之旅</div></div>
-<div class="reg-card">
-<h2>👤 加入游戏</h2>
-<div class="form-group"><label>昵称</label><input id="regName" placeholder="输入你的昵称" maxlength="8"></div>
-<div class="form-group"><label>性别</label>
-<div class="gender-btns">
-<div class="gender-btn" onclick="selGender(this)">♂ 男</div>
-<div class="gender-btn" onclick="selGender(this)">♀ 女</div>
-</div></div>
-<button class="submit-btn" onclick="addPlayer()">➕ 加入</button>
-<div class="player-list" id="pList"></div>
-<button class="start-btn" id="startBtn" style="display:none" onclick="goGames()">🚀 开始游戏</button>
-</div></div>
+<!-- 首页：游戏列表 -->
+<div id="homePage" class="page active">
+<div class="header">
+<h1>💋 情侣升温游戏</h1>
+<div class="sub">选一个游戏，开始升温吧~</div>
+</div>
+<div class="couple-banner">
+<div class="hearts">💕</div>
+<div class="names"><span style="color:#3498db">♂ 他</span><span class="vs">❤</span><span style="color:#e040fb">♀ 她</span></div>
+</div>
+<div class="game-grid" id="gameGrid"></div>
+</div>
 
-<div id="gameListPage" class="page">
-<div class="header"><h1>🎮 选择游戏</h1><div class="sub" id="glSub"></div></div>
-<div class="game-grid" id="gameGrid"></div></div>
-
+<!-- 游戏页 -->
 <div id="gamePage" class="page">
-<div class="header"><div class="back-btn" onclick="goGames()">←</div><h1 id="gTitle">游戏</h1></div>
-<div class="player-bar" id="pBar"></div>
+<div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="gTitle">游戏</h1></div>
 <div id="gContent"></div></div>
 
 <div class="toast" id="toast"></div>
@@ -168,6 +102,7 @@ bombs:["原地转10圈然后做3个深蹲","学大猩猩走路10步","大声喊�
 punish:["从后面抱住对方蹭30秒","互相脱掉对方三件衣服","用手帮对方30秒","让对方的手从裙底伸进去","对方把嘴贴在你耳边说骚话30秒","互相用嘴帮对方脱衣服","坐对方腿上蹭30秒","用嘴亲对方大腿内侧20秒","跪在对方面前做口型动作","女上位骑在对方身上扭动30秒","让对方把脸贴在你胸口蹭","背对对方弯腰让对方从后面抱","面对面做30秒不许碰对方","让对方舔你的手指到第二指节","对方用舌头舔你的耳朵20秒","把手放在对方脖子上轻轻滑","让对方用嘴唇解开你的第一颗扣子","用鼻子蹭对方的脖子10秒","从后面抱住对方同时亲脖子","用指尖从对方额头滑到嘴唇","双手环住对方的腰贴紧10秒","用嘴唇轻碰对方的锁骨5次","让对方闭眼你亲他脸不同位置","用舌头在对方手心画圈10秒","让对方从后面抱住你蹭30秒","用嘴帮对方解开所有扣子","让对方骑在你身上扭动20秒","用舌头舔对方的耳朵和脖子","让对方把手伸进你衣服里30秒","面对面坐好互相脱衣服","让对方用嘴亲你的小腹以下","从前面抱住对方蹭30秒","让对方用舌头舔你的锁骨","用手指轻轻划过对方的背","让对方从后面亲你的脖子20秒","用嘴含住对方的手指10秒","让对方骑在你身上扭动到喊停","双手捧着对方的脸亲10秒","让对方用舌头舔你的手掌心","从后面抱住对方同时亲脖子","让对方坐在你腿上蹭30秒","用嘴轻轻咬对方的耳朵","让对方把脸埋在你胸口10秒","用手指轻轻划过对方的大腿内侧","让对方从后面抱住你同时亲","用嘴帮对方做全套服务","让对方骑在你身上扭动同时亲你","用舌头舔对方的小腹以下","面对面坐好互相进入","让对方从后面来30秒"]
 };
 
+var HE={him:'他',her:'她'};
 var GAMES=[
 {id:'truth',icon:'💜',name:'真心话',desc:'转盘决定你要回答的真心话'},
 {id:'dare',icon:'🔥',name:'大冒险',desc:'转盘决定你要执行的刺激大冒险'},
@@ -177,7 +112,7 @@ var GAMES=[
 {id:'punish',icon:'🎡',name:'惩罚大转盘',desc:'随机抽取刺激惩罚'}
 ];
 
-var players=[],selG=null,curGame=null;
+var curGame=null;
 var played=JSON.parse(localStorage.getItem('couple-game-played')||'[]');
 
 /* ===== Audio ===== */
@@ -202,42 +137,16 @@ function pickRandom(arr,n){return shuffle(arr.slice()).slice(0,n)}
 function randItem(a){return a[Math.floor(Math.random()*a.length)]}
 function showPage(id){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';setTimeout(function(){t.className='toast'},2000)}
-function renderBar(){var h='';players.forEach(function(p){h+='<div class="player-chip"><span class="chip-av" style="background:'+(p.g==='male'?'#3498db':'#e040fb')+'">'+(p.g==='male'?'♂':'♀')+'</span>'+p.name+'</div>'});document.getElementById('pBar').innerHTML=h}
-function getRandPlayer(){return players.length?randItem(players):{name:'玩家',g:'male'}}
 function markPlayed(id){if(played.indexOf(id)<0){played.push(id);localStorage.setItem('couple-game-played',JSON.stringify(played))}}
 
-/* ===== Persistence ===== */
-function savePlayers(){localStorage.setItem('couple-game-players',JSON.stringify(players))}
-function loadPlayers(){try{var d=JSON.parse(localStorage.getItem('couple-game-players'));if(d&&d.length>=2)players=d}catch(e){}}
+/* ===== 双人角色切换（猜拳等用） ===== */
+function otherPlayer(name){return name===HE.him?HE.her:HE.him}
 
-/* ===== Registration ===== */
-var regGender=null;
-function selGender(el){document.querySelectorAll('.gender-btn').forEach(function(b){b.classList.remove('sel')});el.classList.add('sel');regGender=el.textContent.indexOf('男')>=0?'male':'female'}
-function addPlayer(){
-  var name=document.getElementById('regName').value.trim();
-  if(!name){toast('请输入昵称');return}
-  if(!regGender){toast('请选择性别');return}
-  if(players.find(function(p){return p.name===name})){toast('昵称已存在');return}
-  players.push({name:name,g:regGender});
-  document.getElementById('regName').value='';
-  document.querySelectorAll('.gender-btn').forEach(function(b){b.classList.remove('sel')});
-  regGender=null;
-  renderPList();savePlayers();
+/* ===== Game List (首页) ===== */
+function goHome(){
+  showPage('homePage');renderHome();
 }
-function delPlayer(i){players.splice(i,1);renderPList();savePlayers()}
-function renderPList(){
-  var h='';players.forEach(function(p,i){
-    h+='<div class="player-item"><div class="av" style="background:'+(p.g==='male'?'#3498db':'#e040fb')+'">'+(p.g==='male'?'♂':'♀')+'</div><div class="info">'+p.name+'</div><div class="del" onclick="delPlayer('+i+')">✕</div></div>';
-  });
-  document.getElementById('pList').innerHTML=h;
-  document.getElementById('startBtn').style.display=players.length>=2?'block':'none';
-}
-
-/* ===== Game List ===== */
-function goGames(){
-  if(players.length<2){toast('至少需要2位玩家才能开始游戏');return}
-  showPage('gameListPage');
-  document.getElementById('glSub').textContent=players.length+'位玩家就绪';
+function renderHome(){
   var h='';GAMES.forEach(function(g){
     var badge=played.indexOf(g.id)>=0?'<div class="badge">✓</div>':'';
     h+='<div class="game-card" onclick="startGame(\''+g.id+'\')">'+badge+'<div class="icon">'+g.icon+'</div><div class="name">'+g.name+'</div><div class="desc">'+g.desc+'</div></div>';
@@ -247,7 +156,7 @@ function goGames(){
 
 /* ===== Start Game ===== */
 function startGame(id){
-  curGame=id;showPage('gamePage');renderBar();
+  curGame=id;showPage('gamePage');
   var g=GAMES.find(function(x){return x.id===id});
   document.getElementById('gTitle').textContent=g.icon+' '+g.name;
   var c=document.getElementById('gContent');
@@ -264,7 +173,6 @@ function startGame(id){
 function drawWheel(canvas,items,colors){
   var ctx=canvas.getContext('2d');
   var W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,R=W/2-12,n=items.length;
-  // Dynamic font size based on item count
   var fs=n<=10?11:n<=15?10:n<=20?9:n<=30?8:7;
   ctx.clearRect(0,0,W,H);
   for(var i=0;i<40;i++){
@@ -302,7 +210,7 @@ function spinWheel(canvasId,items,angleKey,spinningKey,resultId,cb){
   },4600);
 }
 
-/* ===== 1a. 真心话 ===== */
+/* ===== 真心话 ===== */
 function renderTruth(c){
   var items=GAMEDATA.truths.slice();
   var colors=['#6c2bd9','#7c3aed','#8b5cf6','#a855f7','#7c3aed','#8b5cf6','#6c2bd9','#a855f7'];
@@ -311,7 +219,7 @@ function renderTruth(c){
     +'<div class="wheel-pointer"></div>'
     +'<button class="wheel-go-btn" onclick="spinTruthWheel()">GO</button>'
     +'</div>'
-    +'<div class="wheel-result" id="truthResult"><div class="text">点击GO旋转转盘</div><div class="star">💜真心话</div></div>'
+    +'<div class="wheel-result" id="truthResult"><div class="text">点击GO旋转转盘</div><div class="star">💜 真心话</div></div>'
     +'<div class="wheel-btns">'
     +'<button class="wheel-btn back" onclick="startGame(\'truth\')">🔄 重来</button>'
     +'</div>';
@@ -320,13 +228,13 @@ function renderTruth(c){
 }
 function spinTruthWheel(){
   spinWheel('truthCanvas',window._truthItems,'_truthAngle','_truthSpinning','truthResult',function(idx){
-    var p=getRandPlayer();
+    var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('truthResult').innerHTML=
-      '<div class="text">'+window._truthItems[idx]+'</div><div class="star">💜 真心话</div><div class="player-tag">'+p.name+' 必须回答！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
+      '<div class="text">'+window._truthItems[idx]+'</div><div class="star">💜 真心话</div><div class="player-tag">'+who+' 必须回答！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
   });
 }
 
-/* ===== 1b. 大冒险 ===== */
+/* ===== 大冒险 ===== */
 function renderDare(c){
   var items=GAMEDATA.dare.slice();
   var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
@@ -344,13 +252,13 @@ function renderDare(c){
 }
 function spinDareWheel(){
   spinWheel('dareCanvas',window._dareItems,'_dareAngle','_dareSpinning','dareResult',function(idx){
-    var p=getRandPlayer();
+    var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('dareResult').innerHTML=
-      '<div class="text">'+window._dareItems[idx]+'</div><div class="star">🔥 大冒险</div><div class="player-tag">'+p.name+' 必须执行！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
+      '<div class="text">'+window._dareItems[idx]+'</div><div class="star">🔥 大冒险</div><div class="player-tag">'+who+' 必须执行！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
   });
 }
 
-/* ===== 2. 数字炸弹 ===== */
+/* ===== 数字炸弹 ===== */
 function renderBomb(c){
   var bomb=Math.floor(Math.random()*100)+1;
   window._bomb=bomb;window._bombMin=1;window._bombMax=100;window._bombGuesses=0;
@@ -358,7 +266,7 @@ function renderBomb(c){
     +'<h2 style="margin-bottom:10px">💣 数字炸弹</h2>'
     +'<p style="color:#aaa;font-size:13px">炸弹藏在1-100之间，猜中就爆炸！</p>'
     +'<div class="bomb-range"><span id="bMin">1</span><span class="slash">—</span><span id="bMax">100</span></div>'
-    +'<input class="bomb-input" id="bombInput" type="number" min="1" max="100" placeholder="?">'
+    +'<input class="bomb-input" id="bombInput" type="number" min="1" max="100" placeholder="?" onkeypress="if(event.key===\'Enter\')guessBomb()">'
     +'<div><button class="bomb-submit" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff" onclick="guessBomb()">💥 猜！</button></div>'
     +'<div class="bomb-msg" id="bombMsg"></div>'
     +'<div style="font-size:13px;color:#aaa;margin-top:8px">已猜：<span id="bombCount">0</span>次 | 范围：<span id="bombRange">100</span></div>'
@@ -372,9 +280,9 @@ function guessBomb(){
   sndDing();vibrate(30);
   if(v===window._bomb){
     sndBoom();vibrate([100,50,100,50,200]);
-    var p=getRandPlayer();
+    var who=Math.random()<0.5?HE.him:HE.her;
     var punish=randItem(GAMEDATA.bombs);
-    document.getElementById('bombMsg').innerHTML='<div style="color:#ff4757;font-size:22px;margin:10px 0">💥 炸弹爆炸！！！</div><div>'+p.name+'：'+punish+'</div>';
+    document.getElementById('bombMsg').innerHTML='<div style="color:#ff4757;font-size:22px;margin:10px 0">💥 炸弹爆炸！！！</div><div>'+who+'：'+punish+'</div>';
     document.getElementById('bombInput').disabled=true;
     document.querySelector('.bomb-submit').disabled=true;
   }else if(v<window._bomb){
@@ -389,7 +297,7 @@ function guessBomb(){
   document.getElementById('bombInput').value='';
 }
 
-/* ===== 3. 骰子 ===== */
+/* ===== 骰子 ===== */
 function renderDice(c){
   var faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
   c.innerHTML='<div class="dice-wrap">'
@@ -412,22 +320,21 @@ function rollDice(){
       var result=Math.floor(Math.random()*6);
       box.textContent=window._faces[result];
       var val=result+1;sndDing();vibrate(80);
-      var p=getRandPlayer();
+      var who=Math.random()<0.5?HE.him:HE.her;
       var punish=randItem(GAMEDATA.punish);
       document.getElementById('diceResult').innerHTML=
-        '<div style="font-size:22px;margin-bottom:8px">🎲 '+val+'点！</div><div>'+p.name+'：'+punish+'</div>';
+        '<div style="font-size:22px;margin-bottom:8px">🎲 '+val+'点！</div><div>'+who+'：'+punish+'</div>';
     }
   },80);
 }
 
-/* ===== 4. 石头剪刀布（双人） ===== */
+/* ===== 石头剪刀布 ===== */
 function renderRPS(c){
   var moves=[{icon:'✊',name:'石头'},{icon:'✌️',name:'剪刀'},{icon:'✋',name:'布'}];
   window._rpsMoves=moves;window._rpsP1=null;window._rpsP2=null;window._rpsPhase=1;
-  var p1=players[0]||{name:'玩家1'};var p2=players[1]||{name:'玩家2'};
   c.innerHTML='<div class="rps-wrap">'
     +'<h2 style="margin-bottom:10px">✊ 石头剪刀布</h2>'
-    +'<div class="rps-phase" id="rpsPhase">'+p1.name+' 请出拳</div>'
+    +'<div class="rps-phase" id="rpsPhase">'+HE.him+' 请出拳</div>'
     +'<div class="rps-picks" id="rpsPicks">'
     +'<div class="rps-pick" onclick="rpsPick(0)"><div class="rps-icon">✊</div><div class="rps-label">石头</div></div>'
     +'<div class="rps-pick" onclick="rpsPick(1)"><div class="rps-icon">✌️</div><div class="rps-label">剪刀</div></div>'
@@ -436,7 +343,7 @@ function renderRPS(c){
     +'<div class="rps-result" id="rpsResult"></div>'
     +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame(\'rps\')">🔄 重来</button></div>'
     +'</div>';
-  window._rpsP1Name=p1.name;window._rpsP2Name=p2.name;
+  window._rpsP1Name=HE.him;window._rpsP2Name=HE.her;
 }
 function rpsPick(choice){
   sndDing();vibrate(30);
@@ -470,7 +377,7 @@ function rpsPick(choice){
   }
 }
 
-/* ===== 11. 惩罚转盘 ===== */
+/* ===== 惩罚转盘 ===== */
 function renderPunish(c){
   var items=GAMEDATA.punish.slice();
   var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
@@ -488,15 +395,15 @@ function renderPunish(c){
 }
 function spinPunishWheel(){
   spinWheel('pCanvas',window._punishItems,'_punishAngle','_punishSpinning','punishResult',function(idx){
-    var p=getRandPlayer();
+    var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('punishResult').innerHTML=
-      '<div class="text">'+window._punishItems[idx]+'</div><div class="player-tag">🎯 '+p.name+' 必须执行！</div>';
+      '<div class="text">'+window._punishItems[idx]+'</div><div class="player-tag">🎯 '+who+' 必须执行！</div>';
   });
 }
 
 /* ===== Init ===== */
-loadPlayers();
-if(players.length>=2)renderPList();
+renderHome();
+
 </script>
 </body>
 </html>
