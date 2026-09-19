@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>情侣升温游戏</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:linear-gradient(135deg,#1a0a2e 0%,#16213e 50%,#0f3460 100%);min-height:100vh;color:#fff;overflow-x:hidden}
@@ -43,6 +44,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 .bomb-wrap{text-align:center;padding:20px}
 .bomb-range{font-size:36px;color:#ff6b6b;margin:16px 0}
+.bomb-msg{margin-top:12px;min-height:48px}
 .bomb-input{width:100px;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:22px;text-align:center;outline:none}
 .bomb-submit,.dice-submit,.rps-submit{margin-top:14px;padding:12px 30px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}
 
@@ -81,7 +83,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 </div>
 <div class="couple-banner">
 <div class="hearts">💕</div>
-<div class="names"><span style="color:#3498db">♂ 他</span><span class="vs">❤</span><span style="color:#e040fb">♀ 她</span></div>
+<div class="names" id="cpNames" onclick="editNames()"><span style="color:#3498db">♂ 他</span><span class="vs">❤</span><span style="color:#e040fb">♀ 她</span></div><div style="font-size:10px;color:#777;margin-top:4px">👆 点昵称可修改</div>
 </div>
 <div class="game-grid" id="gameGrid"></div>
 </div>
@@ -96,13 +98,222 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <script>
 
 var GAMEDATA={
-truths:["你最想对方用什么方式让你高潮？","你最疯狂的一次性经历是什么？","你幻想过在浴室和对方做爱吗？","你最想尝试的制服是什么？","你对口交有什么看法？喜欢什么感觉？","你有过假装高潮的经历吗？","你最想在什么地方和对方做爱？","描述你最想和对方尝试的性爱姿势","你最喜欢对方身体的哪个部位？为什么？","你最敏感的身体部位在哪里？","你最想尝试的play是什么？","你最多可以一天做几次？","你喜欢被口还是喜欢口对方？","你喜欢被控制还是控制对方？","你最刺激的性幻想内容是什么？","你喜欢前戏还是直接进入？","你最想让对方穿什么情趣内衣？","你喜欢对方叫你什么羞羞的称呼？","你喜欢戴套还是不戴套的感觉？","你对情趣用品有什么看法？","你最羞耻的身体秘密是什么？","你喜欢对方在床上主动还是被动？","你对对方的尺寸满意吗？","你喜欢边做边说话还是安静？","你喜欢粗暴还是温柔的方式？","你最难忘的一次亲吻是什么时候？","你最想让对方做的一件羞羞的事？","你偷偷自慰的时候想到了谁？","你最想去的私密旅行地点是？","你第一次看到对方身体时的想法？","你在什么场合最容易想要？","你最想被对方从后面抱住做什么？","你幻想过被绑起来吗？","你最想尝试几个人一起？","你喜欢对方在哪里留下吻痕？","你最想被口的身体部位是哪里？","你幻想过在什么地方被要？","你偷偷看过对方的裸体吗？什么时候？","你最想让对方怎么舔你？","你喜欢被咬还是被舔？","你幻想过和对方的哪个朋友做过吗？","你有过约炮的想法吗？","你对开放关系怎么看？","你幻想过对方和别人做爱的场景吗？","你最喜欢对方穿什么内衣？","你最想尝试的制服组合是什么？","你喜欢在早上还是晚上做？","你最想让对方怎么挑逗你？","你有过在公共场合忍不住的经历吗？","你最想被对方用什么姿势从后面要？","你幻想过被对方绑在床上吗？","你最想尝试的SM角色是什么？","你喜欢对方在你耳边说什么？","你最想让对方怎么用舌头？","你有过偷情的幻想对象吗？","你最想在什么特殊场合做？","你喜欢对方主动还是你主动？","你最想尝试的多人场景是什么？","你幻想过被对方按在墙上要吗？","你最想让对方怎么玩你的身体？","你喜欢温柔还是粗暴的前戏？","你最想被对方怎么征服？","你幻想过在泳池里做吗？","你最想让对方怎么触碰你的禁区？","你有过假装不愿意但其实很想要的经历吗？","你最想尝试的户外地点是？","你喜欢对方怎么用手指？","你最想让对方在你身上留下什么印记？","你幻想过被对方锁在床上吗？","你最想尝试的一次多人运动是？","你喜欢对方怎么做才能让你最快到？","你最想让对方怎么含住你？","你幻想过在温泉里和对方做吗？","你最想被对方怎么对待？","你喜欢对方怎么抚摸你的背？","你最想让对方怎么用嘴服务你？","你有过在别人面前忍不住的幻想吗？","你最想尝试的户外刺激地点是？","你喜欢对方怎么挑逗你的耳朵？","你最想让对方怎么抱着你做？","你幻想过被对方在阳台要吗？","你最想尝试的3P对象是什么类型？","你喜欢对方怎么用舌头舔你的全身？","你最想让对方怎么在床上主导你？"],
-dare:["女生帮男生用手到高潮","两人面对面脱到只剩内裤","女生骑在男生身上扭动30秒","两人互相舔对方的身体30秒","女生用胸部贴着男生的脸蹭","男生从后面抱住女生蹭30秒","两人面对面坐好互相脱衣服","两人把对方的内裤脱掉","男生用舌头舔遍女生的脸和脖子","女生骑在男生身上不许做别的","两人在被窝里做任何事2分钟","女生帮男生解开内裤","两人用舌头互碰10秒","女生用嘴含住男生乳头","两人面对面互相用手帮对方","男生把女生抱到床上亲遍全身","男生把女生压在身下模拟30秒","男生把女生抱起来顶在墙上","两人脱掉上衣抱在一起15秒","男生用嘴亲女生最敏感的部位","女生从背后帮男生用手","两人互相摸对方的私密部位15秒","男生的手从女生裙底伸进去","女生帮男生用手并叫他名字","两人互相帮对方到高潮","男生把手伸进女生衣服里30秒","女生把男生的头按在自己胸口","两人模拟做爱姿势保持30秒","女生帮男生用手同时亲他的脖子","男生从后面把脸贴在女生背上","女生用嘴含住男生下面10秒","两人面对面站着互相脱衣服","男生从后面把女生顶在墙上","女生骑在男生身上扭动到喊停","两人互相帮对方到高潮为止","男生用舌头从女生脚趾舔到大腿","女生帮男生用手同时舔他的胸","两人面对面坐互相用手帮对方","男生把女生的手放在自己下面","女生从后面抱住男生蹭30秒","两人在被窝里互相摸对方全身","女生用嘴帮男生解开皮带","男生把手伸进女生内裤里","两人互相帮对方口30秒","女生骑在男生身上上下动","男生用嘴从女生脖子亲到胸口","女生帮男生用手同时用嘴亲他","两人面对面互相帮对方到出声","男生从后面抱住女生同时摸","女生把腿缠在男生腰上","男生用舌头舔女生的耳朵和脖子","两人在沙发上做任何事2分钟","女生帮男生用手同时坐在他腿上","男生用嘴亲女生的小腹以下","两人面对面站着互相抚摸","女生从后面帮男生用手到出声","男生把女生抱起来靠着墙做","两人脱光衣服抱在一起10秒","女生用嘴含住男生的手指","男生用舌头舔女生的锁骨和胸口","两人互相帮对方到高潮不许停","女生骑在男生身上扭动同时亲他","男生从后面把手伸进女生衣服","两人在镜子前做任何事","女生帮男生用手同时叫他的名字","男生用嘴亲遍女生全身","两人面对面互相用手帮到出声","女生把男生按在沙发上骑他","男生从后面抱住女生蹭到出声","两人在浴缸里做任何事2分钟","女生帮男生用手到他求饶","男生用嘴亲女生的私密部位","两人互相帮对方到高潮然后接吻"],
-bombs:["原地转10圈然后做3个深蹲","学大猩猩走路10步","大声喊三遍我是猪","做一个最丑的鬼脸保持10秒","用屁股写字母A","学鸡叫10秒","用舌头舔自己的鼻子","学机器人走路5步","单脚站立30秒不许倒","表演一段即兴舞蹈","用腹语说一句话","模仿一个动物叫声让对方猜","学超级玛丽跳跃10次","假装被电击表演5秒","做一个最撩人的pose保持5秒","学企鹅走路绕一圈","大声唱一首儿歌","表演一段迈克尔杰克逊","用脚趾夹起一支笔","对着镜头比心说土味情话"],
-punish:["从后面抱住对方蹭30秒","互相脱掉对方三件衣服","用手帮对方30秒","让对方的手从裙底伸进去","对方把嘴贴在你耳边说骚话30秒","互相用嘴帮对方脱衣服","坐对方腿上蹭30秒","用嘴亲对方大腿内侧20秒","跪在对方面前做口型动作","女上位骑在对方身上扭动30秒","让对方把脸贴在你胸口蹭","背对对方弯腰让对方从后面抱","面对面做30秒不许碰对方","让对方舔你的手指到第二指节","对方用舌头舔你的耳朵20秒","把手放在对方脖子上轻轻滑","让对方用嘴唇解开你的第一颗扣子","用鼻子蹭对方的脖子10秒","从后面抱住对方同时亲脖子","用指尖从对方额头滑到嘴唇","双手环住对方的腰贴紧10秒","用嘴唇轻碰对方的锁骨5次","让对方闭眼你亲他脸不同位置","用舌头在对方手心画圈10秒","让对方从后面抱住你蹭30秒","用嘴帮对方解开所有扣子","让对方骑在你身上扭动20秒","用舌头舔对方的耳朵和脖子","让对方把手伸进你衣服里30秒","面对面坐好互相脱衣服","让对方用嘴亲你的小腹以下","从前面抱住对方蹭30秒","让对方用舌头舔你的锁骨","用手指轻轻划过对方的背","让对方从后面亲你的脖子20秒","用嘴含住对方的手指10秒","让对方骑在你身上扭动到喊停","双手捧着对方的脸亲10秒","让对方用舌头舔你的手掌心","从后面抱住对方同时亲脖子","让对方坐在你腿上蹭30秒","用嘴轻轻咬对方的耳朵","让对方把脸埋在你胸口10秒","用手指轻轻划过对方的大腿内侧","让对方从后面抱住你同时亲","用嘴帮对方做全套服务","让对方骑在你身上扭动同时亲你","用舌头舔对方的小腹以下","面对面坐好互相进入","让对方从后面来30秒"]
+truths:["你最想对方用什么方式让你高潮？","你最疯狂的一次性经历是什么？","你幻想过在浴室和对方做爱吗？","你最想尝试的制服是什么？","你对口交有什么看法？喜欢什么感觉？","你有过假装高潮的经历吗？","你最想在什么地方和对方做爱？","描述你最想和对方尝试的性爱姿势","你最喜欢对方身体的哪个部位？为什么？","你最敏感的身体部位在哪里？","你最想尝试的play是什么？","你最多可以一天做几次？","你喜欢被口还是喜欢口对方？","你喜欢被控制还是控制对方？","你最刺激的性幻想内容是什么？","你喜欢前戏还是直接进入？","你最想让对方穿什么情趣内衣？","你喜欢对方叫你什么羞羞的称呼？","你喜欢戴套还是不戴套的感觉？","你对情趣用品有什么看法？","你最羞耻的身体秘密是什么？","你喜欢对方在床上主动还是被动？","你对对方的尺寸满意吗？","你喜欢边做边说话还是安静？","你喜欢粗暴还是温柔的方式？","你最难忘的一次亲吻是什么时候？","你最想让对方做的一件羞羞的事？","你偷偷自慰的时候想到了谁？","你最想去的私密旅行地点是？","你第一次看到对方身体时的想法？","你在什么场合最容易想要？","你最想被对方从后面抱住做什么？","你幻想过被绑起来吗？","你最想尝试几个人一起？","你喜欢对方在哪里留下吻痕？","你最想被口的身体部位是哪里？","你幻想过在什么地方被要？","你偷偷看过对方的裸体吗？什么时候？","你最想让对方怎么舔你？","你喜欢被咬还是被舔？","你幻想过和对方的哪个朋友做过吗？","你有过约炮的想法吗？","你对开放关系怎么看？","你幻想过对方和别人做爱的场景吗？","你最喜欢对方穿什么内衣？","你最想尝试的制服组合是什么？","你喜欢在早上还是晚上做？","你最想让对方怎么挑逗你？","你有过在公共场合忍不住的经历吗？","你最想被对方用什么姿势从后面要？","你幻想过被对方绑在床上吗？","你最想尝试的SM角色是什么？","你喜欢对方在你耳边说什么？","你最想让对方怎么用舌头？","你有过偷情的幻想对象吗？","你最想在什么特殊场合做？","你喜欢对方主动还是你主动？","你最想尝试的多人场景是什么？","你幻想过被对方按在墙上要吗？","你最想让对方怎么玩你的身体？","你喜欢温柔还是粗暴的前戏？","你最想被对方怎么征服？","你幻想过在泳池里做吗？","你最想让对方怎么触碰你的禁区？","你有过假装不愿意但其实很想要的经历吗？","你最想尝试的户外地点是？","你喜欢对方怎么用手指？","你最想让对方在你身上留下什么印记？","你幻想过被对方锁在床上吗？","你最想尝试的一次多人运动是？","你喜欢对方怎么做才能让你最快到？","你最想让对方怎么含住你？","你幻想过在温泉里和对方做吗？","你最想被对方怎么对待？","你喜欢对方怎么抚摸你的背？","你最想让对方怎么用嘴服务你？","你有过在别人面前忍不住的幻想吗？","你最想尝试的户外刺激地点是？","你喜欢对方怎么挑逗你的耳朵？","你最想让对方怎么抱着你做？","你幻想过被对方在阳台要吗？","你最想尝试的3P对象是什么类型？","你喜欢对方怎么用舌头舔你的全身？","你最想让对方怎么在床上主导你？",
+"你最喜欢对方用哪种姿势亲你？",
+"你幻想过和对方在车里做吗？",
+"你最想对方穿什么颜色的内衣？",
+"你最喜欢对方用什么节奏？",
+"你被对方碰哪里会最快有感觉？",
+"你最想试的一次角色扮演是什么？",
+"你喜欢对方在你耳边吹气还是轻咬？",
+"你最想和对方尝试哪个新姿势？",
+"你一个人的时候想过对方几次？",
+"你最喜欢对方吻你的哪个部位？",
+"你为对方做过最大胆的一件事是什么？",
+"你最想对方用什么小道具？",
+"你喜欢开灯还是关灯？",
+"你最想被对方怎么叫醒？",
+"你幻想过和对方在电影院做吗？",
+"你最想让对方摸哪里超过三分钟？",
+"你偷偷收藏过对方的什么东西？",
+"你幻想过边打电话边做吗？",
+"你对剃毛怎么看？",
+"你最喜欢对方发出什么声音？",
+"你最想和对方解锁多少种姿势？",
+"你幻想过在厨房里做吗？",
+"做完之后你喜欢抱着还是聊天？",
+"你更喜欢正面位还是背面位？",
+"你偷看过对方的手机相册吗？",
+"你最想和对方在镜子前做什么？",
+"你喜欢温柔的开始还是霸道的开始？",
+"你最想对对方说的骚话是什么？",
+"你幻想过在朋友家过夜时偷偷做吗？",
+"你最想让对方怎么回应你的声音？",
+"你喜欢速战速决还是慢慢来？",
+"你最想在对方身上写什么字？",
+"你有过想对方想到睡不着的夜晚吗？",
+"你最喜欢对方身上的什么味道？",
+"你幻想过在楼梯间里做吗？",
+"你最想和对方挑战的大胆场合是哪里？",
+"你喜欢对方用什么手势触碰你？",
+"你最想被对方怎么表白后直接开始？",
+"你幻想过把对方绑在椅子上吗？",
+"你最想尝试在雨水里接吻吗？",
+"你喜欢对方盯着你看的眼神吗？",
+"你更喜欢面对面还是背对背？",
+"你偷偷练习过什么想给对方惊喜？",
+"见面时你最想先对对方做什么动作？",
+"你幻想过和对方在电梯里吗？",
+"你最想听对方在床上怎么叫你？",
+"你最想对方以什么造型出现让你更有感觉？",
+"你幻想过在对方工作时突然出现给他惊喜吗？",
+"你最想和对方一起洗多长时间的澡？",
+"对方说我爱你那一刻你最想做什么？"],
+dare:["女生帮男生用手到高潮","两人面对面脱到只剩内裤","女生骑在男生身上扭动30秒","两人互相舔对方的身体30秒","女生用胸部贴着男生的脸蹭","男生从后面抱住女生蹭30秒","两人面对面坐好互相脱衣服","两人把对方的内裤脱掉","男生用舌头舔遍女生的脸和脖子","女生骑在男生身上不许做别的","两人在被窝里做任何事2分钟","女生帮男生解开内裤","两人用舌头互碰10秒","女生用嘴含住男生乳头","两人面对面互相用手帮对方","男生把女生抱到床上亲遍全身","男生把女生压在身下模拟30秒","男生把女生抱起来顶在墙上","两人脱掉上衣抱在一起15秒","男生用嘴亲女生最敏感的部位","女生从背后帮男生用手","两人互相摸对方的私密部位15秒","男生的手从女生裙底伸进去","女生帮男生用手并叫他名字","两人互相帮对方到高潮","男生把手伸进女生衣服里30秒","女生把男生的头按在自己胸口","两人模拟做爱姿势保持30秒","女生帮男生用手同时亲他的脖子","男生从后面把脸贴在女生背上","女生用嘴含住男生下面10秒","两人面对面站着互相脱衣服","男生从后面把女生顶在墙上","女生骑在男生身上扭动到喊停","两人互相帮对方到高潮为止","男生用舌头从女生脚趾舔到大腿","女生帮男生用手同时舔他的胸","两人面对面坐互相用手帮对方","男生把女生的手放在自己下面","女生从后面抱住男生蹭30秒","两人在被窝里互相摸对方全身","女生用嘴帮男生解开皮带","男生把手伸进女生内裤里","两人互相帮对方口30秒","女生骑在男生身上上下动","男生用嘴从女生脖子亲到胸口","女生帮男生用手同时用嘴亲他","两人面对面互相帮对方到出声","男生从后面抱住女生同时摸","女生把腿缠在男生腰上","男生用舌头舔女生的耳朵和脖子","两人在沙发上做任何事2分钟","女生帮男生用手同时坐在他腿上","男生用嘴亲女生的小腹以下","两人面对面站着互相抚摸","女生从后面帮男生用手到出声","男生把女生抱起来靠着墙做","两人脱光衣服抱在一起10秒","女生用嘴含住男生的手指","男生用舌头舔女生的锁骨和胸口","两人互相帮对方到高潮不许停","女生骑在男生身上扭动同时亲他","男生从后面把手伸进女生衣服","两人在镜子前做任何事","女生帮男生用手同时叫他的名字","男生用嘴亲遍女生全身","两人面对面互相用手帮到出声","女生把男生按在沙发上骑他","男生从后面抱住女生蹭到出声","两人在浴缸里做任何事2分钟","女生帮男生用手到他求饶","男生用嘴亲女生的私密部位","两人互相帮对方到高潮然后接吻",
+"两人面对面贴在一起跳慢舞30秒",
+"男生把女生公主抱转三圈",
+"女生在男生耳边说一句最撩人的话",
+"两人十指相扣对视30秒不许笑",
+"男生喂女生吃东西并亲掉她嘴角",
+"互相在对方脚心画圈30秒",
+"女生坐在男生腿上环住他的脖子",
+"男生背着女生走十步",
+"两人用同一根吸管喝一杯水",
+"女生帮男生揉肩同时亲他的耳朵",
+"男生把女生抱到腿上面对面坐1分钟",
+"两人鼻尖碰鼻尖保持10秒",
+"女生把男生按在墙上假装壁咚他",
+"男生从背后环住女生并十指相扣30秒",
+"两人额头贴额头闭眼30秒",
+"女生喂男生一颗糖再用嘴抢回来",
+"男生把女生裹进被子里只露出脸亲一口",
+"两人面对面互相整理对方的衣领",
+"女生拉着男生的衣领把他拽近",
+"男生单膝跪地亲女生的手背",
+"两人背靠背站30秒感受彼此体温",
+"女生跳上男生的背让他背1分钟",
+"男生用外套把女生裹进怀里30秒",
+"两人互相按摩对方的太阳穴30秒",
+"女生闭眼让男生牵着走三圈",
+"男生在女生手心写我爱你",
+"两人面对面做深蹲并保持对视",
+"女生帮男生系领带再亲手解开",
+"男生帮女生穿外套再亲手脱下来",
+"两人脸颊贴脸颊保持20秒",
+"女生骑在男生脖子上让他扛着走几步",
+"男生把女生转一圈再拉回怀里抱住",
+"两人互相给对方戴一样东西",
+"女生蒙住男生的眼睛亲他三下",
+"男生蒙住女生的眼睛带她走五步",
+"两人交换穿一件对方的衣服",
+"女生用头发扫过男生的脸",
+"男生吻女生的手腕内侧",
+"两人同时在对方耳边吹气",
+"女生把男生的手放在自己腰上环抱",
+"男生把女生抱到窗边看风景1分钟",
+"两人互相喂对方喝水",
+"女生趴在男生腿上让他轻拍后背",
+"男生给女生梳头10下",
+"两人贴在一起看同一部手机30秒",
+"女生在男生胸口画一颗心",
+"男生把女生的手塞进自己口袋暖着",
+"两人脚尖对脚尖站30秒",
+"女生闭眼让男生轻吻额头",
+"男生单臂把女生揽进怀里保持20秒"],
+bombs:["原地转10圈然后做3个深蹲","学大猩猩走路10步","大声喊三遍我是猪","做一个最丑的鬼脸保持10秒","用屁股写字母A","学鸡叫10秒","用舌头舔自己的鼻子","学机器人走路5步","单脚站立30秒不许倒","表演一段即兴舞蹈","用腹语说一句话","模仿一个动物叫声让对方猜","学超级玛丽跳跃10次","假装被电击表演5秒","做一个最撩人的pose保持5秒","学企鹅走路绕一圈","大声唱一首儿歌","表演一段迈克尔杰克逊","用脚趾夹起一支笔","对着镜头比心说土味情话",
+"学海绵宝宝笑10秒",
+"倒着说自己的名字三遍",
+"做一个螃蟹步绕场一圈",
+"学猫咪伸懒腰并喵三声",
+"用最快语速说一段绕口令",
+"模仿对方的招牌动作让对方猜",
+"学唐老鸭说话10秒",
+"金鸡独立学打电话",
+"做五个高抬腿并报数",
+"学树懒动作慢放脱外套",
+"对着镜子夸自己10秒",
+"用鼻子和嘴挤出一个最丑的表情保持10秒",
+"学大象甩鼻子转三圈",
+"说一件自己最丢脸的事",
+"模仿蜡笔小新说话10秒",
+"原地跳兔子舞十步",
+"用脚在地上写自己的名字",
+"学奥特曼变身动作并喊出口号",
+"假装是天气预报员播报30秒",
+"用三种方言说同一句话",
+"学青蛙跳五下并呱呱叫",
+"闭眼原地转五圈再走直线",
+"学企鹅摇头晃脑唱一句歌",
+"做一个健美先生姿势保持10秒",
+"学婴儿说话向对方要一样东西",
+"用胳膊比一个大爱心举过头顶10秒",
+"模仿周星驰大笑三声",
+"单手撑墙做俯卧撑一个",
+"学老太太过马路的样子走十步",
+"用撒娇的语气向对方借十块钱",
+"做一套广播体操第一节",
+"学螃蟹走路并夹手十步",
+"倒背九九乘法表前五句",
+"学机器人说话报时10秒",
+"原地小碎步跑10秒并保持微笑",
+"用咏叹调唱一句我爱你",
+"学孙悟空挠头望远方",
+"做一个超夸张的惊讶表情保持10秒",
+"学蛇扭动身体绕对方一圈",
+"用屁股画圆圈10下",
+"学猫头鹰转头看对方三下",
+"闭眼摸对方的五官猜名字",
+"单脚跳着绕对方一圈",
+"用三个成语夸对方",
+"学火箭发射倒计时并跳起来",
+"做波浪手十次并配音",
+"学恐龙走路并低吼",
+"用夸张慢动作打一个哈欠",
+"模仿对方睡觉的样子10秒",
+"用唱歌的方式说出这条惩罚"],
+punish:["从后面抱住对方蹭30秒","互相脱掉对方三件衣服","用手帮对方30秒","让对方的手从裙底伸进去","对方把嘴贴在你耳边说骚话30秒","互相用嘴帮对方脱衣服","坐对方腿上蹭30秒","用嘴亲对方大腿内侧20秒","跪在对方面前做口型动作","女上位骑在对方身上扭动30秒","让对方把脸贴在你胸口蹭","背对对方弯腰让对方从后面抱","面对面做30秒不许碰对方","让对方舔你的手指到第二指节","对方用舌头舔你的耳朵20秒","把手放在对方脖子上轻轻滑","让对方用嘴唇解开你的第一颗扣子","用鼻子蹭对方的脖子10秒","从后面抱住对方同时亲脖子","用指尖从对方额头滑到嘴唇","双手环住对方的腰贴紧10秒","用嘴唇轻碰对方的锁骨5次","让对方闭眼你亲他脸不同位置","用舌头在对方手心画圈10秒","让对方从后面抱住你蹭30秒","用嘴帮对方解开所有扣子","让对方骑在你身上扭动20秒","用舌头舔对方的耳朵和脖子","让对方把手伸进你衣服里30秒","面对面坐好互相脱衣服","让对方用嘴亲你的小腹以下","从前面抱住对方蹭30秒","让对方用舌头舔你的锁骨","用手指轻轻划过对方的背","让对方从后面亲你的脖子20秒","用嘴含住对方的手指10秒","让对方骑在你身上扭动到喊停","双手捧着对方的脸亲10秒","让对方用舌头舔你的手掌心","让对方坐在你腿上蹭30秒","用嘴轻轻咬对方的耳朵","让对方把脸埋在你胸口10秒","用手指轻轻划过对方的大腿内侧","让对方从后面抱住你同时亲","用嘴帮对方做全套服务","让对方骑在你身上扭动同时亲你","用舌头舔对方的小腹以下","面对面坐好互相进入","让对方从后面来30秒",
+"用嘴唇沿着对方的锁骨滑过去",
+"把对方的手放进自己衣服里10秒",
+"从后面圈住对方并轻咬耳垂",
+"用指尖从对方后颈滑到腰间",
+"让对方骑坐在你腿上面对面20秒",
+"用嘴解开对方的衣领扣子",
+"抱着对方的腰转半圈再贴近",
+"用舌头在对方耳廓画一圈",
+"让对方的手贴在你的小腹上10秒",
+"跪坐在对方两腿之间保持10秒",
+"用嘴唇轻碰对方的喉结",
+"从背后帮对方按摩肩膀同时吹气",
+"让对方从正面抱住你并收紧",
+"用指尖在对方后背写一个字",
+"跨坐在对方大腿上扭动10秒",
+"用牙轻轻咬对方的手指",
+"把对方按在墙上单手撑墙壁咚",
+"用鼻子从对方手腕一路闻到肩膀",
+"让对方把头枕在你腿上摸头发30秒",
+"从正面抱住对方并用腿勾住",
+"用嘴唇贴着对方后颈呼气",
+"让对方用手丈量你的腰围",
+"面对面站好额头相抵10秒",
+"用指尖在对方大腿内侧画圈10秒",
+"从背后环住对方并把脸贴上去",
+"让对方骑到你身上假装策马10秒",
+"用舌尖轻点对方的鼻尖",
+"把对方的手引到你最想被碰的地方停5秒",
+"让对方从背后捂住你的眼睛10秒",
+"用嘴唇轻抿对方的耳垂",
+"让对方坐在你腿上并向后靠进你怀里",
+"用指尖从对方锁骨滑到胸口",
+"抱着对方的脸亲一下鼻尖",
+"让对方用腿锁住你的腰10秒",
+"用舌头在对方手心写字",
+"把对方横抱起来走三步再放下",
+"用嘴唇碰对方的肩膀并停留5秒",
+"让对方从后面抱住你并数你的心跳",
+"面对面坐下腿交叠互相靠近",
+"用指尖轻轻划过对方的脚踝",
+"让对方把你的衣领拉开再亲手拉回",
+"用鼻子蹭对方的脸颊三次",
+"把对方抱到腿上面对面看10秒",
+"让对方用嘴唇描你的眉毛",
+"用牙轻咬对方的衣角拽一下",
+"让对方从背后帮你戴项链并亲后颈",
+"用指尖从对方手腕滑到指尖再十指相扣",
+"把对方的手放在自己胸口感受心跳",
+"用嘴唇贴着对方的耳背说悄悄话",
+"让对方骑跨在你腰间俯身贴住10秒"]
 };
 
-var HE={him:'他',her:'她'};
+var CP=JSON.parse((function(){try{return localStorage.getItem('couple-names')}catch(e){return null}})()||'null')||{him:'他',her:'她'};
+var HE={him:CP.him||'他',her:CP.her||'她'};
+function editNames(){
+  var a=prompt('输入男生/玩家1的昵称',HE.him);if(a===null)return;
+  var b=prompt('输入女生/玩家2的昵称',HE.her);if(b===null)return;
+  HE.him=a.trim()||'他';HE.her=b.trim()||'她';
+  try{localStorage.setItem('couple-names',JSON.stringify({him:HE.him,her:HE.her}))}catch(e){}
+  document.getElementById('cpNames').innerHTML='<span style="color:#3498db">♂ '+HE.him+'</span><span class="vs">❤</span><span style="color:#e040fb">♀ '+HE.her+'</span>';
+  toast('昵称已更新 ✓');
+}
 var GAMES=[
 {id:'truth',icon:'💜',name:'真心话',desc:'转盘决定你要回答的真心话'},
 {id:'dare',icon:'🔥',name:'大冒险',desc:'转盘决定你要执行的刺激大冒险'},
@@ -135,6 +346,28 @@ function vibrate(ms){try{navigator.vibrate(ms||50)}catch(e){}}
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
 function pickRandom(arr,n){return shuffle(arr.slice()).slice(0,n)}
 function randItem(a){return a[Math.floor(Math.random()*a.length)]}
+function nextBatch(key,pool,count,exclude){
+  var bag=window[key]||[];
+  if(bag.length===0){
+    var fresh=shuffle(pool.slice());
+    if(exclude!==undefined&&fresh.length>1&&fresh[0]===exclude){fresh.push(fresh.shift());}
+    bag=bag.concat(fresh);
+    window[key]=bag;
+  }
+  return bag.splice(0,count);
+}
+function pickFresh(key,pool){
+  var bag=window[key];
+  if(!bag||bag.length===0){
+    bag=shuffle(pool.slice());
+    var last=window[key+'Last'];
+    if(last!==undefined&&bag.length>1&&bag[0]===last){bag.push(bag.shift());}
+    window[key]=bag;
+  }
+  var item=bag.pop();
+  window[key+'Last']=item;
+  return item;
+}
 function showPage(id){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';setTimeout(function(){t.className='toast'},2000)}
 function markPlayed(id){if(played.indexOf(id)<0){played.push(id);localStorage.setItem('couple-game-played',JSON.stringify(played))}}
@@ -144,6 +377,10 @@ function otherPlayer(name){return name===HE.him?HE.her:HE.him}
 
 /* ===== Game List (首页) ===== */
 function goHome(){
+  ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
+    window[k]=false;window[k+'Sess']=(window[k+'Sess']||0)+1;
+    if(window[k+'Timer']){clearTimeout(window[k+'Timer']);window[k+'Timer']=null;}
+  });
   showPage('homePage');renderHome();
 }
 function renderHome(){
@@ -156,6 +393,10 @@ function renderHome(){
 
 /* ===== Start Game ===== */
 function startGame(id){
+  ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
+    window[k]=false;window[k+'Sess']=(window[k+'Sess']||0)+1;
+    if(window[k+'Timer']){clearTimeout(window[k+'Timer']);window[k+'Timer']=null;}
+  });
   curGame=id;showPage('gamePage');
   var g=GAMES.find(function(x){return x.id===id});
   document.getElementById('gTitle').textContent=g.icon+' '+g.name;
@@ -173,7 +414,7 @@ function startGame(id){
 function drawWheel(canvas,items,colors){
   var ctx=canvas.getContext('2d');
   var W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,R=W/2-12,n=items.length;
-  var fs=n<=10?11:n<=15?10:n<=20?9:n<=30?8:7;
+  var fs=n<=10?26:n<=15?24:n<=20?9:n<=30?8:7;
   ctx.clearRect(0,0,W,H);
   for(var i=0;i<40;i++){
     var a=(i/40)*Math.PI*2-Math.PI/2;
@@ -189,7 +430,7 @@ function drawWheel(canvas,items,colors){
     ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
     ctx.save();ctx.translate(cx,cy);ctx.rotate(sa+arc/2);
     ctx.fillStyle='#fff';ctx.font='bold '+fs+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-    var txt=items[i];if(txt.length>10) txt=txt.substring(0,9)+'...';
+    var txt=items[i];if(txt.length>7) txt=txt.substring(0,7)+'…';
     ctx.fillText(txt,R*0.62,0);ctx.restore();
   }
 }
@@ -198,21 +439,26 @@ function spinWheel(canvasId,items,angleKey,spinningKey,resultId,cb){
   window[spinningKey]=true;sndSpin();
   var angle=1080+Math.random()*720;
   window[angleKey]+=angle;
+  var sessKey=spinningKey+'Sess';
+  var mySess=(window[sessKey]||0)+1;window[sessKey]=mySess;
   var cv=document.getElementById(canvasId);
   cv.style.transition='transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)';
   cv.style.transform='rotate('+window[angleKey]+'deg)';
-  setTimeout(function(){
+  var tm=setTimeout(function(){
+    if(window[sessKey]!==mySess)return;
+    if(!document.getElementById(resultId))return;
     window[spinningKey]=false;
     var n=items.length,seg=360/n;
     var finalAngle=window[angleKey]%360;
-    var idx=Math.floor(((360-finalAngle+seg/2)%360)/seg)%n;
+    var idx=Math.floor(((360-finalAngle)%360)/seg)%n;
     sndDing();vibrate(100);cb(idx);
   },4600);
+  window[spinningKey+'Timer']=tm;
 }
 
 /* ===== 真心话 ===== */
 function renderTruth(c){
-  var items=GAMEDATA.truths.slice();
+  var items=nextBatch('_truthBag',GAMEDATA.truths,12,window._truthLastShown);window._truthBagWheel=items;
   var colors=['#6c2bd9','#7c3aed','#8b5cf6','#a855f7','#7c3aed','#8b5cf6','#6c2bd9','#a855f7'];
   c.innerHTML='<div class="wheel-wrap">'
     +'<canvas id="truthCanvas" width="1200" height="1200"></canvas>'
@@ -221,22 +467,36 @@ function renderTruth(c){
     +'</div>'
     +'<div class="wheel-result" id="truthResult"><div class="text">点击GO旋转转盘</div><div class="star">💜 真心话</div></div>'
     +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'truth\')">🔄 重来</button>'
+    +'<button class="wheel-btn back" onclick="startGame(\'truth\')">🔄 换一批</button>'
     +'</div>';
-  window._truthItems=items;window._truthAngle=window._truthAngle||0;window._truthSpinning=false;
+  window._truthItems=items;window._truthShown=[];window._truthColors=colors;window._truthAngle=window._truthAngle||0;window._truthSpinning=false;
+  window._truthSpinningSess=(window._truthSpinningSess||0)+1;
+  if(window._truthSpinningTimer){clearTimeout(window._truthSpinningTimer);window._truthSpinningTimer=null;}
   setTimeout(function(){var cv=document.getElementById('truthCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
 function spinTruthWheel(){
-  spinWheel('truthCanvas',window._truthItems,'_truthAngle','_truthSpinning','truthResult',function(idx){
+  var shown=window._truthShown||[];
+  var rem=window._truthItems.filter(function(x){return shown.indexOf(x)<0;});
+  if(rem.length===0){
+    rem=nextBatch('_truthBag',GAMEDATA.truths,12,window._truthLastShown);
+    window._truthShown=[];
+  }
+  window._truthItems=rem;
+  var cv=document.getElementById('truthCanvas');
+  if(cv)drawWheel(cv,rem,window._truthColors);
+  spinWheel('truthCanvas',rem,'_truthAngle','_truthSpinning','truthResult',function(idx){
+    var item=rem[idx];
+    window._truthShown.push(item);
+    window._truthLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('truthResult').innerHTML=
-      '<div class="text">'+window._truthItems[idx]+'</div><div class="star">💜 真心话</div><div class="player-tag">'+who+' 必须回答！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
+      '<div class="text">'+item+'</div><div class="star">💜 真心话</div><div class="player-tag">'+who+' 必须回答！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
   });
 }
 
 /* ===== 大冒险 ===== */
 function renderDare(c){
-  var items=GAMEDATA.dare.slice();
+  var items=nextBatch('_dareBag',GAMEDATA.dare,12,window._dareLastShown);window._dareBagWheel=items;
   var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
   c.innerHTML='<div class="wheel-wrap">'
     +'<canvas id="dareCanvas" width="1200" height="1200"></canvas>'
@@ -245,16 +505,30 @@ function renderDare(c){
     +'</div>'
     +'<div class="wheel-result" id="dareResult"><div class="text">点击GO旋转转盘</div><div class="star">🔥 大冒险</div></div>'
     +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'dare\')">🔄 重来</button>'
+    +'<button class="wheel-btn back" onclick="startGame(\'dare\')">🔄 换一批</button>'
     +'</div>';
-  window._dareItems=items;window._dareAngle=window._dareAngle||0;window._dareSpinning=false;
+  window._dareItems=items;window._dareShown=[];window._dareColors=colors;window._dareAngle=window._dareAngle||0;window._dareSpinning=false;
+  window._dareSpinningSess=(window._dareSpinningSess||0)+1;
+  if(window._dareSpinningTimer){clearTimeout(window._dareSpinningTimer);window._dareSpinningTimer=null;}
   setTimeout(function(){var cv=document.getElementById('dareCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
 function spinDareWheel(){
-  spinWheel('dareCanvas',window._dareItems,'_dareAngle','_dareSpinning','dareResult',function(idx){
+  var shown=window._dareShown||[];
+  var rem=window._dareItems.filter(function(x){return shown.indexOf(x)<0;});
+  if(rem.length===0){
+    rem=nextBatch('_dareBag',GAMEDATA.dare,12,window._dareLastShown);
+    window._dareShown=[];
+  }
+  window._dareItems=rem;
+  var cv=document.getElementById('dareCanvas');
+  if(cv)drawWheel(cv,rem,window._dareColors);
+  spinWheel('dareCanvas',rem,'_dareAngle','_dareSpinning','dareResult',function(idx){
+    var item=rem[idx];
+    window._dareShown.push(item);
+    window._dareLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('dareResult').innerHTML=
-      '<div class="text">'+window._dareItems[idx]+'</div><div class="star">🔥 大冒险</div><div class="player-tag">'+who+' 必须执行！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
+      '<div class="text">'+item+'</div><div class="star">🔥 大冒险</div><div class="player-tag">'+who+' 必须执行！</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button></div>';
   });
 }
 
@@ -274,14 +548,14 @@ function renderBomb(c){
     +'</div>';
 }
 function guessBomb(){
-  var v=parseInt(document.getElementById('bombInput').value);
-  if(isNaN(v)||v<window._bombMin||v>window._bombMax){toast('请输入'+window._bombMin+'-'+window._bombMax+'的数字');return}
+  var v=parseFloat(document.getElementById('bombInput').value);
+  if(!Number.isInteger(v)||v<window._bombMin||v>window._bombMax){toast('请输入'+window._bombMin+'-'+window._bombMax+'的整数');return}
   window._bombGuesses++;
   sndDing();vibrate(30);
   if(v===window._bomb){
     sndBoom();vibrate([100,50,100,50,200]);
     var who=Math.random()<0.5?HE.him:HE.her;
-    var punish=randItem(GAMEDATA.bombs);
+    var punish=pickFresh('_bombsPick',GAMEDATA.bombs);
     document.getElementById('bombMsg').innerHTML='<div style="color:#ff4757;font-size:22px;margin:10px 0">💥 炸弹爆炸！！！</div><div>'+who+'：'+punish+'</div>';
     document.getElementById('bombInput').disabled=true;
     document.querySelector('.bomb-submit').disabled=true;
@@ -310,18 +584,20 @@ function renderDice(c){
   window._faces=faces;
 }
 function rollDice(){
+  if(window._diceRolling)return;
+  window._diceRolling=true;
   sndSpin();
   var box=document.getElementById('diceBox');
   box.classList.add('rolling');
   var count=0;var iv=setInterval(function(){
     box.textContent=window._faces[Math.floor(Math.random()*6)];count++;
     if(count>20){
-      clearInterval(iv);box.classList.remove('rolling');
+      clearInterval(iv);window._diceRolling=false;box.classList.remove('rolling');
       var result=Math.floor(Math.random()*6);
       box.textContent=window._faces[result];
       var val=result+1;sndDing();vibrate(80);
       var who=Math.random()<0.5?HE.him:HE.her;
-      var punish=randItem(GAMEDATA.punish);
+      var punish=pickFresh('_punishPick',GAMEDATA.punish);
       document.getElementById('diceResult').innerHTML=
         '<div style="font-size:22px;margin-bottom:8px">🎲 '+val+'点！</div><div>'+who+'：'+punish+'</div>';
     }
@@ -347,6 +623,9 @@ function renderRPS(c){
 }
 function rpsPick(choice){
   sndDing();vibrate(30);
+  if(window._rpsPhase===0){window._rpsP1=choice;window._rpsPhase=2;
+    document.getElementById('rpsPhase').textContent=window._rpsP2Name+' 请出拳（不要给'+window._rpsP1Name+'看到哦）';
+    document.getElementById('rpsResult').innerHTML='<div style="color:#aaa">'+window._rpsP1Name+' 已出拳 ✅</div>';return}
   if(window._rpsPhase===1){
     window._rpsP1=choice;window._rpsPhase=2;
     document.getElementById('rpsPhase').textContent=window._rpsP2Name+' 请出拳（不要给'+window._rpsP1Name+'看到哦）';
@@ -361,25 +640,26 @@ function rpsPick(choice){
     if(diff===0){
       resultHtml+='<div style="font-size:18px;color:#ffd700">🤝 平局！再来一次！</div>';
       window._rpsPhase=1;
+      document.getElementById('rpsPhase').textContent=window._rpsP1Name+' 请出拳';
     }else if(diff===1){
-      var punish=randItem(GAMEDATA.punish);
-      sndBuzz();vibrate([50,30,50]);
-      resultHtml+='<div style="font-size:18px;color:#00cec9">🎉 '+window._rpsP1Name+' 赢了！</div><div>'+window._rpsP2Name+' 必须：'+punish+'</div>';
-      window._rpsPhase=0;
-    }else{
-      var punish=randItem(GAMEDATA.punish);
+      var punish=pickFresh('_punishPick',GAMEDATA.punish);
       sndBuzz();vibrate([50,30,50]);
       resultHtml+='<div style="font-size:18px;color:#ff6b6b">😢 '+window._rpsP1Name+' 输了！</div><div>'+window._rpsP1Name+' 必须：'+punish+'</div>';
       window._rpsPhase=0;
+    }else{
+      var punish=pickFresh('_punishPick',GAMEDATA.punish);
+      sndBuzz();vibrate([50,30,50]);
+      resultHtml+='<div style="font-size:18px;color:#00cec9">🎉 '+window._rpsP1Name+' 赢了！</div><div>'+window._rpsP2Name+' 必须：'+punish+'</div>';
+      window._rpsPhase=0;
     }
     document.getElementById('rpsResult').innerHTML=resultHtml;
-    document.getElementById('rpsPhase').textContent=window._rpsPhase===0?'':'再来一局？';
+    document.getElementById('rpsPhase').textContent=window._rpsPhase===0?'再点任意手势可开新局':'';
   }
 }
 
 /* ===== 惩罚转盘 ===== */
 function renderPunish(c){
-  var items=GAMEDATA.punish.slice();
+  var items=nextBatch('_punishBag',GAMEDATA.punish,12,window._punishLastShown);window._punishBagWheel=items;
   var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
   c.innerHTML='<div class="wheel-wrap">'
     +'<canvas id="pCanvas" width="1200" height="1200"></canvas>'
@@ -388,20 +668,35 @@ function renderPunish(c){
     +'</div>'
     +'<div class="wheel-result" id="punishResult"><div class="text">点击GO抽取惩罚</div></div>'
     +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'punish\')">🔄 重来</button>'
+    +'<button class="wheel-btn back" onclick="startGame(\'punish\')">🔄 换一批</button>'
     +'</div>';
-  window._punishItems=items;window._punishAngle=0;window._punishSpinning=false;
+  window._punishItems=items;window._punishShown=[];window._punishColors=colors;window._punishAngle=0;window._punishSpinning=false;
+  window._punishSpinningSess=(window._punishSpinningSess||0)+1;
+  if(window._punishSpinningTimer){clearTimeout(window._punishSpinningTimer);window._punishSpinningTimer=null;}
   setTimeout(function(){var cv=document.getElementById('pCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
 function spinPunishWheel(){
-  spinWheel('pCanvas',window._punishItems,'_punishAngle','_punishSpinning','punishResult',function(idx){
+  var shown=window._punishShown||[];
+  var rem=window._punishItems.filter(function(x){return shown.indexOf(x)<0;});
+  if(rem.length===0){
+    rem=nextBatch('_punishBag',GAMEDATA.punish,12,window._punishLastShown);
+    window._punishShown=[];
+  }
+  window._punishItems=rem;
+  var cv=document.getElementById('pCanvas');
+  if(cv)drawWheel(cv,rem,window._punishColors);
+  spinWheel('pCanvas',rem,'_punishAngle','_punishSpinning','punishResult',function(idx){
+    var item=rem[idx];
+    window._punishShown.push(item);
+    window._punishLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('punishResult').innerHTML=
-      '<div class="text">'+window._punishItems[idx]+'</div><div class="player-tag">🎯 '+who+' 必须执行！</div>';
+      '<div class="text">'+item+'</div><div class="player-tag">🎯 '+who+' 必须执行！</div>';
   });
 }
 
 /* ===== Init ===== */
+if(HE.him!=='他'||HE.her!=='她'){document.getElementById('cpNames').innerHTML='<span style="color:#3498db">♂ '+HE.him+'</span><span class="vs">❤</span><span style="color:#e040fb">♀ '+HE.her+'</span>';}
 renderHome();
 
 </script>
