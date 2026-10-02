@@ -92,6 +92,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .card-back{flex:1;min-height:80px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;font-size:30px;cursor:pointer;color:#fff}
 .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
 .grid-cell{min-height:74px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;cursor:pointer;padding:6px}
+/* ===== 全局设置 ===== */
+.settings-bar{display:flex;gap:8px;justify-content:center;margin:10px 0 4px;flex-wrap:wrap}
+.set-item{padding:5px 12px;border-radius:16px;font-size:13px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:#aaa;cursor:pointer;user-select:none;-webkit-user-select:none;transition:all 0.15s}
+.set-item.on{background:linear-gradient(135deg,#ff6b9d,#ffd700);color:#1a0a2e;font-weight:bold;border-color:transparent}
+.safe-tip{text-align:center;font-size:11px;color:#8a7f9e;padding:8px 0 2px}
+body.night{filter:brightness(0.8) saturate(0.92)}
+.vs-holder{border:2px solid #ffd700!important;animation:holderPulse 1s infinite}
+@keyframes holderPulse{0%,100%{box-shadow:0 0 4px rgba(255,215,0,0.4)}50%{box-shadow:0 0 20px rgba(255,215,0,0.95)}}
+.log-panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:86%;max-width:340px;max-height:60vh;overflow:auto;background:#241042;border:1px solid #ff6b9d;border-radius:16px;padding:16px;z-index:99;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+.log-panel h3{color:#ffd700;font-size:15px;margin-bottom:8px}
+.log-item{font-size:13px;color:#ddd;margin:4px 0;border-bottom:1px dashed rgba(255,255,255,0.08);padding-bottom:4px}
+.log-close{margin-top:10px;width:100%}
+.mini-btn{display:inline-block;padding:3px 10px;margin:2px;border-radius:12px;font-size:12px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#ccc;cursor:pointer}
+.mini-btn.on{background:#ffd700;color:#1a0a2e;font-weight:bold;border-color:transparent}
 </style>
 </head>
 <body>
@@ -106,13 +120,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <div class="hearts">💕</div>
 <div class="names" id="cpNames" onclick="editNames()"><span style="color:#3498db">♂ 他</span><span class="vs">❤</span><span style="color:#e040fb">♀ 她</span></div><div style="font-size:10px;color:#777;margin-top:4px">👆 点昵称可修改</div>
 </div>
+<div class="settings-bar" id="setBar"></div>
 <div class="game-grid" id="gameGrid"></div>
 </div>
 
 <!-- 游戏页 -->
 <div id="gamePage" class="page">
 <div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="gTitle">游戏</h1></div>
-<div id="gContent"></div></div>
+<div id="gContent"></div><div class="safe-tip">🚩 安全词：随时说「停」即可结束本轮</div></div>
 
 <div class="toast" id="toast"></div>
 
@@ -397,8 +412,8 @@ punish:["从后面抱住对方蹭30秒","互相脱掉对方三件衣服","帮对
 sniper:["耳后","锁骨","大腿内侧","后颈","喉结","手腕内侧","肚脐","耳垂","腰窝","肩胛骨","膝盖内侧","手心","下唇","锁骨下","脚踝","后腰"]
 ,
 drink:["一起干一杯交杯酒","输的人喝一整杯","各自倒满，深情对视一口闷","用嘴对嘴喂对方喝一口","喝一口酒再舌吻对方10秒","交换对方的酒杯，用对方的杯子喝","闭眼让对方喂你喝一口","一边听对方说情话，一边慢慢喝完一杯","给对方倒满一杯，再亲手喂TA喝","含一口酒在嘴里，让对方用嘴接过去","倒两杯，碰杯说一句情话再喝","给对方倒酒，TA每喝一口你亲一下","蒙眼给对方倒酒，倒洒了罚喝两杯","用吸管共饮同一杯","喝一小口喷在对方锁骨上再亲掉","你喝半杯，剩下半杯给对方","用对方的杯子喝一口，并夸对方一句","喝一口后贴着对方耳朵说最想说的话","连喝三口，每喝一口亲对方一下","两人同时喝，先放杯的人输，输家再来一杯"],
-pairs:["亲对方耳垂30秒｜脱一件衣服","说一句最撩人的情话｜用嘴帮对方脱一件衣服","喝一口酒再亲对方10秒｜喝一整杯","让对方摸你的腰10秒｜你摸对方的敏感部位10秒","学猫叫三声｜让对方把你抱起来10秒","深吻10秒｜湿吻30秒","说一个自己的小秘密｜让对方问你任何问题并如实回答","亲对方的手背｜亲对方的大腿内侧","喝一杯交杯酒｜用嘴喂对方喝三口","让对方亲你锁骨｜你亲对方的小腹","十指相扣对视30秒｜对视并互相说骚话","给对方按摩肩30秒｜让对方给你按摩大腿内侧30秒","喝半杯｜蒙眼让对方喂你喝一杯","亲对方的额头｜亲对方的嘴唇30秒","学对方说话1分钟｜用对方的称呼叫自己10声","让对方抱你转一圈｜你把对方横抱起来","喝一口喷在对方脖子上再亲掉｜两人一起喝完两杯","说今天对方最性感的地方｜用嘴指出你最想被亲的地方","亲一下｜舌吻到呼吸急促","让对方脱你一件衣服｜你脱对方两件衣服","用吸管共饮一杯｜闭眼喝交杯酒","在对方耳边说悄悄话｜在对方耳边吹气1分钟","让对方夸你3句｜你夸对方10句不许停","亲对方下巴｜从下巴一路亲到锁骨","喝一口再亲10秒｜连喝三口每口亲一下","和对方额头贴额头10秒｜抱着对方转三圈","说一个你的幻想｜把你的幻想演出来10秒","摸对方的手｜把你的手放进对方衣服里10秒","干杯说一句情话｜干杯后湿吻10秒","让对方指定你亲哪里｜你指定对方亲哪里并执行"],
-exercise:["平板支撑","深蹲保持","靠墙静蹲","单脚站立","俯卧撑×3","仰卧起坐×5"],
+pairs:["亲对方耳垂30秒｜脱一件衣服","说一句最撩人的情话｜用嘴帮对方脱一件衣服","喝一口酒再亲对方10秒｜喝一整杯","让对方摸你的腰10秒｜你摸对方的敏感部位10秒","学猫叫三声｜让对方把你抱起来10秒","深吻10秒｜湿吻30秒","说一个自己的小秘密｜让对方问你任何问题并如实回答","亲对方的手背｜亲对方的大腿内侧","喝一杯交杯酒｜用嘴喂对方喝三口","让对方亲你锁骨｜你亲对方的小腹","十指相扣对视30秒｜对视并互相说骚话","给对方按摩肩30秒｜让对方给你按摩大腿内侧30秒","喝半杯｜蒙眼让对方喂你喝一杯","亲对方的额头10秒｜亲对方的手背20秒","学对方说话1分钟｜用对方的称呼叫自己10声","让对方抱你转一圈｜你把对方横抱起来","喝一口喷在对方脖子上再亲掉｜两人一起喝完两杯","说出对方最性感的部位并亲一下｜用嘴指出你最想被亲的地方并亲一下","深吻10秒｜舌吻到呼吸急促","让对方脱你一件衣服｜你脱对方两件衣服","用吸管共饮一杯｜闭眼喝交杯酒","在对方耳边说悄悄话｜在对方耳边吹气1分钟","让对方夸你5句｜你夸对方5句","亲对方下巴｜从下巴一路亲到锁骨","喝一口再亲10秒｜连喝三口每口亲一下","和对方额头贴额头10秒｜抱着对方转三圈","说一个你的幻想｜把你的幻想演出来10秒","摸对方的手｜把你的手放进对方衣服里10秒","干杯说一句情话｜干杯后湿吻10秒","让对方指定你亲哪里｜你指定对方亲哪里并执行"],
+exercise:["平板支撑30秒","深蹲保持20秒","靠墙静蹲30秒","单脚站立30秒","俯卧撑×3","仰卧起坐×5"],
 roles:["主人|宠物","老板|秘书","老师|学生","医生|病人","将军|士兵","骑士|公主","导演|演员","大灰狼|小红帽","霸道总裁|小助理","房东|租客","教官|学员","君王|妃子"]
 };
 
@@ -412,11 +427,40 @@ function editNames(){
   document.getElementById('cpNames').innerHTML='<span style="color:#3498db">♂ '+HE.him+'</span><span class="vs">❤</span><span style="color:#e040fb">♀ '+HE.her+'</span>';
   toast('昵称已更新 ✓');
 }
+/* ===== 全局设置系统 (G3无酒/G5声音/G7温柔分级/G8夜间) ===== */
+var SET=JSON.parse((function(){try{return localStorage.getItem('couple-set')}catch(e){return null}})()||'null')||{drink:true,sound:true,gentle:false,night:false};
+function setOpt(k,v){SET[k]=v;try{localStorage.setItem('couple-set',JSON.stringify(SET))}catch(e){}}
+var SET_ITEMS=[['drink','🍷 喝酒'],['sound','🔊 声音'],['gentle','🌙 温柔'],['night','🌑 夜灯']];
+function renderSettings(){
+  var el=document.getElementById('setBar');if(!el)return;
+  el.innerHTML='<span style="font-size:12px;color:#888;line-height:28px">设置：</span>'+SET_ITEMS.map(function(s){
+    return '<span class="set-item'+(SET[s[0]]?' on':'')+'" onclick="toggleSet(\''+s[0]+'\')">'+s[1]+'</span>';
+  }).join('');
+  if(SET.night)document.body.classList.add('night');else document.body.classList.remove('night');
+}
+function toggleSet(k){
+  if(k==='drink'&&!SET.drink)toast('已开启喝酒玩法 🍷（未成年人请勿饮酒）');
+  if(k==='drink'&&SET.drink)toast('已关闭喝酒玩法，酒类题替换为亲吻 💋');
+  if(k==='gentle'&&!SET.gentle)toast('已切换温柔模式：内容自动过滤 🌙');
+  setOpt(k,!SET[k]);renderSettings();
+}
+var KISS_POOL=['深情舌吻对方15秒','捧着对方的脸亲一下再夸一句','亲吻对方额头10秒','从嘴唇亲到锁骨再回来','闭眼让对方吻你10秒','亲对方手背并说一句情话','十指相扣互相亲吻','给对方一个缓慢的深吻','亲吻对方耳垂5秒','连续亲对方三下'];
+function pickDrink(){return SET.drink?('🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink)):('💋 代替喝酒：'+randItem(KISS_POOL));}
+var GENTLE_KW=['高潮','做爱','口交','自慰','呻吟','进入','脱光','全裸','性经历','性幻想','约炮','3P','多人','SM','偷情','龟头','阴蒂','阴茎','阴道','插入','口爆','后入','骑乘','掰开','69','舔到','舔你','舔他','舔她','含住','吞下','射','骚','浪叫','情趣内衣','情趣用品','暴露','野战','车震','欲火','喘息','挑逗','勾引','湿了','硬了','胸部','小腹','大腿内侧','锁骨'];
+function poolFilter(arr){
+  var out=arr.filter(function(x){return !GENTLE_KW.some(function(k){return x.indexOf(k)>=0;});});
+  return out.length>=10?out:arr;
+}
+var LOCAL_KW=['冰块','浴室','厨房','楼道','楼梯','镜子','车里','车边','窗边','阳台','门口','洗手间','电梯','天台','公园','泳池','温泉','影院','商场','冰箱','厕所'];
+function localFilter(arr){
+  var out=arr.filter(function(x){return !LOCAL_KW.some(function(k){return x.indexOf(k)>=0;});});
+  return out.length>=8?out:arr;
+}
 var GAMES=[
 {id:'truth',icon:'💜',name:'真心话',desc:'转盘决定你要回答的真心话'},
 {id:'dare',icon:'🔥',name:'大冒险',desc:'转盘决定你要执行的刺激大冒险'},
 {id:'bomb',icon:'💣',name:'数字炸弹',desc:'1-100猜数字，踩中炸弹接受惩罚'},
-{id:'dice',icon:'🎲',name:'骰子大冒险',desc:'摇骰子决定命运'},
+{id:'dice',icon:'🎲',name:'骰子大冒险',desc:'摇骰子决定谁受罚（不是开局对决哦）'},
 {id:'rps',icon:'✊',name:'石头剪刀布',desc:'双方同时出拳，输的人接受惩罚'},
 {id:'punish',icon:'🎡',name:'惩罚大转盘',desc:'随机抽取刺激惩罚'},
 {id:'roulette',icon:'🔫',name:'极限轮盘',desc:'六分之一逃过，中枪必执行'},
@@ -448,11 +492,11 @@ function playBeep(freq,dur,type,vol){
   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
   o.stop(ctx.currentTime+dur)}catch(e){}
 }
-function sndSpin(){playBeep(400,0.3,'sine',0.1);setTimeout(function(){playBeep(600,0.2,'sine',0.1)},100)}
-function sndDing(){playBeep(880,0.15,'sine',0.12);setTimeout(function(){playBeep(1100,0.2,'sine',0.12)},120)}
-function sndBoom(){playBeep(80,0.4,'sawtooth',0.2);setTimeout(function(){playBeep(60,0.3,'square',0.15)},100)}
-function sndBuzz(){playBeep(200,0.25,'sawtooth',0.1)}
-function vibrate(ms){try{navigator.vibrate(ms||50)}catch(e){}}
+function sndSpin(){if(!SET.sound)return;playBeep(400,0.3,'sine',0.1);setTimeout(function(){playBeep(600,0.2,'sine',0.1)},100)}
+function sndDing(){if(!SET.sound)return;playBeep(880,0.15,'sine',0.12);setTimeout(function(){playBeep(1100,0.2,'sine',0.12)},120)}
+function sndBoom(){if(!SET.sound)return;playBeep(80,0.4,'sawtooth',0.2);setTimeout(function(){playBeep(60,0.3,'square',0.15)},100)}
+function sndBuzz(){if(!SET.sound)return;playBeep(200,0.25,'sawtooth',0.1)}
+function vibrate(ms){if(!SET.sound)return;try{navigator.vibrate(ms||50)}catch(e){}}
 
 /* ===== Utils ===== */
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
@@ -469,6 +513,7 @@ function nextBatch(key,pool,count,exclude){
   return bag.splice(0,count);
 }
 function pickFresh(key,pool){
+  if(SET&&SET.gentle)pool=poolFilter(pool);
   var bag=window[key];
   if(!bag||bag.length===0){
     bag=shuffle(pool.slice());
@@ -482,6 +527,15 @@ function pickFresh(key,pool){
 }
 function showPage(id){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById(id).classList.add('active')}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show';setTimeout(function(){t.className='toast'},2000)}
+function showLog(k){
+  var log=window[k]||[];
+  var old=document.getElementById('logPanel');if(old)old.remove();
+  var d=document.createElement('div');d.className='log-panel';d.id='logPanel';
+  d.innerHTML='<h3>📜 '+(k==='_truthLog'?'真心话':'大冒险')+'已答回顾（本轮）</h3>'
+    +(log.length?log.map(function(x,i){return '<div class="log-item">'+(i+1)+'. '+x+'</div>';}).join(''):'<div class="log-item" style="color:#888">还没有答过题</div>')
+    +'<button class="wheel-btn back log-close" onclick="document.getElementById(\'logPanel\').remove()">关闭</button>';
+  document.body.appendChild(d);
+}
 function markPlayed(id){if(played.indexOf(id)<0){played.push(id);localStorage.setItem('couple-game-played',JSON.stringify(played))}}
 
 /* ===== 双人角色切换（猜拳等用） ===== */
@@ -499,9 +553,11 @@ function goHome(){
 function renderHome(){
   var h='';GAMES.forEach(function(g){
     var badge=played.indexOf(g.id)>=0?'<div class="badge">✓</div>':'';
-    h+='<div class="game-card" onclick="startGame(\''+g.id+'\')">'+badge+'<div class="icon">'+g.icon+'</div><div class="name">'+g.name+'</div><div class="desc">'+g.desc+'</div></div>';
+    var accent=g.id==='punish'?' style="border-color:rgba(255,71,87,0.55)"':'';
+    h+='<div class="game-card"'+accent+' onclick="startGame(\''+g.id+'\')">'+badge+'<div class="icon">'+g.icon+'</div><div class="name">'+g.name+'</div><div class="desc">'+g.desc+'</div></div>';
   });
   document.getElementById('gameGrid').innerHTML=h;
+  renderSettings();
 }
 
 /* ===== Start Game ===== */
@@ -570,9 +626,11 @@ function spinWheel(canvasId,items,angleKey,spinningKey,resultId,cb){
   var sessKey=spinningKey+'Sess';
   var mySess=(window[sessKey]||0)+1;window[sessKey]=mySess;
   var cv=document.getElementById(canvasId);
-  cv.style.transition='transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)';
+  var dur=3400+Math.random()*2400; /* 随机时长+随机缓动, 不可预判 */
+  var bez=['cubic-bezier(0.17,0.67,0.12,0.99)','cubic-bezier(0.1,0.7,0.3,1)','cubic-bezier(0.23,0.9,0.16,1)'][Math.floor(Math.random()*3)];
+  cv.style.transition='transform '+dur+'ms '+bez;
   cv.style.transform='rotate('+window[angleKey]+'deg)';
-  var tm=setTimeout(function(){
+  function finish(){
     if(window[sessKey]!==mySess)return;
     if(!document.getElementById(resultId))return;
     window[spinningKey]=false;
@@ -580,8 +638,16 @@ function spinWheel(canvasId,items,angleKey,spinningKey,resultId,cb){
     var finalAngle=window[angleKey]%360;
     var idx=Math.floor(((360-finalAngle)%360)/seg)%n;
     sndDing();vibrate(100);cb(idx);
-  },4600);
+  }
+  var tm=setTimeout(finish,dur+80);
   window[spinningKey+'Timer']=tm;
+  cv.onclick=function(){ /* 点击立即停盘 */
+    if(!window[spinningKey])return;
+    cv.style.transition='transform 0.5s cubic-bezier(0.17,0.67,0.12,0.99)';
+    clearTimeout(tm);
+    setTimeout(finish,520);
+    cv.onclick=null;
+  };
 }
 
 /* ===== 真心话 ===== */
@@ -596,7 +662,8 @@ function renderTruth(c){
     +'<div class="wheel-result" id="truthResult"><div class="text">点击GO旋转转盘</div><div class="star">💜 真心话</div></div>'
     +'<div class="wheel-btns">'
     +'<button class="wheel-btn back" onclick="startGame(\'truth\')">🔄 换一批</button>'
-    +'</div>';
+    +'</div>'
+    +'<div style="text-align:center;margin-top:6px"><button class="mini-btn" onclick="showLog(\'_truthLog\')">📜 已答回顾</button></div>';
   window._truthItems=items;window._truthShown=[];window._truthColors=colors;window._truthAngle=window._truthAngle||0;window._truthSpinning=false;
   window._truthSpinningSess=(window._truthSpinningSess||0)+1;
   if(window._truthSpinningTimer){clearTimeout(window._truthSpinningTimer);window._truthSpinningTimer=null;}
@@ -615,6 +682,7 @@ function spinTruthWheel(){
   spinWheel('truthCanvas',rem,'_truthAngle','_truthSpinning','truthResult',function(idx){
     var item=rem[idx];
     window._truthShown.push(item);
+    window._truthLog=window._truthLog||[];window._truthLog.push(item);
     window._truthLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('truthResult').innerHTML=
@@ -624,7 +692,8 @@ function spinTruthWheel(){
 
 /* ===== 大冒险 ===== */
 function renderDare(c){
-  var items=nextBatch('_dareBag',GAMEDATA.dare,12,window._dareLastShown);window._dareBagWheel=items;
+  var pool=window._dareLocal?localFilter(GAMEDATA.dare):GAMEDATA.dare;
+  var items=nextBatch('_dareBag',pool,12,window._dareLastShown);window._dareBagWheel=items;
   var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
   c.innerHTML='<div class="wheel-wrap">'
     +'<canvas id="dareCanvas" width="1200" height="1200"></canvas>'
@@ -634,17 +703,20 @@ function renderDare(c){
     +'<div class="wheel-result" id="dareResult"><div class="text">点击GO旋转转盘</div><div class="star">🔥 大冒险</div></div>'
     +'<div class="wheel-btns">'
     +'<button class="wheel-btn back" onclick="startGame(\'dare\')">🔄 换一批</button>'
-    +'</div>';
+    +'</div>'
+    +'<div style="text-align:center;margin-top:6px"><span class="mini-btn'+(window._dareLocal?' on':'')+'" onclick="dareLocal()">🏠 仅就地取材</span> <button class="mini-btn" onclick="showLog(\'_dareLog\')">📜 已答回顾</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center;margin-top:6px">⚠️ 动作幅度大时留意周围环境，避免磕碰</div>';
   window._dareItems=items;window._dareShown=[];window._dareColors=colors;window._dareAngle=window._dareAngle||0;window._dareSpinning=false;
   window._dareSpinningSess=(window._dareSpinningSess||0)+1;
   if(window._dareSpinningTimer){clearTimeout(window._dareSpinningTimer);window._dareSpinningTimer=null;}
   setTimeout(function(){var cv=document.getElementById('dareCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
+function dareLocal(){window._dareLocal=!window._dareLocal;renderDare(document.getElementById('gContent'));}
 function spinDareWheel(){
   var shown=window._dareShown||[];
   var rem=window._dareItems.filter(function(x){return shown.indexOf(x)<0;});
   if(rem.length===0){
-    rem=nextBatch('_dareBag',GAMEDATA.dare,12,window._dareLastShown);
+    rem=nextBatch('_dareBag',window._dareLocal?localFilter(GAMEDATA.dare):GAMEDATA.dare,12,window._dareLastShown);
     window._dareShown=[];
   }
   window._dareItems=rem;
@@ -653,6 +725,7 @@ function spinDareWheel(){
   spinWheel('dareCanvas',rem,'_dareAngle','_dareSpinning','dareResult',function(idx){
     var item=rem[idx];
     window._dareShown.push(item);
+    window._dareLog=window._dareLog||[];window._dareLog.push(item);
     window._dareLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('dareResult').innerHTML=
@@ -661,17 +734,20 @@ function spinDareWheel(){
 }
 
 /* ===== 数字炸弹 ===== */
+function bombRangeSet(n){window._bombMaxChoice=n;renderBomb(document.getElementById('gContent'));}
 function renderBomb(c){
-  var bomb=Math.floor(Math.random()*100)+1;
-  window._bomb=bomb;window._bombMin=1;window._bombMax=100;window._bombGuesses=0;
+  var max=window._bombMaxChoice||100;
+  var bomb=Math.floor(Math.random()*max)+1;
+  window._bomb=bomb;window._bombMin=1;window._bombMax=max;window._bombGuesses=0;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">💣 数字炸弹</h2>'
-    +'<p style="color:#aaa;font-size:13px">炸弹藏在1-100之间，猜中就爆炸！</p>'
-    +'<div class="bomb-range"><span id="bMin">1</span><span class="slash">—</span><span id="bMax">100</span></div>'
-    +'<input class="bomb-input" id="bombInput" type="number" min="1" max="100" placeholder="?" onkeypress="if(event.key===\'Enter\')guessBomb()">'
+    +'<p style="color:#aaa;font-size:13px">炸弹藏在1-'+max+'之间，16次没猜中则平手共罚！</p>'
+    +'<div style="text-align:center;margin:6px 0"><span class="mini-btn'+(max===50?' on':'')+'" onclick="bombRangeSet(50)">1-50</span><span class="mini-btn'+(max===100?' on':'')+'" onclick="bombRangeSet(100)">1-100</span></div>'
+    +'<div class="bomb-range"><span id="bMin">1</span><span class="slash">—</span><span id="bMax">'+max+'</span></div>'
+    +'<input class="bomb-input" id="bombInput" type="number" min="1" max="'+max+'" placeholder="?" onfocus="this.scrollIntoView({block:\'center\',behavior:\'smooth\'})" onkeypress="if(event.key===\'Enter\')guessBomb()">'
     +'<div><button class="bomb-submit" style="background:linear-gradient(135deg,#ff6b6b,#ee5a24);color:#fff" onclick="guessBomb()">💥 猜！</button></div>'
     +'<div class="bomb-msg" id="bombMsg"></div>'
-    +'<div style="font-size:13px;color:#aaa;margin-top:8px">已猜：<span id="bombCount">0</span>次 | 范围：<span id="bombRange">100</span></div>'
+    +'<div style="font-size:13px;color:#aaa;margin-top:8px">已猜：<span id="bombCount">0</span>次 | 范围：<span id="bombRange">'+max+'</span></div>'
     +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame(\'bomb\')">🔄 重来</button></div>'
     +'</div>';
 }
@@ -691,6 +767,14 @@ function guessBomb(){
     window._bombMin=Math.max(window._bombMin,v+1);
   }else{
     window._bombMax=Math.min(window._bombMax,v-1);
+  }
+  if(window._bombGuesses>=16&&!document.getElementById('bombInput').disabled){
+    sndBoom();vibrate([100,50,100,50,200]);
+    var pa=pickFresh('_bombsPick',GAMEDATA.bombs),pb=pickFresh('_bombsPick',GAMEDATA.bombs);
+    document.getElementById('bombMsg').innerHTML='<div style="color:#ffd700;font-size:20px;margin:10px 0">🤝 16次没猜中，平手！</div><div>'+HE.him+'：'+pa+'</div><div>'+HE.her+'：'+pb+'</div>';
+    document.getElementById('bombInput').disabled=true;
+    document.querySelector('.bomb-submit').disabled=true;
+    return;
   }
   document.getElementById('bMin').textContent=window._bombMin;
   document.getElementById('bMax').textContent=window._bombMax;
@@ -723,7 +807,7 @@ function rollDice(){
       clearInterval(iv);window._diceRolling=false;box.classList.remove('rolling');
       var result=Math.floor(Math.random()*6);
       box.textContent=window._faces[result];
-      var val=result+1;sndDing();vibrate(80);
+      var val=result+1;sndDing();vibrate([40,30,60]);
       var who=Math.random()<0.5?HE.him:HE.her;
       var punish=pickFresh('_punishPick',GAMEDATA.punish);
       document.getElementById('diceResult').innerHTML=
@@ -733,35 +817,54 @@ function rollDice(){
 }
 
 /* ===== 石头剪刀布 ===== */
+function rpsRow(){
+  return '<div class="rps-picks">'
+    +'<div class="rps-pick" onclick="rpsPick(0)"><div class="rps-icon">✊</div><div class="rps-label">石头</div></div>'
+    +'<div class="rps-pick" onclick="rpsPick(1)"><div class="rps-icon">✌️</div><div class="rps-label">剪刀</div></div>'
+    +'<div class="rps-pick" onclick="rpsPick(2)"><div class="rps-icon">✋</div><div class="rps-label">布</div></div>'
+    +'</div>';
+}
+function rpsZones(){
+  var hz=document.getElementById('rpsZoneHim'),ez=document.getElementById('rpsZoneHer');
+  if(hz)hz.innerHTML=(window._rpsPhase===1)?rpsRow():'<div class="vs-status">'+HE.him+(window._rpsPhase===0?' 请点手势开新局':' 等待 '+HE.her+' 出拳…')+'</div>';
+  if(ez)ez.innerHTML=(window._rpsPhase===2)?rpsRow():'<div class="vs-status">'+HE.her+(window._rpsPhase===1?' 准备出拳':' 已结束')+'</div>';
+}
 function renderRPS(c){
   var moves=[{icon:'✊',name:'石头'},{icon:'✌️',name:'剪刀'},{icon:'✋',name:'布'}];
   window._rpsMoves=moves;window._rpsP1=null;window._rpsP2=null;window._rpsPhase=1;
   c.innerHTML='<div class="rps-wrap">'
     +'<h2 style="margin-bottom:10px">✊ 石头剪刀布</h2>'
     +'<div class="rps-phase" id="rpsPhase">'+HE.him+' 请出拳</div>'
-    +'<div class="rps-picks" id="rpsPicks">'
-    +'<div class="rps-pick" onclick="rpsPick(0)"><div class="rps-icon">✊</div><div class="rps-label">石头</div></div>'
-    +'<div class="rps-pick" onclick="rpsPick(1)"><div class="rps-icon">✌️</div><div class="rps-label">剪刀</div></div>'
-    +'<div class="rps-pick" onclick="rpsPick(2)"><div class="rps-icon">✋</div><div class="rps-label">布</div></div>'
+    +'<div class="vs-stage">'
+    +'<div class="vs-zone vs-top" id="rpsZoneHer"></div>'
+    +'<div class="vs-mid" style="color:#aaa;font-size:13px">连输3局后赢一局 = 复仇免罚 🔥</div>'
+    +'<div class="vs-zone vs-bottom" id="rpsZoneHim"></div>'
     +'</div>'
     +'<div class="rps-result" id="rpsResult"></div>'
     +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame(\'rps\')">🔄 重来</button></div>'
     +'</div>';
   window._rpsP1Name=HE.him;window._rpsP2Name=HE.her;
+  rpsZones();
 }
 function rpsPick(choice){
   sndDing();vibrate(30);
-  if(window._rpsPhase===0){window._rpsP1=choice;window._rpsPhase=2;
-    document.getElementById('rpsPhase').textContent=window._rpsP2Name+' 请出拳（不要给'+window._rpsP1Name+'看到哦）';
-    document.getElementById('rpsResult').innerHTML='<div style="color:#aaa">'+window._rpsP1Name+' 已出拳 ✅</div>';return}
+  if(window._rpsPhase===0){
+    window._rpsPhase=1;
+    document.getElementById('rpsPhase').textContent=window._rpsP1Name+' 请出拳';
+    document.getElementById('rpsResult').innerHTML='';
+    rpsZones();
+    return;
+  }
   if(window._rpsPhase===1){
     window._rpsP1=choice;window._rpsPhase=2;
-    document.getElementById('rpsPhase').textContent=window._rpsP2Name+' 请出拳（不要给'+window._rpsP1Name+'看到哦）';
+    document.getElementById('rpsPhase').textContent=window._rpsP2Name+' 请出拳（别让'+window._rpsP1Name+'看到）';
     document.getElementById('rpsResult').innerHTML='<div style="color:#aaa">'+window._rpsP1Name+' 已出拳 ✅</div>';
+    rpsZones();
   }else if(window._rpsPhase===2){
     window._rpsP2=choice;
     var m=window._rpsMoves;
     var diff=(window._rpsP1-window._rpsP2+3)%3;
+    window._rpsStreak=window._rpsStreak||{};
     var resultHtml='<div style="margin:10px 0"><span class="rps-p1">'+m[window._rpsP1].icon+' '+m[window._rpsP1].name+'</span>'
       +'<span class="rps-vs">VS</span>'
       +'<span class="rps-p2">'+m[window._rpsP2].icon+' '+m[window._rpsP2].name+'</span></div>';
@@ -770,18 +873,31 @@ function rpsPick(choice){
       window._rpsPhase=1;
       document.getElementById('rpsPhase').textContent=window._rpsP1Name+' 请出拳';
     }else if(diff===1){
-      var punish=pickFresh('_punishPick',GAMEDATA.punish);
+      var streak1=(window._rpsStreak[window._rpsP1Name]||0);
       sndBuzz();vibrate([50,30,50]);
-      resultHtml+='<div style="font-size:18px;color:#ff6b6b">😢 '+window._rpsP1Name+' 输了！</div><div>'+window._rpsP1Name+' 必须：'+punish+'</div>';
+      if(streak1>=3){
+        resultHtml+='<div style="font-size:18px;color:#ffd700">🔥 复仇成功！'+window._rpsP1Name+' 连败后首胜，本轮免罚！</div>';
+      }else{
+        resultHtml+='<div style="font-size:18px;color:#ff6b6b">😢 '+window._rpsP1Name+' 输了！</div><div>'+window._rpsP1Name+' 必须：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
+      }
+      window._rpsStreak[window._rpsP1Name]=0;
+      window._rpsStreak[window._rpsP2Name]=(window._rpsStreak[window._rpsP2Name]||0)+1;
       window._rpsPhase=0;
     }else{
-      var punish=pickFresh('_punishPick',GAMEDATA.punish);
+      var streak2=(window._rpsStreak[window._rpsP2Name]||0);
       sndBuzz();vibrate([50,30,50]);
-      resultHtml+='<div style="font-size:18px;color:#00cec9">🎉 '+window._rpsP1Name+' 赢了！</div><div>'+window._rpsP2Name+' 必须：'+punish+'</div>';
+      if(streak2>=3){
+        resultHtml+='<div style="font-size:18px;color:#ffd700">🔥 复仇成功！'+window._rpsP2Name+' 连败后首胜，本轮免罚！</div>';
+      }else{
+        resultHtml+='<div style="font-size:18px;color:#00cec9">🎉 '+window._rpsP1Name+' 赢了！</div><div>'+window._rpsP2Name+' 必须：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
+      }
+      window._rpsStreak[window._rpsP2Name]=0;
+      window._rpsStreak[window._rpsP1Name]=(window._rpsStreak[window._rpsP1Name]||0)+1;
       window._rpsPhase=0;
     }
     document.getElementById('rpsResult').innerHTML=resultHtml;
-    document.getElementById('rpsPhase').textContent=window._rpsPhase===0?'再点任意手势可开新局':'';
+    document.getElementById('rpsPhase').textContent='再点手势可开新局';
+    rpsZones();
   }
 }
 
@@ -819,7 +935,7 @@ function spinPunishWheel(){
     window._punishLastShown=item;
     var who=Math.random()<0.5?HE.him:HE.her;
     document.getElementById('punishResult').innerHTML=
-      '<div class="text">'+item+'</div><div class="player-tag">🎯 '+who+' 必须执行！</div>';
+      '<div class="text">'+item+'</div><div class="player-tag">💣 惩罚 · 受罚方：'+who+' 必须执行！</div>';
   });
 }
 
@@ -830,13 +946,36 @@ function renderCloth(){
   var a=document.getElementById('rouCloth');if(a)a.innerHTML=html;
   var b=document.getElementById('blindCloth');if(b)b.innerHTML=html;
 }
+function rouSetupGo(){
+  var h=parseInt(document.getElementById('rouInHim').value,10);
+  var s=parseInt(document.getElementById('rouInHer').value,10);
+  if(!h||!s){toast('请填写双方衣服件数');return;}
+  window._clothHim=h;window._clothHer=s;window._rouSetupDone=true;
+  renderRouletteBody(document.getElementById('gContent'));
+}
+function renderRouletteSetup(c){
+  window._rouNoCloth=window._rouNoCloth||false;
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🔫 极限轮盘 · 开局设置</h2>'
+    +'<p style="color:#aaa;font-size:13px">填写双方当前衣服件数（脱到0触发终极惩罚）</p>'
+    +'<div style="display:flex;gap:10px;margin:10px 0">'
+    +'<input class="bomb-input" id="rouInHim" type="number" value="6" min="1" max="10" placeholder="他">'
+    +'<input class="bomb-input" id="rouInHer" type="number" value="6" min="1" max="10" placeholder="她">'
+    +'</div>'
+    +'<div style="text-align:center"><span class="mini-btn'+(window._rouNoCloth?'':' on')+'" onclick="rouClothToggle()">🧥 脱衣格：开</span> <span class="mini-btn'+(window._rouNoCloth?' on':'')+'" onclick="rouClothToggle()">💋 脱衣格：关</span></div>'
+    +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="rouSetupGo()">🎮 开始</button></div>'
+    +'</div>';
+}
+function rouClothToggle(){window._rouNoCloth=!window._rouNoCloth;renderRouletteSetup(document.getElementById('gContent'));}
 function renderRouletteBody(c){
+  if(!window._rouSetupDone){renderRouletteSetup(c);return;}
   window._clothHim=window._clothHim===undefined?6:window._clothHim;
   window._clothHer=window._clothHer===undefined?6:window._clothHer;
+  window._rouNoCloth=window._rouNoCloth||false;
   window._rouAngle=0;window._rouSpinning=false;
   window._rouSpinningSess=(window._rouSpinningSess||0)+1;
   if(window._rouSpinningTimer){clearTimeout(window._rouSpinningTimer);window._rouSpinningTimer=null;}
-  window._rouItems=['🍀 免罚','💜 真心话','🔥 大冒险','🧥 脱一件','💣 惩罚','💣 惩罚'];
+  window._rouItems=window._rouNoCloth?['🍀 免罚','💜 真心话','🔥 大冒险','💋 亲吻','💣 惩罚','💋 亲吻']:['🍀 免罚','💜 真心话','🔥 大冒险','🧥 脱一件','💣 惩罚','💋 亲吻'];
   window._rouColors=['#00cec9','#a855f7','#ff6b6b','#f39c12','#ff4757','#ff4757'];
   c.innerHTML='<div class="wheel-wrap">'
     +'<canvas id="rouCanvas" width="1200" height="1200"></canvas>'
@@ -845,7 +984,8 @@ function renderRouletteBody(c){
     +'</div>'
     +'<div class="wheel-result" id="rouResult"><div class="text">六分之一逃过，中枪必执行！<br>👑 庄家：'+window._duelWinner+'</div></div>'
     +'<div class="cloth-bar" id="rouCloth"></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderRouletteBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>';
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderRouletteBody(document.getElementById(\'gContent\'))">🔄 重来</button>'
+    +'<button class="wheel-btn back" onclick="window._rouSetupDone=false;renderRouletteBody(document.getElementById(\'gContent\'))">⚙️ 重设件数</button></div>';
   renderCloth();
   setTimeout(function(){var cv=document.getElementById('rouCanvas');if(cv)drawWheel(cv,window._rouItems,window._rouColors)},50);
 }
@@ -871,6 +1011,8 @@ function spinRoulette(){
       el.innerHTML='<div class="text">💜 真心话 · '+who+' 必须回答：'+pickFresh('_truthPick',GAMEDATA.truths)+'</div>';
     }else if(label.indexOf('大冒险')>=0){
       el.innerHTML='<div class="text">🔥 大冒险 · '+who+' 必须执行：'+pickFresh('_darePick',GAMEDATA.dare)+'</div>';
+    }else if(label.indexOf('亲吻')>=0){
+      el.innerHTML='<div class="text">💋 亲吻 · '+who+' 执行：'+randItem(KISS_POOL)+'</div>';
     }else{
       el.innerHTML='<div class="text">💣 惩罚 · '+who+' 必须执行：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
     }
@@ -894,26 +1036,38 @@ function renderEscalateBody(c){
 }
 function escShow(item){
   var who=window._duelWinner?otherPlayer(window._duelWinner):(Math.random()<0.5?HE.him:HE.her);
+  window._escWho=who;
   var lvl=window._escStage===1?'普通版':'🔥 升级版';
-  document.getElementById('escCard').innerHTML='<div style="color:#ffd700;font-size:13px">'+lvl+' · '+who+' 执行</div><div style="font-size:16px;margin-top:6px">'+item+'</div>';
+  document.getElementById('escCard').innerHTML='<div style="color:#ffd700;font-size:13px">'+lvl+' · '+who+' 执行</div><div style="font-size:16px;margin-top:6px">'+item+'</div>'
+    +'<div style="margin-top:10px"><button class="wheel-btn spin" id="escStartBtn" onclick="escStart()">⏱ 看清了吗？点我开始8秒倒计时</button></div>';
   if(window._escTv)clearInterval(window._escTv);
-  var left=5;
+  document.getElementById('escFill').style.width='100%';
+  window._escStarted=false;
+}
+function escStart(){
+  if(window._escStarted)return;
+  window._escStarted=true;
+  var sb=document.getElementById('escStartBtn');if(sb)sb.remove();
+  if(window._escTv)clearInterval(window._escTv);
+  var left=8;
   document.getElementById('escFill').style.width='100%';
   window._escTv=setInterval(function(){
     var f=document.getElementById('escFill');
     if(!f){clearInterval(window._escTv);window._escTv=null;return;}
     left-=0.1;
-    f.style.width=Math.max(0,left/5*100)+'%';
+    f.style.width=Math.max(0,left/8*100)+'%';
     if(left<=0){clearInterval(window._escTv);escRefuse();}
   },100);
 }
 function escDone(){
+  if(!window._escStarted){toast('先点「开始8秒倒计时」');return;}
   if(window._escTv)clearInterval(window._escTv);
   if(window._escPenalty){window._escPenalty=false;window._escStage=1;}
   else toast('干得漂亮！下一条~');
   escShow(pickFresh('_darePick',GAMEDATA.dare));
 }
 function escRefuse(){
+  if(!window._escStarted){toast('先点「开始8秒倒计时」');return;}
   if(window._escTv)clearInterval(window._escTv);
   if(window._escPenalty){toast('惩罚必须执行，没有拒绝选项！');return;}
   if(window._escStage===1){
@@ -922,14 +1076,15 @@ function escRefuse(){
     escShow(pickFresh('_darePick',GAMEDATA.dare));
   }else{
     window._escPenalty=true;
-    document.getElementById('escCard').innerHTML='<div style="color:#ff4757;font-size:15px">💥 双重惩罚！必须执行</div><div style="font-size:15px;margin-top:6px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
+    document.getElementById('escCard').innerHTML='<div style="color:#ff4757;font-size:15px">💥 惩罚！必须执行</div><div style="font-size:15px;margin-top:6px">'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
     document.getElementById('escFill').style.width='0%';
   }
 }
 
 /* ===== 同时开火 ===== */
+function dblGentle(){window._dblGentle=!window._dblGentle;renderDoubleBody(document.getElementById('gContent'));}
 function renderDoubleBody(c){
-  var t=pickFresh('_truthPick',GAMEDATA.truths),d=pickFresh('_darePick',GAMEDATA.dare);
+  var t=pickFresh('_truthPick',GAMEDATA.truths),d=pickFresh('_darePick',window._dblGentle?poolFilter(GAMEDATA.dare):GAMEDATA.dare);
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🔥 同时开火</h2>'
     +'<p style="color:#aaa;font-size:13px">执行方：'+otherPlayer(window._duelWinner)+' · 一边执行大冒险，一边回答真心话，动作停3秒算失败</p>'
@@ -937,9 +1092,10 @@ function renderDoubleBody(c){
     +'<div style="color:#a855f7;font-size:13px">💜 真心话</div><div style="font-size:15px;margin:4px 0 10px">'+t+'</div>'
     +'<div style="color:#ff6b6b;font-size:13px">🔥 大冒险</div><div style="font-size:15px;margin-top:4px">'+d+'</div>'
     +'</div>'
+    +'<div style="text-align:center;margin-top:6px"><span class="mini-btn'+(window._dblGentle?' on':'')+'" onclick="dblGentle()">😌 温柔模式（口头+轻微动作）</span></div>'
     +'<div class="wheel-btns" id="dblBtns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="dblDone()">✅ 完成</button>'
-    +'<button class="wheel-btn back" onclick="dblFail()">❌ 失败</button>'
+    +'<button class="wheel-btn back" onclick="dblFail()">❌ 判定失败（监督方按）</button>'
     +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderDoubleBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
 }
@@ -951,14 +1107,16 @@ function dblFail(){
 }
 
 /* ===== 国王小时 ===== */
+function kingSlotsSet(n){window._kingSlotsMax=n;window._kingSlots=0;window._kingLog=[];renderKingBody(document.getElementById('gContent'));}
 function renderKingBody(c){
   window._king=window._duelWinner||(Math.random()<0.5?HE.him:HE.her);
-  window._kingSlots=0;
+  window._kingSlots=0;window._kingSlotsMax=window._kingSlotsMax||3;window._kingLog=[];
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🧎 国王小时</h2>'
-    +'<p style="color:#aaa;font-size:13px">国王拥有 3 道命令权，对方无条件服从，3 道后王位易主</p>'
+    +'<p style="color:#aaa;font-size:13px">国王拥有 '+window._kingSlotsMax+' 道命令权，对方无条件服从，用完王位易主</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+(window._kingSlotsMax===3?' on':'')+'" onclick="kingSlotsSet(3)">3道</span><span class="mini-btn'+(window._kingSlotsMax===5?' on':'')+'" onclick="kingSlotsSet(5)">5道</span><span class="mini-btn'+(window._kingSlotsMax===10?' on':'')+'" onclick="kingSlotsSet(10)">10道</span></div>'
     +'<div class="cmd-card"><div style="font-size:18px">👑 <span id="kingName"></span> 是国王</div>'
-    +'<div id="kingList" style="margin-top:8px;font-size:14px"></div></div>'
+    +'<div id="kingList" style="margin-top:8px;font-size:14px;color:#aaa">点下方按钮，国王三选一</div></div>'
     +'<div class="wheel-btns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="kingCmd(\'truth\')">💜 真心话</button>'
     +'<button class="wheel-btn spin" onclick="kingCmd(\'dare\')">🔥 大冒险</button>'
@@ -968,16 +1126,27 @@ function renderKingBody(c){
   document.getElementById('kingName').textContent=window._king;
 }
 function kingCmd(type){
-  if(window._kingSlots>=3)return;
-  var item=type==='truth'?pickFresh('_truthPick',GAMEDATA.truths)
-    :(type==='dare'?pickFresh('_darePick',GAMEDATA.dare):pickFresh('_punishPick',GAMEDATA.punish));
+  if(window._kingSlots>=window._kingSlotsMax)return;
+  var pool=type==='truth'?GAMEDATA.truths:(type==='dare'?GAMEDATA.dare:GAMEDATA.punish);
+  var key=type==='truth'?'_truthPick':(type==='dare'?'_darePick':'_punishPick');
+  var cands=[pickFresh(key,pool),pickFresh(key,pool),pickFresh(key,pool)];
+  window._kingCands=cands;
+  document.getElementById('kingList').innerHTML='<div style="font-size:13px;color:#aaa">👑 国王请从三条中挑一条：</div>'
+    +cands.map(function(x,i){return '<div class="mini-btn" style="display:block;text-align:left;margin:4px 0;padding:6px 10px" onclick="kingPick('+i+')">'+(i+1)+'. '+x+'</div>';}).join('');
+}
+function kingPick(i){
+  var item=window._kingCands[i];
   window._kingSlots++;
-  document.getElementById('kingList').innerHTML+='<div style="margin:4px 0">'+window._kingSlots+'. '+item+'</div>';
-  if(window._kingSlots>=3){
+  window._kingLog.push(item);
+  var list=document.getElementById('kingList');
+  list.innerHTML='';
+  window._kingLog.forEach(function(x,k){list.innerHTML+='<div style="margin:4px 0;color:#eee">'+(k+1)+'. '+x+'</div>';});
+  if(window._kingSlots>=window._kingSlotsMax){
     window._king=otherPlayer(window._king);
     window._kingSlots=0;
+    window._kingLog=[];
     document.getElementById('kingName').textContent=window._king;
-    document.getElementById('kingList').innerHTML='<div style="color:#ffd700">三道命令完成，王位易主！</div>';
+    list.innerHTML+='<div style="color:#ffd700">命令用完，王位易主！</div>';
     toast('王位易主！');
   }
 }
@@ -996,12 +1165,25 @@ function renderGambleBody(c){
   gShow();
 }
 function gShow(){
-  var html='<div style="color:#ffd700;font-size:13px">当前欠债 ×'+window._gMulti+' · 欠债人：'+window._gDebtor+'</div>';
+  var html='<div style="color:#ffd700;font-size:13px">当前欠债 '+(window._gMulti>=99?'💥终极对决':('×'+window._gMulti))+' · 欠债人：'+window._gDebtor+'</div>';
   window._gDebt.forEach(function(x,i){html+='<div style="margin:4px 0;font-size:14px">'+(i+1)+'. '+x+'</div>';});
   document.getElementById('gCard').innerHTML=html;
-  var btns='<button class="wheel-btn spin" onclick="gDone()">✅ 全部还清</button>';
+  var btns='<button class="wheel-btn spin" onclick="gDone()">✅ 全部还清</button>'
+    +'<button class="wheel-btn back" onclick="gSurrender()">🏳️ 投降（只做一半）</button>';
   if(window._gMulti<8)btns+='<button class="wheel-btn back" onclick="gDouble()">🎲 翻倍换新债</button>';
+  else btns+='<button class="wheel-btn spin" onclick="gUltimate()">💥 终极对决（+4条，还清即清零）</button>';
   document.getElementById('gBtns').innerHTML=btns;
+}
+function gSurrender(){
+  window._gDebt=window._gDebt.slice(0,Math.max(1,Math.ceil(window._gDebt.length/2)));
+  toast('🏳️ 投降：只做一半！');
+  gShow();
+}
+function gUltimate(){
+  for(var i=0;i<4;i++)window._gDebt.push(pickFresh('_punishPick',GAMEDATA.punish));
+  window._gMulti=99;
+  toast('💥 终极对决！还清即全部清零');
+  gShow();
 }
 function gDouble(){
   if(window._gMulti>=8)return;
@@ -1011,13 +1193,48 @@ function gDouble(){
   gShow();
 }
 function gDone(){
+  if(window._gMulti>=99){
+    toast('🎉 终极对决完成！债务全部清零');
+    window._gMulti=1;window._gDebt=[pickFresh('_punishPick',GAMEDATA.punish)];
+    gShow();
+    return;
+  }
   if(window._gMulti>1)toast('胆量可嘉，债已还清！');
   renderGambleBody(document.getElementById('gContent'));
 }
 
 /* ===== 敏感点狙击 ===== */
+function snDurSet(n){window._snDur=n;snSetup(document.getElementById('gContent'));}
+function snBanToggle(x){
+  var i=window._snBanned.indexOf(x);
+  if(i>=0)window._snBanned.splice(i,1);
+  else{if(window._snBanned.length>=3){toast('最多勾3个禁区');return;}window._snBanned.push(x);}
+  snSetup(document.getElementById('gContent'));
+}
+function snSetupGo(){window._snSetupDone=true;window._snOut=0;renderSniperBody(document.getElementById('gContent'));}
+function snSetup(c){
+  window._snBanned=window._snBanned||[];window._snDur=window._snDur||15;
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🎯 敏感点狙击 · 开局设置</h2>'
+    +'<p style="color:#aaa;font-size:13px">勾选双方都怕的部位作为禁区（最多3个），时长可选</p>'
+    +'<div id="snBanList" style="margin:10px 0"></div>'
+    +'<div style="text-align:center;margin:8px 0">时长：'
+    +'<span class="mini-btn'+(window._snDur===10?' on':'')+'" onclick="snDurSet(10)">10秒</span>'
+    +'<span class="mini-btn'+(window._snDur===15?' on':'')+'" onclick="snDurSet(15)">15秒</span>'
+    +'<span class="mini-btn'+(window._snDur===30?' on':'')+'" onclick="snDurSet(30)">30秒</span>'
+    +'</div>'
+    +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="snSetupGo()">🎮 开始</button></div>'
+    +'</div>';
+  document.getElementById('snBanList').innerHTML=GAMEDATA.sniper.map(function(x){
+    var on=window._snBanned.indexOf(x)>=0;
+    return '<span class="mini-btn'+(on?' on':'')+'" onclick="snBanToggle(\''+x+'\')">'+x+'</span>';
+  }).join('');
+}
 function renderSniperBody(c){
-  var items=GAMEDATA.sniper.slice();
+  if(!window._snSetupDone){snSetup(c);return;}
+  window._snDur=window._snDur||15;
+  var items=GAMEDATA.sniper.filter(function(x){return (window._snBanned||[]).indexOf(x)<0;});
+  if(items.length<3)items=GAMEDATA.sniper.slice();
   window._snItems=items;window._snAngle=0;window._snSpinning=false;
   window._snSpinningSess=(window._snSpinningSess||0)+1;
   if(window._snSpinningTimer){clearTimeout(window._snSpinningTimer);window._snSpinningTimer=null;}
@@ -1027,44 +1244,91 @@ function renderSniperBody(c){
     +'<div class="wheel-pointer"></div>'
     +'<button class="wheel-go-btn" onclick="spinSniper()">GO</button>'
     +'</div>'
-    +'<div class="wheel-result" id="snResult"><div class="text">转出部位后，用嘴伺候15秒，对方必须保持安静</div></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderSniperBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>';
+    +'<div class="wheel-result" id="snResult"><div class="text">转出部位后，用嘴伺候 '+window._snDur+' 秒，对方必须保持安静<br>（出声1次警告 / 2次轻罚 / 3次重罚）</div></div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderSniperBody(document.getElementById(\'gContent\'))">🔄 重来</button>'
+    +'<button class="wheel-btn back" onclick="window._snSetupDone=false;renderSniperBody(document.getElementById(\'gContent\'))">⚙️ 重设</button></div>';
   setTimeout(function(){var cv=document.getElementById('snCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
 function spinSniper(){
+  window._snOut=0;
   spinWheel('snCanvas',window._snItems,'_snAngle','_snSpinning','snResult',function(idx){
     var who=otherPlayer(window._duelWinner);
     document.getElementById('snResult').innerHTML=
-      '<div class="text">🎯 '+who+' 用嘴伺候对方【'+window._snItems[idx]+'】15秒</div>'
+      '<div class="text">🎯 '+who+' 用嘴伺候对方【'+window._snItems[idx]+'】'+window._snDur+'秒</div>'
       +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="snOk()">✅ 对方忍住了</button>'
       +'<button class="wheel-btn back" onclick="snFail()">😖 出声/躲了</button></div>';
   });
 }
 function snOk(){toast('定力不错！');renderSniperBody(document.getElementById('gContent'));}
 function snFail(){
-  document.getElementById('snResult').innerHTML='<div class="text">💣 加罚：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniperBody(document.getElementById(\'gContent\'))">下一局</button></div>';
+  window._snOut=(window._snOut||0)+1;
+  var el=document.getElementById('snResult');
+  if(window._snOut===1){
+    el.innerHTML='<div class="text">⚠️ 出声1次：警告，不罚！忍住哦</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniperBody(document.getElementById(\'gContent\'))">再来一局</button></div>';
+  }else if(window._snOut===2){
+    el.innerHTML='<div class="text">💣 出声2次：轻罚一条<br>'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniperBody(document.getElementById(\'gContent\'))">下一局</button></div>';
+  }else{
+    el.innerHTML='<div class="text">💣💣 出声3次：重罚两条<br>①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniperBody(document.getElementById(\'gContent\'))">下一局</button></div>';
+  }
 }
 
 /* ===== 蒙眼服从 ===== */
+function blindSafeOk(){window._blindSafeOk=true;renderBlindBody(document.getElementById('gContent'));}
+function blindSafe(c){
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">⚠️ 安全提示</h2>'
+    +'<div class="cmd-card" style="text-align:center"><div style="font-size:32px">⚠️</div>'
+    +'<div style="font-size:14px;margin-top:8px;line-height:1.7">蒙眼+双手背后有磕碰风险！<br>请先清理活动区域，远离尖角家具和易碎物品，光线留足。</div></div>'
+    +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="blindSafeOk()">✅ 已清理，开始游戏</button></div>'
+    +'</div>';
+}
+function speakTask(){
+  try{
+    var u=new SpeechSynthesisUtterance(window._blindItem);
+    u.lang='zh-CN';u.rate=0.95;
+    speechSynthesis.cancel();speechSynthesis.speak(u);
+  }catch(e){toast('当前浏览器不支持语音朗读');}
+}
+function blindStart(){
+  if(window._blindTv)clearInterval(window._blindTv);
+  var left=30;
+  document.getElementById('blindBtns').innerHTML='<div style="color:#ffd700;font-size:14px;text-align:center">⏱ 挑战进行中…</div>';
+  window._blindTv=setInterval(function(){
+    var b=document.getElementById('blindBar');
+    if(!b){clearInterval(window._blindTv);window._blindTv=null;return;}
+    left-=0.1;
+    b.style.width=Math.max(0,left/30*100)+'%';
+    if(left<=0){
+      clearInterval(window._blindTv);window._blindTv=null;
+      document.getElementById('blindBtns').innerHTML='<button class="wheel-btn spin" onclick="blindDone()">✅ 完成</button>'
+        +'<button class="wheel-btn back" onclick="blindFail()">❌ 失败</button>';
+      sndDing();vibrate(80);
+    }
+  },100);
+}
 function renderBlindBody(c){
+  if(!window._blindSafeOk){blindSafe(c);return;}
+  if(window._blindTv){clearInterval(window._blindTv);window._blindTv=null;}
   window._clothHim=window._clothHim===undefined?6:window._clothHim;
   window._clothHer=window._clothHer===undefined?6:window._clothHer;
   window._blindWho=window._duelWinner?otherPlayer(window._duelWinner):(window._blindWho===HE.him?HE.her:HE.him);
   var item=pickFresh('_darePick',GAMEDATA.dare);
+  window._blindItem=item;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🪢 蒙眼服从</h2>'
     +'<p style="color:#aaa;font-size:13px" id="blindHint"></p>'
-    +'<div class="cmd-card"><div style="color:#ffd700;font-size:13px">本轮任务</div><div style="font-size:15px;margin-top:6px">'+item+'</div></div>'
+    +'<div class="cmd-card"><div style="color:#ffd700;font-size:13px">本轮任务 <button class="mini-btn" onclick="speakTask()">🔊 语音朗读</button></div><div style="font-size:15px;margin-top:6px" id="blindTask">'+item+'</div></div>'
     +'<div class="cloth-bar" id="blindCloth"></div>'
+    +'<div class="count-bar" style="margin-top:10px"><div class="count-fill" id="blindBar"></div></div>'
     +'<div class="wheel-btns" id="blindBtns" style="margin-top:14px">'
-    +'<button class="wheel-btn spin" onclick="blindDone()">✅ 完成</button>'
-    +'<button class="wheel-btn back" onclick="blindFail()">❌ 失败</button>'
+    +'<button class="wheel-btn spin" onclick="blindStart()">▶ 开始30秒挑战</button>'
     +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderBlindBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
-  document.getElementById('blindHint').textContent=window._blindWho+' 蒙眼并双手背后，'+otherPlayer(window._blindWho)+' 只能用声音引导 TA 完成';
+  document.getElementById('blindHint').textContent=window._blindWho+' 蒙眼并双手背后，'+otherPlayer(window._blindWho)+' 只能用声音引导 TA 完成（30秒计时）';
   renderCloth();
 }
 function blindDone(){
+  if(window._blindTv){clearInterval(window._blindTv);window._blindTv=null;}
   var guide=otherPlayer(window._blindWho);
   if(guide===HE.him)window._clothHim=Math.max(0,window._clothHim-1);
   else window._clothHer=Math.max(0,window._clothHer-1);
@@ -1078,6 +1342,7 @@ function blindDone(){
   renderBlindBody(document.getElementById('gContent'));
 }
 function blindFail(){
+  if(window._blindTv){clearInterval(window._blindTv);window._blindTv=null;}
   document.getElementById('blindBtns').innerHTML='<button class="wheel-btn spin" onclick="renderBlindBody(document.getElementById(\'gContent\'))">下一局</button>';
   document.getElementById('blindHint').textContent='💥 双方各抽一条惩罚：';
   document.querySelector('#gContent .cmd-card').innerHTML='<div style="color:#ff4757;font-size:15px">惩罚双连</div><div style="font-size:15px;margin-top:6px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
@@ -1096,16 +1361,28 @@ function renderBlind(c){renderDuel(c,function(){renderBlindBody(c);});}
 
 /* ===== 开局对决 ===== */
 function duelHeader(inner){return '<h2 style="margin-bottom:10px">⚔️ 开局对决</h2><p style="color:#aaa;font-size:13px">赢家做主，输家先执行！</p>'+inner;}
+function duelStreak(name){return (window._duelStreak&&window._duelStreak[name])||0;}
+function duelRecord(w){var l=otherPlayer(w);window._duelStreak=window._duelStreak||{};window._duelStreak[l]=(window._duelStreak[l]||0)+1;window._duelStreak[w]=0;}
+function duelSkip(){
+  window._duelReactState='done';
+  if(window._duelTapState==='go')window._duelTapState='done';
+  window._duelSkip=(window._duelSkip||0)+1;
+  window._duelWinner=(window._duelSkip%2===1)?HE.him:HE.her;
+  toast('已跳过对决：本轮 '+window._duelWinner+' 做主（轮流）');
+  window._duelDone();
+}
 function renderDuel(c,onDone){
   window._duelDone=onDone;
   window._duelWinner=null;
-  var t=randItem(['react','tap','dice']);
+  var types=['react','tap','dice'];
+  var t=types[(window._duelSeq=(window._duelSeq||0)+1)%3]; /* D8 轮换制 */
   if(t==='react')renderReactDuel(c);
   else if(t==='tap')renderTapDuel(c);
   else renderDiceDuel(c);
 }
 function duelFinish(c){
   var w=window._duelWinner;
+  duelRecord(w);
   c.innerHTML=duelHeader(
     '<div class="cmd-card" style="text-align:center"><div style="font-size:34px">👑</div><div style="font-size:19px;margin:6px 0">'+w+' 获胜！</div><div style="color:#aaa;font-size:13px">本局 '+w+' 做主，'+otherPlayer(w)+' 先执行</div></div>'
     +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="window._duelDone()">🎮 开始游戏</button></div>');
@@ -1121,7 +1398,9 @@ function renderReactDuel(c){
     +'<div class="vs-zone vs-bottom"><div class="vs-status" id="duelMsgBot">'+HE.him+' 准备！</div>'
     +'<button class="vs-btn" id="reactHim">'+HE.him+' 👆</button></div>'
     +'</div>'
-    +'<div style="text-align:center;margin-top:12px"><button class="wheel-btn spin" onclick="duelGo()">🎬 3-2-1 开始</button></div>';
+    +'<div style="text-align:center;margin-top:12px"><button class="wheel-btn spin" onclick="duelGo()">🎬 3-2-1 开始</button></div>'
+    +'<div style="text-align:center;margin-top:6px"><button class="wheel-btn back" onclick="duelSkip()">🕊️ 跳过对决（轮流做主）</button></div>';
+  window._duelWarnSide=null;
   var bh=document.getElementById('reactHim'),be=document.getElementById('reactHer');
   if(bh)bh.addEventListener('pointerdown',function(e){e.preventDefault();duelReact(1);});
   if(be)be.addEventListener('pointerdown',function(e){e.preventDefault();duelReact(2);});
@@ -1132,32 +1411,48 @@ function duelGo(){
   var mt=document.getElementById('duelMsgTop'),mb=document.getElementById('duelMsgBot');
   if(mt)mt.textContent='盯住屏幕，变绿立刻拍！';
   if(mb)mb.textContent='盯住屏幕，变绿立刻拍！';
+  duelGoAgain();
+}
+function duelGoAgain(){
   setTimeout(function(){
     if(window._duelReactState!=='ready')return;
     window._duelReactState='go';
     var a=document.getElementById('duelMsgTop'),b2=document.getElementById('duelMsgBot');
     if(!a&&!b2)return;
-    if(a){a.textContent='🟢 拍！！！';a.style.color='#51cf66';}
-    if(b2){b2.textContent='🟢 拍！！！';b2.style.color='#51cf66';}
-    sndDing();vibrate(50);
-  },1500+Math.random()*2500);
+    if(a){a.textContent='🟢 拍！！！';a.style.color='#51cf66';a.style.fontWeight='bold';}
+    if(b2){b2.textContent='🟢 拍！！！';b2.style.color='#51cf66';b2.style.fontWeight='bold';}
+    sndDing();vibrate([80,40,80,40,160]); /* D1等待≤3秒 + D7色盲友好强振动 */
+  },1500+Math.random()*1500);
 }
 function duelReact(side){
   var st=window._duelReactState;
   if(st==='done'||st==='wait')return;
-  window._duelReactState='done';
   if(st==='go'){
+    window._duelReactState='done';
+    window._duelWarnSide=null;
     window._duelWinner=side===1?HE.him:HE.her;
     sndDing();
-  }else{
-    window._duelWinner=side===1?HE.her:HE.him;
-    var m=document.getElementById('duelMsgTop');
-    if(m)m.textContent='⚠️ 抢跑！直接判负';
+    duelFinish(document.getElementById('gContent'));
+  }else{ /* 抢跑: 警告制 D2 */
+    if(window._duelWarnSide===side){
+      window._duelReactState='done';
+      window._duelWinner=side===1?HE.her:HE.him;
+      sndBuzz();
+      duelFinish(document.getElementById('gContent'));
+    }else{
+      window._duelWarnSide=side;
+      window._duelReactState='ready';
+      var mt=document.getElementById('duelMsgTop'),mb=document.getElementById('duelMsgBot');
+      if(mt)mt.textContent='⚠️ 抢跑警告！重新等待';
+      if(mb)mb.textContent='⚠️ 抢跑警告！重新等待';
+      sndBuzz();toast((side===1?HE.him:HE.her)+' 抢跑警告！再抢一次判负');
+      duelGoAgain();
+    }
   }
-  duelFinish(document.getElementById('gContent'));
 }
 /* 手速对决 */
 function renderTapDuel(c){
+  window._duelTapTime=window._duelTapTime||6;
   window._duelTap=[0,0];window._duelTapState='wait';
   c.innerHTML=duelHeader('')
     +'<div class="vs-stage">'
@@ -1167,28 +1462,48 @@ function renderTapDuel(c){
     +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="tapHim">0</span> ：连点数 '+HE.him+'</div>'
     +'<button class="vs-btn" id="tapBtnHim">'+HE.him+' 👆</button></div>'
     +'</div>'
-    +'<div style="text-align:center;margin-top:12px"><button class="wheel-btn spin" onclick="duelTapGo()">🕐 5秒倒计时开赛</button></div>';
+    +'<div style="text-align:center;margin-top:12px">'
+    +'<span class="mini-btn'+(window._duelTapTime===3?' on':'')+'" onclick="duelTapSet(3)">3秒</span>'
+    +'<span class="mini-btn'+(window._duelTapTime===6?' on':'')+'" onclick="duelTapSet(6)">6秒</span>'
+    +'<span class="mini-btn'+(window._duelTapTime===10?' on':'')+'" onclick="duelTapSet(10)">10秒</span>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:8px"><button class="wheel-btn spin" onclick="duelTapGo()">🕐 倒计时开赛</button></div>'
+    +'<div style="text-align:center;margin-top:6px"><button class="wheel-btn back" onclick="duelSkip()">🕊️ 跳过对决（轮流做主）</button></div>';
   var a=document.getElementById('tapBtnHim'),b2=document.getElementById('tapBtnHer');
   if(a)a.addEventListener('pointerdown',function(e){e.preventDefault();duelTap(0);});
   if(b2)b2.addEventListener('pointerdown',function(e){e.preventDefault();duelTap(1);});
 }
+function duelTapSet(n){window._duelTapTime=n;var c=document.getElementById('gContent');if(c)renderTapDuel(c);}
 function duelTapGo(){
   if(window._duelTapState!=='wait')return;
   window._duelTapState='go';
-  var left=5;
-  var iv=setInterval(function(){
-    left-=0.1;
-    var bar=document.getElementById('duelBar2');
-    if(!bar){clearInterval(iv);return;}
-    bar.style.width=Math.max(0,left/5*100)+'%';
-    if(left<=0){
-      clearInterval(iv);
-      window._duelTapState='done';
-      window._duelWinner=window._duelTap[0]>=window._duelTap[1]?HE.him:HE.her;
-      sndDing();
-      duelFinish(document.getElementById('gContent'));
-    }
-  },100);
+  var T=window._duelTapTime||6;
+  function runRound(){
+    window._duelTap=[0,0];
+    var himEl=document.getElementById('tapHim'),herEl=document.getElementById('tapHer');
+    if(himEl)himEl.textContent='0';
+    if(herEl)herEl.textContent='0';
+    var left=T;
+    var iv=setInterval(function(){
+      var bar=document.getElementById('duelBar2');
+      if(!bar){clearInterval(iv);return;}
+      left-=0.1;
+      bar.style.width=Math.max(0,left/T*100)+'%';
+      if(left<=0){
+        clearInterval(iv);
+        if(window._duelTap[0]===window._duelTap[1]){
+          toast('🤝 平局！加赛 '+T+' 秒'); /* D4 加赛直到分出胜负 */
+          runRound();
+          return;
+        }
+        window._duelTapState='done';
+        window._duelWinner=window._duelTap[0]>window._duelTap[1]?HE.him:HE.her;
+        sndDing();
+        duelFinish(document.getElementById('gContent'));
+      }
+    },100);
+  }
+  runRound();
 }
 function duelTap(side){
   if(window._duelTapState!=='go')return;
@@ -1198,17 +1513,33 @@ function duelTap(side){
 /* 骰子对决 */
 function renderDiceDuel(c){
   window._duelDice=[null,null];
+  window._duelRerollUsed={};
+  var rerollHim=duelStreak(HE.him)>=3?'<button class="mini-btn" id="rerollHim" style="display:none" onclick="duelReroll(0)">🎲 连败保护重掷</button>':'';
+  var rerollHer=duelStreak(HE.her)>=3?'<button class="mini-btn" id="rerollHer" style="display:none" onclick="duelReroll(1)">🎲 连败保护重掷</button>':'';
   c.innerHTML=duelHeader('')
     +'<div class="vs-stage">'
     +'<div class="vs-zone vs-top"><div class="duel-dice" id="ddHer">🎲</div>'
-    +'<button class="wheel-btn spin" style="width:100%" id="rollHer">'+HE.her+' 掷</button></div>'
-    +'<div class="vs-mid" id="duelDiceMsg" style="color:#aaa;font-size:14px">各自掷骰，点数保密，最后一起揭晓</div>'
+    +'<button class="wheel-btn spin" style="width:100%" id="rollHer">'+HE.her+' 掷</button>'
+    +rerollHer+'</div>'
+    +'<div class="vs-mid" id="duelDiceMsg" style="color:#aaa;font-size:14px">各自掷骰，点数保密（🎲 ? = 对方已掷，先不看），最后一起揭晓</div>'
     +'<div class="vs-zone vs-bottom"><div class="duel-dice" id="ddHim">🎲</div>'
-    +'<button class="wheel-btn spin" style="width:100%" id="rollHim">'+HE.him+' 掷</button></div>'
-    +'</div>';
+    +'<button class="wheel-btn spin" style="width:100%" id="rollHim">'+HE.him+' 掷</button>'
+    +rerollHim+'</div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:6px"><button class="wheel-btn back" onclick="duelSkip()">🕊️ 跳过对决（轮流做主）</button></div>';
   var a=document.getElementById('rollHim'),b2=document.getElementById('rollHer');
   if(a)a.onclick=function(){duelRoll(0);};
   if(b2)b2.onclick=function(){duelRoll(1);};
+}
+function duelReroll(side){
+  if(window._duelRerollUsed[side])return;
+  window._duelRerollUsed[side]=true;
+  window._duelDice[side]=null;
+  var die=document.getElementById(side===0?'ddHim':'ddHer');
+  if(die)die.textContent='🎲';
+  var btn=document.getElementById(side===0?'rerollHim':'rerollHer');
+  if(btn)btn.style.display='none';
+  duelRoll(side);
 }
 function duelRoll(side){
   if(window._duelDice[side]!==null)return;
@@ -1237,11 +1568,10 @@ function duelRoll(side){
     c.innerHTML=duelHeader('')
       +'<div class="vs-stage">'
       +'<div class="vs-zone vs-top" style="'+(window._duelWinner===HE.her?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[1]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.her+' · '+window._duelDice[1]+' 点</div></div>'
-      +'<div class="vs-mid" style="font-size:26px;color:#ffd700">VS</div>'
+      +'<div class="vs-mid"><div style="font-size:26px;color:#ffd700">VS</div><button class="wheel-btn spin" style="margin-top:8px;width:100%" onclick="window._duelDone()">🎮 开始游戏</button></div>'
       +'<div class="vs-zone vs-bottom" style="'+(window._duelWinner===HE.him?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[0]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.him+' · '+window._duelDice[0]+' 点</div></div>'
       +'</div>'
-      +'<div class="cmd-card" style="text-align:center"><div style="font-size:22px">👑 '+window._duelWinner+' 获胜！</div><div style="color:#aaa;font-size:13px;margin-top:4px">本局 '+window._duelWinner+' 做主，'+otherPlayer(window._duelWinner)+' 先执行</div></div>'
-      +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="window._duelDone()">🎮 开始游戏</button></div>';
+      +'<div class="cmd-card" style="text-align:center"><div style="font-size:22px">👑 '+window._duelWinner+' 获胜！</div><div style="color:#aaa;font-size:13px;margin-top:4px">本局 '+window._duelWinner+' 做主，'+otherPlayer(window._duelWinner)+' 先执行</div></div>';
   }
 }
 
@@ -1267,7 +1597,8 @@ function renderChoiceBody(c){
     +'<div class="choice-card" id="chA" onclick="chPick(0)"><div class="ch-tag">A</div><div>'+pair[0]+'</div></div>'
     +'<div class="choice-card" id="chB" onclick="chPick(1)"><div class="ch-tag">B</div><div>'+pair[1]+'</div></div>'
     +'<div class="wheel-btns" id="chBtns" style="margin-top:12px">'
-    +(window._chAddUsed?'':'<button class="wheel-btn back" onclick="chAdd()">🃏 '+window._duelWinner+' 加码：两条都做</button>')
+    +'<button class="wheel-btn back" '+(window._chAddUsed?'disabled style="opacity:0.4"':'')+' onclick="chAdd()">🃏 '+window._duelWinner+' 加码：两条都做'+(window._chAddUsed?'（已用）':'')+'</button>'
+    +'<button class="wheel-btn back" onclick="chBothRefuse()">🚩 两条都拒绝（自罚一条）</button>'
     +'</div>'
     +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderChoiceBody(document.getElementById(\'gContent\'))">🔄 下一组</button></div>'
     +'<div style="font-size:11px;color:#777;text-align:center;margin-top:8px">🍷 未成年人请勿饮酒，适量为宜</div>'
@@ -1283,7 +1614,12 @@ function chPick(i){
 function chAdd(){
   if(window._chAddUsed)return;
   window._chAddUsed=true;
-  document.getElementById('chBtns').innerHTML='<div style="color:#ff4757;font-size:14px;text-align:center">🃏 加码生效！两条都必须做！</div>';
+  renderChoiceBody(document.getElementById('gContent'));
+  toast('🃏 加码生效！两条都必须做！');
+}
+function chBothRefuse(){
+  toast('🚩 两条都拒绝：自罚一条');
+  document.getElementById('chBtns').innerHTML='<div style="color:#ff4757;font-size:14px;text-align:center">🚩 保底：'+otherPlayer(window._duelWinner)+' 自罚一条<br>'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
 }
 
 /* ===== 🂡 出牌对决 ===== */
@@ -1295,20 +1631,22 @@ function renderCardsBody(c){
   window._cardPicked=null;
   cardsDrawUI();
 }
-function cardDeck(){return ['truth','dare','punish','drink','free','double','truth','dare','punish','drink'];}
+function cardDeck(){return ['truth','dare','punish','drink','free','double','truth','dare','punish','drink','truth','dare'];}
 function cardsDrawUI(){
   var c=document.getElementById('gContent');
   var turn=window._cardTurn;
   var hand=window._cardHands[turn];
-  if(hand.length===0){hand.push(randItem(cardDeck()),randItem(cardDeck()),randItem(cardDeck()));}
+  if(hand.length===0){for(var k=0;k<5;k++)hand.push(randItem(cardDeck()));}
   window._cardPicked=null;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🂡 出牌对决</h2>'
-    +'<p style="color:#aaa;font-size:13px">规则：轮到 '+turn+' 出牌。手牌 3 张背面朝上，悄悄选 1 张后点「揭晓」，牌面任务由 '+otherPlayer(turn)+' 执行，然后换人出牌</p>'
+    +'<p style="color:#aaa;font-size:13px">规则：轮到 '+turn+' 出牌。手牌 5 张背面朝上，悄悄选 1 张后点「揭晓」（揭晓前可换选），牌面任务由 '+otherPlayer(turn)+' 执行，然后换人出牌</p>'
     +'<div class="duel-row" id="cardRow">'
     +'<button class="card-back" onclick="cardsPick(0)">🂠</button>'
     +'<button class="card-back" onclick="cardsPick(1)">🂠</button>'
     +'<button class="card-back" onclick="cardsPick(2)">🂠</button>'
+    +'<button class="card-back" onclick="cardsPick(3)">🂠</button>'
+    +'<button class="card-back" onclick="cardsPick(4)">🂠</button>'
     +'</div>'
     +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn spin" id="cardFlipBtn" onclick="cardsFlip()">🎴 揭晓</button></div>'
     +'<div class="cmd-card" id="cardResult" style="text-align:center;color:#aaa">选出牌后点揭晓</div>'
@@ -1385,24 +1723,30 @@ function gridUI(){
   c.innerHTML=html;
 }
 function gridOpen(i){
-  if(window._gridOpened[i])return;
+  var msg=document.getElementById('gridMsg');
+  if(window._gridOpened[i]){
+    if(msg&&window._gridOpenedContent&&window._gridOpenedContent[i])msg.innerHTML='📖 回看：'+window._gridOpenedContent[i];
+    return;
+  }
   window._gridOpened[i]=true;
+  window._gridOpenedContent=window._gridOpenedContent||{};
   var type=window._gridCells[i];
   var opener=window._gridTurn;
   var exec=otherPlayer(opener);
-  var msg=document.getElementById('gridMsg');
   var cell=document.getElementById('gc'+i);
   if(cell){cell.textContent=gridCellLabel(type);cell.style.background='rgba(255,215,0,0.2)';}
-  if(type==='free'){msg.innerHTML='🍀 免罚！'+exec+' 逃过一劫~';}
-  else if(type==='cmd'){msg.innerHTML='👑 命令权！'+opener+' 可命令 '+exec+'：'+pickFresh('_punishPick',GAMEDATA.punish);}
-  else if(type==='truth'){msg.innerHTML='💜 '+exec+' 回答：'+pickFresh('_truthPick',GAMEDATA.truths);}
-  else if(type==='dare'){msg.innerHTML='🔥 '+exec+' 执行：'+pickFresh('_darePick',GAMEDATA.dare);}
-  else if(type==='punish'){msg.innerHTML='💣 '+exec+' 执行：'+pickFresh('_punishPick',GAMEDATA.punish);}
-  else {msg.innerHTML='🍷 一起喝：'+pickFresh('_drinkPick',GAMEDATA.drink)+'<div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';}
+  var content='';
+  if(type==='free'){content='🍀 免罚！'+exec+' 逃过一劫~';}
+  else if(type==='cmd'){var cmder=otherPlayer(window._duelWinner);content='👑 命令权！'+cmder+' 可命令 '+window._duelWinner+'：'+pickFresh('_punishPick',GAMEDATA.punish);}
+  else if(type==='truth'){content='💜 '+exec+' 回答：'+pickFresh('_truthPick',GAMEDATA.truths);}
+  else if(type==='dare'){content='🔥 '+exec+' 执行：'+pickFresh('_darePick',GAMEDATA.dare);}
+  else if(type==='punish'){content='💣 '+exec+' 执行：'+pickFresh('_punishPick',GAMEDATA.punish);}
+  else {content=pickDrink()+'<div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';}
+  window._gridOpenedContent[i]=content;
+  msg.innerHTML=content;
   var allDone=window._gridOpened.every(function(x){return x;});
   if(allDone){
-    msg.innerHTML+='<br><div style="color:#ffd700">🎉 9 格全开！自动开始新一局~</div>';
-    setTimeout(function(){if(curGame==='grid')renderGridBody(document.getElementById('gContent'));},2600);
+    msg.innerHTML+='<br><button class="mini-btn" onclick="renderGridBody(document.getElementById(\'gContent\'))">🎉 9格全开！开新一局</button>';
   }else{
     window._gridTurn=otherPlayer(window._gridTurn);
     msg.innerHTML+='<br><span style="color:#aaa;font-size:12px">轮到 '+window._gridTurn+' 开格</span>';
@@ -1410,12 +1754,15 @@ function gridOpen(i){
 }
 
 /* ===== ⏱️ 烫手山芋 ===== */
+function potGentleToggle(){window._potGentle=!window._potGentle;renderPotatoBody(document.getElementById('gContent'));}
 function renderPotatoBody(c){
   if(window._potTv){clearTimeout(window._potTv);window._potTv=null;}
   window._potHolder=otherPlayer(window._duelWinner);
+  window._potGentle=window._potGentle||false;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">⏱️ 烫手山芋</h2>'
-    +'<p style="color:#aaa;font-size:13px">规则：炸弹 5-15 秒随机爆炸。每传一次，先亲对方一口；爆炸时持机者受罚（50% 惩罚 / 50% 喝酒）</p>';
+    +'<p style="color:#aaa;font-size:13px">规则：📱 请放桌上传递、勿抛掷。炸弹 8-20 秒随机爆炸，每传一次先'+(window._potGentle?'碰鼻尖':'亲一口')+'；爆炸时持机者受罚（70% 惩罚 / 30% 喝酒）</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+(window._potGentle?' on':'')+'" onclick="potGentleToggle()">'+(window._potGentle?'👃 温柔传递（碰鼻尖）':'💋 亲一口传递')+'</span></div>';
   potUI();
   potArm();
 }
@@ -1424,11 +1771,12 @@ function potUI(){
   if(!c)return;
   var holder=window._potHolder;
   var other=otherPlayer(holder);
+  var act=window._potGentle?'👃 碰鼻尖，传给 ':'💋 亲一口，传给 ';
   var topHtml=holder===HE.her
-    ?('<div class="vs-zone vs-top"><div class="vs-status">📱 在我手里（'+HE.her+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
+    ?('<div class="vs-zone vs-top vs-holder"><div class="vs-status">📱 在我手里（'+HE.her+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">'+act+other+'</button></div>')
     :('<div class="vs-zone vs-top"><div class="vs-status">📱 在 '+HE.her+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
   var botHtml=holder===HE.him
-    ?('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在我手里（'+HE.him+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
+    ?('<div class="vs-zone vs-bottom vs-holder"><div class="vs-status">📱 在我手里（'+HE.him+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">'+act+other+'</button></div>')
     :('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在 '+HE.him+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
   c.innerHTML+='<div class="vs-stage">'+topHtml
     +'<div class="vs-mid">🔥 引线正在燃烧…</div>'
@@ -1440,13 +1788,13 @@ function potUI(){
 }
 function potArm(){
   if(window._potTv)clearTimeout(window._potTv);
-  var delay=5000+Math.floor(Math.random()*10001);
+  var delay=8000+Math.floor(Math.random()*12001);
   window._potTv=setTimeout(function(){
     if(curGame!=='potato')return;
     var holder=window._potHolder;
     sndBoom();vibrate([100,50,100,50,200]);
-    var isDrink=Math.random()<0.5;
-    var content=isDrink?('🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink)):('💣 惩罚：'+pickFresh('_punishPick',GAMEDATA.punish));
+    var isDrink=Math.random()<0.3;
+    var content=isDrink?pickDrink():('💣 惩罚：'+pickFresh('_punishPick',GAMEDATA.punish));
     var c=document.getElementById('gContent');
     if(!c)return;
     c.innerHTML='<div class="bomb-wrap">'
@@ -1472,14 +1820,16 @@ function potPass(){
 }
 
 /* ===== 🏋️ 体力情话 ===== */
+function fitGentleToggle(){window._fitGentle=!window._fitGentle;renderFitBody(document.getElementById('gContent'));}
 function renderFitBody(c){
   var taskType=Math.random()<0.5;
   var task=taskType?('💜 真心话：'+pickFresh('_truthPick',GAMEDATA.truths)):('🔥 大冒险：'+pickFresh('_darePick',GAMEDATA.dare));
-  var ex=randItem(GAMEDATA.exercise);
+  var ex=window._fitGentle?randItem(['靠墙静蹲30秒','单脚站立30秒','仰卧起坐×5']):randItem(GAMEDATA.exercise);
   var exec=otherPlayer(window._duelWinner);
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🏋️ 体力情话</h2>'
-    +'<p style="color:#aaa;font-size:13px">规则：'+exec+' 边做【'+ex+'】边完成任务。完成奖励：一起喝一口；倒下或停 3 秒：惩罚翻倍</p>'
+    +'<p style="color:#aaa;font-size:13px">规则：'+exec+' 边做【'+ex+'】边完成任务。完成奖励：亲吻/按摩/喝酒任选；倒下或停 3 秒：惩罚翻倍。<br>🏋️ 建议在瑜伽垫或地面进行，床上易塌陷</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+(window._fitGentle?' on':'')+'" onclick="fitGentleToggle()">'+(window._fitGentle?'😌 温柔难度':'💪 标准难度')+'</span></div>'
     +'<div class="cmd-card" id="fitCard"><div style="color:#ffd700;font-size:14px">🏋️ 体能动作：'+ex+'</div><div style="font-size:15px;margin-top:8px">'+task+'</div></div>'
     +'<div class="wheel-btns" style="margin-top:14px" id="fitBtns">'
     +'<button class="wheel-btn spin" onclick="fitDone()">✅ 完成</button>'
@@ -1488,10 +1838,19 @@ function renderFitBody(c){
     +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
     +'</div>';
 }
-function fitDone(){
-  toast('厉害！奖励一口~');
-  document.getElementById('fitCard').innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！奖励一起喝：</div><div style="font-size:15px;margin-top:6px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';
+function fitReward(k){
+  var el=document.getElementById('fitCard');
+  if(k===0)el.innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！奖励：</div><div style="font-size:15px;margin-top:6px">💋 '+randItem(KISS_POOL)+'</div>';
+  else if(k===1)el.innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！奖励：</div><div style="font-size:15px;margin-top:6px">💆 给对方按摩肩膀和腰 2 分钟</div>';
+  else el.innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！奖励：</div><div style="font-size:15px;margin-top:6px">'+pickDrink()+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';
   document.getElementById('fitBtns').innerHTML='<button class="wheel-btn spin" onclick="renderFitBody(document.getElementById(\'gContent\'))">下一轮</button>';
+}
+function fitDone(){
+  toast('厉害！挑个奖励~');
+  document.getElementById('fitCard').innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！挑一个奖励：</div>';
+  document.getElementById('fitBtns').innerHTML='<button class="wheel-btn spin" onclick="fitReward(0)">💋 亲吻</button>'
+    +'<button class="wheel-btn spin" onclick="fitReward(1)">💆 按摩</button>'
+    +'<button class="wheel-btn back" onclick="fitReward(2)">🍷 喝酒</button>';
 }
 function fitFail(){
   document.getElementById('fitCard').innerHTML='<div style="color:#ff4757;font-size:16px">💥 惩罚翻倍！</div><div style="font-size:15px;margin-top:6px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
@@ -1512,28 +1871,32 @@ function roleUI(){
   if(!c)return;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🎭 身份扮演</h2>'
-    +'<p style="color:#aaa;font-size:13px">规则：'+window._roleDom+' 扮演「'+window._rolePair[0]+'」，'+window._roleSub+' 扮演「'+window._rolePair[1]+'」。主导方下 3 道命令（真心话/大冒险/惩罚/喝酒），完成后身份互换</p>'
+    +'<p style="color:#aaa;font-size:13px">规则：'+window._roleDom+' 扮演「'+window._rolePair[0]+'」，'+window._roleSub+' 扮演「'+window._rolePair[1]+'」。主导方下 '+(window._roleCmdsMax||3)+' 道命令，完成后身份互换</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+((window._roleCmdsMax||3)===3?' on':'')+'" onclick="roleMaxSet(3)">3道</span><span class="mini-btn'+((window._roleCmdsMax||3)===5?' on':'')+'" onclick="roleMaxSet(5)">5道</span><span class="mini-btn'+((window._roleCmdsMax||3)===10?' on':'')+'" onclick="roleMaxSet(10)">10道</span> <button class="mini-btn" onclick="roleRedraw()">🔀 换一对身份</button></div>'
     +'<div class="cmd-card" style="text-align:center"><div style="font-size:22px">👑 '+window._rolePair[0]+' <span style="color:#aaa;font-size:14px">→</span> 🙇 '+window._rolePair[1]+'</div>'
     +'<div id="roleList" style="margin-top:8px;font-size:14px;color:#aaa">等待 '+window._roleDom+' 下令…</div></div>'
     +'<div class="wheel-btns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="roleCmd(\'truth\')">💜 真心话</button>'
     +'<button class="wheel-btn spin" onclick="roleCmd(\'dare\')">🔥 大冒险</button>'
     +'<button class="wheel-btn spin" onclick="roleCmd(\'punish\')">💣 惩罚</button>'
-    +'<button class="wheel-btn spin" onclick="roleCmd(\'drink\')">🍷 喝酒</button>'
+    +(window._rolePair[0]==='教官'?'<button class="wheel-btn spin" onclick="roleCmd(\'fit\')">🏋️ 体能</button>':'<button class="wheel-btn spin" onclick="roleCmd(\'drink\')">🍷 喝酒</button>')+''
     +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderRoleBody(document.getElementById(\'gContent\'))">🔄 换身份</button></div>'
     +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
     +'</div>';
 }
+function roleMaxSet(n){window._roleCmdsMax=n;window._roleCmds=0;roleUI();}
+function roleRedraw(){var pair=randItem(GAMEDATA.roles).split('|');window._rolePair=pair;window._roleCmds=0;roleUI();}
 function roleCmd(type){
-  if(window._roleCmds>=3)return;
+  if(window._roleCmds>=(window._roleCmdsMax||3))return;
   var content;
   if(type==='truth')content='回答真心话：'+pickFresh('_truthPick',GAMEDATA.truths);
   else if(type==='dare')content='执行大冒险：'+pickFresh('_darePick',GAMEDATA.dare);
-  else if(type==='drink')content='喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink);
+  else if(type==='drink')content=pickDrink();
+  else if(type==='fit')content='体能训练：'+randItem(GAMEDATA.exercise);
   else content='执行惩罚：'+pickFresh('_punishPick',GAMEDATA.punish);
   window._roleCmds++;
   document.getElementById('roleList').innerHTML+='<div style="margin:4px 0;color:#fff">'+window._roleCmds+'. 「'+window._rolePair[0]+'」命令「'+window._rolePair[1]+'」：'+content+'</div>';
-  if(window._roleCmds>=3){
+  if(window._roleCmds>=(window._roleCmdsMax||3)){
     window._roleCmds=0;
     var tmp=window._roleDom;window._roleDom=window._roleSub;window._roleSub=tmp;
     toast('三道命令完成，身份互换！');
@@ -1542,7 +1905,22 @@ function roleCmd(type){
 }
 
 /* ===== 💰 勇气竞拍 ===== */
+function aucTimeSet(n){window._aucTime=n;window._aucIdx=0;window._aucBid={};window._aucBid[HE.him]=0;window._aucBid[HE.her]=0;window._aucCourage={};window._aucCourage[HE.him]=100;window._aucCourage[HE.her]=100;renderAuctionBody(document.getElementById('gContent'));}
+function aucBidAll(side){
+  if(window._aucLeft<=0)return;
+  var who=side===1?HE.him:HE.her;
+  var left=window._aucCourage[who];
+  if(left<10)return;
+  window._aucCourage[who]=0;
+  window._aucBid[who]+=left;
+  var bid=document.getElementById(side===1?'bidHim':'bidHer');
+  if(bid)bid.textContent=window._aucBid[who];
+  var cour=document.getElementById(side===1?'courHim':'courHer');
+  if(cour)cour.textContent=0;
+  toast(who+' 全部押上！');
+}
 function renderAuctionBody(c){
+  window._aucTime=window._aucTime||8;
   window._aucCourage={};window._aucCourage[HE.him]=100;window._aucCourage[HE.her]=100;
   window._aucItems=['🍀 免罚金牌（下次被罚可抵一次）','👑 命令权（向对方下 1 条命令）','🧥 脱衣权（指定对方脱 1 件）'];
   window._aucIdx=0;
@@ -1557,14 +1935,15 @@ function aucUI(){
   var item=window._aucItems[window._aucIdx];
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">💰 勇气竞拍</h2>'
-    +'<p style="color:#aaa;font-size:13px">规则：双方各 100 勇气。8 秒内狂点「+10」出价，时间到出价高者得（扣除出价）。3 件拍完结算：勇气少的一方连抽 2 条惩罚，打平则一起喝</p>'
+    +'<p style="color:#aaa;font-size:13px">规则：双方各 100 勇气。倒计时内狂点「+10」出价（可全押），时间到出价高者得。3 件拍完结算：勇气少的一方抽 1 条惩罚，赢家送上一个吻</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+((window._aucTime||8)===8?' on':'')+'" onclick="aucTimeSet(8)">8秒</span><span class="mini-btn'+((window._aucTime||8)===15?' on':'')+'" onclick="aucTimeSet(15)">15秒</span><span class="mini-btn'+((window._aucTime||8)===20?' on':'')+'" onclick="aucTimeSet(20)">20秒</span></div>'
     +'<div class="cmd-card" style="text-align:center"><div style="color:#ffd700;font-size:15px">拍品 '+(window._aucIdx+1)+'/3：'+item+'</div></div>'
     +'<div class="vs-stage">'
     +'<div class="vs-zone vs-top"><div class="vs-status">'+HE.her+' 出价 <span id="bidHer">0</span> ｜ 勇气 <span id="courHer">'+window._aucCourage[HE.her]+'</span></div>'
-    +'<button class="vs-btn" id="bidBtnHer">'+HE.her+'\n+10</button></div>'
-    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="aucBar"></div></div><div style="font-size:12px;color:#aaa;margin-top:4px">8秒倒计时出价</div></div>'
+    +'<button class="vs-btn" id="bidBtnHer">'+HE.her+'\n+10</button><button class="mini-btn" style="width:100%;margin-top:4px" onclick="aucBidAll(2)">全押</button></div>'
+    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="aucBar"></div></div><div style="font-size:12px;color:#aaa;margin-top:4px">'+(window._aucTime||8)+'秒倒计时出价</div></div>'
     +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="bidHim">0</span> 出价 '+HE.him+' ｜ 勇气 <span id="courHim">'+window._aucCourage[HE.him]+'</span></div>'
-    +'<button class="vs-btn" id="bidBtnHim">'+HE.him+'\n+10</button></div>'
+    +'<button class="vs-btn" id="bidBtnHim">'+HE.him+'\n+10</button><button class="mini-btn" style="width:100%;margin-top:4px" onclick="aucBidAll(1)">全押</button></div>'
     +'</div>'
     +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
@@ -1575,13 +1954,14 @@ function aucUI(){
 }
 function aucTimer(){
   if(window._aucTv)clearInterval(window._aucTv);
-  var left=8;
-  window._aucLeft=8;
+  var T=window._aucTime||8;
+  var left=T;
+  window._aucLeft=T;
   var iv=setInterval(function(){
     var bar=document.getElementById('aucBar');
     if(!bar){clearInterval(iv);return;}
     left-=0.1;
-    bar.style.width=Math.max(0,left/8*100)+'%';
+    bar.style.width=Math.max(0,left/T*100)+'%';
     if(left<=0){clearInterval(iv);aucEnd();}
   },100);
   window._aucTv=iv;
@@ -1602,12 +1982,8 @@ function aucEnd(){
   var c=document.getElementById('gContent');
   if(!c)return;
   var item=window._aucItems[window._aucIdx];
-  if(h===0&&s===0){
-    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">😴 无人出价，流拍！</div><div style="color:#aaa;font-size:13px;margin-top:6px">双方各喝一杯</div><div style="font-size:14px;margin-top:8px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
-    return;
-  }
-  if(h===s){
-    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 平局！</div><div style="color:#aaa;font-size:13px;margin-top:6px">双方各喝一杯</div><div style="font-size:14px;margin-top:8px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
+  if(h===0&&s===0||h===s){
+    aucRpsStart(c);
     return;
   }
   var win=h>s?HE.him:HE.her;
@@ -1628,10 +2004,53 @@ function aucSettle(){
   var c=document.getElementById('gContent');
   if(!c)return;
   if(h===s){
-    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 打平！</div><div style="font-size:14px;margin-top:8px">一起喝：🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 打平！</div><div style="font-size:14px;margin-top:8px">'+pickDrink()+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
   }else{
     var loser=h<s?HE.him:HE.her;
-    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">😈 '+loser+' 勇气更少！连抽两条：</div><div style="font-size:15px;margin-top:8px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
+    var winner2=otherPlayer(loser);
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">😈 '+loser+' 勇气更少，抽 1 条惩罚：</div><div style="font-size:15px;margin-top:8px">'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div style="color:#ffd700;font-size:14px;margin-top:10px">😘 赢家 '+winner2+' 送上一个吻缓冲心情~</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
+  }
+}
+/* 竞拍平局: 石头剪刀布加赛 */
+function aucRpsStart(c){
+  window._aucRps=[null,null];window._aucRpsPhase=1;
+  c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍 · 平局加赛</h2>'
+    +'<div class="cmd-card" style="text-align:center"><div style="font-size:18px">🤝 出价相同！石头剪刀布定归属</div>'
+    +'<div id="aucRpsMsg" style="font-size:14px;color:#ffd700;margin-top:6px">'+HE.him+' 先出拳（别让对方看到）</div></div>'
+    +'<div class="vs-stage">'
+    +'<div class="vs-zone vs-top" id="aucRpsHerZone"><div class="vs-status">'+HE.her+' 等待…</div></div>'
+    +'<div class="vs-zone vs-bottom" id="aucRpsHimZone"><div class="rps-picks">'
+    +'<div class="rps-pick" onclick="aucRpsPick(0)"><div class="rps-icon">✊</div></div>'
+    +'<div class="rps-pick" onclick="aucRpsPick(1)"><div class="rps-icon">✌️</div></div>'
+    +'<div class="rps-pick" onclick="aucRpsPick(2)"><div class="rps-icon">✋</div></div>'
+    +'</div></div>'
+    +'</div></div>';
+}
+function aucRpsPick(ch){
+  if(window._aucRpsPhase===1){
+    window._aucRps[0]=ch;window._aucRpsPhase=2;
+    document.getElementById('aucRpsMsg').textContent=HE.her+' 出拳（别让对方看到）';
+    document.getElementById('aucRpsHimZone').innerHTML='<div class="vs-status">'+HE.him+' 已出拳 ✅</div>';
+    document.getElementById('aucRpsHerZone').innerHTML='<div class="rps-picks">'
+      +'<div class="rps-pick" onclick="aucRpsPick(0)"><div class="rps-icon">✊</div></div>'
+      +'<div class="rps-pick" onclick="aucRpsPick(1)"><div class="rps-icon">✌️</div></div>'
+      +'<div class="rps-pick" onclick="aucRpsPick(2)"><div class="rps-icon">✋</div></div>'
+      +'</div>';
+  }else if(window._aucRpsPhase===2){
+    window._aucRps[1]=ch;
+    var diff=(window._aucRps[0]-window._aucRps[1]+3)%3;
+    var c=document.getElementById('gContent');
+    if(diff===0){
+      c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 又平了！</div><div style="font-size:14px;margin-top:8px">'+pickDrink()+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
+      return;
+    }
+    var win=diff===1?HE.him:HE.her;
+    var content=window._aucIdx===0
+      ?('🍀 '+win+' 获得免罚金牌，下次被罚可抵一次！')
+      :(window._aucIdx===1
+        ?('👑 '+win+' 可命令 '+otherPlayer(win)+'：'+pickFresh('_punishPick',GAMEDATA.punish))
+        :('🧥 '+win+' 可指定 '+otherPlayer(win)+' 脱一件！'));
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="color:#ffd700;font-size:16px">🏆 '+win+' 猜拳胜出，拍得！</div><div style="font-size:15px;margin-top:8px">'+content+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
   }
 }
 
