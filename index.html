@@ -80,8 +80,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .duel-btn{width:100%;min-height:90px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:14px;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.1s;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 .vs-stage{display:flex;flex-direction:column;gap:8px;margin:8px 0}
 .vs-zone{border-radius:16px;padding:12px}
-.vs-top{border:1px solid rgba(52,152,219,0.45);background:rgba(52,152,219,0.10)}
-.vs-bottom{border:1px solid rgba(224,64,251,0.45);background:rgba(224,64,251,0.10);transform:rotate(180deg)}
+.vs-top{border:1px solid rgba(224,64,251,0.45);background:rgba(224,64,251,0.10);transform:rotate(180deg)}
+.vs-bottom{border:1px solid rgba(52,152,219,0.45);background:rgba(52,152,219,0.10)}
 .vs-status{font-size:15px;margin-bottom:8px;text-align:center;color:#e0b0ff}
 .vs-mid{text-align:center;padding:6px 0;font-size:16px}
 .vs-btn{width:100%;min-height:88px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.28);border-radius:14px;color:#fff;font-size:20px;font-weight:bold;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -1115,11 +1115,11 @@ function renderReactDuel(c){
   window._duelReactState='wait';
   c.innerHTML=duelHeader('')
     +'<div class="vs-stage">'
-    +'<div class="vs-zone vs-top"><div class="vs-status" id="duelMsgTop">'+HE.him+' 准备！</div>'
-    +'<button class="vs-btn" id="reactHim">'+HE.him+' 👆</button></div>'
-    +'<div class="vs-mid" id="duelMsgMid">⚔️ 抢拍对决</div>'
-    +'<div class="vs-zone vs-bottom"><div class="vs-status" id="duelMsgBot">'+HE.her+' 准备！</div>'
+    +'<div class="vs-zone vs-top"><div class="vs-status" id="duelMsgTop">'+HE.her+' 准备！</div>'
     +'<button class="vs-btn" id="reactHer">'+HE.her+' 👆</button></div>'
+    +'<div class="vs-mid" id="duelMsgMid">⚔️ 抢拍对决</div>'
+    +'<div class="vs-zone vs-bottom"><div class="vs-status" id="duelMsgBot">'+HE.him+' 准备！</div>'
+    +'<button class="vs-btn" id="reactHim">'+HE.him+' 👆</button></div>'
     +'</div>'
     +'<div style="text-align:center;margin-top:12px"><button class="wheel-btn spin" onclick="duelGo()">🎬 3-2-1 开始</button></div>';
   var bh=document.getElementById('reactHim'),be=document.getElementById('reactHer');
@@ -1161,11 +1161,11 @@ function renderTapDuel(c){
   window._duelTap=[0,0];window._duelTapState='wait';
   c.innerHTML=duelHeader('')
     +'<div class="vs-stage">'
-    +'<div class="vs-zone vs-top"><div class="vs-status">'+HE.him+' 连点数：<span id="tapHim">0</span></div>'
-    +'<button class="vs-btn" id="tapBtnHim">'+HE.him+' 👆</button></div>'
-    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="duelBar2"></div></div></div>'
-    +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="tapHer">0</span> ：连点数 '+HE.her+'</div>'
+    +'<div class="vs-zone vs-top"><div class="vs-status">'+HE.her+' 连点数：<span id="tapHer">0</span></div>'
     +'<button class="vs-btn" id="tapBtnHer">'+HE.her+' 👆</button></div>'
+    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="duelBar2"></div></div></div>'
+    +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="tapHim">0</span> ：连点数 '+HE.him+'</div>'
+    +'<button class="vs-btn" id="tapBtnHim">'+HE.him+' 👆</button></div>'
     +'</div>'
     +'<div style="text-align:center;margin-top:12px"><button class="wheel-btn spin" onclick="duelTapGo()">🕐 5秒倒计时开赛</button></div>';
   var a=document.getElementById('tapBtnHim'),b2=document.getElementById('tapBtnHer');
@@ -1200,11 +1200,11 @@ function renderDiceDuel(c){
   window._duelDice=[null,null];
   c.innerHTML=duelHeader('')
     +'<div class="vs-stage">'
-    +'<div class="vs-zone vs-top"><div class="duel-dice" id="ddHim">🎲</div>'
-    +'<button class="wheel-btn spin" style="width:100%" id="rollHim">'+HE.him+' 掷</button></div>'
-    +'<div class="vs-mid" id="duelDiceMsg" style="color:#aaa;font-size:14px">各自掷骰，点数保密，最后一起揭晓</div>'
-    +'<div class="vs-zone vs-bottom"><div class="duel-dice" id="ddHer">🎲</div>'
+    +'<div class="vs-zone vs-top"><div class="duel-dice" id="ddHer">🎲</div>'
     +'<button class="wheel-btn spin" style="width:100%" id="rollHer">'+HE.her+' 掷</button></div>'
+    +'<div class="vs-mid" id="duelDiceMsg" style="color:#aaa;font-size:14px">各自掷骰，点数保密，最后一起揭晓</div>'
+    +'<div class="vs-zone vs-bottom"><div class="duel-dice" id="ddHim">🎲</div>'
+    +'<button class="wheel-btn spin" style="width:100%" id="rollHim">'+HE.him+' 掷</button></div>'
     +'</div>';
   var a=document.getElementById('rollHim'),b2=document.getElementById('rollHer');
   if(a)a.onclick=function(){duelRoll(0);};
@@ -1236,9 +1236,9 @@ function duelRoll(side){
     var c=document.getElementById('gContent');
     c.innerHTML=duelHeader('')
       +'<div class="vs-stage">'
-      +'<div class="vs-zone vs-top" style="'+(window._duelWinner===HE.him?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[0]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.him+' · '+window._duelDice[0]+' 点</div></div>'
+      +'<div class="vs-zone vs-top" style="'+(window._duelWinner===HE.her?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[1]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.her+' · '+window._duelDice[1]+' 点</div></div>'
       +'<div class="vs-mid" style="font-size:26px;color:#ffd700">VS</div>'
-      +'<div class="vs-zone vs-bottom" style="'+(window._duelWinner===HE.her?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[1]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.her+' · '+window._duelDice[1]+' 点</div></div>'
+      +'<div class="vs-zone vs-bottom" style="'+(window._duelWinner===HE.him?'border:2px solid #ffd700':'')+'"><div class="duel-dice" style="font-size:64px">'+faces[window._duelDice[0]-1]+'</div><div style="text-align:center;font-size:20px">'+HE.him+' · '+window._duelDice[0]+' 点</div></div>'
       +'</div>'
       +'<div class="cmd-card" style="text-align:center"><div style="font-size:22px">👑 '+window._duelWinner+' 获胜！</div><div style="color:#aaa;font-size:13px;margin-top:4px">本局 '+window._duelWinner+' 做主，'+otherPlayer(window._duelWinner)+' 先执行</div></div>'
       +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="window._duelDone()">🎮 开始游戏</button></div>';
@@ -1424,12 +1424,12 @@ function potUI(){
   if(!c)return;
   var holder=window._potHolder;
   var other=otherPlayer(holder);
-  var topHtml=holder===HE.him
-    ?('<div class="vs-zone vs-top"><div class="vs-status">📱 在我手里（'+HE.him+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
-    :('<div class="vs-zone vs-top"><div class="vs-status">📱 在 '+HE.him+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
-  var botHtml=holder===HE.her
-    ?('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在我手里（'+HE.her+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
-    :('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在 '+HE.her+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
+  var topHtml=holder===HE.her
+    ?('<div class="vs-zone vs-top"><div class="vs-status">📱 在我手里（'+HE.her+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
+    :('<div class="vs-zone vs-top"><div class="vs-status">📱 在 '+HE.her+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
+  var botHtml=holder===HE.him
+    ?('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在我手里（'+HE.him+'）</div><button class="vs-btn" id="potPass" onclick="potPass()">💋 亲一口，传给 '+other+'</button></div>')
+    :('<div class="vs-zone vs-bottom"><div class="vs-status">📱 在 '+HE.him+' 手里</div><div style="text-align:center;font-size:30px;opacity:0.35">🙌</div></div>');
   c.innerHTML+='<div class="vs-stage">'+topHtml
     +'<div class="vs-mid">🔥 引线正在燃烧…</div>'
     +botHtml
@@ -1560,11 +1560,11 @@ function aucUI(){
     +'<p style="color:#aaa;font-size:13px">规则：双方各 100 勇气。8 秒内狂点「+10」出价，时间到出价高者得（扣除出价）。3 件拍完结算：勇气少的一方连抽 2 条惩罚，打平则一起喝</p>'
     +'<div class="cmd-card" style="text-align:center"><div style="color:#ffd700;font-size:15px">拍品 '+(window._aucIdx+1)+'/3：'+item+'</div></div>'
     +'<div class="vs-stage">'
-    +'<div class="vs-zone vs-top"><div class="vs-status">'+HE.him+' 出价 <span id="bidHim">0</span> ｜ 勇气 <span id="courHim">'+window._aucCourage[HE.him]+'</span></div>'
-    +'<button class="vs-btn" id="bidBtnHim">'+HE.him+'\n+10</button></div>'
-    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="aucBar"></div></div><div style="font-size:12px;color:#aaa;margin-top:4px">8秒倒计时出价</div></div>'
-    +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="bidHer">0</span> 出价 '+HE.her+' ｜ 勇气 <span id="courHer">'+window._aucCourage[HE.her]+'</span></div>'
+    +'<div class="vs-zone vs-top"><div class="vs-status">'+HE.her+' 出价 <span id="bidHer">0</span> ｜ 勇气 <span id="courHer">'+window._aucCourage[HE.her]+'</span></div>'
     +'<button class="vs-btn" id="bidBtnHer">'+HE.her+'\n+10</button></div>'
+    +'<div class="vs-mid"><div class="count-bar"><div class="count-fill" id="aucBar"></div></div><div style="font-size:12px;color:#aaa;margin-top:4px">8秒倒计时出价</div></div>'
+    +'<div class="vs-zone vs-bottom"><div class="vs-status"><span id="bidHim">0</span> 出价 '+HE.him+' ｜ 勇气 <span id="courHim">'+window._aucCourage[HE.him]+'</span></div>'
+    +'<button class="vs-btn" id="bidBtnHim">'+HE.him+'\n+10</button></div>'
     +'</div>'
     +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
