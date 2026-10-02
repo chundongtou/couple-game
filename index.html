@@ -80,6 +80,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .duel-btn{width:100%;min-height:90px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:14px;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.1s}
 .duel-btn:active{transform:scale(0.93);background:rgba(255,255,255,0.2)}
 .duel-dice{font-size:44px;text-align:center;margin-bottom:8px;min-height:60px}
+.choice-card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:16px;margin:8px 0;cursor:pointer;display:flex;gap:10px;align-items:center;font-size:15px}
+.ch-tag{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#ff6b9d);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;color:#1a0a2e;flex-shrink:0}
+.card-back{flex:1;min-height:80px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;font-size:30px;cursor:pointer;color:#fff}
+.grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.grid-cell{min-height:74px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;cursor:pointer;padding:6px}
 </style>
 </head>
 <body>
@@ -383,6 +388,11 @@ punish:["从后面抱住对方蹭30秒","互相脱掉对方三件衣服","帮对
 "让对方骑跨在你腰间俯身贴住10秒"]
 ,
 sniper:["耳后","锁骨","大腿内侧","后颈","喉结","手腕内侧","肚脐","耳垂","腰窝","肩胛骨","膝盖内侧","手心","下唇","锁骨下","脚踝","后腰"]
+,
+drink:["一起干一杯交杯酒","输的人喝一整杯","各自倒满，深情对视一口闷","用嘴对嘴喂对方喝一口","喝一口酒再舌吻对方10秒","交换对方的酒杯，用对方的杯子喝","闭眼让对方喂你喝一口","一边听对方说情话，一边慢慢喝完一杯","给对方倒满一杯，再亲手喂TA喝","含一口酒在嘴里，让对方用嘴接过去","倒两杯，碰杯说一句情话再喝","给对方倒酒，TA每喝一口你亲一下","蒙眼给对方倒酒，倒洒了罚喝两杯","用吸管共饮同一杯","喝一小口喷在对方锁骨上再亲掉","你喝半杯，剩下半杯给对方","用对方的杯子喝一口，并夸对方一句","喝一口后贴着对方耳朵说最想说的话","连喝三口，每喝一口亲对方一下","两人同时喝，先放杯的人输，输家再来一杯"],
+pairs:["亲对方耳垂30秒｜脱一件衣服","说一句最撩人的情话｜用嘴帮对方脱一件衣服","喝一口酒再亲对方10秒｜喝一整杯","让对方摸你的腰10秒｜你摸对方的敏感部位10秒","学猫叫三声｜让对方把你抱起来10秒","深吻10秒｜湿吻30秒","说一个自己的小秘密｜让对方问你任何问题并如实回答","亲对方的手背｜亲对方的大腿内侧","喝一杯交杯酒｜用嘴喂对方喝三口","让对方亲你锁骨｜你亲对方的小腹","十指相扣对视30秒｜对视并互相说骚话","给对方按摩肩30秒｜让对方给你按摩大腿内侧30秒","喝半杯｜蒙眼让对方喂你喝一杯","亲对方的额头｜亲对方的嘴唇30秒","学对方说话1分钟｜用对方的称呼叫自己10声","让对方抱你转一圈｜你把对方横抱起来","喝一口喷在对方脖子上再亲掉｜两人一起喝完两杯","说今天对方最性感的地方｜用嘴指出你最想被亲的地方","亲一下｜舌吻到呼吸急促","让对方脱你一件衣服｜你脱对方两件衣服","用吸管共饮一杯｜闭眼喝交杯酒","在对方耳边说悄悄话｜在对方耳边吹气1分钟","让对方夸你3句｜你夸对方10句不许停","亲对方下巴｜从下巴一路亲到锁骨","喝一口再亲10秒｜连喝三口每口亲一下","和对方额头贴额头10秒｜抱着对方转三圈","说一个你的幻想｜把你的幻想演出来10秒","摸对方的手｜把你的手放进对方衣服里10秒","干杯说一句情话｜干杯后湿吻10秒","让对方指定你亲哪里｜你指定对方亲哪里并执行"],
+exercise:["平板支撑","深蹲保持","靠墙静蹲","单脚站立","俯卧撑×3","仰卧起坐×5"],
+roles:["主人|宠物","老板|秘书","老师|学生","医生|病人","将军|士兵","骑士|公主","导演|演员","大灰狼|小红帽","霸道总裁|小助理","房东|租客","教官|学员","君王|妃子"]
 };
 
 var CP=JSON.parse((function(){try{return localStorage.getItem('couple-names')}catch(e){return null}})()||'null')||{him:'他',her:'她'};
@@ -408,7 +418,14 @@ var GAMES=[
 {id:'king',icon:'🧎',name:'国王小时',desc:'三道命令，无条件服从'},
 {id:'gamble',icon:'💥',name:'赌徒翻倍',desc:'翻倍换题，欠债必还'},
 {id:'sniper',icon:'🎯',name:'敏感点狙击',desc:'忍15秒别出声，出声加罚'},
-{id:'blind',icon:'🪢',name:'蒙眼服从',desc:'蒙眼执行，声音引导'}
+{id:'blind',icon:'🪢',name:'蒙眼服从',desc:'蒙眼执行，声音引导'},
+{id:'choice',icon:'🎰',name:'命运二选一',desc:'一刺激一更刺激，必须选一个'},
+{id:'cards',icon:'🂡',name:'出牌对决',desc:'抽牌坑对方，留狠牌关键甩'},
+{id:'grid',icon:'📦',name:'九宫格盲盒',desc:'9格藏玄机，越开越刺激'},
+{id:'potato',icon:'⏱️',name:'烫手山芋',desc:'传手机先亲一口，爆炸者受罚'},
+{id:'fitness',icon:'🏋️',name:'体力情话',desc:'边做运动边撩，撑不住翻倍'},
+{id:'role',icon:'🎭',name:'身份扮演',desc:'抽身份卡，整局按身份来'},
+{id:'auction',icon:'💰',name:'勇气竞拍',desc:'100勇气拍权力，输家连抽'}
 ];
 
 var curGame=null;
@@ -504,6 +521,13 @@ function startGame(id){
   else if(id==='gamble') renderGamble(c);
   else if(id==='sniper') renderSniper(c);
   else if(id==='blind') renderBlind(c);
+  else if(id==='choice') renderChoice(c);
+  else if(id==='cards') renderCards(c);
+  else if(id==='grid') renderGrid(c);
+  else if(id==='potato') renderPotato(c);
+  else if(id==='fitness') renderFit(c);
+  else if(id==='role') renderRole(c);
+  else if(id==='auction') renderAuction(c);
   markPlayed(id);
 }
 
@@ -1183,6 +1207,377 @@ function duelRoll(side){
     window._duelWinner=window._duelDice[0]>window._duelDice[1]?HE.him:HE.her;
     sndDing();
     duelFinish(document.getElementById('gContent'));
+  }
+}
+
+
+/* ===== 7款新游戏包装(开局对决) ===== */
+function renderChoice(c){renderDuel(c,function(){renderChoiceBody(c);});}
+function renderCards(c){renderDuel(c,function(){renderCardsBody(c);});}
+function renderGrid(c){renderDuel(c,function(){renderGridBody(c);});}
+function renderPotato(c){renderDuel(c,function(){renderPotatoBody(c);});}
+function renderFit(c){renderDuel(c,function(){renderFitBody(c);});}
+function renderRole(c){renderDuel(c,function(){renderRoleBody(c);});}
+function renderAuction(c){renderDuel(c,function(){renderAuctionBody(c);});}
+
+/* ===== 🎰 命运二选一 ===== */
+function renderChoiceBody(c){
+  var pair=randItem(GAMEDATA.pairs).split('｜');
+  window._chPair=pair;
+  window._chAddUsed=false;
+  var loser=otherPlayer(window._duelWinner);
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🎰 命运二选一</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：'+loser+' 必须二选一执行；'+window._duelWinner+' 每局有 1 次「加码」特权，可让对方两条都做</p>'
+    +'<div class="choice-card" id="chA" onclick="chPick(0)"><div class="ch-tag">A</div><div>'+pair[0]+'</div></div>'
+    +'<div class="choice-card" id="chB" onclick="chPick(1)"><div class="ch-tag">B</div><div>'+pair[1]+'</div></div>'
+    +'<div class="wheel-btns" id="chBtns" style="margin-top:12px">'
+    +(window._chAddUsed?'':'<button class="wheel-btn back" onclick="chAdd()">🃏 '+window._duelWinner+' 加码：两条都做</button>')
+    +'</div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderChoiceBody(document.getElementById(\'gContent\'))">🔄 下一组</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center;margin-top:8px">🍷 未成年人请勿饮酒，适量为宜</div>'
+    +'</div>';
+}
+function chPick(i){
+  var pair=window._chPair||[];
+  if(pair.length<2)return;
+  document.getElementById('chA').style.background=i===0?'rgba(255,215,0,0.25)':'rgba(255,255,255,0.05)';
+  document.getElementById('chB').style.background=i===1?'rgba(255,215,0,0.25)':'rgba(255,255,255,0.05)';
+  toast(otherPlayer(window._duelWinner)+' 执行：'+pair[i]);
+}
+function chAdd(){
+  if(window._chAddUsed)return;
+  window._chAddUsed=true;
+  document.getElementById('chBtns').innerHTML='<div style="color:#ff4757;font-size:14px;text-align:center">🃏 加码生效！两条都必须做！</div>';
+}
+
+/* ===== 🂡 出牌对决 ===== */
+function renderCardsBody(c){
+  window._cardTurn=window._duelWinner;
+  window._cardHands={};
+  window._cardHands[HE.him]=[];
+  window._cardHands[HE.her]=[];
+  window._cardPicked=null;
+  cardsDrawUI();
+}
+function cardDeck(){return ['truth','dare','punish','drink','free','double','truth','dare','punish','drink'];}
+function cardsDrawUI(){
+  var c=document.getElementById('gContent');
+  var turn=window._cardTurn;
+  var hand=window._cardHands[turn];
+  if(hand.length===0){hand.push(randItem(cardDeck()),randItem(cardDeck()),randItem(cardDeck()));}
+  window._cardPicked=null;
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🂡 出牌对决</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：轮到 '+turn+' 出牌。手牌 3 张背面朝上，悄悄选 1 张后点「揭晓」，牌面任务由 '+otherPlayer(turn)+' 执行，然后换人出牌</p>'
+    +'<div class="duel-row" id="cardRow">'
+    +'<button class="card-back" onclick="cardsPick(0)">🂠</button>'
+    +'<button class="card-back" onclick="cardsPick(1)">🂠</button>'
+    +'<button class="card-back" onclick="cardsPick(2)">🂠</button>'
+    +'</div>'
+    +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn spin" id="cardFlipBtn" onclick="cardsFlip()">🎴 揭晓</button></div>'
+    +'<div class="cmd-card" id="cardResult" style="text-align:center;color:#aaa">选出牌后点揭晓</div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderCardsBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
+    +'</div>';
+}
+function cardsPick(i){
+  window._cardPicked=i;
+  var btns=document.querySelectorAll('#cardRow .card-back');
+  for(var k=0;k<btns.length;k++){btns[k].style.background=k===i?'rgba(255,215,0,0.3)':'rgba(255,255,255,0.1)';}
+}
+function cardDraw(type){
+  if(type==='truth')return '💜 真心话：'+pickFresh('_truthPick',GAMEDATA.truths);
+  if(type==='dare')return '🔥 大冒险：'+pickFresh('_darePick',GAMEDATA.dare);
+  if(type==='punish')return '💣 惩罚：'+pickFresh('_punishPick',GAMEDATA.punish);
+  if(type==='drink')return '🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink);
+  if(type==='free')return '🍀 免罚：对方这轮直接跳过！';
+  return '💥 翻倍：对方连做两条！';
+}
+function cardsFlip(){
+  if(window._cardPicked===null){toast('先选一张牌');return;}
+  var turn=window._cardTurn;
+  var hand=window._cardHands[turn];
+  var type=hand.splice(window._cardPicked,1)[0];
+  var who=otherPlayer(turn);
+  var res=document.getElementById('cardResult');
+  if(type==='free'){
+    res.innerHTML='<div style="font-size:15px">🍀 免罚！'+who+' 这轮跳过~</div>';
+  }else if(type==='double'){
+    res.innerHTML='<div style="font-size:15px">💥 翻倍！'+who+' 连做两条：<br>'+cardDraw('punish')+'<br>'+cardDraw('punish')+'</div>';
+  }else{
+    res.innerHTML='<div style="font-size:15px">'+cardDraw(type)+'<br><span style="color:#aaa;font-size:13px">由 '+who+' 执行</span></div>';
+  }
+  var btn=document.getElementById('cardFlipBtn');
+  if(btn)btn.outerHTML='<button class="wheel-btn spin" onclick="cardsNext()">✅ 执行完，换人出牌</button>';
+}
+function cardsNext(){
+  window._cardTurn=otherPlayer(window._cardTurn);
+  cardsDrawUI();
+}
+
+/* ===== 📦 九宫格盲盒 ===== */
+function gridCellLabel(type){
+  if(type==='truth')return '💜\n真心话';
+  if(type==='dare')return '🔥\n大冒险';
+  if(type==='punish')return '💣\n惩罚';
+  if(type==='drink')return '🍷\n喝酒';
+  if(type==='cmd')return '👑\n命令权';
+  return '🍀\n免罚';
+}
+function renderGridBody(c){
+  if(!c)return;
+  var cells=['truth','truth','dare','dare','punish','punish','drink','cmd','free'];
+  window._gridCells=shuffle(cells.slice());
+  window._gridOpened=[false,false,false,false,false,false,false,false,false];
+  window._gridTurn=window._duelWinner;
+  gridUI();
+}
+function gridUI(){
+  var c=document.getElementById('gContent');
+  if(!c)return;
+  var html='<div class="bomb-wrap"><h2 style="margin-bottom:10px">📦 九宫格盲盒</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：9 格背后藏着真心话×2、大冒险×2、惩罚×2、喝酒×1、命令权×1、免罚×1。轮到 '+window._gridTurn+' 开格；开出的任务由 '+otherPlayer(window._gridTurn)+' 执行（免罚除外）</p>'
+    +'<div class="grid9">';
+  for(var i=0;i<9;i++){
+    var label=window._gridOpened[i]?gridCellLabel(window._gridCells[i]):'❓';
+    html+='<button class="grid-cell" id="gc'+i+'" onclick="gridOpen('+i+')">'+label+'</button>';
+  }
+  html+='</div><div class="cmd-card" id="gridMsg" style="text-align:center;color:#aaa">开一格看看？</div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderGridBody(document.getElementById(\'gContent\'))">🔄 新一局</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
+    +'</div>';
+  c.innerHTML=html;
+}
+function gridOpen(i){
+  if(window._gridOpened[i])return;
+  window._gridOpened[i]=true;
+  var type=window._gridCells[i];
+  var opener=window._gridTurn;
+  var exec=otherPlayer(opener);
+  var msg=document.getElementById('gridMsg');
+  var cell=document.getElementById('gc'+i);
+  if(cell){cell.textContent=gridCellLabel(type);cell.style.background='rgba(255,215,0,0.2)';}
+  if(type==='free'){msg.innerHTML='🍀 免罚！'+exec+' 逃过一劫~';}
+  else if(type==='cmd'){msg.innerHTML='👑 命令权！'+opener+' 可命令 '+exec+'：'+pickFresh('_punishPick',GAMEDATA.punish);}
+  else if(type==='truth'){msg.innerHTML='💜 '+exec+' 回答：'+pickFresh('_truthPick',GAMEDATA.truths);}
+  else if(type==='dare'){msg.innerHTML='🔥 '+exec+' 执行：'+pickFresh('_darePick',GAMEDATA.dare);}
+  else if(type==='punish'){msg.innerHTML='💣 '+exec+' 执行：'+pickFresh('_punishPick',GAMEDATA.punish);}
+  else {msg.innerHTML='🍷 一起喝：'+pickFresh('_drinkPick',GAMEDATA.drink)+'<div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';}
+  var allDone=window._gridOpened.every(function(x){return x;});
+  if(allDone){
+    msg.innerHTML+='<br><div style="color:#ffd700">🎉 9 格全开！自动开始新一局~</div>';
+    setTimeout(function(){if(curGame==='grid')renderGridBody(document.getElementById('gContent'));},2600);
+  }else{
+    window._gridTurn=otherPlayer(window._gridTurn);
+    msg.innerHTML+='<br><span style="color:#aaa;font-size:12px">轮到 '+window._gridTurn+' 开格</span>';
+  }
+}
+
+/* ===== ⏱️ 烫手山芋 ===== */
+function renderPotatoBody(c){
+  if(window._potTv){clearTimeout(window._potTv);window._potTv=null;}
+  window._potHolder=otherPlayer(window._duelWinner);
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">⏱️ 烫手山芋</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：炸弹 5-15 秒随机爆炸。每传一次，先亲对方一口；爆炸时持机者受罚（50% 惩罚 / 50% 喝酒）</p>'
+    +'<div class="cmd-card" style="text-align:center"><div style="font-size:40px">🔥</div><div id="potMsg" style="margin-top:6px">引线正在燃烧…<br><span style="color:#ffd700">当前持机：'+window._potHolder+'</span></div></div>'
+    +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn spin" id="potPass" onclick="potPass()">💋 亲一口，传给 '+otherPlayer(window._potHolder)+'</button></div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderPotatoBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
+    +'</div>';
+  potArm();
+}
+function potArm(){
+  if(window._potTv)clearTimeout(window._potTv);
+  var delay=5000+Math.floor(Math.random()*10001);
+  window._potTv=setTimeout(function(){
+    if(curGame!=='potato')return;
+    var holder=window._potHolder;
+    sndBoom();vibrate([100,50,100,50,200]);
+    var isDrink=Math.random()<0.5;
+    var content=isDrink?('🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink)):('💣 惩罚：'+pickFresh('_punishPick',GAMEDATA.punish));
+    var c=document.getElementById('gContent');
+    if(!c)return;
+    c.innerHTML='<div class="bomb-wrap">'
+      +'<h2 style="margin-bottom:10px">💥 爆炸！！！</h2>'
+      +'<div class="cmd-card" style="text-align:center"><div style="font-size:38px">💥</div><div style="font-size:16px;margin-top:8px">'+holder+' 中招！<br>'+content+'</div>'
+      +(isDrink?'<div style="font-size:11px;color:#777;margin-top:6px">未成年人请勿饮酒</div>':'')
+      +'</div>'
+      +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="renderPotatoBody(document.getElementById(\'gContent\'))">✅ 执行完，再来一轮</button></div>'
+      +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderPotatoBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
+      +'</div>';
+  },delay);
+}
+function potPass(){
+  if(curGame!=='potato')return;
+  if(window._potTv)clearTimeout(window._potTv);
+  window._potHolder=otherPlayer(window._potHolder);
+  var msg=document.getElementById('potMsg');
+  if(msg)msg.innerHTML='引线正在燃烧…<br><span style="color:#ffd700">当前持机：'+window._potHolder+'</span>';
+  var btn=document.getElementById('potPass');
+  if(btn)btn.textContent='💋 亲一口，传给 '+otherPlayer(window._potHolder);
+  potArm();
+}
+
+/* ===== 🏋️ 体力情话 ===== */
+function renderFitBody(c){
+  var taskType=Math.random()<0.5;
+  var task=taskType?('💜 真心话：'+pickFresh('_truthPick',GAMEDATA.truths)):('🔥 大冒险：'+pickFresh('_darePick',GAMEDATA.dare));
+  var ex=randItem(GAMEDATA.exercise);
+  var exec=otherPlayer(window._duelWinner);
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🏋️ 体力情话</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：'+exec+' 边做【'+ex+'】边完成任务。完成奖励：一起喝一口；倒下或停 3 秒：惩罚翻倍</p>'
+    +'<div class="cmd-card" id="fitCard"><div style="color:#ffd700;font-size:14px">🏋️ 体能动作：'+ex+'</div><div style="font-size:15px;margin-top:8px">'+task+'</div></div>'
+    +'<div class="wheel-btns" style="margin-top:14px" id="fitBtns">'
+    +'<button class="wheel-btn spin" onclick="fitDone()">✅ 完成</button>'
+    +'<button class="wheel-btn back" onclick="fitFail()">❌ 撑不住</button>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderFitBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
+    +'</div>';
+}
+function fitDone(){
+  toast('厉害！奖励一口~');
+  document.getElementById('fitCard').innerHTML='<div style="color:#51cf66;font-size:16px">🏅 完成！奖励一起喝：</div><div style="font-size:15px;margin-top:6px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div>';
+  document.getElementById('fitBtns').innerHTML='<button class="wheel-btn spin" onclick="renderFitBody(document.getElementById(\'gContent\'))">下一轮</button>';
+}
+function fitFail(){
+  document.getElementById('fitCard').innerHTML='<div style="color:#ff4757;font-size:16px">💥 惩罚翻倍！</div><div style="font-size:15px;margin-top:6px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
+  document.getElementById('fitBtns').innerHTML='<button class="wheel-btn spin" onclick="renderFitBody(document.getElementById(\'gContent\'))">已接受，下一轮</button>';
+}
+
+/* ===== 🎭 身份扮演 ===== */
+function renderRoleBody(c){
+  var pair=randItem(GAMEDATA.roles).split('|');
+  window._roleDom=window._duelWinner;
+  window._roleSub=otherPlayer(window._duelWinner);
+  window._rolePair=pair;
+  window._roleCmds=0;
+  roleUI();
+}
+function roleUI(){
+  var c=document.getElementById('gContent');
+  if(!c)return;
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">🎭 身份扮演</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：'+window._roleDom+' 扮演「'+window._rolePair[0]+'」，'+window._roleSub+' 扮演「'+window._rolePair[1]+'」。主导方下 3 道命令（真心话/大冒险/惩罚/喝酒），完成后身份互换</p>'
+    +'<div class="cmd-card" style="text-align:center"><div style="font-size:22px">👑 '+window._rolePair[0]+' <span style="color:#aaa;font-size:14px">→</span> 🙇 '+window._rolePair[1]+'</div>'
+    +'<div id="roleList" style="margin-top:8px;font-size:14px;color:#aaa">等待 '+window._roleDom+' 下令…</div></div>'
+    +'<div class="wheel-btns" style="margin-top:14px">'
+    +'<button class="wheel-btn spin" onclick="roleCmd(\'truth\')">💜 真心话</button>'
+    +'<button class="wheel-btn spin" onclick="roleCmd(\'dare\')">🔥 大冒险</button>'
+    +'<button class="wheel-btn spin" onclick="roleCmd(\'punish\')">💣 惩罚</button>'
+    +'<button class="wheel-btn spin" onclick="roleCmd(\'drink\')">🍷 喝酒</button>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderRoleBody(document.getElementById(\'gContent\'))">🔄 换身份</button></div>'
+    +'<div style="font-size:11px;color:#777;text-align:center">🍷 未成年人请勿饮酒</div>'
+    +'</div>';
+}
+function roleCmd(type){
+  if(window._roleCmds>=3)return;
+  var content;
+  if(type==='truth')content='回答真心话：'+pickFresh('_truthPick',GAMEDATA.truths);
+  else if(type==='dare')content='执行大冒险：'+pickFresh('_darePick',GAMEDATA.dare);
+  else if(type==='drink')content='喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink);
+  else content='执行惩罚：'+pickFresh('_punishPick',GAMEDATA.punish);
+  window._roleCmds++;
+  document.getElementById('roleList').innerHTML+='<div style="margin:4px 0;color:#fff">'+window._roleCmds+'. 「'+window._rolePair[0]+'」命令「'+window._rolePair[1]+'」：'+content+'</div>';
+  if(window._roleCmds>=3){
+    window._roleCmds=0;
+    var tmp=window._roleDom;window._roleDom=window._roleSub;window._roleSub=tmp;
+    toast('三道命令完成，身份互换！');
+    roleUI();
+  }
+}
+
+/* ===== 💰 勇气竞拍 ===== */
+function renderAuctionBody(c){
+  window._aucCourage={};window._aucCourage[HE.him]=100;window._aucCourage[HE.her]=100;
+  window._aucItems=['🍀 免罚金牌（下次被罚可抵一次）','👑 命令权（向对方下 1 条命令）','🧥 脱衣权（指定对方脱 1 件）'];
+  window._aucIdx=0;
+  window._aucBid={};window._aucBid[HE.him]=0;window._aucBid[HE.her]=0;
+  if(window._aucTv){clearInterval(window._aucTv);}
+  aucUI();
+}
+function aucUI(){
+  var c=document.getElementById('gContent');
+  if(!c)return;
+  if(window._aucIdx>=3){aucSettle();return;}
+  var item=window._aucItems[window._aucIdx];
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">💰 勇气竞拍</h2>'
+    +'<p style="color:#aaa;font-size:13px">规则：双方各 100 勇气。8 秒内狂点「+10」出价，时间到出价高者得（扣除出价）。3 件拍完结算：勇气少的一方连抽 2 条惩罚，打平则一起喝</p>'
+    +'<div class="cmd-card" style="text-align:center"><div style="color:#ffd700;font-size:15px">拍品 '+(window._aucIdx+1)+'/3：'+item+'</div>'
+    +'<div id="aucBid" style="margin-top:8px;font-size:14px">'+HE.him+' 出价 0 ｜ '+HE.her+' 出价 0</div>'
+    +'<div id="aucCourage" style="color:#aaa;font-size:12px;margin-top:4px">勇气：'+HE.him+' 100 ｜ '+HE.her+' 100</div></div>'
+    +'<div class="count-bar"><div class="count-fill" id="aucBar"></div></div>'
+    +'<div class="duel-row">'
+    +'<button class="duel-btn" onclick="aucBid(1)">'+HE.him+'\n+10</button>'
+    +'<button class="duel-btn" onclick="aucBid(2)">'+HE.her+'\n+10</button>'
+    +'</div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
+    +'</div>';
+  aucTimer();
+}
+function aucTimer(){
+  if(window._aucTv)clearInterval(window._aucTv);
+  var left=8;
+  window._aucLeft=8;
+  var iv=setInterval(function(){
+    var bar=document.getElementById('aucBar');
+    if(!bar){clearInterval(iv);return;}
+    left-=0.1;
+    bar.style.width=Math.max(0,left/8*100)+'%';
+    if(left<=0){clearInterval(iv);aucEnd();}
+  },100);
+  window._aucTv=iv;
+}
+function aucBid(side){
+  if(window._aucLeft<=0)return;
+  var who=side===1?HE.him:HE.her;
+  if(window._aucCourage[who]<10)return;
+  window._aucCourage[who]-=10;
+  window._aucBid[who]+=10;
+  var el=document.getElementById('aucBid');
+  if(el)el.textContent=HE.him+' 出价 '+window._aucBid[HE.him]+' ｜ '+HE.her+' 出价 '+window._aucBid[HE.her];
+  var cl=document.getElementById('aucCourage');
+  if(cl)cl.textContent='勇气：'+HE.him+' '+window._aucCourage[HE.him]+' ｜ '+HE.her+' '+window._aucCourage[HE.her];
+}
+function aucEnd(){
+  var h=window._aucBid[HE.him],s=window._aucBid[HE.her];
+  var c=document.getElementById('gContent');
+  if(!c)return;
+  var item=window._aucItems[window._aucIdx];
+  if(h===0&&s===0){
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">😴 无人出价，流拍！</div><div style="color:#aaa;font-size:13px;margin-top:6px">双方各喝一杯</div><div style="font-size:14px;margin-top:8px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
+    return;
+  }
+  if(h===s){
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 平局！</div><div style="color:#aaa;font-size:13px;margin-top:6px">双方各喝一杯</div><div style="font-size:14px;margin-top:8px">🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
+    return;
+  }
+  var win=h>s?HE.him:HE.her;
+  var content=window._aucIdx===0
+    ?('🍀 '+win+' 获得免罚金牌，下次被罚可抵一次！')
+    :(window._aucIdx===1
+      ?('👑 '+win+' 可命令 '+otherPlayer(win)+'：'+pickFresh('_punishPick',GAMEDATA.punish))
+      :('🧥 '+win+' 可指定 '+otherPlayer(win)+' 脱一件！'));
+  c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 勇气竞拍</h2><div class="cmd-card" style="text-align:center"><div style="color:#ffd700;font-size:16px">🏆 '+win+' 以 '+window._aucBid[win]+' 勇气拍得！</div><div style="font-size:15px;margin-top:8px">'+content+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="aucNext()">下一件</button></div></div>';
+}
+function aucNext(){
+  window._aucIdx++;
+  window._aucBid[HE.him]=0;window._aucBid[HE.her]=0;
+  aucUI();
+}
+function aucSettle(){
+  var h=window._aucCourage[HE.him],s=window._aucCourage[HE.her];
+  var c=document.getElementById('gContent');
+  if(!c)return;
+  if(h===s){
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">🤝 打平！</div><div style="font-size:14px;margin-top:8px">一起喝：🍷 '+pickFresh('_drinkPick',GAMEDATA.drink)+'</div><div style="font-size:11px;color:#777;margin-top:4px">未成年人请勿饮酒</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
+  }else{
+    var loser=h<s?HE.him:HE.her;
+    c.innerHTML='<div class="bomb-wrap"><h2 style="margin-bottom:10px">💰 结算</h2><div class="cmd-card" style="text-align:center"><div style="font-size:20px">😈 '+loser+' 勇气更少！连抽两条：</div><div style="font-size:15px;margin-top:8px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderAuctionBody(document.getElementById(\'gContent\'))">新一局</button></div></div>';
   }
 }
 
