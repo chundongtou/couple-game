@@ -75,6 +75,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .count-bar{height:8px;background:rgba(255,255,255,0.12);border-radius:6px;overflow:hidden;margin:8px 0}
 .count-fill{height:100%;background:linear-gradient(90deg,#ff6b6b,#ffd700);width:100%;transition:width 0.1s linear}
 .cloth-bar{background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;font-size:14px;margin:10px 0;text-align:center}
+.duel-row{display:flex;gap:10px}
+.duel-col{flex:1}
+.duel-btn{width:100%;min-height:90px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:14px;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.1s}
+.duel-btn:active{transform:scale(0.93);background:rgba(255,255,255,0.2)}
+.duel-dice{font-size:44px;text-align:center;margin-bottom:8px;min-height:60px}
 </style>
 </head>
 <body>
@@ -794,7 +799,7 @@ function renderCloth(){
   var a=document.getElementById('rouCloth');if(a)a.innerHTML=html;
   var b=document.getElementById('blindCloth');if(b)b.innerHTML=html;
 }
-function renderRoulette(c){
+function renderRouletteBody(c){
   window._clothHim=window._clothHim===undefined?6:window._clothHim;
   window._clothHer=window._clothHer===undefined?6:window._clothHer;
   window._rouAngle=0;window._rouSpinning=false;
@@ -807,9 +812,9 @@ function renderRoulette(c){
     +'<div class="wheel-pointer"></div>'
     +'<button class="wheel-go-btn" onclick="spinRoulette()">GO</button>'
     +'</div>'
-    +'<div class="wheel-result" id="rouResult"><div class="text">六分之一逃过，中枪必执行！</div></div>'
+    +'<div class="wheel-result" id="rouResult"><div class="text">六分之一逃过，中枪必执行！<br>👑 庄家：'+window._duelWinner+'</div></div>'
     +'<div class="cloth-bar" id="rouCloth"></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'roulette\')">🔄 重来</button></div>';
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderRouletteBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>';
   renderCloth();
   setTimeout(function(){var cv=document.getElementById('rouCanvas');if(cv)drawWheel(cv,window._rouItems,window._rouColors)},50);
 }
@@ -842,7 +847,7 @@ function spinRoulette(){
 }
 
 /* ===== 越拒绝越刺激 ===== */
-function renderEscalate(c){
+function renderEscalateBody(c){
   window._escStage=1;window._escPenalty=false;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">⛓️ 越拒绝越刺激</h2>'
@@ -852,12 +857,12 @@ function renderEscalate(c){
     +'<div class="wheel-btns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="escDone()">✅ 完成</button>'
     +'<button class="wheel-btn back" onclick="escRefuse()">❌ 拒绝</button>'
-    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'escalate\')">🔄 重来</button></div>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderEscalateBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
   escShow(pickFresh('_darePick',GAMEDATA.dare));
 }
 function escShow(item){
-  var who=Math.random()<0.5?HE.him:HE.her;
+  var who=window._duelWinner?otherPlayer(window._duelWinner):(Math.random()<0.5?HE.him:HE.her);
   var lvl=window._escStage===1?'普通版':'🔥 升级版';
   document.getElementById('escCard').innerHTML='<div style="color:#ffd700;font-size:13px">'+lvl+' · '+who+' 执行</div><div style="font-size:16px;margin-top:6px">'+item+'</div>';
   if(window._escTv)clearInterval(window._escTv);
@@ -892,11 +897,11 @@ function escRefuse(){
 }
 
 /* ===== 同时开火 ===== */
-function renderDouble(c){
+function renderDoubleBody(c){
   var t=pickFresh('_truthPick',GAMEDATA.truths),d=pickFresh('_darePick',GAMEDATA.dare);
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🔥 同时开火</h2>'
-    +'<p style="color:#aaa;font-size:13px">一边执行大冒险，一边回答真心话，动作停3秒算失败</p>'
+    +'<p style="color:#aaa;font-size:13px">执行方：'+otherPlayer(window._duelWinner)+' · 一边执行大冒险，一边回答真心话，动作停3秒算失败</p>'
     +'<div class="cmd-card" id="dblCard">'
     +'<div style="color:#a855f7;font-size:13px">💜 真心话</div><div style="font-size:15px;margin:4px 0 10px">'+t+'</div>'
     +'<div style="color:#ff6b6b;font-size:13px">🔥 大冒险</div><div style="font-size:15px;margin-top:4px">'+d+'</div>'
@@ -904,19 +909,19 @@ function renderDouble(c){
     +'<div class="wheel-btns" id="dblBtns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="dblDone()">✅ 完成</button>'
     +'<button class="wheel-btn back" onclick="dblFail()">❌ 失败</button>'
-    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'double\')">🔄 重来</button></div>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderDoubleBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
 }
-function dblDone(){toast('完成！');renderDouble(document.getElementById('gContent'));}
+function dblDone(){toast('完成！');renderDoubleBody(document.getElementById('gContent'));}
 function dblFail(){
   var p1=pickFresh('_punishPick',GAMEDATA.punish),p2=pickFresh('_punishPick',GAMEDATA.punish);
   document.getElementById('dblCard').innerHTML='<div style="color:#ff4757;font-size:15px">💥 惩罚翻倍！必须执行</div><div style="font-size:15px;margin-top:6px">①'+p1+'<br>②'+p2+'</div>';
-  document.getElementById('dblBtns').innerHTML='<button class="wheel-btn spin" onclick="renderDouble(document.getElementById(\'gContent\'))">😖 已接受惩罚，下一局</button>';
+  document.getElementById('dblBtns').innerHTML='<button class="wheel-btn spin" onclick="renderDoubleBody(document.getElementById(\'gContent\'))">😖 已接受惩罚，下一局</button>';
 }
 
 /* ===== 国王小时 ===== */
-function renderKing(c){
-  window._king=Math.random()<0.5?HE.him:HE.her;
+function renderKingBody(c){
+  window._king=window._duelWinner||(Math.random()<0.5?HE.him:HE.her);
   window._kingSlots=0;
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🧎 国王小时</h2>'
@@ -927,7 +932,7 @@ function renderKing(c){
     +'<button class="wheel-btn spin" onclick="kingCmd(\'truth\')">💜 真心话</button>'
     +'<button class="wheel-btn spin" onclick="kingCmd(\'dare\')">🔥 大冒险</button>'
     +'<button class="wheel-btn spin" onclick="kingCmd(\'punish\')">💣 惩罚</button>'
-    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'king\')">🔄 重来</button></div>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderKingBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
   document.getElementById('kingName').textContent=window._king;
 }
@@ -947,19 +952,20 @@ function kingCmd(type){
 }
 
 /* ===== 赌徒翻倍 ===== */
-function renderGamble(c){
+function renderGambleBody(c){
+  window._gDebtor=otherPlayer(window._duelWinner);
   window._gMulti=1;window._gDebt=[pickFresh('_punishPick',GAMEDATA.punish)];
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">💥 赌徒翻倍</h2>'
     +'<p style="color:#aaa;font-size:13px">不想做？翻倍换新债。欠债最多翻到 8 条，必须还清</p>'
     +'<div class="cmd-card" id="gCard"></div>'
     +'<div class="wheel-btns" id="gBtns" style="margin-top:14px"></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'gamble\')">🔄 重来</button></div>'
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderGambleBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
   gShow();
 }
 function gShow(){
-  var html='<div style="color:#ffd700;font-size:13px">当前欠债 ×'+window._gMulti+'</div>';
+  var html='<div style="color:#ffd700;font-size:13px">当前欠债 ×'+window._gMulti+' · 欠债人：'+window._gDebtor+'</div>';
   window._gDebt.forEach(function(x,i){html+='<div style="margin:4px 0;font-size:14px">'+(i+1)+'. '+x+'</div>';});
   document.getElementById('gCard').innerHTML=html;
   var btns='<button class="wheel-btn spin" onclick="gDone()">✅ 全部还清</button>';
@@ -975,11 +981,11 @@ function gDouble(){
 }
 function gDone(){
   if(window._gMulti>1)toast('胆量可嘉，债已还清！');
-  renderGamble(document.getElementById('gContent'));
+  renderGambleBody(document.getElementById('gContent'));
 }
 
 /* ===== 敏感点狙击 ===== */
-function renderSniper(c){
+function renderSniperBody(c){
   var items=GAMEDATA.sniper.slice();
   window._snItems=items;window._snAngle=0;window._snSpinning=false;
   window._snSpinningSess=(window._snSpinningSess||0)+1;
@@ -991,28 +997,28 @@ function renderSniper(c){
     +'<button class="wheel-go-btn" onclick="spinSniper()">GO</button>'
     +'</div>'
     +'<div class="wheel-result" id="snResult"><div class="text">转出部位后，用嘴伺候15秒，对方必须保持安静</div></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'sniper\')">🔄 重来</button></div>';
+    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="renderSniperBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>';
   setTimeout(function(){var cv=document.getElementById('snCanvas');if(cv)drawWheel(cv,items,colors)},50);
 }
 function spinSniper(){
   spinWheel('snCanvas',window._snItems,'_snAngle','_snSpinning','snResult',function(idx){
-    var who=Math.random()<0.5?HE.him:HE.her;
+    var who=otherPlayer(window._duelWinner);
     document.getElementById('snResult').innerHTML=
       '<div class="text">🎯 '+who+' 用嘴伺候对方【'+window._snItems[idx]+'】15秒</div>'
       +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="snOk()">✅ 对方忍住了</button>'
       +'<button class="wheel-btn back" onclick="snFail()">😖 出声/躲了</button></div>';
   });
 }
-function snOk(){toast('定力不错！');renderSniper(document.getElementById('gContent'));}
+function snOk(){toast('定力不错！');renderSniperBody(document.getElementById('gContent'));}
 function snFail(){
-  document.getElementById('snResult').innerHTML='<div class="text">💣 加罚：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniper(document.getElementById(\'gContent\'))">下一局</button></div>';
+  document.getElementById('snResult').innerHTML='<div class="text">💣 加罚：'+pickFresh('_punishPick',GAMEDATA.punish)+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="renderSniperBody(document.getElementById(\'gContent\'))">下一局</button></div>';
 }
 
 /* ===== 蒙眼服从 ===== */
-function renderBlind(c){
+function renderBlindBody(c){
   window._clothHim=window._clothHim===undefined?6:window._clothHim;
   window._clothHer=window._clothHer===undefined?6:window._clothHer;
-  window._blindWho=window._blindWho===HE.him?HE.her:HE.him;
+  window._blindWho=window._duelWinner?otherPlayer(window._duelWinner):(window._blindWho===HE.him?HE.her:HE.him);
   var item=pickFresh('_darePick',GAMEDATA.dare);
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🪢 蒙眼服从</h2>'
@@ -1022,7 +1028,7 @@ function renderBlind(c){
     +'<div class="wheel-btns" id="blindBtns" style="margin-top:14px">'
     +'<button class="wheel-btn spin" onclick="blindDone()">✅ 完成</button>'
     +'<button class="wheel-btn back" onclick="blindFail()">❌ 失败</button>'
-    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="startGame(\'blind\')">🔄 重来</button></div>'
+    +'</div><div class="wheel-btns"><button class="wheel-btn back" onclick="renderBlindBody(document.getElementById(\'gContent\'))">🔄 重来</button></div>'
     +'</div>';
   document.getElementById('blindHint').textContent=window._blindWho+' 蒙眼并双手背后，'+otherPlayer(window._blindWho)+' 只能用声音引导 TA 完成';
   renderCloth();
@@ -1038,12 +1044,146 @@ function blindDone(){
     toast(guide+' 脱一件作为奖励！');
   }
   renderCloth();
-  renderBlind(document.getElementById('gContent'));
+  renderBlindBody(document.getElementById('gContent'));
 }
 function blindFail(){
-  document.getElementById('blindBtns').innerHTML='<button class="wheel-btn spin" onclick="renderBlind(document.getElementById(\'gContent\'))">下一局</button>';
+  document.getElementById('blindBtns').innerHTML='<button class="wheel-btn spin" onclick="renderBlindBody(document.getElementById(\'gContent\'))">下一局</button>';
   document.getElementById('blindHint').textContent='💥 双方各抽一条惩罚：';
   document.querySelector('#gContent .cmd-card').innerHTML='<div style="color:#ff4757;font-size:15px">惩罚双连</div><div style="font-size:15px;margin-top:6px">①'+pickFresh('_punishPick',GAMEDATA.punish)+'<br>②'+pickFresh('_punishPick',GAMEDATA.punish)+'</div>';
+}
+
+
+
+/* ===== 7款游戏的开局对决包装 ===== */
+function renderRoulette(c){renderDuel(c,function(){renderRouletteBody(c);});}
+function renderEscalate(c){renderDuel(c,function(){renderEscalateBody(c);});}
+function renderDouble(c){renderDuel(c,function(){renderDoubleBody(c);});}
+function renderKing(c){renderDuel(c,function(){renderKingBody(c);});}
+function renderGamble(c){renderDuel(c,function(){renderGambleBody(c);});}
+function renderSniper(c){renderDuel(c,function(){renderSniperBody(c);});}
+function renderBlind(c){renderDuel(c,function(){renderBlindBody(c);});}
+
+/* ===== 开局对决 ===== */
+function duelHeader(inner){return '<h2 style="margin-bottom:10px">⚔️ 开局对决</h2><p style="color:#aaa;font-size:13px">赢家做主，输家先执行！</p>'+inner;}
+function renderDuel(c,onDone){
+  window._duelDone=onDone;
+  window._duelWinner=null;
+  var t=randItem(['react','tap','dice']);
+  if(t==='react')renderReactDuel(c);
+  else if(t==='tap')renderTapDuel(c);
+  else renderDiceDuel(c);
+}
+function duelFinish(c){
+  var w=window._duelWinner;
+  c.innerHTML=duelHeader(
+    '<div class="cmd-card" style="text-align:center"><div style="font-size:34px">👑</div><div style="font-size:19px;margin:6px 0">'+w+' 获胜！</div><div style="color:#aaa;font-size:13px">本局 '+w+' 做主，'+otherPlayer(w)+' 先执行</div></div>'
+    +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="window._duelDone()">🎮 开始游戏</button></div>');
+}
+/* 反应对决 */
+function renderReactDuel(c){
+  window._duelReactState='wait';
+  c.innerHTML=duelHeader(
+    '<div id="duelMsg" style="text-align:center;font-size:16px;margin:10px 0">双方准备！</div>'
+    +'<div class="duel-row">'
+    +'<button class="duel-btn" onclick="duelReact(1)">'+HE.him+'\n👆</button>'
+    +'<button class="duel-btn" onclick="duelReact(2)">'+HE.her+'\n👆</button>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:14px"><button class="wheel-btn spin" onclick="duelGo()">🎬 3-2-1 开始</button></div>');
+}
+function duelGo(){
+  if(window._duelReactState!=='wait')return;
+  window._duelReactState='ready';
+  var msg=document.getElementById('duelMsg');
+  msg.textContent='盯住屏幕，变绿立刻拍！';
+  msg.style.color='#fff';
+  setTimeout(function(){
+    if(window._duelReactState!=='ready')return;
+    window._duelReactState='go';
+    var m=document.getElementById('duelMsg');
+    if(!m)return;
+    m.textContent='🟢 拍！！！';
+    m.style.color='#51cf66';
+    m.style.fontSize='26px';
+    sndDing();vibrate(50);
+  },1500+Math.random()*2500);
+}
+function duelReact(side){
+  var st=window._duelReactState;
+  if(st==='done'||st==='wait')return;
+  window._duelReactState='done';
+  var msg=document.getElementById('duelMsg');
+  if(st==='go'){
+    window._duelWinner=side===1?HE.him:HE.her;
+    sndDing();
+  }else{
+    window._duelWinner=side===1?HE.her:HE.him;
+    if(msg)msg.textContent='⚠️ 抢跑！直接判负';
+  }
+  duelFinish(document.getElementById('gContent'));
+}
+/* 手速对决 */
+function renderTapDuel(c){
+  window._duelTap=[0,0];window._duelTapState='wait';
+  c.innerHTML=duelHeader(
+    '<div class="duel-row">'
+    +'<div class="duel-col"><button class="duel-btn" onclick="duelTap(0)">'+HE.him+'\n👆</button><div style="text-align:center;color:#ffd700;font-size:20px;margin-top:6px" id="tapHim">0</div></div>'
+    +'<div class="duel-col"><button class="duel-btn" onclick="duelTap(1)">'+HE.her+'\n👆</button><div style="text-align:center;color:#ffd700;font-size:20px;margin-top:6px" id="tapHer">0</div></div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:14px"><button class="wheel-btn spin" onclick="duelTapGo()">🕐 5秒倒计时开赛</button></div>'
+    +'<div class="count-bar" style="margin-top:10px"><div class="count-fill" id="duelBar2"></div></div>');
+}
+function duelTapGo(){
+  if(window._duelTapState!=='wait')return;
+  window._duelTapState='go';
+  var left=5;
+  var iv=setInterval(function(){
+    left-=0.1;
+    var bar=document.getElementById('duelBar2');
+    if(!bar){clearInterval(iv);return;}
+    bar.style.width=Math.max(0,left/5*100)+'%';
+    if(left<=0){
+      clearInterval(iv);
+      window._duelTapState='done';
+      window._duelWinner=window._duelTap[0]>=window._duelTap[1]?HE.him:HE.her;
+      sndDing();
+      duelFinish(document.getElementById('gContent'));
+    }
+  },100);
+}
+function duelTap(side){
+  if(window._duelTapState!=='go')return;
+  window._duelTap[side]++;
+  document.getElementById(side===0?'tapHim':'tapHer').textContent=window._duelTap[side];
+}
+/* 骰子对决 */
+function renderDiceDuel(c){
+  window._duelDice=[null,null];
+  c.innerHTML=duelHeader(
+    '<div class="duel-row">'
+    +'<div class="duel-col"><div class="duel-dice" id="ddHim">🎲</div><button class="wheel-btn spin" style="width:100%" onclick="duelRoll(0)">'+HE.him+' 掷</button></div>'
+    +'<div class="duel-col"><div class="duel-dice" id="ddHer">🎲</div><button class="wheel-btn spin" style="width:100%" onclick="duelRoll(1)">'+HE.her+' 掷</button></div>'
+    +'</div><div id="duelDiceMsg" style="text-align:center;margin-top:10px;color:#aaa"></div>');
+}
+function duelRoll(side){
+  if(window._duelDice[side]!==null)return;
+  var faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
+  var v=Math.floor(Math.random()*6)+1;
+  window._duelDice[side]=v;
+  document.getElementById(side===0?'ddHim':'ddHer').textContent=faces[v-1]+' '+v;
+  if(window._duelDice[0]!==null&&window._duelDice[1]!==null){
+    if(window._duelDice[0]===window._duelDice[1]){
+      document.getElementById('duelDiceMsg').textContent='平局！重新掷';
+      window._duelDice=[null,null];
+      setTimeout(function(){
+        var a=document.getElementById('ddHim'),b2=document.getElementById('ddHer');
+        if(a){a.textContent='🎲';b2.textContent='🎲';}
+      },600);
+      return;
+    }
+    window._duelWinner=window._duelDice[0]>window._duelDice[1]?HE.him:HE.her;
+    sndDing();
+    duelFinish(document.getElementById('gContent'));
+  }
 }
 
 /* ===== Init ===== */
