@@ -2723,6 +2723,7 @@ function flSetDiff(d){window._flSetup.diff=d;SET.diff=d;setOpt('diff',d);renderF
 function flSetLaps(l){window._flSetup.laps=l;renderFlightSetup(document.getElementById('gContent'));}
 /* --- 开局: 组建玩家 --- */
 function flightStart(){
+  window._flSess=(window._flSess||0)+1; /* 会话号: 摇骰重开新局时作废旧回调 */
   var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};
   var players=[];
   if(s.n===2){
@@ -2832,6 +2833,7 @@ function flTurnMsg(){
 }
 function flDiceRoll(v,cb){
   /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
+  var sess=window._flSess||0; /* 本次摇骰所属局, 防止重开后旧回调串场 */
   var ov=document.getElementById('flDiceOverlay');
   var wrap=document.getElementById('flDiceOverlayWrap');
   if(!ov||!wrap){(cb||function(){})();return;}
@@ -2858,10 +2860,10 @@ function flDiceRoll(v,cb){
     wrap.classList.remove('shaking');
     lbl.textContent=who+' 摇出 '+v+' 点！';
     sndDing();vibrate([40,30,60]);
-    /* 停稳显示点数1秒后淡出, 再结算 */
+    /* 停稳显示点数1秒后淡出, 再结算(校验会话防串场) */
     setTimeout(function(){
       ov.classList.remove('show');
-      setTimeout(cb,330);
+      setTimeout(function(){if(window._flSess===sess)cb();},330);
     },1000);
   },1550);
 }
@@ -3005,7 +3007,7 @@ function flSideStep(p){
 function flLand(p,t,idx){
   window._flCur=p;
   if(t==='start'||t==='end'||t==='safe'){
-    flTaskShow('🛡 安全屋！'+p.name+' 平安无事',[]);
+    flTaskShow('🛡 安全屋！'+p.name+' 平安无事',['done']);
   }else if(t==='truth'){
     var item=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
     flTaskShow('💜 真心话 · '+p.name+'：'+item,['done','swap','pardon']);
@@ -3101,12 +3103,12 @@ function flDuelRoll(side){
       if(loser.drink<loser.drinkMax)loser.drink++;
       sndBoom();vibrate([60,40,100]);
       logEvent('✈️ 抢格对决：'+winner.name+' '+d.r1+'点 胜 '+loser.name+' '+d.r2+'点');
-      var el=document.getElementById('flTask');
+      flRender(); /* 先更新棋盘棋子位置 */
+      var el=document.getElementById('flTask'); /* 再写结果面板, 防止被重渲染抹掉 */
       if(el)el.innerHTML='<div class="fl-task"><div class="who">⚔️ 对决结果</div>'
         +'<div style="font-size:17px;margin-top:6px">'+d.p1.name+' <b style="color:'+d.p1.color+'">'+d.r1+'点</b> VS '+d.p2.name+' <b style="color:'+d.p2.color+'">'+d.r2+'点</b></div>'
         +'<div style="font-size:15px;margin-top:8px">'+item+'</div>'
         +'<div class="fl-btns"><button class="wheel-btn spin" onclick="flDoneTask()">✅ 继续</button></div></div>';
-      flRender(); /* 更新棋盘棋子位置 */
     }
   });
 }
