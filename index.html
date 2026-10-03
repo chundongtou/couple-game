@@ -256,6 +256,52 @@ body.light .top-bar{background:rgba(255,255,255,0.8);border-color:rgba(214,69,11
 .fl-roll-btn{width:100%;min-height:52px;border:none;border-radius:16px;color:#fff;font-size:17px;font-weight:bold;box-shadow:0 6px 18px rgba(0,0,0,0.3);cursor:pointer;transition:transform 0.15s}
 .fl-roll-btn:active{transform:scale(0.95)}
 .fl-roll-btn:disabled{opacity:0.55;cursor:default}
+/* ============ V4.2 通用美学打磨 ============ */
+/* 首页浪漫氛围: 漂浮爱心光斑 */
+#homePage{position:relative}
+#homePage::before{content:'💕💗💖💘';position:fixed;top:8%;left:4%;font-size:26px;letter-spacing:18px;opacity:0.16;pointer-events:none;filter:blur(1px)}
+#homePage::after{content:'💗💕';position:fixed;bottom:22%;right:6%;font-size:34px;letter-spacing:14px;opacity:0.12;pointer-events:none;filter:blur(1.5px)}
+/* 标题流光 */
+.header h1{background:linear-gradient(90deg,#ff6b9d,#ffd700,#ff6b9d);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleShine 4s linear infinite;text-shadow:none}
+@keyframes titleShine{0%{background-position:0% center}100%{background-position:200% center}}
+/* 情侣横幅精致化 */
+.couple-banner{background:linear-gradient(135deg,rgba(255,107,157,0.14),rgba(255,215,0,0.10));border:1px solid rgba(255,107,157,0.3);border-radius:18px;padding:12px;backdrop-filter:blur(6px)}
+.couple-banner .names{font-size:17px;font-weight:bold}
+/* 顶栏精致化 */
+.top-bar{backdrop-filter:blur(10px);box-shadow:0 4px 18px rgba(0,0,0,0.25)}
+/* 游戏页标题渐变底 */
+#gamePage .header{background:linear-gradient(90deg,rgba(255,107,157,0.15),transparent);border-radius:0 0 18px 18px;padding-bottom:8px}
+/* 弹窗与提示更柔和 */
+.toast{background:linear-gradient(135deg,rgba(255,107,157,0.95),rgba(224,64,251,0.92));border:1px solid rgba(255,255,255,0.35);box-shadow:0 6px 24px rgba(255,107,157,0.4);backdrop-filter:blur(8px);border-radius:14px;font-size:14px}
+/* 主按钮发光描边 */
+.wheel-btn.spin{box-shadow:0 4px 16px rgba(255,107,157,0.45),inset 0 1px 0 rgba(255,255,255,0.3)}
+/* 滚动条美化 */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(255,107,157,0.4);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+/* ============ V4.3 模板风格(粉紫柔光渐变+大圆角柔光卡片) ============ */
+body{background:
+  radial-gradient(ellipse at 18% 6%,rgba(255,107,157,0.20),transparent 52%),
+  radial-gradient(ellipse at 85% 28%,rgba(224,64,251,0.14),transparent 48%),
+  radial-gradient(ellipse at 50% 96%,rgba(255,215,0,0.12),transparent 55%),
+  linear-gradient(135deg,#1a0a2e 0%,#16213e 50%,#0f3460 100%)}
+.light{background:
+  radial-gradient(ellipse at 14% 5%,rgba(255,107,157,0.22),transparent 50%),
+  radial-gradient(ellipse at 90% 22%,rgba(186,85,255,0.18),transparent 50%),
+  radial-gradient(ellipse at 45% 94%,rgba(255,215,0,0.25),transparent 55%),
+  linear-gradient(160deg,#fff5f7 0%,#fdeeff 45%,#fff5f7 100%)}
+.game-card{border-radius:20px;background:linear-gradient(160deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.16);box-shadow:0 6px 20px rgba(0,0,0,0.28)}
+.game-card:hover{border-color:rgba(255,215,0,0.55);box-shadow:0 10px 30px rgba(255,107,157,0.38)}
+.light .game-card{background:linear-gradient(160deg,rgba(255,255,255,0.94),rgba(255,246,249,0.88));box-shadow:0 6px 18px rgba(214,69,110,0.12)}
+.light .game-card:hover{box-shadow:0 10px 26px rgba(214,69,110,0.22)}
+.game-card .icon{background:linear-gradient(135deg,rgba(255,107,157,0.22),rgba(255,215,0,0.18));box-shadow:0 2px 10px rgba(255,107,157,0.25)}
+.wheel-btn{border-radius:14px;box-shadow:0 3px 10px rgba(0,0,0,0.25)}
+.wheel-btn:active{transform:scale(0.94)}
+.fl-cell{border-radius:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.12)}
+.fl-cell:hover{filter:brightness(1.18)}
+.fl-task{border-radius:18px;box-shadow:0 8px 30px rgba(255,107,157,0.25)}
+.fl-players .fl-p{border-radius:16px}
+#flTurnBanner{border-radius:14px}
 </style>
 </head>
 <body>
