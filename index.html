@@ -3129,14 +3129,55 @@ function flDuelRoll(side){
 }
 /* --- 事件卡 --- */
 function flEvent(p){
+  /* V4.7: 8张事件卡全部落地真实内容与选项 */
   var d=SET.diff||3;
   var pool=FLIGHT_EVENTS.filter(function(e){return e.d<=d;});
   var e=randItem(pool);
   var t='🎁 事件卡 · '+e.t;
-  if(e.fx==='all-drink'){window._flP.forEach(function(x){if(x.drink<x.drinkMax)x.drink+=0.5;});}
-  if(e.fx==='dare2'){t+='<br>'+pickFresh('_darePick',GAMEDATA.dare)+'<br>'+pickFresh('_darePick',GAMEDATA.dare);}
+  if(e.fx==='all-drink'){
+    window._flP.forEach(function(x){if(x.drink<x.drinkMax)x.drink+=0.5;});
+    t+='<br>🍷 全体已干杯，每人 +半杯！';
+  }else if(e.fx==='all-truth'){
+    var lines=window._flP.map(function(x){
+      var q=Math.random()<0.5?randItem(x.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
+      return '💜 '+x.name+'：'+q;
+    }).join('<br>');
+    t+='<br>'+lines;
+  }else if(e.fx==='queen'){
+    var queens=window._flP.filter(function(x){return x.g==='F';});
+    var q2=randItem(GAMEDATA.flightF.dare);
+    t+='<br>👑 '+(queens.length?queens.map(function(x){return x.name;}).join('、'):'她')+' 本轮免罚，并命令他：'+q2;
+  }else if(e.fx==='knight'){
+    var knights=window._flP.filter(function(x){return x.g==='M';});
+    var k2=randItem(GAMEDATA.flightM.dare);
+    t+='<br>⚔️ '+(knights.length?knights.map(function(x){return x.name;}).join('、'):'他')+' 替她挡惩罚，执行：'+k2;
+  }else if(e.fx==='stare'){
+    var duo=Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);
+    t+='<br>👀 随机一对异性对视30秒不许笑！<br>然后一起完成：'+duo;
+  }else if(e.fx==='dare2'){
+    t+='<br>🔥 第1条：'+pickFresh('_darePick',GAMEDATA.dare)+'<br>🔥 第2条：'+pickFresh('_darePick',GAMEDATA.dare);
+  }else if(e.fx==='choice'){
+    var pair=randItem(GAMEDATA.pairs);
+    var parts=pair.split('｜');
+    window._flEventChoice={a:parts[0]||'亲对方10秒',b:parts[1]||'喝酒一杯'};
+    logEvent('✈️ 事件卡：'+e.t);
+    flTaskShow(t+'<br>🅰️ '+window._flEventChoice.a+'<br><br>🅱️ '+window._flEventChoice.b,['done','pardon']);
+    var el=document.getElementById('flTask');
+    if(el){
+      var bt=el.querySelector('.fl-btns');
+      if(bt)bt.insertAdjacentHTML('afterbegin','<button class="wheel-btn spin" onclick="flEventPick(0)">🅰️ 选A</button><button class="wheel-btn spin" onclick="flEventPick(1)">🅱️ 选B</button>');
+    }
+    return;
+  }else if(e.fx==='hard-truth'){
+    t+='<br>🔞 '+randItem(GAMEDATA.extra.truths);
+  }
   logEvent('✈️ 事件卡：'+e.t);
   flTaskShow(t,['done','pardon']);
+}
+function flEventPick(which){
+  var c=window._flEventChoice;
+  if(c){logEvent('✈️ 二选一：'+ (which===0?c.a:c.b));}
+  flDoneTask();
 }
 /* --- 任务面板 --- */
 function flTaskShow(content,btns){
