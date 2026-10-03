@@ -179,6 +179,29 @@ body.light .top-bar{background:rgba(255,255,255,0.8);border-color:rgba(214,69,11
 .onboard h3{text-align:center}
 /* --- 页面底部留白(给控制面板) --- */
 #gamePage{padding-bottom:118px}
+/* ============ V3 飞行棋 ============ */
+.fl-players{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}
+.fl-p{font-size:12px;padding:4px 10px;border-radius:12px;border:2px solid #666;background:rgba(255,255,255,0.06);color:#eee;transition:all 0.2s}
+.fl-p.cur{border-width:2px;box-shadow:0 0 10px rgba(255,215,0,0.5)}
+.fl-lane{margin:6px 0}
+.fl-lane.rot{transform:rotate(180deg)}
+.fl-lane-label{font-size:12px;color:#ffd700;text-align:center;margin-bottom:4px}
+.fl-cells{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.fl-cell{position:relative;min-width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);font-size:15px}
+.fl-cell.start{background:linear-gradient(135deg,#ffd700,#ff6b9d);color:#1a0a2e;font-weight:bold}
+.fl-piece{position:absolute;top:-6px;right:-4px;width:16px;height:16px;border-radius:50%;font-size:9px;color:#fff;display:flex;align-items:center;justify-content:center;border:1px solid #fff;z-index:2}
+.fl-ring{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:370px;margin:0 auto}
+.fl-ring .fl-cell{min-width:0;height:36px}
+.fl-ring-mid{grid-area:2/2/9/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px dashed rgba(255,255,255,0.2);border-radius:12px;font-size:12px;color:#aaa;text-align:center}
+.fl-ring-mid b{color:#ffd700;font-size:14px}
+.fl-dice{font-size:56px;text-align:center;line-height:1.1;min-height:64px}
+.fl-dice.rolling{animation:shakeX 0.4s infinite}
+.fl-task{margin:10px 0;padding:12px;border-radius:14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,107,157,0.5);text-align:center;font-size:15px}
+.fl-task .who{color:#ffd700;font-size:13px}
+.fl-btns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.fl-btns button{min-height:44px;min-width:72px}
+.fl-side-row{display:flex;gap:3px;justify-content:center;margin:4px 0}
+.fl-ids{font-size:11px;color:#a9e0c0;margin:4px 0;text-align:center}
 </style>
 </head>
 <body>
@@ -504,8 +527,30 @@ pairs:["亲对方耳垂30秒｜脱一件衣服","说一句最撩人的情话｜�
 exercise:["平板支撑30秒","深蹲保持20秒","靠墙静蹲30秒","单脚站立30秒","俯卧撑×3","仰卧起坐×5"],
 roles:["主人|宠物","老板|秘书","老师|学生","医生|病人","将军|士兵","骑士|公主","导演|演员","大灰狼|小红帽","霸道总裁|小助理","房东|租客","教官|学员","君王|妃子"],
 extra:{truths:["你最喜欢被哪种体位弄到求饶？","你幻想过被对方用玩具玩到哭吗？","你高潮时最想喊什么话？","你希望对方做完后怎么安抚你？","你最能接受在什么场合偷偷亲热？","你幻想过被两个人同时服务吗？","你最想对方把吻痕留在哪？","你偷偷想过被对方朋友看到吗？","你最喜欢对方在哪个部位留下牙印？","你愿意为对方拍多大尺度的照片？","你最想被绑成什么姿势？","你希望对方怎么惩罚不听话的你？"],
-dare:["让对方把你按在墙上，边亲边摸30秒","用嘴给对方全身留下10个吻痕","坐在对方腿上磨蹭到对方求饶","扮演宠物爬过去求对方摸头","边做深蹲边用最撩的语气报数","让对方蒙住你的眼睛，用手指划过你全身","在对方耳边喘气10秒不许笑","用冰块从对方锁骨滑到胸口","给对方跳一段最诱惑的舞","让对方把你的手按住，亲你到求饶","用舌头在对方后颈写三个字","让对方从脚踝一路亲到大腿根"]}
+dare:["让对方把你按在墙上，边亲边摸30秒","用嘴给对方全身留下10个吻痕","坐在对方腿上磨蹭到对方求饶","扮演宠物爬过去求对方摸头","边做深蹲边用最撩的语气报数","让对方蒙住你的眼睛，用手指划过你全身","在对方耳边喘气10秒不许笑","用冰块从对方锁骨滑到胸口","给对方跳一段最诱惑的舞","让对方把你的手按住，亲你到求饶","用舌头在对方后颈写三个字","让对方从脚踝一路亲到大腿根"]},
+flightM:{dare:["给她按摩肩膀1分钟","公主抱她走3步","用10句话夸她不许重样","即兴给她跳30秒","单膝下跪对她说一句情话","做10个俯卧撑边报数边喊她名字","蒙眼帮她剥一个水果喂她","抱着她原地转三圈","想尽办法在一分钟内把她哄笑","学她说最娇嗔的一句话","用她的发绳给自己扎个小揪揪保持一局","替她完成一条她不想做的任务"],
+truth:["你最喜欢她哪个瞬间？","你私下会偷偷看她哪？","你最想带她去哪里约会？","她做什么你最容易心动？","你为她做过最傻的事是什么？","你最想听她怎么叫你？","你手机里藏了多少她的照片？","第一次约会你其实在想什么？"],
+spicy:["边做俯卧撑边用最撩的语气夸她","让她坐在你背上做5个俯卧撑","用嘴喂她吃一块水果","蒙眼让她在你身上画一个图案","轻轻咬一下她的耳垂","抱着她做5个深蹲"]},
+flightF:{dare:["走3步猫步给他看","抛个媚眼放电5秒","用最甜的声音叫他名字3遍","给他跳10秒贴身舞","让他公主抱你5秒","撒娇让他帮你做一件事","坐他腿上10秒","连夸他3个优点","喂他吃一样东西","给他扎一个小揪揪保持一局","用最撩的语气对他说一句悄悄话","让他亲一下你指定的位置"],
+truth:["他做什么你最受不了？","你最喜欢他亲你哪里？","你希望他记住你的哪些小习惯？","你最想收到他送什么礼物？","第一次被他牵手时你在想什么？","他哪句话让你心动到现在？","你偷偷为他做过什么小事？","你最想和他尝试哪种约会？"],
+spicy:["给他跳10秒贴身热舞","让他闻你的脖子3秒","在他耳边用气声说话10秒","在他领口留下一个口红印","坐他腿上磨蹭10秒","蒙眼让他亲你一下"]},
+flightD:{dare:["十指相扣对视30秒不许笑","喝一杯交杯酒","互相喂对方吃一口东西","紧紧拥抱转三圈","合唱一句情歌","背靠背猜对方比划的手势","互相给对方画一张脸（闭眼）","用嘴传递一张纸巾3次"],
+truth:["你们最默契的一件事是什么？","对方做过最让你感动的事？","你希望对方改掉的一个小习惯？","最想和对方一起完成的愿望？","对方最像哪种动物？为什么？","用一个词形容你们的感情？","你们第一次吵架是因为什么？","给对方起一个只有你们懂的外号"]}
 };
+/* V3飞行棋事件卡(按难度解锁) */
+var FLIGHT_EVENTS=[
+ {d:1,t:'🍻 全体干杯！所有玩家喝一杯',fx:'all-drink'},
+ {d:1,t:'💜 真心话风暴：每人轮流答一条真心话',fx:'all-truth'},
+ {d:2,t:'👸 女王时刻：女性玩家本轮免罚，并可命令一名男性',fx:'queen'},
+ {d:2,t:'⚔️ 骑士时刻：男性玩家替女性挡一次惩罚',fx:'knight'},
+ {d:3,t:'👀 性感对视：随机一对异性对视30秒不许笑',fx:'stare'},
+ {d:3,t:'🔥 大冒险连环：抽两条大冒险连做',fx:'dare2'},
+ {d:4,t:'🎰 极限二选一：触发命运二选一',fx:'choice'},
+ {d:4,t:'🔞 全裸真心话：回答一条最私密的问题',fx:'hard-truth'}
+];
+/* V3飞行棋身份卡(男女池分开) */
+var FLIGHT_IDS_M=['👑 国王：拥有一次命令权','⚔️ 骑士：可替女性挡一次酒','🎤 麦霸：KTV格免罚','😈 捣蛋鬼：可指定一人连做2条'];
+var FLIGHT_IDS_F=['👸 女王：拥有一次命令权','🧚 仙女：额外一次免罚','🐱 猫咪：可被投喂（免一次大冒险）','🎀 团宠：男性玩家无条件保护一次'];
 
 var CP=JSON.parse((function(){try{return localStorage.getItem('couple-names')}catch(e){return null}})()||'null')||{him:'他',her:'她'};
 var HE={him:CP.him||'他',her:CP.her||'她'};
@@ -632,7 +677,8 @@ var GAMES=[
 {id:'potato',icon:'⏱️',name:'烫手山芋',desc:'传手机先亲一口，爆炸者受罚'},
 {id:'fitness',icon:'🏋️',name:'体力情话',desc:'边做运动边撩，撑不住翻倍'},
 {id:'role',icon:'🎭',name:'身份扮演',desc:'抽身份卡，整局按身份来'},
-{id:'auction',icon:'💰',name:'勇气竞拍',desc:'100勇气拍权力，输家连抽'}
+{id:'auction',icon:'💰',name:'勇气竞拍',desc:'100勇气拍权力，输家连抽'},
+{id:'flight',icon:'✈️',name:'飞行棋',desc:'骰子棋盘，对飞/环岛/双轨/融合四玩法'}
 ];
 
 var curGame=null;
@@ -717,7 +763,8 @@ var RULES={
  potato:'炸弹8-20秒随机爆炸，传手机前先亲一口(可切温柔版)，爆炸时持机者受罚。',
  fitness:'边做体能动作边完成任务，完成可挑奖励(亲吻/按摩/喝酒)，撑不住惩罚翻倍。',
  role:'抽身份卡入戏扮演，主导方按身份下令，命令用完身份互换。',
- auction:'双方各100勇气竞拍3件特权，倒计时内狂点出价，可全押；平局猜拳定归属，勇气少者受罚。'
+ auction:'双方各100勇气竞拍3件特权，倒计时内狂点出价，可全押；平局猜拳定归属，勇气少者受罚。',
+ flight:'开局先选人数(2/4)、男女比例、玩法模式(对飞/环岛/双轨/融合)、难度、圈数。掷骰前进踩格执行任务，掷6再掷一次(连3个6罚停)，先到终点获胜并获心愿券。女生有半杯特权，喝酒超额度自动变亲吻格。'
 };
 function showRules(id){
   var g=GAMES.find(function(x){return x.id===id});
@@ -836,7 +883,7 @@ var RESET_MAP={
  roulette:'renderRouletteBody',escalate:'renderEscalateBody',double:'renderDoubleBody',king:'renderKingBody',
  gamble:'renderGambleBody',sniper:'renderSniperBody',blind:'renderBlindBody',choice:'renderChoiceBody',
  cards:'renderCardsBody',grid:'renderGridBody',potato:'renderPotatoBody',fitness:'renderFitBody',
- role:'renderRoleBody',auction:'renderAuctionBody'
+ role:'renderRoleBody',auction:'renderAuctionBody',flight:'renderFlightSetup'
 };
 function panelRedraw(){ /* 重抽本轮: 消耗1张替换卡 */
   if(!window._swapHandler){toast('本环节不支持重抽');return;}
@@ -931,6 +978,7 @@ function startGame(id){
   else if(id==='fitness') renderFit(c);
   else if(id==='role') renderRole(c);
   else if(id==='auction') renderAuction(c);
+  else if(id==='flight') renderFlightSetup(c);
   markPlayed(id);
 }
 
@@ -2519,6 +2567,478 @@ function aucRpsPick(ch){
 /* ===== Init ===== */
 if(HE.him!=='他'||HE.her!=='她'){document.getElementById('cpNames').innerHTML='<span style="color:#3498db">♂ '+HE.him+'</span><span class="vs">❤</span><span style="color:#e040fb">♀ '+HE.her+'</span>';}
 renderHome();
+
+
+/* ============ V3 飞行棋引擎 (4玩法融合, 难度/人数/男女比例可自选) ============ */
+var FLIGHT_ICONS={truth:'💜',dare:'🔥',drink:'🍷',safe:'🛡',spicy:'💣',duo:'💑',duel:'⚔️',event:'🎁',prison:'⛓️',ktv:'🎤',item:'🎲',cross:'💞',start:'🏁'};
+function flIcon(t){return FLIGHT_ICONS[t]||'❓'}
+/* --- 开局设置 --- */
+function renderFlightSetup(c){
+  if(!c)return;
+  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1};
+  s.diff=SET.diff;
+  var modes=[['A','🏁 对飞','双跑道竞速·对撞罚酒'],['B','🎡 环岛','环形大富翁·事件身份'],['C','💞 双轨','主线+男女专属支线'],['D','👑 融合','环岛+支线+对撞全要素']];
+  c.innerHTML='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:10px">✈️ 飞行棋 · 开局设置</h2>'
+    +'<p style="color:#aaa;font-size:13px">① 人数</p>'
+    +'<div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.n===2?' on':'')+'" onclick="flSetN(2)">👥 2 人</span><span class="mini-btn'+(s.n===4?' on':'')+'" onclick="flSetN(4)">👥👥 4 人</span></div>'
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">② 男女比例</p>'
+    +'<div style="text-align:center;margin:4px 0"><button class="mini-btn" style="min-width:44px;min-height:44px" onclick="flSetGender(-1)">－</button>'
+    +'<span style="margin:0 12px;font-size:15px">👦 '+s.m+' 男 ｜ 👧 '+s.f+' 女</span>'
+    +'<button class="mini-btn" style="min-width:44px;min-height:44px" onclick="flSetGender(1)">＋</button></div>'
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">③ 玩法模式（按钮分开选）</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0">'
+    +modes.map(function(m){return '<div class="mini-btn" style="text-align:center;padding:10px;min-height:56px;cursor:pointer;'+(s.mode===m[0]?'background:linear-gradient(135deg,#ffd700,#ff6b9d);color:#1a0a2e;font-weight:bold;':'')+'" onclick="flSetMode(\''+m[0]+'\')">'+m[1]+'<br><span style="font-size:11px;font-weight:normal">'+m[2]+'</span></div>';}).join('')
+    +'</div>'
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">④ 难度</p>'
+    +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
+    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span class="mini-btn'+(s.laps===3?' on':'')+'" onclick="flSetLaps(3)">3圈</span></div>':'')
+    +'<p style="text-align:center;font-size:11px;color:#888;margin-top:10px">🍷 酒量额度：男≤5杯 女≤3杯，超额度自动变亲吻格<br>每人1次弃权，女生半杯特权，掷6再掷，连3个6罚停</p>'
+    +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="flightStart()">🎮 开局！</button></div>'
+    +'</div>';
+}
+function flSetN(n){
+  var s=window._flSetup;
+  s.n=n;
+  if(n===2){s.m=1;s.f=1;}else{s.m=2;s.f=2;}
+  renderFlightSetup(document.getElementById('gContent'));
+}
+function flSetGender(d){
+  var s=window._flSetup;
+  var combos=s.n===2?[[2,0],[1,1],[0,2]]:[[4,0],[3,1],[2,2],[1,3],[0,4]];
+  var idx=combos.findIndex(function(x){return x[0]===s.m&&x[1]===s.f;});
+  if(idx<0)idx=s.n===2?1:2;
+  idx=(idx+d+combos.length)%combos.length;
+  s.m=combos[idx][0];s.f=combos[idx][1];
+  renderFlightSetup(document.getElementById('gContent'));
+}
+function flSetMode(m){window._flSetup.mode=m;renderFlightSetup(document.getElementById('gContent'));}
+function flSetDiff(d){window._flSetup.diff=d;SET.diff=d;setOpt('diff',d);renderFlightSetup(document.getElementById('gContent'));}
+function flSetLaps(l){window._flSetup.laps=l;renderFlightSetup(document.getElementById('gContent'));}
+/* --- 开局: 组建玩家 --- */
+function flightStart(){
+  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};
+  var players=[];
+  if(s.n===2){
+    if(s.m===1&&s.f===1)players=[{name:HE.him,g:'M'},{name:HE.her,g:'F'}];
+    else if(s.m===2)players=[{name:HE.him,g:'M'},{name:'玩家2',g:'M'}];
+    else players=[{name:HE.her,g:'F'},{name:'玩家2',g:'F'}];
+  }else{
+    var names=['玩家1','玩家2','玩家3','玩家4'];
+    var gs=[];for(var i=0;i<s.m;i++)gs.push('M');for(var j=0;j<s.f;j++)gs.push('F');
+    gs=shuffle(gs);
+    players=gs.map(function(g,i){return {name:names[i],g:g};});
+  }
+  players.forEach(function(p,i){
+    p.id=i;p.pos=0;p.lane=0;p.color=['#3498db','#e040fb','#2ecc71','#f39c12'][i];
+    p.drink=0;p.drinkMax=p.g==='M'?5:3;p.pardon=1;p.half=p.g==='F'?1:0;
+    p.track='main';p.sidePos=-1;p.done=false;p.team=i<2?0:1;p.six=0;p.skip=false;p.lap=0;
+    p.idCard=(p.g==='M'?FLIGHT_IDS_M:FLIGHT_IDS_F)[Math.floor(Math.random()*(p.g==='M'?4:4))];
+  });
+  window._flP=players;
+  window._flMode=s.mode;
+  window._flModeName={A:'🏁 冰与火对飞',B:'🎡 欲望环岛',C:'💞 命运双轨',D:'👑 旗舰融合'}[s.mode];
+  window._flLaps=s.laps||1;
+  window._flTurn=0;
+  window._flOrder= s.n===2?[0,1] : [0,2,1,3];
+  window._flTPos=[0,0]; /* A模式: 队伍棋子位置 */
+  window._flSix=0;
+  window._flRolled=false;
+  buildFlightBoard(s.mode);
+}
+function flDist(len){ /* 按难度生成格子分布 */
+  var d=SET.diff||3;
+  var spec={safe:d===1?0.22:(d===2?0.16:(d===3?0.10:0.06)),
+            drink:d===1?0.10:(d===2?0.14:(d===3?0.18:0.22)),
+            spicy:d===1?0.05:(d===2?0.08:(d===3?0.12:0.16)),
+            duo:0.08,duel:0.08,event:d===1?0.05:(d===2?0.07:(d===3?0.10:0.13))};
+  var counts={};var rest=len;
+  ['safe','drink','spicy','duo','duel','event'].forEach(function(k){counts[k]=Math.floor(len*spec[k]);rest-=counts[k];});
+  var arr=[];
+  Object.keys(counts).forEach(function(k){for(var i=0;i<counts[k];i++)arr.push(k);});
+  for(var i=0;i<rest;i++)arr.push(i%2===0?'truth':'dare');
+  return shuffle(arr);
+}
+function buildFlightBoard(mode){
+  window._flSideM=flDist(5);window._flSideF=flDist(5);
+  if(mode==='A'){
+    window._flCells=[flDist(20),flDist(20)];
+    window._flCells[0][0]='start';window._flCells[1][0]='start';
+    window._flCells[0][19]='end';window._flCells[1][19]='end';
+  }else if(mode==='B'||mode==='D'){
+    var ring=flDist(32);ring[0]='start';
+    if(mode==='D'){ring[8]='cross';ring[24]='cross';} /* 融合: 两个交汇角进支线 */
+    window._flCells=ring;
+  }else{ /* C 双轨 */
+    var main=flDist(14);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';
+    window._flCells=main;
+  }
+  snapShot();logEvent('✈️ 飞行棋开局：'+window._flModeName+' '+window._flP.length+'人 难度'+DIFF_NAMES[SET.diff-1]);
+  window._swapHandler=flSwapTask;
+  window._pardonHandler=flGlobalPardon;
+  flRender();
+}
+/* --- 渲染 --- */
+function flRender(){
+  var c=document.getElementById('gContent');if(!c)return;
+  var mode=window._flMode;
+  var html='<div class="bomb-wrap">'
+    +'<h2 style="margin-bottom:4px">✈️ '+window._flModeName+'</h2>'
+    +'<div class="fl-ids">'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+'('+(p.g==='M'?'♂':'♀')+') '+p.idCard+'</span>';}).join('　')+'</div>'
+    +'<div class="fl-players">'+window._flP.map(function(p){
+      var turn=window._flOrder[window._flTurn]===p.id;
+      return '<span class="fl-p'+(turn?' cur':'')+'" style="border-color:'+p.color+'"><span style="color:'+p.color+'">●</span> '+p.name+' '+(p.g==='M'?'♂':'♀')+' 🍷'+p.drink+'/'+p.drinkMax+(p.done?' 🏁':'')+(p.skip?' ⛓️':'')+'</span>';
+    }).join('')+'</div>';
+  if(mode==='A')html+=flBoardA();
+  else if(mode==='C')html+=flBoardC();
+  else html+=flBoardRing();
+  html+='<div id="flTurnMsg" style="text-align:center;color:#ffd700;font-size:14px;margin-top:8px"></div>'
+    +'<div class="fl-dice" id="flDiceBox">🎲</div>'
+    +'<div id="flTask"></div>'
+    +'<div class="fl-btns">'
+    +'<button class="wheel-btn spin" id="flRollBtn" onclick="flRoll()">🎲 掷骰子</button>'
+    +'<button class="wheel-btn back" onclick="renderFlightSetup(document.getElementById(\'gContent\'))">⚙️ 重设</button>'
+    +'</div>'
+    +'<div style="text-align:center;font-size:11px;color:#777;margin-top:6px">🍷 适量饮酒 ｜ 🚩 安全词：说「停」立即结束</div>'
+    +'</div>';
+  c.innerHTML=html;
+  flTurnMsg();
+}
+function flTurnMsg(){
+  var el=document.getElementById('flTurnMsg');if(!el)return;
+  var p=window._flP[window._flOrder[window._flTurn]];
+  if(!p)return;
+  if(p.skip){el.textContent='⛓️ '+p.name+' 本轮跳过（罚停）';return;}
+  el.textContent='🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+(window._flRolled?' 请结算当前格':' 掷骰子前进');
+}
+function flTeamPlayer(lane){ /* 2人=各自1道, 4人=按队分道 */
+  return window._flP.length===2?window._flP[lane]:window._flP[lane*2];
+}
+function flBoardA(){
+  function row(lane,rot){
+    var cells=window._flCells[lane];
+    var pl=flTeamPlayer(lane);
+    var html=cells.map(function(t,i){
+      var tp=window._flTPos[lane];
+      var piece=(tp===i&&!window._flWin)?'<span class="fl-piece" style="background:'+pl.color+'">'+(pl.g==='M'?'♂':'♀')+'</span>':'';
+      return '<span class="fl-cell'+(t==='start'?' start':'')+(t==='end'?' start':'')+'">'+flIcon(t)+piece+'</span>';
+    }).join('');
+    return '<div class="fl-lane'+(rot?' rot':'')+'"><div class="fl-lane-label">'+(lane===0?window._flP[0].name+' 道':pl.name+' 道')+'</div><div class="fl-cells">'+html+'</div></div>';
+  }
+  return '<div class="vs-stage"><div class="vs-zone vs-top">'+row(1,true)+'</div><div class="vs-mid" style="font-size:12px;color:#aaa">对撞=抢格对决，输者后退2格+罚酒</div><div class="vs-zone vs-bottom">'+row(0,false)+'</div></div>';
+}
+function flBoardRing(){
+  var cells=window._flCells;
+  var html='<div class="fl-ring">';
+  for(var i=0;i<32;i++){
+    var row,col;
+    if(i<9){row=1;col=i+1;}
+    else if(i<17){row=i-8;col=9;}
+    else if(i<26){row=9;col=9-(i-17);}
+    else{row=9-(i-25);col=1;}
+    var t=cells[i];
+    var pieces=window._flP.filter(function(p){return !p.done&&p.track==='main'&&p.pos%32===i;}).map(function(p){return '<span class="fl-piece" style="background:'+p.color+'">'+(p.g==='M'?'♂':'♀')+'</span>';}).join('');
+    html+='<span class="fl-cell'+(t==='start'?' start':'')+'" style="grid-area:'+row+'/'+col+'">'+flIcon(t)+pieces+'</span>';
+  }
+  html+='<div class="fl-ring-mid"><b>'+window._flModeName+'</b>'
+    +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':'第'+(p.lap+1)+'圈'+((p.pos%32)+1)+'格')+'</span>';}).join('<br>')+'</span>'
+    +'<span style="color:#888">目标 '+window._flLaps+' 圈</span></div>';
+  html+='</div>';
+  return html;
+}
+function flBoardC(){
+  function row(arr,track,label,rot){
+    var html=arr.map(function(t,i){
+      var pieces=window._flP.filter(function(p){return p.track===track&&((track==='main'?p.pos:p.sidePos)===i);}).map(function(p){return '<span class="fl-piece" style="background:'+p.color+'">'+(p.g==='M'?'♂':'♀')+'</span>';}).join('');
+      return '<span class="fl-cell'+(t==='start'||t==='end'?' start':'')+'">'+flIcon(t)+pieces+'</span>';
+    }).join('');
+    return '<div class="fl-lane'+(rot?' rot':'')+'"><div class="fl-lane-label">'+label+'</div><div class="fl-cells">'+html+'</div></div>';
+  }
+  return '<div class="vs-stage">'
+    +'<div class="vs-zone vs-top">'+row(window._flSideF,'sideF','🌸 她的花园',true)+'</div>'
+    +'<div class="vs-mid" style="font-size:12px;color:#aaa">💞 交汇格可选走性别支线</div>'
+    +'<div class="vs-zone" style="border:1px solid rgba(255,215,0,0.4);background:rgba(255,215,0,0.05)">'+row(window._flCells,'main','🎯 主线赛道',false)+'</div>'
+    +'<div class="vs-zone vs-bottom">'+row(window._flSideM,'sideM','⚔️ 他的征途',false)+'</div>'
+    +'</div>';
+}
+/* --- 掷骰子 --- */
+function flRoll(){
+  var p=window._flP[window._flOrder[window._flTurn]];
+  if(!p){return;}
+  if(p.skip){p.skip=false;flNextTurn();return;}
+  if(window._flRolled)return;
+  if(p.track!=='main'){ /* 支线: 每回合自动走1步 */
+    window._flRolled=true;
+    flSideStep(p);
+    return;
+  }
+  window._flRolled=true;
+  var btn=document.getElementById('flRollBtn');if(btn)btn.disabled=true;
+  var box=document.getElementById('flDiceBox');
+  var faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
+  sndSpin();
+  var cnt=0;
+  if(window._flTv)clearInterval(window._flTv);
+  window._flTv=setInterval(function(){
+    var b=document.getElementById('flDiceBox');
+    if(!b){clearInterval(window._flTv);window._flTv=null;return;}
+    b.textContent=faces[Math.floor(Math.random()*6)];
+    cnt++;
+    if(cnt>14){
+      clearInterval(window._flTv);window._flTv=null;
+      var v=Math.floor(Math.random()*6)+1;
+      b.textContent=faces[v-1]+' '+v;
+      sndDing();vibrate(40);
+      flMove(p,v);
+    }
+  },80);
+}
+function flMove(p,v){
+  logEvent('✈️ '+p.name+' 掷出 '+v+' 点');
+  if(v===6){ /* 掷6再掷一次, 连3个6罚停 */
+    window._flSix++;
+    if(window._flSix>=3){
+      window._flSix=0;window._flSixNext=false;
+      p.drink=Math.min(p.drink+0.5,p.drinkMax);
+      toast('⚡ '+p.name+' 连掷3个6！罚停+罚半杯');
+      logEvent('✈️ '+p.name+' 连掷3个6被罚停');
+    }else{
+      window._flSixNext=true;
+      toast('🎲 '+p.name+' 掷出6！再掷一次');
+    }
+  }else{
+    window._flSix=0;window._flSixNext=false;
+  }
+  var mode=window._flMode;
+  if(mode==='A'){
+    var lane=p.team;
+    var target=window._flTPos[lane]+v;
+    if(target>=window._flCells[lane].length-1){
+      window._flTPos[lane]=window._flCells[lane].length-1;
+      flRender();flWin(lane,'team');return;
+    }
+    window._flTPos[lane]=target;
+    flRender();
+    var other=1-lane;
+    if(window._flTPos[other]===target&&target>0&&target<window._flCells[lane].length-1){
+      flDuel(lane,other,target);return;
+    }
+    flLand(p,window._flCells[lane][target],target);
+  }else if(mode==='B'||mode==='D'){
+    p.pos+=v;
+    if(p.pos>=window._flCells.length){
+      p.lap++;
+      if(p.lap>=window._flLaps){flRender();flWin(p.id,'solo');return;}
+    }
+    flRender();
+    var cell=window._flCells[p.pos%window._flCells.length];
+    if(mode==='D'){
+      var occ=window._flP.filter(function(x){return x.id!==p.id&&!x.done&&x.track==='main'&&x.pos%32===p.pos%32;});
+      if(occ.length){flDuel2(p,occ[0]);return;}
+    }
+    flLand(p,cell,p.pos%32);
+  }else{ /* C */
+    p.pos+=v;
+    if(p.pos>=window._flCells.length-1){p.pos=window._flCells.length-1;flRender();flWin(p.id,'solo');return;}
+    flRender();
+    flLand(p,window._flCells[p.pos],p.pos);
+  }
+}
+function flSideStep(p){
+  p.sidePos++;
+  flRender();
+  if(p.sidePos>=window._flSideM.length){
+    p.track='main';p.sidePos=-1;p.pardon++;
+    toast('👑 '+p.name+' 支线通关！加冕：免罚卡+1');
+    logEvent('✈️ '+p.name+' 支线加冕，免罚+1');
+    flDoneTask();
+    return;
+  }
+  var arr=p.track==='sideM'?window._flSideM:window._flSideF;
+  flLand(p,arr[p.sidePos],p.sidePos);
+}
+/* --- 格子结算 --- */
+function flLand(p,t,idx){
+  window._flCur=p;
+  if(t==='start'||t==='end'||t==='safe'){
+    flTaskShow('🛡 安全屋！'+p.name+' 平安无事',[]);
+  }else if(t==='truth'){
+    var item=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
+    flTaskShow('💜 真心话 · '+p.name+'：'+item,['done','swap','pardon']);
+  }else if(t==='dare'){
+    var item2=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);
+    flTaskShow('🔥 大冒险 · '+p.name+'：'+item2,['done','swap','pardon']);
+  }else if(t==='spicy'){
+    var item3=randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
+    flTaskShow('💣 刺激挑战 · '+p.name+'：'+item3,['done','swap','pardon']);
+  }else if(t==='drink'){
+    flDrink(p);
+  }else if(t==='duo'){
+    var item4=Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);
+    var partner=flPartner(p);
+    if(partner)flTaskShow('💑 双人互动 · '+p.name+' × '+partner.name+'：'+item4,['done','swap']);
+    else flTaskShow('💣 单挑挑战 · '+p.name+'：'+randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),['done','swap','pardon']);
+  }else if(t==='duel'){
+    flTaskShow('⚔️ 对决格：'+p.name+' 抽一条刺激挑战',['done','swap','pardon']);
+    window._flDuelCell=true;
+  }else if(t==='event'){
+    flEvent(p);
+  }else if(t==='prison'){
+    p.skip=true;
+    flTaskShow('⛓️ 监狱！'+p.name+' 下轮跳过 + 罚半杯',['done']);
+    if(p.drink<p.drinkMax)p.drink+=0.5;
+  }else if(t==='ktv'){
+    var ok=p.idCard.indexOf('麦霸')>=0;
+    flTaskShow('🎤 KTV！'+p.name+(ok?'（麦霸免罚！）':' 唱一句情歌才放行'),['done','pardon']);
+  }else if(t==='item'){
+    ITEMS.swap++;saveItems();renderCtrl();
+    flTaskShow('🎲 道具格！'+p.name+' 获得 🃏 替换卡×1',['done']);
+  }else if(t==='cross'){
+    flCross(p);
+  }else{
+    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);
+  }
+}
+function flPartner(p){
+  var cand=window._flP.filter(function(x){return x.id!==p.id&&!x.done;});
+  if(!cand.length)return null;
+  var opp=cand.filter(function(x){return x.g!==p.g;});
+  return randItem(opp.length?opp:cand);
+}
+function flDrink(p){
+  var wouldExceed=p.drink+1>p.drinkMax;
+  if(!wouldExceed)p.drink++; /* 落格即饮, 累计杯数 */
+  var item= wouldExceed?('💋 酒量已到上限，改为亲吻任务：'+randItem(KISS_POOL)):'🍷 '+p.name+' 喝一杯！';
+  var btns=['done','pardon'];
+  if(!wouldExceed&&p.half>0)btns.push('half');
+  flTaskShow(item+'（已饮 '+p.drink+'/'+p.drinkMax+' 杯）',btns);
+}
+function flCross(p){
+  flTaskShow('💞 交汇格！'+p.name+' 可选择进入性别支线',['done','pardon','side']);
+}
+function flDuel(laneA,laneB,idx){
+  var pA=flTeamPlayer(laneA),pB=flTeamPlayer(laneB);
+  var a=Math.floor(Math.random()*6)+1,b=Math.floor(Math.random()*6)+1;
+  sndDing();
+  var loser=a>=b?pB:pA,winner=a>=b?pA:pB;
+  window._flTPos[loser.team]=Math.max(0,window._flTPos[loser.team]-2);
+  var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
+  flTaskShow('⚔️ 对撞抢格！'+pA.name+' '+a+'点 VS '+pB.name+' '+b+'点<br>'+item,['done']);
+  logEvent('✈️ 对撞：'+winner.name+' 胜');
+}
+function flDuel2(p,occ){
+  var a=Math.floor(Math.random()*6)+1,b=Math.floor(Math.random()*6)+1;
+  sndDing();
+  var loser=a>=b?occ:p;
+  loser.pos=Math.max(0,loser.pos-2);
+  var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
+  flTaskShow('⚔️ 抢格对决！'+p.name+' '+a+'点 VS '+occ.name+' '+b+'点<br>'+item,['done']);
+  logEvent('✈️ 抢格：'+occ.name+' 后退');
+}
+/* --- 事件卡 --- */
+function flEvent(p){
+  var d=SET.diff||3;
+  var pool=FLIGHT_EVENTS.filter(function(e){return e.d<=d;});
+  var e=randItem(pool);
+  var t='🎁 事件卡 · '+e.t;
+  if(e.fx==='all-drink'){window._flP.forEach(function(x){if(x.drink<x.drinkMax)x.drink+=0.5;});}
+  if(e.fx==='dare2'){t+='<br>'+pickFresh('_darePick',GAMEDATA.dare)+'<br>'+pickFresh('_darePick',GAMEDATA.dare);}
+  logEvent('✈️ 事件卡：'+e.t);
+  flTaskShow(t,['done','pardon']);
+}
+/* --- 任务面板 --- */
+function flTaskShow(content,btns){
+  snapShot();
+  var el=document.getElementById('flTask');if(!el)return;
+  var p=window._flCur;
+  var html='<div class="fl-task"><div class="who">'+(p?p.name+'（'+(p.g==='M'?'♂':'♀')+'）':'')+'</div><div>'+content+'</div><div class="fl-btns">';
+  btns.forEach(function(b){
+    if(b==='done')html+='<button class="wheel-btn spin" onclick="flDoneTask()">✅ 完成</button>';
+    if(b==='swap')html+='<button class="wheel-btn back" onclick="flSwapTask()">🔄 替换('+ITEMS.swap+')</button>';
+    if(b==='pardon')html+='<button class="wheel-btn back" onclick="flPardonTask()">🚩 弃权('+(p?p.pardon:0)+')</button>';
+    if(b==='half')html+='<button class="wheel-btn back" onclick="flHalfTask()">🍷 半杯</button>';
+    if(b==='side')html+='<button class="wheel-btn spin" onclick="flEnterSide()">💞 进支线</button>';
+  });
+  html+='</div></div>';
+  el.innerHTML=html;
+}
+function flDoneTask(){
+  var p=window._flCur;
+  if(window._flDuelCell&&p){ /* 对决格执行刺激挑战 */
+    window._flDuelCell=false;
+    var item=randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
+    flTaskShow('💣 刺激挑战 · '+p.name+'：'+item,['done','swap','pardon']);
+    return;
+  }
+  flNextTurn();
+}
+function flSwapTask(){
+  if(ITEMS.swap<=0){toast('🃏 替换卡不足');return;}
+  ITEMS.swap--;saveItems();renderCtrl();
+  var p=window._flCur;
+  flTaskShow('🔄 已替换！'+p.name+' 重新抽：'+pickFresh('_darePick',GAMEDATA.dare),['done','pardon']);
+}
+function flGlobalPardon(){
+  if(ITEMS.pardon<=0){toast('🍀 免罚卡不足');return;}
+  ITEMS.pardon--;saveItems();renderCtrl();
+  flTaskShow('🍀 免罚卡生效！本轮跳过',['done']);
+}
+function flPardonTask(){
+  var p=window._flCur;
+  if(p.pardon<=0){toast('🚩 弃权次数已用完');return;}
+  p.pardon--;
+  flTaskShow('🚩 弃权成功！'+p.name+' 本轮跳过',['done']);
+  logEvent('✈️ '+p.name+' 使用弃权');
+}
+function flHalfTask(){
+  var p=window._flCur;
+  if(p.drink<p.drinkMax)p.drink+=0.5;
+  p.half=0;
+  flTaskShow('🍷 半杯已饮（'+p.drink+'/'+p.drinkMax+' 杯），女生特权已用',['done']);
+}
+function flEnterSide(){
+  var p=window._flCur;
+  p.track=p.g==='M'?'sideM':'sideF';
+  p.sidePos=-1;
+  toast('💞 '+p.name+' 进入'+(p.g==='M'?'他的征途':'她的花园')+'支线');
+  logEvent('✈️ '+p.name+' 进入性别支线');
+  flTaskShow('💞 已进入支线！接下来每回合自动前进1格，通关获得免罚+1',['done']);
+}
+/* --- 回合推进 --- */
+function flNextTurn(){
+  var order=window._flOrder;
+  window._flRolled=false;
+  var btn=document.getElementById('flRollBtn');if(btn)btn.disabled=false;
+  if(window._flSixNext&&window._flSix<3){ /* 掷6: 同玩家再掷 */
+    window._flSixNext=false;
+    flRender();
+    var el=document.getElementById('flTurnMsg');
+    if(el)el.textContent='🎲 掷出6！'+window._flP[window._flOrder[window._flTurn]].name+' 再掷一次';
+    return;
+  }
+  window._flTurn=(window._flTurn+1)%order.length;
+  flRender();
+}
+function flWin(id,type){
+  window._flWin=true;
+  sndBoom();vibrate([60,40,100]);
+  var names=type==='team'?(window._flP.length===2?window._flP[id].name:(window._flP[id*2].name+'&'+window._flP[id*2+1].name)):window._flP[id].name;
+  var el=document.getElementById('flTask');if(!el)return;
+  logEvent('✈️ 🏁 '+names+' 获胜！');
+  el.innerHTML='<div class="fl-task"><div style="font-size:26px">🏆</div><div style="font-size:18px;color:#ffd700">'+names+' 获胜！</div>'
+    +'<div style="font-size:13px;color:#aaa;margin-top:6px">👑 获得心愿券：输家赛后兑现赢家一个不越界的小心愿</div>'
+    +'<div class="fl-btns"><button class="wheel-btn spin" onclick="flWish()">✍️ 写下心愿</button>'
+    +'<button class="wheel-btn back" onclick="flightStart()">🔄 再来一局</button>'
+    +'<button class="wheel-btn back" onclick="goHome()">🏠 回大厅</button></div></div>';
+}
+function flWish(){
+  var w=prompt('赢家心愿券：写下一个不越界的小心愿','今晚给我按脚10分钟');
+  if(w===null)return;
+  var el=document.getElementById('flTask');
+  if(el)el.innerHTML='<div class="fl-task"><div style="font-size:22px">👑 心愿券</div><div style="font-size:16px;margin-top:6px">'+w+'</div><div style="font-size:12px;color:#aaa;margin-top:6px">输家记得兑现哦~</div></div>';
+  logEvent('✈️ 心愿券：'+w);
+  toast('心愿已写下！');
+}
 
 </script>
 </body>
