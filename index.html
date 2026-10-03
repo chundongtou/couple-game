@@ -319,6 +319,12 @@ body{background:
 #flWheelResult{max-width:94%}
 #flWheelResult .fl-task{margin:0}
 #flChoiceOverlay .fl-task{max-width:340px}
+/* V4.9 转盘选项卡 */
+#flWheelTabs{display:flex;gap:10px;min-height:44px}
+#flWheelTabs:empty{display:none}
+.fl-wheel-tab{border:none;border-radius:22px;padding:9px 20px;font-size:15px;font-weight:bold;color:#fff;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);cursor:pointer;transition:all .2s}
+.fl-wheel-tab.on{background:linear-gradient(135deg,#ff6b9d,#e040fb);border-color:#ffd700;box-shadow:0 0 16px rgba(255,215,0,0.55);transform:scale(1.06)}
+.light #flWheelOverlay .fl-wheel-tab{color:#6b3246;background:rgba(255,255,255,0.85);border-color:rgba(214,69,110,0.3)}
 </style>
 </head>
 <body>
@@ -3034,10 +3040,16 @@ function flLand(p,t,idx){
   }else if(t==='truth'){
     var item=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
     flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💜 真心话',target:item,pool:GAMEDATA.truths,btns:['done','swap','pardon'],
+      cats:['truth','dare'],defaultCat:'truth',
+      drawCat:function(cat){return cat==='truth'?(Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths)):(Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare));},
+      poolCat:function(cat){return cat==='truth'?GAMEDATA.truths:GAMEDATA.dare;},
       redraw:function(){return Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);}});
   }else if(t==='dare'){
     var item2=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);
     flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🔥 大冒险',target:item2,pool:GAMEDATA.dare,btns:['done','swap','pardon'],
+      cats:['truth','dare'],defaultCat:'dare',
+      drawCat:function(cat){return cat==='dare'?(Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare)):(Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths));},
+      poolCat:function(cat){return cat==='dare'?GAMEDATA.dare:GAMEDATA.truths;},
       redraw:function(){return Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);}});
   }else if(t==='spicy'){
     var item3=randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
@@ -3141,8 +3153,12 @@ function flDuelRoll(side){
 }
 /* ============ V4.8 任务大转盘(浮层) ============ */
 var PAIR_PARTS=(function(){var a=[];GAMEDATA.pairs.forEach(function(x){var p=x.split('｜');if(p[0])a.push(p[0]);if(p[1])a.push(p[1]);});return a;})();
+/* 套用原版转盘配色: 真心话=紫系, 大冒险=红系 */
+var TRUTH_COLORS=['#6c2bd9','#7c3aed','#8b5cf6','#a855f7','#7c3aed','#8b5cf6','#6c2bd9','#a855f7'];
+var DARE_COLORS=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];
 function flWheelTask(o){
   snapShot();
+  o.curCat=o.curCat||o.defaultCat||null;
   window._flWheel=o;
   flWheelBuild(o.target);
 }
@@ -3160,42 +3176,65 @@ function flWheelBuild(target){
   window._flWheelSegs=segs;
   window._flWheelSel=segs.indexOf(target);
   if(window._flWheelSel<0)window._flWheelSel=0;
+  window._flWheelColors=(o.colorCat&&o.curCat)?o.colorCat(o.curCat):(o.curCat==='dare'?DARE_COLORS:TRUTH_COLORS);
   var ov=document.getElementById('flWheelOverlay');
   if(ov)ov.classList.add('show');
   var rs=document.getElementById('flWheelResult');
   if(rs)rs.innerHTML='';
+  flWheelTabs();
   sndSpin();
   flWheelDraw();
   flWheelSpin();
 }
+function flWheelTabs(){
+  /* V4.9: 真心话/大冒险选项卡(套用原版双转盘) */
+  var o=window._flWheel;
+  var tb=document.getElementById('flWheelTabs');
+  if(!tb)return;
+  if(!o.cats||o.cats.length<2){tb.innerHTML='';return;}
+  tb.innerHTML=o.cats.map(function(c){
+    var on=c===o.curCat;
+    var icon=c==='truth'?'💜 真心话':'🔥 大冒险';
+    return '<button class="fl-wheel-tab'+(on?' on':'')+'" onclick="flWheelTab(\''+c+'\')">'+icon+'</button>';
+  }).join('');
+}
+function flWheelTab(cat){
+  var o=window._flWheel;
+  if(!o||cat===o.curCat)return;
+  o.curCat=cat;
+  o.title=(cat==='truth'?'💜 真心话':'🔥 大冒险');
+  o.note='';
+  o.pool=o.poolCat?o.poolCat(cat):o.pool;
+  o.target=o.drawCat(cat);
+  logEvent('✈️ 切换转盘：'+(cat==='truth'?'真心话':'大冒险'));
+  flWheelBuild(o.target);
+}
 function flWheelDraw(){
+  /* V4.9: 套用原版转盘样式(外圈40颗金粉灯珠+扇区文字) */
   var c=document.getElementById('flWheelCanvas');if(!c)return;
   var ctx=c.getContext('2d');
-  var n=window._flWheelSegs.length,seg=360/n;
-  var colors=['#ff6b9d','#e040fb','#ffb300','#3498db','#00cec9','#ff9f43','#a55eea','#fd79a8'];
-  ctx.clearRect(0,0,300,300);
-  for(var i=0;i<n;i++){
-    var a0=(window._flWheelAngle+i*seg-seg/2)*Math.PI/180;
-    var a1=(window._flWheelAngle+i*seg+seg/2)*Math.PI/180;
-    ctx.beginPath();
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,138,a0,a1);
-    ctx.closePath();
-    ctx.fillStyle=colors[i%8];
-    ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,0.55)';ctx.lineWidth=2;ctx.stroke();
-    ctx.save();
-    ctx.translate(150,150);
-    ctx.rotate((window._flWheelAngle+i*seg)*Math.PI/180);
-    ctx.fillStyle='#fff';
-    ctx.font='bold 13px sans-serif';
-    ctx.textAlign='center';
-    var t=window._flWheelSegs[i];
-    ctx.fillText(t.length>10?t.slice(0,9)+'…':t,92,5);
-    ctx.restore();
+  var W=c.width,H=c.height,cx=W/2,cy=H/2,R=W/2-12,n=window._flWheelSegs.length;
+  var colors=window._flWheelColors||TRUTH_COLORS;
+  ctx.clearRect(0,0,W,H);
+  for(var i=0;i<40;i++){
+    var a=(i/40)*Math.PI*2-Math.PI/2;
+    var bx=cx+Math.cos(a)*(R+4),by=cy+Math.sin(a)*(R+4);
+    ctx.beginPath();ctx.arc(bx,by,4,0,Math.PI*2);
+    ctx.fillStyle=i%2===0?'#ffd700':'#ff6b9d';ctx.fill();
   }
-  ctx.beginPath();ctx.arc(150,150,26,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
-  ctx.fillStyle='#e040fb';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillText('GO',150,156);
+  var arc=Math.PI*2/n;
+  for(var i=0;i<n;i++){
+    var sa=arc*i-Math.PI/2+window._flWheelAngle*Math.PI/180;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,sa,sa+arc);ctx.closePath();
+    ctx.fillStyle=colors[i%colors.length];ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(sa+arc/2);
+    ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    var txt=window._flWheelSegs[i];if(txt.length>7)txt=txt.substring(0,7)+'…';
+    ctx.fillText(txt,R*0.62,0);ctx.restore();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,24,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.fillStyle='#e040fb';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('GO',cx,cy);
 }
 function flWheelSpin(){
   if(window._flWheelTv)cancelAnimationFrame(window._flWheelTv);
@@ -3289,34 +3328,49 @@ function flEvent(p){
       return '💜 '+x.name+'：'+q;
     });
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:lines[0].replace(/^💜 [^：]+：/,''),pool:GAMEDATA.truths,note:lines.join('<br>'),btns:['done','pardon']});
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:lines[0].replace(/^💜 [^：]+：/,''),pool:GAMEDATA.truths,note:lines.join('<br>'),btns:['done','pardon'],
+      cats:['truth','dare'],defaultCat:'truth',
+      drawCat:function(cat){var q=Math.random()<0.5?randItem(p.g==='M'?(cat==='truth'?GAMEDATA.flightM.truth:GAMEDATA.flightM.dare):(cat==='truth'?GAMEDATA.flightF.truth:GAMEDATA.flightF.dare)):pickFresh(cat==='truth'?'_truthPick':'_darePick',cat==='truth'?GAMEDATA.truths:GAMEDATA.dare);return q;},
+      poolCat:function(cat){return cat==='truth'?GAMEDATA.truths:GAMEDATA.dare;}});
     return;
   }
   if(e.fx==='queen'){
     var queens=window._flP.filter(function(x){return x.g==='F';});
     var q2=randItem(GAMEDATA.flightF.dare);
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:'👑 '+(queens.length?queens.map(function(x){return x.name;}).join('、'):'她')+' 免罚',title:'🎁 '+e.t+' · 命令他',target:q2,pool:GAMEDATA.flightF.dare,btns:['done','pardon']});
+    flWheelTask({who:'👑 '+(queens.length?queens.map(function(x){return x.name;}).join('、'):'她')+' 免罚',title:'🎁 '+e.t+' · 命令他',target:q2,pool:GAMEDATA.flightF.dare,btns:['done','pardon'],
+      cats:['dare','truth'],defaultCat:'dare',
+      drawCat:function(cat){return randItem(cat==='dare'?GAMEDATA.flightF.dare:GAMEDATA.flightF.truth);},
+      poolCat:function(cat){return cat==='dare'?GAMEDATA.flightF.dare:GAMEDATA.flightF.truth;}});
     return;
   }
   if(e.fx==='knight'){
     var knights=window._flP.filter(function(x){return x.g==='M';});
     var k2=randItem(GAMEDATA.flightM.dare);
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:'⚔️ '+(knights.length?knights.map(function(x){return x.name;}).join('、'):'他')+' 替她挡',title:'🎁 '+e.t,target:k2,pool:GAMEDATA.flightM.dare,btns:['done','pardon']});
+    flWheelTask({who:'⚔️ '+(knights.length?knights.map(function(x){return x.name;}).join('、'):'他')+' 替她挡',title:'🎁 '+e.t,target:k2,pool:GAMEDATA.flightM.dare,btns:['done','pardon'],
+      cats:['dare','truth'],defaultCat:'dare',
+      drawCat:function(cat){return randItem(cat==='dare'?GAMEDATA.flightM.dare:GAMEDATA.flightM.truth);},
+      poolCat:function(cat){return cat==='dare'?GAMEDATA.flightM.dare:GAMEDATA.flightM.truth;}});
     return;
   }
   if(e.fx==='stare'){
     var duo=Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:'👀 对视30秒不许笑',title:'🎁 '+e.t+' · 然后一起完成',target:duo,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','pardon']});
+    flWheelTask({who:'👀 对视30秒不许笑',title:'🎁 '+e.t+' · 然后一起完成',target:duo,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','pardon'],
+      cats:['dare','truth'],defaultCat:'dare',
+      drawCat:function(cat){return randItem(cat==='dare'?GAMEDATA.flightD.dare:GAMEDATA.flightD.truth);},
+      poolCat:function(cat){return cat==='dare'?GAMEDATA.flightD.dare:GAMEDATA.flightD.truth;}});
     return;
   }
   if(e.fx==='dare2'){
     var d1=pickFresh('_darePick',GAMEDATA.dare);
     var d2=pickFresh('_darePick',GAMEDATA.dare);
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:d1,note:'🔥 第2条：'+d2,pool:GAMEDATA.dare,btns:['done','pardon']});
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:d1,note:'🔥 第2条：'+d2,pool:GAMEDATA.dare,btns:['done','pardon'],
+      cats:['dare','truth'],defaultCat:'dare',
+      drawCat:function(cat){return pickFresh(cat==='dare'?'_darePick':'_truthPick',cat==='dare'?GAMEDATA.dare:GAMEDATA.truths);},
+      poolCat:function(cat){return cat==='dare'?GAMEDATA.dare:GAMEDATA.truths;}});
     return;
   }
   if(e.fx==='choice'){
@@ -3329,7 +3383,10 @@ function flEvent(p){
   }
   if(e.fx==='hard-truth'){
     logEvent('✈️ 事件卡：'+e.t);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:randItem(GAMEDATA.extra.truths),pool:GAMEDATA.extra.truths,btns:['done','pardon']});
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:randItem(GAMEDATA.extra.truths),pool:GAMEDATA.extra.truths,btns:['done','pardon'],
+      cats:['truth','dare'],defaultCat:'truth',
+      drawCat:function(cat){return randItem(cat==='truth'?GAMEDATA.extra.truths:GAMEDATA.extra.dare);},
+      poolCat:function(cat){return cat==='truth'?GAMEDATA.extra.truths:GAMEDATA.extra.dare;}});
     return;
   }
   logEvent('✈️ 事件卡：'+e.t);
@@ -3439,6 +3496,7 @@ function flWish(){
 </div>
 <!-- V4.8 任务大转盘浮层(抽任务时弹出, 不影响棋盘) -->
 <div id="flWheelOverlay">
+  <div id="flWheelTabs"></div>
   <div class="fl-wheel-wrap"><canvas id="flWheelCanvas" width="300" height="300"></canvas><div class="fl-wheel-pointer">▼</div></div>
   <div id="flWheelResult"></div>
 </div>
