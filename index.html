@@ -311,6 +311,14 @@ body{background:
 .fl-side-mini{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .fl-side-mini .fl-lane{background:rgba(255,255,255,0.04);border:1px solid rgba(255,215,0,0.25);border-radius:12px;padding:8px}
 .light .fl-side-mini .fl-lane{background:rgba(255,255,255,0.7);border-color:rgba(214,69,110,0.25)}
+/* ============ V4.8 任务大转盘浮层 ============ */
+#flWheelOverlay,#flChoiceOverlay{position:fixed;inset:0;z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(8,4,18,0.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:16px}
+#flWheelOverlay.show,#flChoiceOverlay.show{display:flex;animation:ovIn .25s ease}
+.fl-wheel-wrap{position:relative;width:300px;height:300px}
+.fl-wheel-pointer{position:absolute;top:-16px;left:50%;transform:translateX(-50%);color:#fff;font-size:28px;text-shadow:0 2px 8px rgba(0,0,0,0.7);z-index:2}
+#flWheelResult{max-width:94%}
+#flWheelResult .fl-task{margin:0}
+#flChoiceOverlay .fl-task{max-width:340px}
 </style>
 </head>
 <body>
@@ -3025,19 +3033,23 @@ function flLand(p,t,idx){
     flTaskShow('🛡 安全屋！'+p.name+' 平安无事',['done']);
   }else if(t==='truth'){
     var item=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
-    flTaskShow('💜 真心话 · '+p.name+'：'+item,['done','swap','pardon']);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💜 真心话',target:item,pool:GAMEDATA.truths,btns:['done','swap','pardon'],
+      redraw:function(){return Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);}});
   }else if(t==='dare'){
     var item2=Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);
-    flTaskShow('🔥 大冒险 · '+p.name+'：'+item2,['done','swap','pardon']);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🔥 大冒险',target:item2,pool:GAMEDATA.dare,btns:['done','swap','pardon'],
+      redraw:function(){return Math.random()<0.5?randItem(p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);}});
   }else if(t==='spicy'){
     var item3=randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
-    flTaskShow('💣 刺激挑战 · '+p.name+'：'+item3,['done','swap','pardon']);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item3,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon'],
+      redraw:function(){return randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);}});
   }else if(t==='drink'){
     flDrink(p);
   }else if(t==='duo'){
     var item4=Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);
     var partner=flPartner(p);
-    if(partner)flTaskShow('💑 双人互动 · '+p.name+' × '+partner.name+'：'+item4,['done','swap']);
+    if(partner)flWheelTask({who:p.name+' × '+partner.name,title:'💑 双人互动',target:item4,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','swap'],
+      redraw:function(){return Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);}});
     else flTaskShow('💣 单挑挑战 · '+p.name+'：'+randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),['done','swap','pardon']);
   }else if(t==='duel'){
     flTaskShow('⚔️ 对决格：'+p.name+' 抽一条刺激挑战',['done','swap','pardon']);
@@ -3127,59 +3139,203 @@ function flDuelRoll(side){
     }
   });
 }
+/* ============ V4.8 任务大转盘(浮层) ============ */
+var PAIR_PARTS=(function(){var a=[];GAMEDATA.pairs.forEach(function(x){var p=x.split('｜');if(p[0])a.push(p[0]);if(p[1])a.push(p[1]);});return a;})();
+function flWheelTask(o){
+  snapShot();
+  window._flWheel=o;
+  flWheelBuild(o.target);
+}
+function flWheelBuild(target){
+  var o=window._flWheel||{};
+  var segs=[target];
+  var guard=0;
+  while(segs.length<8&&guard<300){
+    guard++;
+    var d=randItem(o.pool||GAMEDATA.truths);
+    if(segs.indexOf(d)<0)segs.push(d);
+  }
+  while(segs.length<8)segs.push('💖 惊喜互动');
+  for(var i=segs.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=segs[i];segs[i]=segs[j];segs[j]=tmp;}
+  window._flWheelSegs=segs;
+  window._flWheelSel=segs.indexOf(target);
+  if(window._flWheelSel<0)window._flWheelSel=0;
+  var ov=document.getElementById('flWheelOverlay');
+  if(ov)ov.classList.add('show');
+  var rs=document.getElementById('flWheelResult');
+  if(rs)rs.innerHTML='';
+  sndSpin();
+  flWheelDraw();
+  flWheelSpin();
+}
+function flWheelDraw(){
+  var c=document.getElementById('flWheelCanvas');if(!c)return;
+  var ctx=c.getContext('2d');
+  var n=window._flWheelSegs.length,seg=360/n;
+  var colors=['#ff6b9d','#e040fb','#ffb300','#3498db','#00cec9','#ff9f43','#a55eea','#fd79a8'];
+  ctx.clearRect(0,0,300,300);
+  for(var i=0;i<n;i++){
+    var a0=(window._flWheelAngle+i*seg-seg/2)*Math.PI/180;
+    var a1=(window._flWheelAngle+i*seg+seg/2)*Math.PI/180;
+    ctx.beginPath();
+    ctx.moveTo(150,150);
+    ctx.arc(150,150,138,a0,a1);
+    ctx.closePath();
+    ctx.fillStyle=colors[i%8];
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.55)';ctx.lineWidth=2;ctx.stroke();
+    ctx.save();
+    ctx.translate(150,150);
+    ctx.rotate((window._flWheelAngle+i*seg)*Math.PI/180);
+    ctx.fillStyle='#fff';
+    ctx.font='bold 13px sans-serif';
+    ctx.textAlign='center';
+    var t=window._flWheelSegs[i];
+    ctx.fillText(t.length>10?t.slice(0,9)+'…':t,92,5);
+    ctx.restore();
+  }
+  ctx.beginPath();ctx.arc(150,150,26,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.fillStyle='#e040fb';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillText('GO',150,156);
+}
+function flWheelSpin(){
+  if(window._flWheelTv)cancelAnimationFrame(window._flWheelTv);
+  var sel=window._flWheelSel,n=window._flWheelSegs.length,seg=360/n;
+  var cur=window._flWheelAngle%360;
+  var base=((-sel*seg)%360+360)%360;
+  var turns=5+Math.floor(Math.random()*2);
+  var end=cur+turns*360+(base-cur+360)%360;
+  var t0=null,dur=window._flWheelDur||2800;
+  function step(ts){
+    if(!t0)t0=ts;
+    var k=Math.min(1,(ts-t0)/dur);
+    var e=1-Math.pow(1-k,3);
+    window._flWheelAngle=cur+(end-cur)*e;
+    flWheelDraw();
+    if(k<1){window._flWheelTv=requestAnimationFrame(step);}
+    else{flWheelStop();}
+  }
+  window._flWheelTv=requestAnimationFrame(step);
+}
+function flWheelStop(){
+  sndDing();vibrate([40,30,60]);
+  var o=window._flWheel;
+  var rs=document.getElementById('flWheelResult');
+  if(rs){
+    var btns='';
+    (o.btns||['done']).forEach(function(b){
+      if(b==='done')btns+='<button class="wheel-btn spin" onclick="flWheelDone()">✅ 完成</button>';
+      if(b==='swap')btns+='<button class="wheel-btn back" onclick="flWheelSwap()">🔄 替换</button>';
+      if(b==='pardon')btns+='<button class="wheel-btn back" onclick="flWheelPardon()">🚩 弃权</button>';
+    });
+    rs.innerHTML='<div class="fl-task"><div class="who">'+(o.who||'')+'</div><div>'+(o.title?o.title+'<br>':'')+o.target+(o.note?'<br>'+o.note:'')+'</div><div class="fl-btns">'+btns+'</div></div>';
+  }
+  logEvent('✈️ 转盘抽中：'+o.target.slice(0,40));
+}
+function flWheelClose(){
+  var ov=document.getElementById('flWheelOverlay');
+  if(ov)ov.classList.remove('show');
+}
+function flWheelDone(){
+  flWheelClose();
+  flDoneTask();
+}
+function flWheelSwap(){
+  var o=window._flWheel;
+  if(ITEMS.swap<=0){toast('🃏 替换卡不足');return;}
+  ITEMS.swap--;saveItems();renderCtrl();
+  var nt=(o.redraw?o.redraw():randItem(o.pool||GAMEDATA.truths));
+  o.target=nt;
+  flWheelBuild(nt);
+}
+function flWheelPardon(){
+  flWheelClose();
+  flPardonTask();
+}
+function flChoiceOverlay(){
+  var ov=document.getElementById('flChoiceOverlay');
+  var c=window._flEventChoice;
+  if(ov&&c){
+    ov.innerHTML='<div class="fl-task"><div class="who">🎰 极限二选一</div><div style="font-size:15px">'+(window._flCur?window._flCur.name+'，选一个！':'')+'</div>'
+      +'<div class="fl-btns" style="display:block">'
+      +'<button class="wheel-btn spin" onclick="flChoicePick(0)">🅰️ '+c.a+'</button>'
+      +'<button class="wheel-btn spin" style="margin-top:10px" onclick="flChoicePick(1)">🅱️ '+c.b+'</button>'
+      +'</div></div>';
+    ov.classList.add('show');
+  }
+}
+function flChoicePick(i){
+  var c=window._flEventChoice;
+  var chosen=i===0?c.a:c.b;
+  logEvent('✈️ 二选一：'+chosen);
+  var ov=document.getElementById('flChoiceOverlay');
+  if(ov)ov.classList.remove('show');
+  flWheelTask({who:'🎰 你的选择',title:'',target:chosen,pool:PAIR_PARTS,btns:['done']});
+}
 /* --- 事件卡 --- */
 function flEvent(p){
-  /* V4.7: 8张事件卡全部落地真实内容与选项 */
+  /* V4.8: 事件卡内容 + 任务转盘浮层 */
   var d=SET.diff||3;
   var pool=FLIGHT_EVENTS.filter(function(e){return e.d<=d;});
   var e=randItem(pool);
-  var t='🎁 事件卡 · '+e.t;
   if(e.fx==='all-drink'){
     window._flP.forEach(function(x){if(x.drink<x.drinkMax)x.drink+=0.5;});
-    t+='<br>🍷 全体已干杯，每人 +半杯！';
-  }else if(e.fx==='all-truth'){
+    logEvent('✈️ 事件卡：'+e.t);
+    flTaskShow('🎁 事件卡 · '+e.t+'<br>🍷 全体已干杯，每人 +半杯！',['done','pardon']);
+    return;
+  }
+  if(e.fx==='all-truth'){
     var lines=window._flP.map(function(x){
       var q=Math.random()<0.5?randItem(x.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);
       return '💜 '+x.name+'：'+q;
-    }).join('<br>');
-    t+='<br>'+lines;
-  }else if(e.fx==='queen'){
+    });
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:lines[0].replace(/^💜 [^：]+：/,''),pool:GAMEDATA.truths,note:lines.join('<br>'),btns:['done','pardon']});
+    return;
+  }
+  if(e.fx==='queen'){
     var queens=window._flP.filter(function(x){return x.g==='F';});
     var q2=randItem(GAMEDATA.flightF.dare);
-    t+='<br>👑 '+(queens.length?queens.map(function(x){return x.name;}).join('、'):'她')+' 本轮免罚，并命令他：'+q2;
-  }else if(e.fx==='knight'){
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:'👑 '+(queens.length?queens.map(function(x){return x.name;}).join('、'):'她')+' 免罚',title:'🎁 '+e.t+' · 命令他',target:q2,pool:GAMEDATA.flightF.dare,btns:['done','pardon']});
+    return;
+  }
+  if(e.fx==='knight'){
     var knights=window._flP.filter(function(x){return x.g==='M';});
     var k2=randItem(GAMEDATA.flightM.dare);
-    t+='<br>⚔️ '+(knights.length?knights.map(function(x){return x.name;}).join('、'):'他')+' 替她挡惩罚，执行：'+k2;
-  }else if(e.fx==='stare'){
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:'⚔️ '+(knights.length?knights.map(function(x){return x.name;}).join('、'):'他')+' 替她挡',title:'🎁 '+e.t,target:k2,pool:GAMEDATA.flightM.dare,btns:['done','pardon']});
+    return;
+  }
+  if(e.fx==='stare'){
     var duo=Math.random()<0.5?randItem(GAMEDATA.flightD.dare):randItem(GAMEDATA.flightD.truth);
-    t+='<br>👀 随机一对异性对视30秒不许笑！<br>然后一起完成：'+duo;
-  }else if(e.fx==='dare2'){
-    t+='<br>🔥 第1条：'+pickFresh('_darePick',GAMEDATA.dare)+'<br>🔥 第2条：'+pickFresh('_darePick',GAMEDATA.dare);
-  }else if(e.fx==='choice'){
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:'👀 对视30秒不许笑',title:'🎁 '+e.t+' · 然后一起完成',target:duo,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','pardon']});
+    return;
+  }
+  if(e.fx==='dare2'){
+    var d1=pickFresh('_darePick',GAMEDATA.dare);
+    var d2=pickFresh('_darePick',GAMEDATA.dare);
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:d1,note:'🔥 第2条：'+d2,pool:GAMEDATA.dare,btns:['done','pardon']});
+    return;
+  }
+  if(e.fx==='choice'){
     var pair=randItem(GAMEDATA.pairs);
     var parts=pair.split('｜');
     window._flEventChoice={a:parts[0]||'亲对方10秒',b:parts[1]||'喝酒一杯'};
     logEvent('✈️ 事件卡：'+e.t);
-    flTaskShow(t+'<br>🅰️ '+window._flEventChoice.a+'<br><br>🅱️ '+window._flEventChoice.b,['done','pardon']);
-    var el=document.getElementById('flTask');
-    if(el){
-      var bt=el.querySelector('.fl-btns');
-      if(bt)bt.insertAdjacentHTML('afterbegin','<button class="wheel-btn spin" onclick="flEventPick(0)">🅰️ 选A</button><button class="wheel-btn spin" onclick="flEventPick(1)">🅱️ 选B</button>');
-    }
+    flChoiceOverlay();
     return;
-  }else if(e.fx==='hard-truth'){
-    t+='<br>🔞 '+randItem(GAMEDATA.extra.truths);
+  }
+  if(e.fx==='hard-truth'){
+    logEvent('✈️ 事件卡：'+e.t);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🎁 '+e.t,target:randItem(GAMEDATA.extra.truths),pool:GAMEDATA.extra.truths,btns:['done','pardon']});
+    return;
   }
   logEvent('✈️ 事件卡：'+e.t);
-  flTaskShow(t,['done','pardon']);
+  flTaskShow('🎁 事件卡 · '+e.t,['done','pardon']);
 }
-function flEventPick(which){
-  var c=window._flEventChoice;
-  if(c){logEvent('✈️ 二选一：'+ (which===0?c.a:c.b));}
-  flDoneTask();
-}
-/* --- 任务面板 --- */
+
 function flTaskShow(content,btns){
   snapShot();
   var el=document.getElementById('flTask');if(!el)return;
@@ -3200,7 +3356,8 @@ function flDoneTask(){
   if(window._flDuelCell&&p){ /* 对决格执行刺激挑战 */
     window._flDuelCell=false;
     var item=randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
-    flTaskShow('💣 刺激挑战 · '+p.name+'：'+item,['done','swap','pardon']);
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon'],
+      redraw:function(){return randItem(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);}});
     return;
   }
   flNextTurn();
@@ -3280,5 +3437,12 @@ function flWish(){
   <div class="fl-ov-zoom"><div class="dice3d-wrap" id="flDiceOverlayWrap"><div class="dice3d"></div></div></div>
   <div id="flDiceOverlayLabel"></div>
 </div>
+<!-- V4.8 任务大转盘浮层(抽任务时弹出, 不影响棋盘) -->
+<div id="flWheelOverlay">
+  <div class="fl-wheel-wrap"><canvas id="flWheelCanvas" width="300" height="300"></canvas><div class="fl-wheel-pointer">▼</div></div>
+  <div id="flWheelResult"></div>
+</div>
+<!-- V4.8 二选一选项浮层 -->
+<div id="flChoiceOverlay"></div>
 </body>
 </html>
