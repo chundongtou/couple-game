@@ -2903,7 +2903,7 @@ function flMove(p,v){
     flRender();
     var other=1-lane;
     if(window._flTPos[other]===target&&target>0&&target<window._flCells[lane].length-1){
-      flDuel(lane,other,target);return;
+      flDuel(flTeamPlayer(lane),flTeamPlayer(other));return;
     }
     flLand(p,window._flCells[lane][target],target);
   }else if(mode==='B'||mode==='D'){
@@ -2916,7 +2916,7 @@ function flMove(p,v){
     var cell=window._flCells[p.pos%window._flCells.length];
     if(mode==='D'){
       var occ=window._flP.filter(function(x){return x.id!==p.id&&!x.done&&x.track==='main'&&x.pos%32===p.pos%32;});
-      if(occ.length){flDuel2(p,occ[0]);return;}
+      if(occ.length){flDuel(p,occ[0]);return;}
     }
     flLand(p,cell,p.pos%32);
   }else{ /* C */
@@ -2998,24 +2998,55 @@ function flDrink(p){
 function flCross(p){
   flTaskShow('💞 交汇格！'+p.name+' 可选择进入性别支线',['done','pardon','side']);
 }
-function flDuel(laneA,laneB,idx){
-  var pA=flTeamPlayer(laneA),pB=flTeamPlayer(laneB);
-  var a=Math.floor(Math.random()*6)+1,b=Math.floor(Math.random()*6)+1;
-  sndDing();
-  var loser=a>=b?pB:pA,winner=a>=b?pA:pB;
-  window._flTPos[loser.team]=Math.max(0,window._flTPos[loser.team]-2);
-  var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
-  flTaskShow('⚔️ 对撞抢格！'+pA.name+' '+a+'点 VS '+pB.name+' '+b+'点<br>'+item,['done']);
-  logEvent('✈️ 对撞：'+winner.name+' 胜');
+function flDuel(p1,p2){
+  /* V4: 同格对决 = 两人轮流摇真实骰子, 先摇的后揭晓 */
+  window._flDuelState={p1:p1,p2:p2,r1:null,r2:null};
+  flDuelUI();
 }
-function flDuel2(p,occ){
-  var a=Math.floor(Math.random()*6)+1,b=Math.floor(Math.random()*6)+1;
-  sndDing();
-  var loser=a>=b?occ:p;
-  loser.pos=Math.max(0,loser.pos-2);
-  var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
-  flTaskShow('⚔️ 抢格对决！'+p.name+' '+a+'点 VS '+occ.name+' '+b+'点<br>'+item,['done']);
-  logEvent('✈️ 抢格：'+occ.name+' 后退');
+function flDuelUI(){
+  var d=window._flDuelState;
+  var el=document.getElementById('flTask');if(!el)return;
+  if(d.r1===null){
+    el.innerHTML='<div class="fl-task"><div class="who">⚔️ 对撞抢格对决！</div>'
+      +'<div style="font-size:15px;margin-top:4px">'+d.p1.name+' 先摇骰子，'+d.p2.name+' 等着接招！</div>'
+      +'<div class="fl-btns"><button class="fl-roll-btn" style="background:linear-gradient(135deg,'+d.p1.color+',#1a0a2e)" onclick="flDuelRoll(1)">🎲 '+d.p1.name+' 摇骰子</button></div></div>';
+  }else if(d.r2===null){
+    el.innerHTML='<div class="fl-task"><div class="who">⚔️ 对撞抢格对决！</div>'
+      +'<div style="font-size:15px;margin-top:4px">'+d.p1.name+' 摇出 <b style="color:#ffd700;font-size:20px">'+d.r1+' 点</b>，轮到 '+d.p2.name+'！</div>'
+      +'<div class="fl-btns"><button class="fl-roll-btn" style="background:linear-gradient(135deg,'+d.p2.color+',#1a0a2e)" onclick="flDuelRoll(2)">🎲 '+d.p2.name+' 摇骰子</button></div></div>';
+  }
+}
+function flDuelRoll(side){
+  var d=window._flDuelState;
+  var v=Math.floor(Math.random()*6)+1;
+  flDiceRoll(v,function(){
+    if(side===1){
+      d.r1=v;
+      logEvent('✈️ 对决：'+d.p1.name+' 摇出 '+v+' 点');
+      flDuelUI();
+    }else{
+      d.r2=v;
+      if(d.r1===d.r2){
+        toast('🤝 平局！重新摇一次');
+        d.r1=null;d.r2=null;
+        flDuelUI();
+        return;
+      }
+      var loser=d.r1>d.r2?d.p2:d.p1,winner=d.r1>d.r2?d.p1:d.p2;
+      if(window._flMode==='A'){window._flTPos[loser.team]=Math.max(0,window._flTPos[loser.team]-2);}
+      else{loser.pos=Math.max(0,loser.pos-2);}
+      var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
+      if(loser.drink<loser.drinkMax)loser.drink++;
+      sndBoom();vibrate([60,40,100]);
+      logEvent('✈️ 抢格对决：'+winner.name+' '+d.r1+'点 胜 '+loser.name+' '+d.r2+'点');
+      var el=document.getElementById('flTask');
+      if(el)el.innerHTML='<div class="fl-task"><div class="who">⚔️ 对决结果</div>'
+        +'<div style="font-size:17px;margin-top:6px">'+d.p1.name+' <b style="color:'+d.p1.color+'">'+d.r1+'点</b> VS '+d.p2.name+' <b style="color:'+d.p2.color+'">'+d.r2+'点</b></div>'
+        +'<div style="font-size:15px;margin-top:8px">'+item+'</div>'
+        +'<div class="fl-btns"><button class="wheel-btn spin" onclick="flDoneTask()">✅ 继续</button></div></div>';
+      flRender(); /* 更新棋盘棋子位置 */
+    }
+  });
 }
 /* --- 事件卡 --- */
 function flEvent(p){
