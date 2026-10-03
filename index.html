@@ -3182,6 +3182,7 @@ function flWheelBuild(target){
   var rs=document.getElementById('flWheelResult');
   if(rs)rs.innerHTML='';
   flWheelTabs();
+  window._flWheelAngle=window._flWheelAngle||0; /* 必须初始化为0, 否则NaN导致扇区画不出来 */
   sndSpin();
   flWheelDraw();
   flWheelSpin();
@@ -3224,7 +3225,7 @@ function flWheelDraw(){
   }
   var arc=Math.PI*2/n;
   for(var i=0;i<n;i++){
-    var sa=arc*i-Math.PI/2+window._flWheelAngle*Math.PI/180;
+    var sa=arc*i-Math.PI/2+(window._flWheelAngle||0)*Math.PI/180;
     ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,sa,sa+arc);ctx.closePath();
     ctx.fillStyle=colors[i%colors.length];ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.stroke();
@@ -3239,7 +3240,7 @@ function flWheelDraw(){
 function flWheelSpin(){
   if(window._flWheelTv)cancelAnimationFrame(window._flWheelTv);
   var sel=window._flWheelSel,n=window._flWheelSegs.length,seg=360/n;
-  var cur=window._flWheelAngle%360;
+  var cur=(window._flWheelAngle||0)%360;
   var base=((-sel*seg)%360+360)%360;
   var turns=5+Math.floor(Math.random()*2);
   var end=cur+turns*360+(base-cur+360)%360;
