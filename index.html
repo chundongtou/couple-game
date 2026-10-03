@@ -308,6 +308,9 @@ body{background:
 @keyframes ovIn{from{opacity:0}to{opacity:1}}
 .fl-ov-zoom{transform:scale(1.55)}
 #flDiceOverlayLabel{font-size:21px;font-weight:bold;color:#ffd700;text-shadow:0 2px 10px rgba(0,0,0,0.65);min-height:30px;text-align:center}
+.fl-side-mini{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.fl-side-mini .fl-lane{background:rgba(255,255,255,0.04);border:1px solid rgba(255,215,0,0.25);border-radius:12px;padding:8px}
+.light .fl-side-mini .fl-lane{background:rgba(255,255,255,0.7);border-color:rgba(214,69,110,0.25)}
 </style>
 </head>
 <body>
@@ -2827,9 +2830,9 @@ function flTurnMsg(){
   var p=window._flP[window._flOrder[window._flTurn]];
   if(!p)return;
   var btn=document.getElementById('flRollBtn');
-  if(btn){btn.textContent='🎲 '+(p.name)+' 摇骰子';btn.style.background='linear-gradient(135deg,'+p.color+',#1a0a2e)';}
+  if(btn){btn.textContent=p.track!=='main'?('💞 '+p.name+' 支线前进1步'):('🎲 '+p.name+' 摇骰子');btn.style.background='linear-gradient(135deg,'+p.color+',#1a0a2e)';}
   if(el){el.style.borderColor=p.color;el.style.background='linear-gradient(90deg,'+p.color+'44,transparent)';
-    el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！');}
+    el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):(p.track!=='main'?('🎯 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）在支线 · 点按钮自动前进1步'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！'));}
 }
 function flDiceRoll(v,cb){
   /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
@@ -2903,9 +2906,20 @@ function flBoardRing(){
     html+='<span class="fl-cell t-'+t+(t==='start'?' start':'')+'" style="grid-area:'+row+'/'+col+'">'+flIcon(t)+pieces+'</span>';
   }
   html+='<div class="fl-ring-mid"><b>'+window._flModeName+'</b>'
-    +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':'第'+(p.lap+1)+'圈'+((p.pos%32)+1)+'格')+'</span>';}).join('<br>')+'</span>'
+    +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':(p.track!=='main'?(p.sidePos<0?'💞支线入口':('💞支线第'+(p.sidePos+1)+'步')):('第'+(p.lap+1)+'圈'+((p.pos%32)+1)+'格')))+'</span>';}).join('<br>')+'</span>'
     +'<span style="color:#888">目标 '+window._flLaps+' 圈</span></div>';
   html+='</div>';
+  /* V4.6: 支线迷你轨道 — 有玩家在支线时显示, 棋子不再凭空消失 */
+  if(window._flP.some(function(p){return p.track!=='main';})){
+    function sideRow(arr,track,label){
+      var cellsHtml=arr.map(function(t,i){
+        var pieces=window._flP.filter(function(p){return p.track===track&&(p.sidePos===i||(p.sidePos<0&&i===0));}).map(function(p){return flPieceHtml(p);}).join('');
+        return '<span class="fl-cell t-'+t+'">'+flIcon(t)+pieces+'</span>';
+      }).join('');
+      return '<div class="fl-lane"><div class="fl-lane-label">'+label+'</div><div class="fl-cells">'+cellsHtml+'</div></div>';
+    }
+    html+='<div class="fl-side-mini">'+sideRow(window._flSideM,'sideM','⚔️ 他的征途')+sideRow(window._flSideF,'sideF','🌸 她的花园')+'</div>';
+  }
   return html;
 }
 function flBoardC(){
@@ -2992,6 +3006,7 @@ function flMove(p,v){
 }
 function flSideStep(p){
   p.sidePos++;
+  toast('💞 '+p.name+' 支线自动前进第'+(p.sidePos+1)+'步');
   flRender();
   if(p.sidePos>=window._flSideM.length){
     p.track='main';p.sidePos=-1;p.pardon++;
