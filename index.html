@@ -302,6 +302,12 @@ body{background:
 .fl-task{border-radius:18px;box-shadow:0 8px 30px rgba(255,107,157,0.25)}
 .fl-players .fl-p{border-radius:16px}
 #flTurnBanner{border-radius:14px}
+/* ============ V4.4 居中弹出式骰子 ============ */
+#flDiceOverlay{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(8,4,18,0.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+#flDiceOverlay.show{display:flex;animation:ovIn .25s ease}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+.fl-ov-zoom{transform:scale(1.55)}
+#flDiceOverlayLabel{font-size:21px;font-weight:bold;color:#ffd700;text-shadow:0 2px 10px rgba(0,0,0,0.65);min-height:30px;text-align:center}
 </style>
 </head>
 <body>
@@ -2794,8 +2800,7 @@ function flRender(){
   else html+=flBoardRing();
   var cur=window._flP[window._flOrder[window._flTurn]];
   html+='<div class="fl-turn-banner" id="flTurnMsg" style="border-color:'+(cur?cur.color:'#ffd700')+';background:linear-gradient(90deg,'+(cur?cur.color:'#ffd700')+'33,transparent)"></div>'
-    +'<div class="dice3d-wrap"><div class="dice3d" id="flDiceBox">'+flDiceFaces()+'</div></div>'
-    +'<div id="flTask"></div>'
+        +'<div id="flTask"></div>'
     +'<div class="fl-btns" style="display:block">'
     +'<button class="fl-roll-btn" id="flRollBtn" style="background:linear-gradient(135deg,'+(cur?cur.color:'#ff6b9d')+',#1a0a2e)" onclick="flRoll()">🎲 '+ (cur?cur.name:'') +' 摇骰子</button>'
     +'<button class="wheel-btn back" style="margin-top:6px;width:100%" onclick="renderFlightSetup(document.getElementById(\'gContent\'))">⚙️ 重设本局</button>'
@@ -2826,27 +2831,38 @@ function flTurnMsg(){
     el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！');}
 }
 function flDiceRoll(v,cb){
-  /* 真实3D旋转: 从多圈旋转过渡到目标面, 停稳展示1秒再结算 */
-  var box=document.getElementById('flDiceBox');
-  var wrap=document.querySelector('.dice3d-wrap');
-  if(!box||!wrap){cb();return;}
-  box.innerHTML=flDiceFaces();
-  var d=box;
+  /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
+  var ov=document.getElementById('flDiceOverlay');
+  var wrap=document.getElementById('flDiceOverlayWrap');
+  if(!ov||!wrap){(cb||function(){})();return;}
+  var d=wrap.querySelector('.dice3d');
+  d.innerHTML=flDiceFaces();
+  var lbl=document.getElementById('flDiceOverlayLabel');
+  var who='';
+  var st=window._flDuelState;
+  if(st){who=st.r1===null?st.p1.name:st.p2.name;}
+  else{var p=window._flP[window._flOrder[window._flTurn]];if(p)who=p.name;}
+  lbl.textContent='';
+  ov.classList.add('show');
+  wrap.classList.add('shaking');
+  sndSpin();
   var target={1:'rotateX(0deg) rotateY(0deg)',2:'rotateX(0deg) rotateY(-90deg)',3:'rotateX(0deg) rotateY(180deg)',4:'rotateX(0deg) rotateY(90deg)',5:'rotateX(-90deg) rotateY(0deg)',6:'rotateX(90deg) rotateY(0deg)'}[v];
   var txn=target.indexOf('-90deg')>=0||target.indexOf('180deg')>=0?-1:1;
   var sx=txn<0?-720:720, sy=(v===5||v===6)?900:720+Math.floor(Math.random()*360);
   d.style.transition='none';
   d.style.transform='rotateX('+sx+'deg) rotateY('+sy+'deg)';
   void d.offsetWidth;
-  wrap.classList.add('shaking');
-  sndSpin();
   d.style.transition='transform 1.5s cubic-bezier(0.22,0.78,0.25,1)';
   d.style.transform=target;
   setTimeout(function(){
     wrap.classList.remove('shaking');
+    lbl.textContent=who+' 摇出 '+v+' 点！';
     sndDing();vibrate([40,30,60]);
-    /* 停稳展示点数1秒后结算 */
-    setTimeout(cb,1000);
+    /* 停稳显示点数1秒后淡出, 再结算 */
+    setTimeout(function(){
+      ov.classList.remove('show');
+      setTimeout(cb,330);
+    },1000);
   },1550);
 }
 function flTeamPlayer(lane){ /* 2人=各自1道, 4人=按队分道 */
@@ -3201,5 +3217,10 @@ function flWish(){
 }
 
 </script>
+<!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
+<div id="flDiceOverlay">
+  <div class="fl-ov-zoom"><div class="dice3d-wrap" id="flDiceOverlayWrap"><div class="dice3d"></div></div></div>
+  <div id="flDiceOverlayLabel"></div>
+</div>
 </body>
 </html>
