@@ -202,6 +202,60 @@ body.light .top-bar{background:rgba(255,255,255,0.8);border-color:rgba(214,69,11
 .fl-btns button{min-height:44px;min-width:72px}
 .fl-side-row{display:flex;gap:3px;justify-content:center;margin:4px 0}
 .fl-ids{font-size:11px;color:#a9e0c0;margin:4px 0;text-align:center}
+/* ============ V4 UI大升级: 3D骰子/回合高亮/格子配色/错行修复 ============ */
+/* --- 真实3D旋转骰子 --- */
+.dice3d-wrap{perspective:700px;width:88px;height:88px;margin:8px auto}
+.dice3d{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform}
+.df{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#ffffff,#ece0f7);border:1px solid rgba(150,90,180,0.45);border-radius:16px;box-shadow:inset 0 0 16px rgba(120,60,150,0.12)}
+.df1{transform:rotateY(0deg) translateZ(44px)}
+.df2{transform:rotateY(90deg) translateZ(44px)}
+.df3{transform:rotateY(180deg) translateZ(44px)}
+.df4{transform:rotateY(-90deg) translateZ(44px)}
+.df5{transform:rotateX(90deg) translateZ(44px)}
+.df6{transform:rotateX(-90deg) translateZ(44px)}
+.df .pips{display:grid;width:64%;height:64%;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.df .pip{width:11px;height:11px;border-radius:50%;background:#4a1560;box-shadow:inset 0 2px 3px rgba(0,0,0,0.35);justify-self:center;align-self:center}
+.dice3d-wrap.shaking{animation:diceShake 0.35s infinite}
+@keyframes diceShake{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-4px,3px) rotate(-6deg)}50%{transform:translate(4px,-2px) rotate(5deg)}75%{transform:translate(-3px,-4px) rotate(-4deg)}100%{transform:translate(0,0) rotate(0)}}
+/* --- 回合高亮: 该谁摇一目了然 --- */
+.fl-turn-banner{border:2px solid #ffd700;border-radius:16px;padding:10px 14px;margin:10px 0 4px;text-align:center;font-size:16px;font-weight:bold;color:#fff;animation:bannerPulse 1.4s infinite;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes bannerPulse{0%,100%{box-shadow:0 0 8px rgba(255,215,0,0.4)}50%{box-shadow:0 0 22px rgba(255,215,0,0.85)}}
+.fl-lane-active .fl-cells{outline:2px solid #ffd700;outline-offset:2px;border-radius:10px;box-shadow:0 0 14px rgba(255,215,0,0.5)}
+.fl-piece.cur{animation:piecePulse 0.9s infinite;border:2px solid #ffd700}
+@keyframes piecePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+/* --- 飞行棋格子类型配色 --- */
+.fl-cell.t-truth{background:linear-gradient(145deg,rgba(168,85,247,0.4),rgba(124,58,237,0.28))}
+.fl-cell.t-dare{background:linear-gradient(145deg,rgba(255,107,107,0.45),rgba(238,90,36,0.32))}
+.fl-cell.t-drink{background:linear-gradient(145deg,rgba(255,193,7,0.45),rgba(245,158,11,0.32))}
+.fl-cell.t-safe{background:linear-gradient(145deg,rgba(0,206,201,0.4),rgba(0,180,176,0.28))}
+.fl-cell.t-spicy{background:linear-gradient(145deg,rgba(255,71,87,0.55),rgba(193,18,31,0.45))}
+.fl-cell.t-duo{background:linear-gradient(145deg,rgba(255,107,157,0.5),rgba(224,64,251,0.4))}
+.fl-cell.t-duel{background:linear-gradient(145deg,rgba(255,159,67,0.55),rgba(230,126,34,0.42))}
+.fl-cell.t-event{background:linear-gradient(145deg,rgba(52,152,219,0.5),rgba(41,128,185,0.38))}
+.fl-cell.t-prison{background:linear-gradient(145deg,rgba(110,110,130,0.55),rgba(80,80,100,0.45))}
+.fl-cell.t-ktv{background:linear-gradient(145deg,rgba(0,206,209,0.5),rgba(0,160,170,0.4))}
+.fl-cell.t-item{background:linear-gradient(145deg,rgba(46,204,113,0.5),rgba(39,174,96,0.38))}
+.fl-cell.t-cross{background:linear-gradient(145deg,#ffd700,#ff6b9d);color:#1a0a2e;font-weight:bold}
+/* --- 错行修复: 统一尺寸/行高/不换行 --- */
+.fl-cell{width:40px;min-width:40px;height:40px;padding:0;line-height:1;flex:0 0 40px}
+.fl-ring .fl-cell{width:auto;min-width:0;height:36px;line-height:1}
+.fl-p{white-space:nowrap;display:inline-flex;align-items:center;gap:4px;line-height:1.4}
+.tb-item{line-height:1.4;gap:3px}
+.game-card .icon{width:54px;height:54px;line-height:54px;border-radius:50%;background:linear-gradient(135deg,rgba(255,107,157,0.22),rgba(255,215,0,0.16));border:1px solid rgba(255,255,255,0.12);font-size:26px;display:flex;align-items:center;justify-content:center;margin:6px auto;overflow:hidden}
+.game-card .badge{line-height:1}
+.g-help{line-height:24px;display:flex;align-items:center;justify-content:center}
+.fl-lane-label{white-space:nowrap;line-height:1.5}
+.fl-task{background:linear-gradient(145deg,rgba(255,107,157,0.14),rgba(255,255,255,0.06));border:1px solid rgba(255,107,157,0.55);box-shadow:0 4px 20px rgba(255,107,157,0.2);border-radius:16px}
+/* --- 整体精致化 --- */
+.wheel-btn.spin{background:linear-gradient(135deg,#ff6b9d,#ff9a5c);border:none;color:#fff;font-weight:bold;box-shadow:0 4px 14px rgba(255,107,157,0.35)}
+.wheel-btn.spin:active{transform:scale(0.95)}
+.wheel-btn.back{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25)}
+.game-card{border-radius:18px;overflow:hidden}
+.game-card:hover{transform:translateY(-4px) scale(1.03);box-shadow:0 10px 28px rgba(255,107,157,0.45)}
+.header h1{font-size:26px;letter-spacing:1px}
+.fl-roll-btn{width:100%;min-height:52px;border:none;border-radius:16px;color:#fff;font-size:17px;font-weight:bold;box-shadow:0 6px 18px rgba(0,0,0,0.3);cursor:pointer;transition:transform 0.15s}
+.fl-roll-btn:active{transform:scale(0.95)}
+.fl-roll-btn:disabled{opacity:0.55;cursor:default}
 </style>
 </head>
 <body>
@@ -2692,27 +2746,69 @@ function flRender(){
   if(mode==='A')html+=flBoardA();
   else if(mode==='C')html+=flBoardC();
   else html+=flBoardRing();
-  html+='<div id="flTurnMsg" style="text-align:center;color:#ffd700;font-size:14px;margin-top:8px"></div>'
-    +'<div class="fl-dice" id="flDiceBox">🎲</div>'
+  var cur=window._flP[window._flOrder[window._flTurn]];
+  html+='<div class="fl-turn-banner" id="flTurnMsg" style="border-color:'+(cur?cur.color:'#ffd700')+';background:linear-gradient(90deg,'+(cur?cur.color:'#ffd700')+'33,transparent)"></div>'
+    +'<div class="dice3d-wrap"><div class="dice3d" id="flDiceBox">'+flDiceFaces()+'</div></div>'
     +'<div id="flTask"></div>'
-    +'<div class="fl-btns">'
-    +'<button class="wheel-btn spin" id="flRollBtn" onclick="flRoll()">🎲 掷骰子</button>'
-    +'<button class="wheel-btn back" onclick="renderFlightSetup(document.getElementById(\'gContent\'))">⚙️ 重设</button>'
+    +'<div class="fl-btns" style="display:block">'
+    +'<button class="fl-roll-btn" id="flRollBtn" style="background:linear-gradient(135deg,'+(cur?cur.color:'#ff6b9d')+',#1a0a2e)" onclick="flRoll()">🎲 '+ (cur?cur.name:'') +' 摇骰子</button>'
+    +'<button class="wheel-btn back" style="margin-top:6px;width:100%" onclick="renderFlightSetup(document.getElementById(\'gContent\'))">⚙️ 重设本局</button>'
     +'</div>'
     +'<div style="text-align:center;font-size:11px;color:#777;margin-top:6px">🍷 适量饮酒 ｜ 🚩 安全词：说「停」立即结束</div>'
     +'</div>';
   c.innerHTML=html;
   flTurnMsg();
 }
+function flDiceFaces(){
+  /* 1点: 中心 / 2点: 对角 / 3点: 斜线 / 4点: 四角 / 5点: 四角+中心 / 6点: 两列 */
+  var pips={1:['4'],2:['0','8'],3:['0','4','8'],4:['0','2','6','8'],5:['0','2','4','6','8'],6:['0','3','6','1','4','7']};
+  var html='';
+  for(var f=1;f<=6;f++){
+    var cells=[];
+    for(var r=0;r<3;r++)for(var c2=0;c2<3;c2++)cells.push('<span class="'+(pips[f].indexOf(String(r*3+c2))>=0?'pip':'')+'" style="grid-area:'+(r+1)+'/'+(c2+1)+'"></span>');
+    html+='<div class="df df'+f+'"><div class="pips">'+cells.join('')+'</div></div>';
+  }
+  return html;
+}
 function flTurnMsg(){
   var el=document.getElementById('flTurnMsg');if(!el)return;
   var p=window._flP[window._flOrder[window._flTurn]];
   if(!p)return;
-  if(p.skip){el.textContent='⛓️ '+p.name+' 本轮跳过（罚停）';return;}
-  el.textContent='🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+(window._flRolled?' 请结算当前格':' 掷骰子前进');
+  var btn=document.getElementById('flRollBtn');
+  if(btn){btn.textContent='🎲 '+(p.name)+' 摇骰子';btn.style.background='linear-gradient(135deg,'+p.color+',#1a0a2e)';}
+  if(el){el.style.borderColor=p.color;el.style.background='linear-gradient(90deg,'+p.color+'44,transparent)';
+    el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！');}
+}
+function flDiceRoll(v,cb){
+  /* 真实3D旋转: 从多圈旋转过渡到目标面, 停稳展示1秒再结算 */
+  var box=document.getElementById('flDiceBox');
+  var wrap=document.querySelector('.dice3d-wrap');
+  if(!box||!wrap){cb();return;}
+  box.innerHTML=flDiceFaces();
+  var d=box;
+  var target={1:'rotateX(0deg) rotateY(0deg)',2:'rotateX(0deg) rotateY(-90deg)',3:'rotateX(0deg) rotateY(180deg)',4:'rotateX(0deg) rotateY(90deg)',5:'rotateX(-90deg) rotateY(0deg)',6:'rotateX(90deg) rotateY(0deg)'}[v];
+  var txn=target.indexOf('-90deg')>=0||target.indexOf('180deg')>=0?-1:1;
+  var sx=txn<0?-720:720, sy=(v===5||v===6)?900:720+Math.floor(Math.random()*360);
+  d.style.transition='none';
+  d.style.transform='rotateX('+sx+'deg) rotateY('+sy+'deg)';
+  void d.offsetWidth;
+  wrap.classList.add('shaking');
+  sndSpin();
+  d.style.transition='transform 1.5s cubic-bezier(0.22,0.78,0.25,1)';
+  d.style.transform=target;
+  setTimeout(function(){
+    wrap.classList.remove('shaking');
+    sndDing();vibrate([40,30,60]);
+    /* 停稳展示点数1秒后结算 */
+    setTimeout(cb,1000);
+  },1550);
 }
 function flTeamPlayer(lane){ /* 2人=各自1道, 4人=按队分道 */
   return window._flP.length===2?window._flP[lane]:window._flP[lane*2];
+}
+function flPieceHtml(p){ /* 棋子: 当前回合玩家的棋子加金圈脉冲 */
+  var cur=window._flP[window._flOrder[window._flTurn]]===p;
+  return '<span class="fl-piece'+(cur?' cur':'')+'" style="background:'+p.color+'">'+(p.g==='M'?'♂':'♀')+'</span>';
 }
 function flBoardA(){
   function row(lane,rot){
@@ -2720,10 +2816,12 @@ function flBoardA(){
     var pl=flTeamPlayer(lane);
     var html=cells.map(function(t,i){
       var tp=window._flTPos[lane];
-      var piece=(tp===i&&!window._flWin)?'<span class="fl-piece" style="background:'+pl.color+'">'+(pl.g==='M'?'♂':'♀')+'</span>':'';
-      return '<span class="fl-cell'+(t==='start'?' start':'')+(t==='end'?' start':'')+'">'+flIcon(t)+piece+'</span>';
+      var piece=(tp===i&&!window._flWin)?flPieceHtml(pl):'';
+      return '<span class="fl-cell t-'+t+(t==='start'?' start':'')+(t==='end'?' start':'')+'">'+flIcon(t)+piece+'</span>';
     }).join('');
-    return '<div class="fl-lane'+(rot?' rot':'')+'"><div class="fl-lane-label">'+(lane===0?window._flP[0].name+' 道':pl.name+' 道')+'</div><div class="fl-cells">'+html+'</div></div>';
+    var curP=window._flP[window._flOrder[window._flTurn]];
+    var active=curP&&curP.team===lane;
+    return '<div class="fl-lane'+(rot?' rot':'')+(active?' fl-lane-active':'')+'"><div class="fl-lane-label">'+(lane===0?window._flP[0].name+' 道':pl.name+' 道')+'</div><div class="fl-cells">'+html+'</div></div>';
   }
   return '<div class="vs-stage"><div class="vs-zone vs-top">'+row(1,true)+'</div><div class="vs-mid" style="font-size:12px;color:#aaa">对撞=抢格对决，输者后退2格+罚酒</div><div class="vs-zone vs-bottom">'+row(0,false)+'</div></div>';
 }
@@ -2737,8 +2835,8 @@ function flBoardRing(){
     else if(i<26){row=9;col=9-(i-17);}
     else{row=9-(i-25);col=1;}
     var t=cells[i];
-    var pieces=window._flP.filter(function(p){return !p.done&&p.track==='main'&&p.pos%32===i;}).map(function(p){return '<span class="fl-piece" style="background:'+p.color+'">'+(p.g==='M'?'♂':'♀')+'</span>';}).join('');
-    html+='<span class="fl-cell'+(t==='start'?' start':'')+'" style="grid-area:'+row+'/'+col+'">'+flIcon(t)+pieces+'</span>';
+    var pieces=window._flP.filter(function(p){return !p.done&&p.track==='main'&&p.pos%32===i;}).map(function(p){return flPieceHtml(p);}).join('');
+    html+='<span class="fl-cell t-'+t+(t==='start'?' start':'')+'" style="grid-area:'+row+'/'+col+'">'+flIcon(t)+pieces+'</span>';
   }
   html+='<div class="fl-ring-mid"><b>'+window._flModeName+'</b>'
     +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':'第'+(p.lap+1)+'圈'+((p.pos%32)+1)+'格')+'</span>';}).join('<br>')+'</span>'
@@ -2749,8 +2847,8 @@ function flBoardRing(){
 function flBoardC(){
   function row(arr,track,label,rot){
     var html=arr.map(function(t,i){
-      var pieces=window._flP.filter(function(p){return p.track===track&&((track==='main'?p.pos:p.sidePos)===i);}).map(function(p){return '<span class="fl-piece" style="background:'+p.color+'">'+(p.g==='M'?'♂':'♀')+'</span>';}).join('');
-      return '<span class="fl-cell'+(t==='start'||t==='end'?' start':'')+'">'+flIcon(t)+pieces+'</span>';
+      var pieces=window._flP.filter(function(p){return p.track===track&&((track==='main'?p.pos:p.sidePos)===i);}).map(function(p){return flPieceHtml(p);}).join('');
+      return '<span class="fl-cell t-'+t+(t==='start'||t==='end'?' start':'')+'">'+flIcon(t)+pieces+'</span>';
     }).join('');
     return '<div class="fl-lane'+(rot?' rot':'')+'"><div class="fl-lane-label">'+label+'</div><div class="fl-cells">'+html+'</div></div>';
   }
@@ -2774,24 +2872,8 @@ function flRoll(){
   }
   window._flRolled=true;
   var btn=document.getElementById('flRollBtn');if(btn)btn.disabled=true;
-  var box=document.getElementById('flDiceBox');
-  var faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
-  sndSpin();
-  var cnt=0;
-  if(window._flTv)clearInterval(window._flTv);
-  window._flTv=setInterval(function(){
-    var b=document.getElementById('flDiceBox');
-    if(!b){clearInterval(window._flTv);window._flTv=null;return;}
-    b.textContent=faces[Math.floor(Math.random()*6)];
-    cnt++;
-    if(cnt>14){
-      clearInterval(window._flTv);window._flTv=null;
-      var v=Math.floor(Math.random()*6)+1;
-      b.textContent=faces[v-1]+' '+v;
-      sndDing();vibrate(40);
-      flMove(p,v);
-    }
-  },80);
+  var v=Math.floor(Math.random()*6)+1;
+  flDiceRoll(v,function(){flMove(p,v);});
 }
 function flMove(p,v){
   logEvent('✈️ '+p.name+' 掷出 '+v+' 点');
@@ -3008,7 +3090,8 @@ function flEnterSide(){
 function flNextTurn(){
   var order=window._flOrder;
   window._flRolled=false;
-  var btn=document.getElementById('flRollBtn');if(btn)btn.disabled=false;
+  var btn=document.getElementById('flRollBtn');
+  if(btn){btn.disabled=false;var p2=window._flP[window._flOrder[window._flTurn]];if(p2){btn.textContent='🎲 '+p2.name+' 摇骰子';}}
   if(window._flSixNext&&window._flSix<3){ /* 掷6: 同玩家再掷 */
     window._flSixNext=false;
     flRender();
