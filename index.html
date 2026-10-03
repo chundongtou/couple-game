@@ -3138,8 +3138,9 @@ function flDuelRoll(side){
       var loser=d.r1>d.r2?d.p2:d.p1,winner=d.r1>d.r2?d.p1:d.p2;
       if(window._flMode==='A'){window._flTPos[loser.team]=Math.max(0,window._flTPos[loser.team]-2);}
       else{loser.pos=Math.max(0,loser.pos-2);}
-      var item=(loser.drink<loser.drinkMax)?('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯'):('💋 '+loser.name+' 输了对撞，后退2格（酒量已满改亲吻）');
-      if(loser.drink<loser.drinkMax)loser.drink++;
+      var item=(loser.drink+1>loser.drinkMax)?('💋 '+loser.name+' 输了对撞，后退2格（酒量将满改亲吻）'):('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯');
+      if(loser.drink+1<=loser.drinkMax)loser.drink++;
+      else loser.drink=Math.min(loser.drink+0.5,loser.drinkMax);
       sndBoom();vibrate([60,40,100]);
       logEvent('✈️ 抢格对决：'+winner.name+' '+d.r1+'点 胜 '+loser.name+' '+d.r2+'点');
       flRender(); /* 先更新棋盘棋子位置 */
