@@ -1210,11 +1210,12 @@ function directorBegin(){
   if(d.tv){clearInterval(d.tv);}
   d.tv=setInterval(function(){
     if(!window._dir||!window._dir.on){clearInterval(d.tv);return;}
-    window._dir.elapsed+= (window._dirTick||60); /* 测试钩子: 默认每tick=1分钟 */
+    window._dir.elapsed+= (window._dirTick||1); /* 默认1秒1秒走, 测试钩子设 _dirTick=60 加速 */
     var secs=window._dir.phases[window._dir.phase].secs;
     if(window._dir.elapsed>=secs){
       window._dir.elapsed=0;
       window._dir.phase++;
+      clearInterval(d.tv); /* 中场确认期间暂停计时, 防二次跳阶段 */
       if(window._dir.phase>=4){directorFinish();return;}
       /* 中场安全确认 */
       var pn=window._dir.phases[window._dir.phase].name;
@@ -1333,6 +1334,7 @@ function godBoost(){
   var d=window._flGod;
   if(!d){toast('🎛️ 本局没有上帝');return;}
   if(window._flGodUses<=0){toast('🎛️ 上帝特权已用完（每局2次）');return;}
+  if(!confirm('➕ 上帝 '+d.name+' 确认给当前任务加码？（剩 '+window._flGodUses+' 次）'))return;
   window._flGodUses--;
   var el=document.querySelector('#flWheelResult .fl-task div:nth-child(2)')||document.querySelector('.fl-task div:nth-child(2)');
   if(el)el.innerHTML+=' <b style="color:#ffd700">【🎛️上帝加码：'+randItem(EVO_ADDONS)+'】</b>';
@@ -1344,10 +1346,14 @@ function godPardon(){
   var d=window._flGod;
   if(!d){toast('🎛️ 本局没有上帝');return;}
   if(window._flGodUses<=0){toast('🎛️ 上帝特权已用完（每局2次）');return;}
+  if(!confirm('🕊️ 上帝 '+d.name+' 确认使用赦免特权？（剩 '+window._flGodUses+' 次）'))return;
   window._flGodUses--;
   logEvent('🎛️ '+d.name+' 动用上帝特权赦免自己（剩'+window._flGodUses+'次）');
+  var wov=document.getElementById('flWheelOverlay');
+  if(wov&&wov.classList.contains('show')){flWheelClose();} /* 先关转盘浮层, 防卡死 */
+  flTaskShow('🕊️ 上帝赦免！本轮跳过，不扣奖罚',['done']);
   toast('🕊️ 上帝赦免！');
-  flDoneTask();
+  if(typeof flTurnMsg==='function')flTurnMsg();
 }
 function showPartyReport(){
   try{
@@ -3799,8 +3805,8 @@ function flWheelStop(){
     (o.btns||['done']).forEach(function(b){
       if(b==='done')btns+='<button class="wheel-btn spin" onclick="flWheelDone()">✅ 完成</button>'
         +'<button class="wheel-btn back" onclick="flOwe()">💸 欠着</button>';
-      if(window._flGod)btns+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码</button>'
-        +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免</button>';
+      if(window._flGod)btns+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码·'+window._flGod.name+'</button>'
+        +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免·'+window._flGod.name+'</button>';
       if(b==='swap')btns+='<button class="wheel-btn back" onclick="flWheelSwap()">🔄 替换</button>';
       if(b==='pardon')btns+='<button class="wheel-btn back" onclick="flWheelPardon()">🚩 弃权</button>';
     });
@@ -3980,8 +3986,8 @@ function flTaskShow(content,btns){
   btns.forEach(function(b){
     if(b==='done')html+='<button class="wheel-btn spin" onclick="flDoneTask()">✅ 完成</button>'
       +'<button class="wheel-btn back" onclick="flOwe()">💸 欠着</button>';
-    if(window._flGod)html+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码</button>'
-      +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免</button>';
+    if(window._flGod)html+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码·'+window._flGod.name+'</button>'
+      +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免·'+window._flGod.name+'</button>';
     if(b==='swap')html+='<button class="wheel-btn back" onclick="flSwapTask()">🔄 替换('+ITEMS.swap+')</button>';
     if(b==='pardon')html+='<button class="wheel-btn back" onclick="flPardonTask()">🚩 弃权('+(p?p.pardon:0)+')</button>';
     if(b==='half')html+='<button class="wheel-btn back" onclick="flHalfTask()">🍷 半杯</button>';
