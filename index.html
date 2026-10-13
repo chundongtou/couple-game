@@ -1662,13 +1662,13 @@ function renderHome(){
       +'<div class="icon">'+g.icon+'</div><div class="name">'+g.name+'</div><div class="desc">'+g.desc+'</div></div>';
   });
   document.getElementById('gameGrid').innerHTML=h;
-  document.getElementById('gameGrid').innerHTML+='<div style="display:flex;gap:6px;justify-content:center;margin-top:10px">'
-    +'<button class="wheel-btn back" style="max-width:150px" onclick="showCustom()">✍️ 题库管理</button>'
-    +'<button class="wheel-btn back" style="max-width:150px" onclick="showBlacklist()">🚫 黑名单('+BLACK.length+')</button>'
-    +'<button class="wheel-btn spin" style="max-width:150px" onclick="showPartyReport()">📊 本晚战报</button>'
-    +'<button class="wheel-btn back" style="max-width:150px" onclick="showDebt()">💸 还债('+debtCount()+')</button>'
-    +'<button class="wheel-btn back" style="max-width:150px" onclick="showDirector()">🌙 导演</button>'
-    +'<button class="wheel-btn back" style="max-width:150px" onclick="showContract()">⚖️ 契约</button>'
+  document.getElementById('gameGrid').innerHTML+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px">'
+    +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showCustom()">✍️ 题库管理</button>'
+    +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showBlacklist()">🚫 黑名单</button>'
+    +'<button class="wheel-btn spin" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showPartyReport()">📊 本晚战报</button>'
+    +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showDebt()">💸 还债</button>'
+    +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showDirector()">🌙 整晚导演</button>'
+    +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showContract()">⚖️ 今晚契约</button>'
     +'</div>';
   renderSettings();
 }
