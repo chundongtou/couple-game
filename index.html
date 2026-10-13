@@ -867,6 +867,9 @@ function toggleSet(k){
   else if(k==='bgm'){setOpt('bgm',!SET.bgm);if(SET.bgm)bgmOn();else bgmOff();toast(SET.bgm?'背景音乐已开启 🎵':'背景音乐已关闭');}
   else if(k==='theme'){var next=SET.theme==='dark'?'light':(SET.theme==='light'?'sketch':'dark');setOpt('theme',next);toast(next==='light'?'已切换浅色浪漫主题 🌸':(next==='sketch'?'已切换手绘情书主题 ✏️':'已切换暗夜夜灯主题 🌙'));}
   else if(k==='scene'){var order=['none','beach','christmas','camping'];var cur=order.indexOf(SET.scene||'none');var nx=order[(cur+1)%4];setOpt('scene',nx);toast(nx==='none'?'场景已恢复默认 🎀':(nx==='beach'?'已切换海滩场景 🌊':(nx==='christmas'?'已切换圣诞场景 🎄':'已切换露营场景 🏕️')));}
+  else if(k==='fast'){setOpt('fast',!SET.fast);toast(SET.fast?'⚡ 快局模式开启：棋盘缩短，约15分钟/局':'普通局：约40分钟/局');var g=document.getElementById('gContent');if(g&&typeof renderFlightSetup==='function')renderFlightSetup(g);}
+  else if(k==='strip'){setOpt('strip',!SET.strip);toast(SET.strip?'🍒 脱衣模式开启：每人3件衣服，脱光触发终极大冒险':'🍒 脱衣模式关闭');var g2=document.getElementById('gContent');if(g2&&typeof renderFlightSetup==='function')renderFlightSetup(g2);}
+  else if(k==='god'){setOpt('god',!SET.god);toast(SET.god?'🎛️ 上帝之手开启：每局随机一方成为上帝（特权2次/局）':'🎛️ 上帝之手关闭');}
   renderSettings();
 }
 /* --- 背景音乐(轻和弦循环, WebAudio合成) --- */
@@ -3366,7 +3369,7 @@ function renderFlightSetup(c){
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">④ 难度</p>'
     +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 快局模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.fast?' on':'')+'" onclick="toggleSet(\'fast\');renderFlightSetup(document.getElementById(\'gContent\'))">⚡ '+(SET.fast?'快局：棋盘缩短(约15分钟)':'普通局(约40分钟)')+'</span></div>'
-    +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 脱衣模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.strip?' on':'')+'" onclick="toggleSet(\'strip\')">🍒 '+(SET.strip?'脱衣模式：每人3件，刺激格/对撞输/酒量爆/全裸题脱一件，脱光触发终极大冒险':'脱衣模式关闭')+'</span></div>'
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 脱衣模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.strip?' on':'')+'" onclick="toggleSet(\'strip\')">🍒 '+(SET.strip?'脱衣模式：每人3件，脱光触发终极大冒险':'脱衣模式关闭')+'</span></div>'
     +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑦ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
     +'<p style="text-align:center;font-size:11px;color:#888;margin-top:10px">🍷 酒量额度：男≤5杯 女≤3杯，超额度自动变亲吻格<br>每人1次弃权，女生半杯特权，掷6再掷，连3个6罚停</p>'
     +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="flightStart()">🎮 开局！</button></div>'
