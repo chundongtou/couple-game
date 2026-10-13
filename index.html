@@ -833,8 +833,9 @@ function renderSettings(){
     +'<span class="tb-item" onclick="heatCool()">🔥 热度 '+getHeat()+'</span>'
     +'<span class="tb-item" onclick="toggleLimit()">'+(SET.limit?'🔞 极限中':'🔒 极限')+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'god\')">'+(SET.god?'🎛️ 上帝开':'🎛️ 上帝')+'</span>'
+    +'<span class="tb-item" onclick="toggleIncognito()">'+(SET.incognito?'🛡️ 无痕中':'🛡️ 无痕')+'</span>'
     +'<span class="tb-item" onclick="showShop()">💰 '+coinGet()+'</span>'
-    +'<span class="tb-item" style="color:#ffd700">🏆 '+rankName(rankGet().exp)+'</span>'
+    +'<span class="tb-item" style="color:#ffd700">🌡️ '+heatStageName()+'</span>'
     +'<span class="tb-item" onclick="showHelp()">❓ 帮助</span>';
   applyTheme();
 }
@@ -904,7 +905,7 @@ function poolByDiff(pool,key){
   if(kind==='truth'&&cust.truths&&cust.truths.length)arr=arr.concat(cust.truths);
   if(kind==='dare'&&cust.dare&&cust.dare.length)arr=arr.concat(cust.dare);
   var heat=window.getHeat?window.getHeat():0;
-  if(typeof rankLevel==='function'&&rankLevel(rankGet().exp)>=1&&RANK_POOL){ /* V8: 白银段位解锁专属题库 */
+  if(typeof heatStage==='function'&&heatStage()>=1&&RANK_POOL){ /* V9: 升温线🌤️起解锁专属题库 */
     if(kind==='truth')arr=arr.concat(RANK_POOL.truths);
     if(kind==='dare')arr=arr.concat(RANK_POOL.dare);
   }
@@ -1065,22 +1066,15 @@ function getCombo(){try{var C=JSON.parse(localStorage.getItem('couple-combo')||'
 function setCombo(v){try{localStorage.setItem('couple-combo',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
 function getStreak(){try{var S=JSON.parse(localStorage.getItem('couple-streak')||'{"d":"","v":0}');if(S.d!==new Date().toDateString())S={d:new Date().toDateString(),v:0};return S.v||0;}catch(e){return 0;}}
 function setStreak(v){try{localStorage.setItem('couple-streak',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
-/* ===== V8 情侣段位系统 ===== */
-var RANKS=['🟤 青铜','⚪ 白银','🟡 黄金','🟣 铂金','👑 王者'];
-function rankGet(){try{var R=JSON.parse(localStorage.getItem('couple-rank')||'{"exp":0,"last":""}');return R;}catch(e){return {exp:0,last:''};}}
-function rankSave(R){try{localStorage.setItem('couple-rank',JSON.stringify(R));}catch(e){}}
-function rankLevel(exp){return Math.min(4,Math.floor((exp||0)/100));}
-function rankName(exp){return RANKS[rankLevel(exp)];}
-function rankAdd(n){var R=rankGet();R.exp=(R.exp||0)+n;R.last=new Date().toDateString();rankSave(R);return R;}
-function rankCheck(){ /* 3天没玩掉经验 */
-  var R=rankGet();
-  if(!R.last)return;
-  var days=Math.round((new Date()-new Date(R.last+' 00:00:00'))/86400000);
-  if(days>=3&&R.exp>0){var lose=Math.min(R.exp,30);R.exp-=lose;rankSave(R);toast('⏳ '+days+'天没玩，经验掉了'+lose+'点！快回来冲段位');}
-}
-/* ===== V8 爱币经济 ===== */
-function coinGet(){try{var C=JSON.parse(localStorage.getItem('couple-coins')||'{"v":0}');return C.v||0;}catch(e){return 0;}}
-function coinAdd(n){try{var v=coinGet()+n;localStorage.setItem('couple-coins',JSON.stringify({v:v}));return v;}catch(e){return 0;}}
+/* ===== V9 当晚升温线(替代段位: 一晚制, 当晚清零) ===== */
+var HEATLINE=['🧊 初识寒暄','🌤️ 暧昧试探','🔥 逐步升温','💥 热情似火','🌋 融为一体'];
+function heatStage(){return Math.min(4,Math.floor(getHeat()/20));} /* 热度20一档, 5阶段 */
+function heatStageName(){return HEATLINE[heatStage()];}
+function heatSet(v){try{localStorage.setItem('couple-heat',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
+function heatCheck(){/* 一晚制: 每晚开头按起点定热度, 见开场三步 */}
+/* ===== V9 亲密币(当晚清零, 一晚制) ===== */
+function coinGet(){try{var C=JSON.parse(localStorage.getItem('couple-coins')||'{"d":"","v":0}');if(C.d!==new Date().toDateString())return 0;return C.v||0;}catch(e){return 0;}}
+function coinAdd(n){try{var v=coinGet()+n;localStorage.setItem('couple-coins',JSON.stringify({d:new Date().toDateString(),v:v}));return v;}catch(e){return 0;}}
 function showShop(){
   var v=coinGet();
   openModal('<h3>💰 爱币商店</h3><div class="m-item" style="text-align:center"><b style="font-size:22px;color:#ffd700">'+v+' 币</b><br><span style="font-size:12px;color:#aaa">完成任务+5币，弃权-3币，每晚战报结算</span></div>'
@@ -1118,11 +1112,10 @@ function evolve(txt){
     return txt+' <b style="color:#ff9d9d">【🔥进化Lv'+lv+'：'+add+'】</b>';
   }catch(e){return txt;}
 }
-function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 经验+10, 爱币+5 */
+function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密币+5 */
   heatUp();
-  rankAdd(10);
-  var goldBonus=rankLevel(rankGet().exp)>=2?2:0; /* 黄金段位: 爱币加成 */
-  coinAdd(5+goldBonus);
+  var stageBonus=heatStage()>=2?2:0; /* 升温线🔥阶段起: 亲密币加成 */
+  coinAdd(5+stageBonus);
   var cb=getCombo()+1;setCombo(cb);setStreak(0);
   if(cb>0&&cb%5===0){ITEMS.pardon=Math.min(ITEMS.pardon+1,99);saveItems();toast('🎁 连过'+cb+'关！奖励免罚卡+1');logEvent('🎁 连胜奖励：免罚卡+1');}
 }
@@ -1131,22 +1124,23 @@ function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3 */
   coinAdd(-3);
   if(st>=2)toast('⛓️ 惩罚等级升至 Lv'+st+'！再弃权将加罚');
 }
-function debtAdd(txt){try{var D=JSON.parse(localStorage.getItem('couple-debt')||'[]');D.push(txt);localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}}
-function debtCount(){try{return JSON.parse(localStorage.getItem('couple-debt')||'[]').length;}catch(e){return 0;}}
+function debtAdd(txt){try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};D.list.push(txt);localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}}
+function debtCount(){try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())return 0;return (D.list||[]).length;}catch(e){return 0;}}
 function showDebt(){
-  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'[]');}catch(e){D=[];}
-  if(!D.length){toast('💸 暂无欠债，棒棒哒');return;}
-  var item=D[0];
+  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};}catch(e){D={d:new Date().toDateString(),list:[]};}
+  var DL=D.list||[];
+  if(!DL.length){toast('💸 今晚暂无欠债，棒棒哒');return;}
+  var item=DL[0];
   var extra=randItem(GAMEDATA.extra?GAMEDATA.extra.dare:GAMEDATA.dare);
   window._debtCur=item;
-  openModal('<h3>💸 还债时间（欠 '+D.length+' 笔）</h3>'
+  openModal('<h3>💸 还债时间（欠 '+DL.length+' 笔）</h3>'
     +'<div class="m-item" style="font-size:15px;line-height:1.8">原欠：<b>'+item+'</b></div>'
     +'<div class="m-item" style="font-size:15px;line-height:1.8;color:#ff9d9d">利息加码：'+extra+'</div>'
     +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="debtPay()">✅ 还清这笔</button>'
     +'<button class="wheel-btn back" onclick="closeModal()">先记着</button></div>');
 }
 function debtPay(){
-  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'[]');D.shift();localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}
+  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};D.list.shift();localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}
   taskDone();
   logEvent('💸 还债成功');
   closeModal();
@@ -1187,20 +1181,32 @@ var DIR_PHASES=[
  {name:'🌙 收尾',games:['exercise','blind','roles','fit'],note:'互宠放松，温情收官'}];
 function showDirector(){
   openModal('<h3>🌙 整晚导演</h3><div class="m-item" style="line-height:1.8">不知道今晚玩啥？把指挥棒交给系统。<br>导演自动编排 暖场→升温→高潮→收尾 全流程，每阶段到点提示，随时可暂停。</div>'
+    +'<div class="m-item" style="line-height:1.6"><b>今晚在哪？</b>'
     +'<div class="wheel-btns" style="display:block">'
+    +'<button class="wheel-btn back" onclick="directorScene(\'home\')">🏠 家里局（温柔为主）</button>'
+    +'<button class="wheel-btn back" onclick="directorScene(\'bar\')">🍸 酒吧局（喝酒任务多）</button>'
+    +'<button class="wheel-btn back" onclick="directorScene(\'hotel\')">🏨 酒店局（大胆任务多）</button></div></div>'
+    +'<div class="wheel-btns" style="display:block;margin-top:8px">'
     +'<button class="wheel-btn spin" onclick="closeModal();directorStart(30)">⏱️ 30 分钟</button>'
     +'<button class="wheel-btn spin" onclick="closeModal();directorStart(60)">⏱️ 60 分钟</button>'
     +'<button class="wheel-btn spin" onclick="closeModal();directorStart(90)">⏱️ 90 分钟</button>'
     +'<button class="wheel-btn back" onclick="closeModal()">取消</button></div>');
 }
+function directorScene(sc){window._dirScene=sc||'home';}
 function directorStart(mins){
   var ov=document.getElementById('dirOverlay');
   if(ov)ov.classList.add('show');
-  window._dir={on:true,total:mins*60,elapsed:0,phase:0,phases:DIR_PHASES.map(function(p){return {name:p.name,games:p.games.slice(),note:p.note,secs:Math.floor(mins*60*[0.10,0.25,0.55,0.10][DIR_PHASES.indexOf(p)]||300)};})};
-  if(window._dir.phases[3].secs<120)window._dir.phases[3].secs=120;
+  var sc=window._dirScene||'home';
+  var scConf={
+    home:{names:['🔥 暖场','💃 升温','💥 高潮','🌙 收尾'],notes:['小酒小话，进入状态','转盘轮盘，火苗点起来','飞行棋与剧情，火力全开','互宠放松，温情收官'],pool:[['truth','dice','bomb','rps'],['punish','roulette','potato','cards','escalate'],['flight','night','vault','king5','gamble'],['fitness','blind','role','grid']]},
+    bar:{names:['🍸 点酒','🥂 微醺','🍻 上头','🌙 醒酒'],notes:['先来几杯热身','喝酒任务拉满','醉后真心话+大冒险','醒酒互宠'],pool:[['dice','bomb','truth','punish'],['dice','roulette','potato','cards'],['flight','night','punish','gamble'],['fitness','blind','grid']]},
+    hotel:{names:['🛎️ 入住','🛁 沐浴','🛏️ 主题夜','🌙 事后'],notes:['破冰寒暄','浴室升温任务','大胆任务全开','温情收尾'],pool:[['truth','dice','bomb','rps'],['punish','roulette','blind','cards'],['flight','night','vault','blinddice'],['fitness','role','grid']]}
+  };
+  var C=scConf[sc]||scConf.home;
+  window._dir={on:true,total:mins*60,elapsed:0,phase:0,phases:[0,1,2,3].map(function(i){return {name:C.names[i],games:C.pool[i].slice(),note:C.notes[i],secs:Math.max(120,Math.floor(mins*60*[0.10,0.25,0.55,0.10][i]))};})};
   directorRender();
   directorBegin();
-  logEvent('🌙 整晚导演开启 '+mins+' 分钟');
+  logEvent('🌙 整晚导演开启 '+mins+' 分钟（'+(sc==='bar'?'酒吧局':(sc==='hotel'?'酒店局':'家里局'))+'）');
 }
 function directorBegin(){
   var d=window._dir;if(!d||!d.on)return;
@@ -1254,7 +1260,7 @@ function directorFinish(){
   var ov=document.getElementById('dirOverlay');
   if(ov)ov.classList.remove('show');
   logEvent('🌙 整晚导演收官！');
-  openModal('<h3>🌙 今晚杀青！</h3><div class="m-item" style="line-height:1.8">导演流程走完啦~<br>今晚表现：热度 '+getHeat()+' · 爱币 '+coinGet()+' · 段位 '+rankName(rankGet().exp)+'<br>互相说一句最想说的话，然后亲一下 💋</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
+  openModal('<h3>🌙 今晚杀青！</h3><div class="m-item" style="line-height:1.8">导演流程走完啦~<br>今晚表现：热度 '+getHeat()+' · 亲密币 '+coinGet()+' · 升温线 '+heatStageName()+'<br>互相说一句最想说的话，然后亲一下 💋</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
   if(d)d.on=false;
 }
 /* ===== V8-P3 ⚖️ 今晚契约模式 ===== */
@@ -1355,6 +1361,81 @@ function godPardon(){
   toast('🕊️ 上帝赦免！');
   if(typeof flTurnMsg==='function')flTurnMsg();
 }
+/* ===== V9 开场三步/一键新晚/无痕/今晚赌约 ===== */
+function nightStarted(){try{var N=JSON.parse(localStorage.getItem('couple-night')||'{"d":""}');return N.d===new Date().toDateString();}catch(e){return false;}}
+function nightSave(o){try{localStorage.setItem('couple-night',JSON.stringify(o));}catch(e){}}
+function showNightIntro(){
+  openModal('<h3>🌙 今晚开场</h3>'
+    +'<div class="m-item" style="line-height:1.8"><b>第1步 · 今晚怎么称呼你们？</b><br><span style="font-size:12px;color:#aaa">默认宝贝/亲爱的，不露真名</span></div>'
+    +'<div class="wheel-btns" style="display:block">'
+    +'<button class="wheel-btn spin" onclick="editNames();nightIntroStep2()">✏️ 设置昵称</button>'
+    +'<button class="wheel-btn back" onclick="nightIntroStep2()">用默认：宝贝/亲爱的</button></div>');
+}
+function nightIntroStep2(){
+  openModal('<h3>🌙 今晚开场</h3>'
+    +'<div class="m-item" style="line-height:1.8"><b>第2步 · 今晚起点？</b><br><span style="font-size:12px;color:#aaa">决定今晚从多辣开始</span></div>'
+    +'<div class="wheel-btns" style="display:block">'
+    +'<button class="wheel-btn spin" onclick="nightStart(0)">🧊 第一次见，慢慢来</button>'
+    +'<button class="wheel-btn spin" onclick="nightStart(20)">🌤️ 已经暧昧，直接热场</button>'
+    +'<button class="wheel-btn spin" onclick="nightStart(60)">💥 很熟了，火力全开</button></div>');
+}
+function nightStart(heat){
+  heatSet(heat);
+  openModal('<h3>🌙 今晚开场</h3>'
+    +'<div class="m-item" style="line-height:1.8"><b>第3步 · 今晚赌约？</b><br><span style="font-size:12px;color:#aaa">输的人要兑现哦</span></div>'
+    +'<div class="wheel-btns" style="display:block">'
+    +'<button class="wheel-btn spin" onclick="nightBet(\'输的人请吃宵夜\')">🍜 输的人请吃宵夜</button>'
+    +'<button class="wheel-btn spin" onclick="nightBet(\'输的人答应赢家一个现实愿望\')">🎁 输家答应一个愿望</button>'
+    +'<button class="wheel-btn spin" onclick="nightBet(\'输的人负责下次约会安排\')">💑 输家安排下次约会</button>'
+    +'<button class="wheel-btn back" onclick="nightBet(null)">今晚不赌，纯玩</button></div>');
+}
+function nightBet(text){
+  try{
+    var B=JSON.parse(localStorage.getItem('couple-bet')||'{"text":null,"him":0,"her":0}');
+    if(text)B.text=text;
+    localStorage.setItem('couple-bet',JSON.stringify(B));
+  }catch(e){}
+  nightSave({d:new Date().toDateString()});
+  closeModal();
+  toast('🌙 今晚已开局！升温线：'+heatStageName());
+  renderSettings();
+}
+function betScore(name){
+  try{
+    var B=JSON.parse(localStorage.getItem('couple-bet')||'{"text":null,"him":0,"her":0}');
+    if(name===HE.him)B.him=(B.him||0)+1;else B.her=(B.her||0)+1;
+    localStorage.setItem('couple-bet',JSON.stringify(B));
+  }catch(e){}
+}
+function betResult(){
+  try{var B=JSON.parse(localStorage.getItem('couple-bet')||'{"text":null,"him":0,"her":0}');}catch(e){B={text:null,him:0,her:0};}
+  if(!B.text||(B.him===0&&B.her===0))return '';
+  var loser=B.him>B.her?HE.her:HE.him;
+  return '🎯 今晚赌约：'+loser+' 输（'+B.him+' : '+B.her+'），请兑现：<b style="color:#ffd700">'+B.text+'</b>';
+}
+function freshNight(){
+  if(!confirm('🌅 开始全新一晚？\n将清空：昵称、热度、亲密币、债务、契约、赌约、本晚记录。\n主题音效等设置保留。'))return;
+  var keys=[];
+  try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('couple-')===0&&k!=='couple-set'&&k!=='couple-sound'&&k!=='couple-bgm'&&k!=='couple-theme'&&k!=='couple-scene')keys.push(k);}}catch(e){}
+  keys.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+  try{localStorage.setItem('couple-names',JSON.stringify({him:'他',her:'她'}));}catch(e){}
+  HE.him='他';HE.her='她';
+  renderHome();
+  toast('🌅 全新一晚已就绪！');
+  showNightIntro();
+}
+function toggleIncognito(){
+  SET.incognito=!SET.incognito;
+  setOpt('incognito',SET.incognito);
+  toast(SET.incognito?'🛡️ 无痕模式开启：今晚数据退出即焚':'无痕模式已关闭');
+  renderSettings();
+}
+function incognitoSweep(){
+  if(!SET.incognito)return;
+  var keys=[];
+  try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('couple-')===0&&k!=='couple-set')keys.push(k);}}catch(e){}
+  keys.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+}
 function showPartyReport(){
   try{
     var P=JSON.parse(localStorage.getItem('couple-party')||'{}');
@@ -1365,8 +1446,10 @@ function showPartyReport(){
     var g=GAMES.find(function(x){return x.id===id});
     return '<div class="m-item" style="display:flex;justify-content:space-between"><span>'+(g?g.icon+' '+g.name:id)+'</span><b>'+by[id]+' 次</b></div>';
   }).join('');
-  openModal('<h3>📊 本晚战报</h3>'
-    +'<div class="m-item" style="text-align:center;font-size:14px">今晚数据（每天自动清零）</div>'
+  var bet=betResult();
+  openModal('<h3>🎁 今晚纪念卡</h3>'
+    +'<div class="m-item" style="text-align:center;font-size:14px">今晚数据（每天自动清零）<br>可截图发给对方留念 💌</div>'
+    +'<div class="m-item" style="text-align:center;font-size:13px;line-height:1.7">🌡️ 升温线：'+heatStageName()+'（热度 '+getHeat()+'）<br>💰 亲密币：'+coinGet()+' 枚'+(bet?'<br>'+bet:'')+'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:8px 0">'
     +'<div class="m-item" style="text-align:center">🎮 开局<br><b style="color:#ffd700">'+games+'</b></div>'
     +'<div class="m-item" style="text-align:center">📋 任务<br><b style="color:#ffd700">'+tasks+'</b></div>'
@@ -1378,6 +1461,7 @@ function showPartyReport(){
     +(rows?'<div style="font-size:13px;color:#aaa;margin:4px 0">各游戏出场次数</div>'+rows:'<div class="m-item" style="text-align:center;color:#aaa">今晚还没开玩，快去大厅选一个吧~</div>')
     +'<div class="m-item" style="text-align:center;font-size:12px;color:#9a93b5;margin-top:8px">'+(function(){try{var T2=JSON.parse(localStorage.getItem('couple-total')||'{}');return '📈 历史累计：开局 '+((T2.games||0)+(games||0))+' 次 · 任务 '+((T2.tasks||0)+(tasks||0))+' 次 · 喝酒 '+((T2.drinks||0)+(drinks||0))+' 次 · 亲吻 '+((T2.kisses||0)+(kisses||0))+' 次';}catch(e){return '';}})()+'</div>'
     +'<div class="wheel-btns" style="margin-top:10px">'
+    +'<button class="wheel-btn back" onclick="freshNight()">🌅 全新一晚</button>'
     +'<button class="wheel-btn back" onclick="if(confirm(\'清空今晚战报？\')){localStorage.removeItem(\'couple-party\');closeModal();toast(\'已清空\');}">🗑️ 清空</button>'
     +'<button class="wheel-btn spin" onclick="closeModal()">收工！</button>'
     +'</div>');
@@ -1565,7 +1649,9 @@ function goHome(){
   showPage('homePage');renderHome();
 }
 function renderHome(){
-  rankCheck(); /* V8: 3天没玩掉经验 */
+  heatCheck(); /* V9: 一晚制升温线, 每早自动归零 */
+  incognitoSweep(); /* V9: 无痕模式 */
+  if(!nightStarted()){setTimeout(showNightIntro,400);} /* V9: 开场三步 */
   if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(showOnboard,600);} /* V2: 首次打开新手引导 */
   var last=(function(){try{return localStorage.getItem('couple-last')}catch(e){return null}})();
   var h='';GAMES.forEach(function(g){
@@ -1595,6 +1681,14 @@ function startGame(id){
     if(window[k+'Timer']){clearTimeout(window[k+'Timer']);window[k+'Timer']=null;}
   });
   curGame=id;showPage('gamePage');
+  /* V9: 道具卡每局发2张(替换+免罚各1), 当晚制不跨天累积 */
+  try{var IL=JSON.parse(localStorage.getItem('couple-items')||'{"d":"","swap":1,"pardon":1}');
+    if(IL.d!==new Date().toDateString()){IL={d:new Date().toDateString(),swap:1,pardon:1};}
+    if(!IL.swap)IL.swap=1;if(!IL.pardon)IL.pardon=1; /* 每局开局保底各1 */
+    localStorage.setItem('couple-items',JSON.stringify(IL));
+    ITEMS.swap=IL.swap;ITEMS.pardon=IL.pardon;
+  }catch(e){}
+  UNLOCKED.swap=99;UNLOCKED.pardon=99;
   try{var P2=JSON.parse(localStorage.getItem('couple-party')||'{"d":""}');if(P2.d!==new Date().toDateString()){P2={d:new Date().toDateString(),games:0,tasks:0,drinks:0,kisses:0,punished:0,byGame:{}};}P2.games=(P2.games||0)+1;localStorage.setItem('couple-party',JSON.stringify(P2));}catch(e){}
   try{localStorage.setItem('couple-last',id)}catch(e){}
   renderCtrl();
@@ -3239,7 +3333,8 @@ function renderFlightSetup(c){
     +'</div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">④ 难度</p>'
     +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
-    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 快局模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.fast?' on':'')+'" onclick="toggleSet(\'fast\');renderFlightSetup(document.getElementById(\'gContent\'))">⚡ '+(SET.fast?'快局：棋盘缩短(约15分钟)':'普通局(约40分钟)')+'</span></div>'
+    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
     +'<p style="text-align:center;font-size:11px;color:#888;margin-top:10px">🍷 酒量额度：男≤5杯 女≤3杯，超额度自动变亲吻格<br>每人1次弃权，女生半杯特权，掷6再掷，连3个6罚停</p>'
     +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="flightStart()">🎮 开局！</button></div>'
     +'</div>';
@@ -3315,14 +3410,16 @@ function flDist(len){ /* 按难度生成格子分布 */
   return shuffle(arr);
 }
 function buildFlightBoard(mode){
+  var fast=SET.fast; /* V9: 快局模式(棋盘缩短) */
+  var ALEN=fast?12:20, RLEN=fast?20:32;
   window._flSideM=flDist(5);window._flSideF=flDist(5);
   if(mode==='A'){
-    window._flCells=[flDist(20),flDist(20)];
+    window._flCells=[flDist(ALEN),flDist(ALEN)];
     window._flCells[0][0]='start';window._flCells[1][0]='start';
-    window._flCells[0][19]='end';window._flCells[1][19]='end';
+    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';
   }else if(mode==='B'||mode==='D'){
-    var ring=flDist(32);ring[0]='start';
-    if(mode==='D'){ring[8]='cross';ring[24]='cross';} /* 融合: 两个交汇角进支线 */
+    var ring=flDist(RLEN);ring[0]='start';
+    if(mode==='D'){ring[Math.floor(RLEN/4)]='cross';ring[Math.floor(RLEN*3/4)]='cross';} /* 融合: 两个交汇角进支线 */
     window._flCells=ring;
   }else{ /* C 双轨 */
     var main=flDist(14);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';
@@ -3443,18 +3540,27 @@ function flBoardA(){
 function flBoardRing(){
   var cells=window._flCells;
   var html='<div class="fl-ring">';
-  for(var i=0;i<32;i++){
+  var rlen=cells.length;
+  var fastRing=rlen===20;
+  for(var i=0;i<rlen;i++){
     var row,col;
-    if(i<9){row=1;col=i+1;}
-    else if(i<17){row=i-8;col=9;}
-    else if(i<26){row=9;col=9-(i-17);}
-    else{row=9-(i-25);col=1;}
+    if(fastRing){
+      if(i<5){row=1;col=i+1;}
+      else if(i<10){row=i-4;col=9;}
+      else if(i<15){row=9;col=9-(i-10);}
+      else{row=9-(i-14);col=1;}
+    }else{
+      if(i<9){row=1;col=i+1;}
+      else if(i<17){row=i-8;col=9;}
+      else if(i<26){row=9;col=9-(i-17);}
+      else{row=9-(i-25);col=1;}
+    }
     var t=cells[i];
-    var pieces=window._flP.filter(function(p){return !p.done&&p.track==='main'&&p.pos%32===i;}).map(function(p){return flPieceHtml(p);}).join('');
+    var pieces=window._flP.filter(function(p){return !p.done&&p.track==='main'&&p.pos%rlen===i;}).map(function(p){return flPieceHtml(p);}).join('');
     html+='<span class="fl-cell t-'+t+(t==='start'?' start':'')+'" style="grid-area:'+row+'/'+col+'">'+flIcon(t)+pieces+'</span>';
   }
   html+='<div class="fl-ring-mid"><b>'+window._flModeName+'</b>'
-    +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':(p.track!=='main'?(p.sidePos<0?'💞支线入口':('💞支线第'+(p.sidePos+1)+'步')):('第'+(p.lap+1)+'圈'+((p.pos%32)+1)+'格')))+'</span>';}).join('<br>')+'</span>'
+    +'<span>'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+':'+(p.done?'🏁':(p.track!=='main'?(p.sidePos<0?'💞支线入口':('💞支线第'+(p.sidePos+1)+'步')):('第'+(p.lap+1)+'圈'+((p.pos%cells.length)+1)+'格')))+'</span>';}).join('<br>')+'</span>'
     +'<span style="color:#888">目标 '+window._flLaps+' 圈</span></div>';
   html+='</div>';
   /* V4.6: 支线迷你轨道 — 有玩家在支线时显示, 棋子不再凭空消失 */
@@ -3541,10 +3647,10 @@ function flMove(p,v){
     flRender();
     var cell=window._flCells[p.pos%window._flCells.length];
     if(mode==='D'){
-      var occ=window._flP.filter(function(x){return x.id!==p.id&&!x.done&&x.track==='main'&&x.pos%32===p.pos%32;});
+      var occ=window._flP.filter(function(x){return x.id!==p.id&&!x.done&&x.track==='main'&&x.pos%window._flCells.length===p.pos%window._flCells.length;});
       if(occ.length){flDuel(p,occ[0]);return;}
     }
-    flLand(p,cell,p.pos%32);
+    flLand(p,cell,p.pos%window._flCells.length);
   }else{ /* C */
     p.pos+=v;
     if(p.pos>=window._flCells.length-1){p.pos=window._flCells.length-1;flRender();flWin(p.id,'solo');return;}
@@ -4070,6 +4176,7 @@ function flNextTurn(){
 }
 function flWin(id,type){
   window._flWin=true;
+  if(window._flP.length===2){var wn=type==='team'?window._flP[id].name:window._flP[id].name;betScore(wn);} /* V9: 今晚赌约记分 */
   sndBoom();vibrate([60,40,100]);
   var names=type==='team'?(window._flP.length===2?window._flP[id].name:(window._flP[id*2].name+'&'+window._flP[id*2+1].name)):window._flP[id].name;
   var el=document.getElementById('flTask');if(!el)return;
