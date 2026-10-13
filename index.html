@@ -204,9 +204,11 @@ body.light .top-bar{background:rgba(255,255,255,0.8);border-color:rgba(214,69,11
 .fl-ids{font-size:11px;color:#a9e0c0;margin:4px 0;text-align:center}
 /* ============ V4 UI大升级: 3D骰子/回合高亮/格子配色/错行修复 ============ */
 /* --- 真实3D旋转骰子 --- */
-.dice3d-wrap{perspective:700px;width:88px;height:88px;margin:8px auto}
+.dice3d-wrap{perspective:700px;width:88px;height:88px;margin:8px auto;position:relative}
+.dice3d-wrap::after{content:'';position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);width:64px;height:14px;background:radial-gradient(ellipse,rgba(0,0,0,0.45) 0%,rgba(0,0,0,0.2) 45%,transparent 70%);border-radius:50%;transition:all 1.5s}
+.dice3d-wrap.shaking::after{animation:shadowPulse 0.35s infinite}
 .dice3d{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform}
-.df{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#ffffff,#ece0f7);border:1px solid rgba(150,90,180,0.45);border-radius:16px;box-shadow:inset 0 0 16px rgba(120,60,150,0.12)}
+.df{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 25%,#ffffff 0%,#f7f0fa 45%,#e6d5f0 100%);border:1px solid rgba(140,80,170,0.5);border-radius:20px;box-shadow:inset 0 -4px 10px rgba(120,60,150,0.18),inset 0 3px 6px rgba(255,255,255,0.9)}
 .df1{transform:rotateY(0deg) translateZ(44px)}
 .df2{transform:rotateY(90deg) translateZ(44px)}
 .df3{transform:rotateY(180deg) translateZ(44px)}
@@ -214,8 +216,10 @@ body.light .top-bar{background:rgba(255,255,255,0.8);border-color:rgba(214,69,11
 .df5{transform:rotateX(90deg) translateZ(44px)}
 .df6{transform:rotateX(-90deg) translateZ(44px)}
 .df .pips{display:grid;width:64%;height:64%;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
-.df .pip{width:11px;height:11px;border-radius:50%;background:#4a1560;box-shadow:inset 0 2px 3px rgba(0,0,0,0.35);justify-self:center;align-self:center}
+.df .pip{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2d0a3e 0%,#4a1560 45%,#5e1f78 100%);box-shadow:inset 0 2px 4px rgba(0,0,0,0.55),0 1px 1px rgba(255,255,255,0.7);justify-self:center;align-self:center}
 .dice3d-wrap.shaking{animation:diceShake 0.35s infinite}
+@keyframes diceLand{0%{transform:scale(1.12,0.92)}40%{transform:scale(0.96,1.05)}70%{transform:scale(1.03,0.98)}100%{transform:scale(1,1)}}
+@keyframes shadowPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(0.8)}}
 @keyframes diceShake{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(-4px,3px) rotate(-6deg)}50%{transform:translate(4px,-2px) rotate(5deg)}75%{transform:translate(-3px,-4px) rotate(-4deg)}100%{transform:translate(0,0) rotate(0)}}
 /* --- 回合高亮: 该谁摇一目了然 --- */
 .fl-turn-banner{border:2px solid #ffd700;border-radius:16px;padding:10px 14px;margin:10px 0 4px;text-align:center;font-size:16px;font-weight:bold;color:#fff;animation:bannerPulse 1.4s infinite;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -786,6 +790,8 @@ var HEAT_TAG={}; /* 热度星级: 新内容默认2星, 极限内容3星 */
 function heatOf(txt){return HEAT_TAG[txt]||1;}
 /* ===== V8 白银段位专属题库(50条) ===== */
 var RANK_POOL={truths:["你最喜欢对方用哪种方式叫醒你？","你最想和对方一起完成哪件羞耻的事？","你幻想过的最狂野的一晚是怎样的？","你最想让对方学会的床上技能是什么？","你最想在哪场演唱会途中溜出去亲热？","你更想要温柔还是粗暴的今晚？","你最想让对方对你说的最羞耻的一句话？","你敢把你手机的私密相册给对方看吗？","你最想被对方闻到身上哪种味道？","你最想穿什么衣服被对方撕开？","你幻想过和对方在哪个公共场合做最刺激？","你最想让对方咬你哪个部位？","你最想尝试的双人极限挑战是什么？","你更享受前戏还是正戏？","你最想被对方用什么声音叫宝贝？","你偷偷练习过什么是为了取悦对方？","你最想和对方交换一天身体做点什么？","你最想在对方耳边说什么会让他失控？","你希望今晚几点开始几点结束？","你最想被对方当成什么动物对待？","你最想让对方先摸你哪里？","你敢把今晚的计划全权交给对方吗？","你最想在哪面镜子前看彼此？","你更想被绑起来还是绑对方？","你最想听对方叫你的专属昵称是什么？"],dare:["让对方给你系领带再解开，慢动作做两遍","两人额头相抵，鼻尖磨蹭，坚持到有一方笑出来","从背后抱住对方，下巴搁在他肩上，一起数对方的睫毛","让对方抱着你转三圈，转完立刻深吻 10 秒","用身体当画布，让对方用手指在你背上写一句情话","把对方的一条腿抬起来架在你腿上，帮他按摩小腿 1 分钟","让对方躺在你腿上，你低头吻他的额头和眼睛","两人面对面贴着墙站，距离近到能感受彼此呼吸，保持 30 秒","让对方用手臂环住你的脖子，保持 1 分钟不松开","用牙齿轻轻咬开对方的衣领，再吻一下锁骨","让对方背着你做 3 个深蹲，下来后你亲他一下当奖励","两人共用一根吸管喝同一杯水，必须喝到见底","让对方坐你腿上，你环住他的腰一起摇摆 30 秒","蒙住对方眼睛，用你的指尖带他走遍房间每个角落","让对方站在你身后，帮你慢慢梳头 1 分钟","两人各咬住一截饼干的两头，慢慢吃到嘴唇碰到","让对方把你横抱起来，走到窗边看一眼夜景再放下","用你的手量对方的腰围和腿长，报出数字再夸一句","让对方把头搁在你腿上，你摸他的头发 1 分钟","两人背靠背坐下，同时回头，谁先转头谁输","把对方压在沙发上，用手臂撑在他两侧，俯视 10 秒再亲","让对方不出声用口型说一句情话，你读唇猜","两人面对面盘腿，膝盖相触，手心贴手心保持 30 秒","让对方给你涂一次护手霜，每个手指都要涂到","给对方跳一支 30 秒的即兴舞，最后一个动作定格在他怀里"]};
+/* ===== V10 醉后真心话池(30条) ===== */
+var DRUNK_TRUTHS=["说实话，你今晚最想对我做什么？","你第一次见我的时候，脑子里在想什么？","你觉得我身上哪里最让你把持不住？","你最想听我在你耳边说什么？","你有没有想过和我做一件特别大胆的事？","你最喜欢我哪件衣服，为什么？","你最想让我用哪种语气跟你说话？","你幻想过我们最刺激的画面是什么？","你今晚愿意陪我玩到几点？","你最喜欢我碰你哪里？","你喝多之后最想对我坦白什么？","你觉得我们两个谁更会撩？","你最想带我去哪里过夜？","你最喜欢我什么味道？","你今晚最不想做但会陪我做的事是什么？","你最想和我尝试的新姿势是什么？","你心里给我打多少分？为什么？","你最想看我穿什么给你看？","你什么时候最想亲我？","你最想听我叫你什么？","你觉得我今晚什么时候最性感？","你最想让我对你做什么坏事？","你偷看过我哪里？","你最想和我一起淋一次雨还是泡一次温泉？","你最想在我身上留下什么？","你今晚最怕被我问什么？","你最喜欢我对你笑还是对你凶？","你最想和我做的第一件疯狂事是什么？","你最想听我唱歌还是喘息？","醉了的你，现在最想要什么？"];
 /* V3飞行棋身份卡(男女池分开) */
 var FLIGHT_IDS_M=['👑 国王：拥有一次命令权','⚔️ 骑士：可替女性挡一次酒','🎤 麦霸：KTV格免罚','😈 捣蛋鬼：可指定一人连做2条'];
 var FLIGHT_IDS_F=['👸 女王：拥有一次命令权','🧚 仙女：额外一次免罚','🐱 猫咪：可被投喂（免一次大冒险）','🎀 团宠：男性玩家无条件保护一次'];
@@ -1100,17 +1106,43 @@ function shopBuy(cost,item,name){
 /* ===== V8 任务进化引擎 ===== */
 var EVO_ADDONS=['全程不许用手','蒙眼完成','期间保持对视','动作时长翻倍','完成后加送对方一个吻'];
 function evolve(txt){
-  /* 同一条任务今晚第n次出现 → 自动附加进化条件(Lv1-3) */
+  /* 同一条任务今晚第n次出现 → 自动附加进化条件(Lv1-3); 手动升级等级优先 */
   try{
-    var E=JSON.parse(localStorage.getItem('couple-evo')||'{"d":"","m":{}}');
-    if(E.d!==new Date().toDateString())E={d:new Date().toDateString(),m:{}};
+    var E=JSON.parse(localStorage.getItem('couple-evo')||'{"d":"","m":{},"up":{}}');
+    if(E.d!==new Date().toDateString())E={d:new Date().toDateString(),m:{},up:{}};
+    var manual=E.up[txt]||0; /* V10: 主动任务升级等级 */
     var n=E.m[txt]||0;
-    if(n===0){E.m[txt]=1;localStorage.setItem('couple-evo',JSON.stringify(E));return txt;}
-    var lv=Math.min(n,3);
+    if(manual===0&&n===0){E.m[txt]=1;localStorage.setItem('couple-evo',JSON.stringify(E));return txt;}
+    var lv=Math.max(manual,Math.min(n,3));
     var add=lv<=3?EVO_ADDONS[lv-1]:randItem(EVO_ADDONS);
     E.m[txt]=n+1;localStorage.setItem('couple-evo',JSON.stringify(E));
-    return txt+' <b style="color:#ff9d9d">【🔥进化Lv'+lv+'：'+add+'】</b>';
+    var tag=manual>0?'【🔝手动升级Lv'+lv+'：'+add+'】':'【🔥进化Lv'+lv+'：'+add+'】';
+    return txt+' <b style="color:#ff9d9d">'+tag+'</b>';
   }catch(e){return txt;}
+}
+function taskUpgrade(){ /* V10: 主动任务升级(每局限2条, 满3级开彩蛋) */
+  var p=window._flCur||window._flP[window._flOrder[window._flTurn]];
+  if(!p)return;
+  if((window._flUpUses||0)>=2){toast('🔝 每局只能主动升级 2 条任务');return;}
+  var el=document.querySelector('#flWheelResult .fl-task div:nth-child(2)')||document.querySelector('.fl-task div:nth-child(2)');
+  var txt=el?el.textContent.replace(/【.*?】/g,'').replace(/^⛓️[^ ]* /,'').replace(/^💜 /,'').replace(/^🔥 /,'').replace(/^💣 /,'').replace(/^💑 /,'').slice(0,60).trim():'';
+  if(!txt||txt.length<4){toast('暂无任务可升级');return;}
+  try{
+    var E=JSON.parse(localStorage.getItem('couple-evo')||'{"d":"","m":{},"up":{}}');
+    if(E.d!==new Date().toDateString())E={d:new Date().toDateString(),m:{},up:{}};
+    var lv=(E.up[txt]||0)+1;
+    E.up[txt]=lv;
+    localStorage.setItem('couple-evo',JSON.stringify(E));
+    window._flUpUses=(window._flUpUses||0)+1;
+    logEvent('🔝 主动升级任务(Lv'+lv+')：'+txt.slice(0,15));
+    if(lv>=3){
+      ITEMS.pardon=Math.min(ITEMS.pardon+1,99);saveItems();
+      coinAdd(20);
+      toast('🎉 养满3级！彩蛋：免罚卡+1、亲密币+20');
+    }else{
+      toast('🔝 已升级到 Lv'+lv+'，下次抽到会更狠！');
+    }
+  }catch(e){toast('升级失败');}
 }
 function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密币+5 */
   heatUp();
@@ -3334,7 +3366,8 @@ function renderFlightSetup(c){
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">④ 难度</p>'
     +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 快局模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.fast?' on':'')+'" onclick="toggleSet(\'fast\');renderFlightSetup(document.getElementById(\'gContent\'))">⚡ '+(SET.fast?'快局：棋盘缩短(约15分钟)':'普通局(约40分钟)')+'</span></div>'
-    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 脱衣模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.strip?' on':'')+'" onclick="toggleSet(\'strip\')">🍒 '+(SET.strip?'脱衣模式：每人3件，刺激格/对撞输/酒量爆/全裸题脱一件，脱光触发终极大冒险':'脱衣模式关闭')+'</span></div>'
+    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑦ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
     +'<p style="text-align:center;font-size:11px;color:#888;margin-top:10px">🍷 酒量额度：男≤5杯 女≤3杯，超额度自动变亲吻格<br>每人1次弃权，女生半杯特权，掷6再掷，连3个6罚停</p>'
     +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="flightStart()">🎮 开局！</button></div>'
     +'</div>';
@@ -3389,6 +3422,7 @@ function flightStart(){
   window._flRolled=false;
   window._flWin=false;window._flSixNext=false;window._flSix=0;
   window._flDuelState=null;window._flDuelCell=false;window._flEventChoice=null;
+  window._flClothes={};window._flUpUses=0; /* V10: 脱衣计数+升级次数每局重置 */
   if(SET.god){window._flGod=randItem(players);window._flGodUses=2;}
   else{window._flGod=null;window._flGodUses=0;}
   window._flWheel=null;window._flWheelSegs=null;
@@ -3439,7 +3473,8 @@ function flRender(){
     +'<div class="fl-ids" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0">'+window._flP.map(function(p){return '<span style="color:'+p.color+';border:1px solid '+p.color+'66;background:'+p.color+'1a;padding:3px 9px;border-radius:12px;font-size:12px;white-space:nowrap">'+p.name+' '+(p.g==='M'?'♂':'♀')+' · '+p.idCard+'</span>';}).join('')+'</div>'
     +'<div class="fl-players">'+window._flP.map(function(p){
       var turn=window._flOrder[window._flTurn]===p.id;
-      return '<span class="fl-p'+(turn?' cur':'')+'" style="border-color:'+p.color+'"><span style="color:'+p.color+'">●</span> '+p.name+' '+(p.g==='M'?'♂':'♀')+' 🍷'+p.drink+'/'+p.drinkMax+(p.done?' 🏁':'')+(p.skip?' ⛓️':'')+'</span>';
+      var clothes=SET.strip?(window._flClothes&&window._flClothes[p.id]!==undefined?window._flClothes[p.id]:3):null;
+      return '<span class="fl-p'+(turn?' cur':'')+'" style="border-color:'+p.color+'"><span style="color:'+p.color+'">●</span> '+p.name+' '+(p.g==='M'?'♂':'♀')+' 🍷'+p.drink+'/'+p.drinkMax+(clothes!==null?' 🍒×'+clothes:'')+(p.done?' 🏁':'')+(p.skip?' ⛓️':'')+'</span>';
     }).join('')+'</div>';
   if(mode==='A')html+=flBoardA();
   else if(mode==='C')html+=flBoardC();
@@ -3510,6 +3545,7 @@ function flDiceRoll(v,cb){
   d.style.transform=target;
   setTimeout(function(){
     wrap.classList.remove('shaking');
+    d.style.animation='diceLand 0.45s cubic-bezier(0.34,1.56,0.64,1)'; /* 落地回弹 */
     lbl.textContent=who+' 摇出 '+v+' 点！';
     sndDing();vibrate([40,30,60]);
     /* 停稳显示点数1秒后淡出, 再结算(校验会话防串场) */
@@ -3688,28 +3724,28 @@ function flLand(p,t,idx){
     flTaskShow('🛡 安全屋！'+p.name+' 平安无事',['done']);
   }else if(t==='truth'){
     var item=flDrawTruth(p);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💜 真心话',target:item,pool:GAMEDATA.truths,btns:['done','swap','pardon'],
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💜 真心话',target:item,pool:GAMEDATA.truths,btns:['done','swap','pardon','upgrade'],
       cats:['truth','dare'],defaultCat:'truth',
       drawCat:function(cat){return cat==='truth'?flDrawTruth(p):flDrawDare(p);},
       poolCat:function(cat){return cat==='truth'?GAMEDATA.truths:GAMEDATA.dare;},
       redraw:function(){return flDrawTruth(p);}});
   }else if(t==='dare'){
     var item2=flDrawDare(p);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🔥 大冒险',target:item2,pool:GAMEDATA.dare,btns:['done','swap','pardon'],
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'🔥 大冒险',target:item2,pool:GAMEDATA.dare,btns:['done','swap','pardon','upgrade'],
       cats:['truth','dare'],defaultCat:'dare',
       drawCat:function(cat){return cat==='dare'?flDrawDare(p):flDrawTruth(p);},
       poolCat:function(cat){return cat==='dare'?GAMEDATA.dare:GAMEDATA.truths;},
       redraw:function(){return flDrawDare(p);}});
   }else if(t==='spicy'){
     var item3=flDrawSpicy(p);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item3,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon'],
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item3,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon','upgrade'],
       redraw:function(){return flDrawSpicy(p);}});
   }else if(t==='drink'){
     flDrink(p);
   }else if(t==='duo'){
     var item4=Math.random()<0.5?touchDraw():flDrawDuo(); /* V7: 50%抽接触引擎任务 */
     var partner=flPartner(p);
-    if(partner)flWheelTask({who:p.name+' × '+partner.name,title:'💑 双人互动',target:item4,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','swap'],
+    if(partner)flWheelTask({who:p.name+' × '+partner.name,title:'💑 双人互动',target:item4,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','swap','upgrade'],
       redraw:function(){return flDrawDuo();}});
     else flTaskShow('💣 单挑挑战 · '+p.name+'：'+(SET.diff===1?flDrawTruth(p):flDrawSpicy(p)),['done','swap','pardon']);
   }else if(t==='duel'){
@@ -3740,12 +3776,59 @@ function flPartner(p){
   return randItem(opp.length?opp:cand);
 }
 function flDrink(p){
+  if(!SET.drink){ /* V10: 无酒模式 → 亲吻+普通真心话 */
+    var k3=randItem(KISS_POOL);
+    flTaskShow('💋 无酒模式：'+k3+'，然后回答一条真心话：<br>💜 '+flDrawTruth(p),['done','pardon']);
+    return;
+  }
   var wouldExceed=p.drink+1>p.drinkMax;
   if(!wouldExceed)p.drink++; /* 落格即饮, 累计杯数 */
-  var item= wouldExceed?('💋 酒量已到上限，改为亲吻任务：'+randItem(KISS_POOL)):'🍷 '+p.name+' 喝一杯！';
-  var btns=['done','pardon'];
-  if(!wouldExceed&&p.half>0)btns.push('half');
+  if(wouldExceed){
+    var k2=randItem(KISS_POOL);
+    if(SET.strip)flStrip(p,'酒量爆了');
+    flTaskShow('💋 酒量已到上限，改为亲吻任务：'+k2+'（已饮 '+p.drink+'/'+p.drinkMax+' 杯）',['done','pardon']);
+    return;
+  }
+  /* V10 醉酒真心话: 喝一杯+抽醉后问题, 答不上再罚 */
+  var q=pickFresh('_drunkPick',DRUNK_TRUTHS);
+  var item='🍷 '+p.name+' 喝一杯！然后回答醉后真心话：<br>💜 '+q;
+  var btns=['done','pardon','nodrunk'];
+  if(p.half>0)btns.push('half');
   flTaskShow(item+'（已饮 '+p.drink+'/'+p.drinkMax+' 杯）',btns);
+}
+function flStrip(p,reason){
+  if(!SET.strip||!p||p.done)return;
+  var c=window._flClothes=window._flClothes||{};
+  c[p.id]=(c[p.id]!==undefined?c[p.id]:3)-1;
+  if(c[p.id]<0)c[p.id]=0;
+  var no=3-c[p.id];
+  if(c[p.id]===0){
+    var final=GAMEDATA.extra5?randItem(GAMEDATA.extra5.dare):randItem(GAMEDATA.dare);
+    openModal('<h3>🍒 裸奔模式！</h3><div class="m-item" style="font-size:16px;line-height:1.8">'+p.name+' 衣服脱光了！<br>触发<b style="color:#ff9d9d">终极大冒险</b>：<br>'+final+'</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();logEvent(\'🍒 '+p.name+' 完成裸奔终极大冒险\');toast(\'🍒 终极大冒险完成！\')">✅ 拼了</button></div>');
+    logEvent('🍒 '+p.name+' 衣服脱光，触发终极大冒险');
+    sndBoom();vibrate([80,40,80]);
+  }else{
+    toast('🍒 '+p.name+' 脱掉第 '+no+' 件！（'+reason+'）还剩 '+c[p.id]+' 件');
+    logEvent('🍒 '+p.name+' 脱掉第 '+no+' 件（'+reason+'）');
+    sndDing();vibrate([40,30,50]);
+  }
+  flRender();
+}
+function flDrunkFail(){
+  var p=window._flCur||window._flP[window._flOrder[window._flTurn]];
+  if(!p){flDoneTask();return;}
+  if(p.drink+1<=p.drinkMax){
+    p.drink++;
+    toast('🍷 答不上来！再罚一杯');
+    if(p.drink>=3){
+      flTaskShow('🍻 醉态大冒险！蒙眼转 3 圈，然后凭感觉找到对方亲一口（找不到亲错也认）',['done','pardon']);
+      logEvent('🍻 '+p.name+' 喝到醉态大冒险');
+    }else{
+      flTaskShow('🍷 再罚一杯（已饮 '+p.drink+'/'+p.drinkMax+' 杯）',['done','pardon']);
+    }
+  }else{
+    flTaskShow('💋 酒量已到上限，改为亲吻任务：'+randItem(KISS_POOL),['done','pardon']);
+  }
 }
 function flCross(p){
   flTaskShow('💞 交汇格！'+p.name+' 可选择进入性别支线',['done','pardon','side']);
@@ -3790,6 +3873,7 @@ function flDuelRoll(side){
       var item=(loser.drink+1>loser.drinkMax)?('💋 '+loser.name+' 输了对撞，后退2格（酒量将满改亲吻）'):('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯');
       if(loser.drink+1<=loser.drinkMax)loser.drink++;
       else loser.drink=Math.min(loser.drink+0.5,loser.drinkMax);
+      if(SET.strip)flStrip(loser,'对撞输了');
       sndBoom();vibrate([60,40,100]);
       logEvent('✈️ 抢格对决：'+winner.name+' '+d.r1+'点 胜 '+loser.name+' '+d.r2+'点');
       flRender(); /* 先更新棋盘棋子位置 */
@@ -3918,6 +4002,7 @@ function flWheelStop(){
       if(window._flGod)btns+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码·'+window._flGod.name+'</button>'
         +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免·'+window._flGod.name+'</button>';
       if(b==='swap')btns+='<button class="wheel-btn back" onclick="flWheelSwap()">🔄 替换</button>';
+      if(b==='upgrade')btns+='<button class="wheel-btn back" onclick="taskUpgrade()">🔝 升级这条</button>';
       if(b==='pardon')btns+='<button class="wheel-btn back" onclick="flWheelPardon()">🚩 弃权</button>';
     });
     rs.innerHTML='<div class="fl-task"><div class="who">'+(o.who||'')+'<button class="fav-btn" onclick="favTask()" title="收藏到自定义题库">🤍</button></div><div>'+taskBadge(o.target)+(o.title?o.title+'<br>':'')+contractMark(evolve(o.target))+(o.note?'<br>'+o.note:'')+'</div><div class="fl-btns">'+btns+'</div></div>';
@@ -3929,7 +4014,13 @@ function flWheelClose(){
   if(ov)ov.classList.remove('show');
 }
 function flWheelDone(){
+  var o=window._flWheel;
+  var isSpicy=o&&o.title&&o.title.indexOf('刺激挑战')>=0;
+  var isHard=o&&o.title&&o.title.indexOf('全裸')>=0;
+  var p=window._flCur||window._flP[window._flOrder[window._flTurn]];
   flWheelClose();
+  if(isSpicy&&SET.strip)flStrip(p,'刺激格挑战');
+  if(isHard&&SET.strip)flStrip(p,'全裸真心话');
   flDoneTask();
 }
 function flWheelSwap(){
@@ -4096,6 +4187,8 @@ function flTaskShow(content,btns){
   btns.forEach(function(b){
     if(b==='done')html+='<button class="wheel-btn spin" onclick="flDoneTask()">✅ 完成</button>'
       +'<button class="wheel-btn back" onclick="flOwe()">💸 欠着</button>';
+    if(b==='nodrunk')html+='<button class="wheel-btn back" onclick="flDrunkFail()">🙊 答不上来</button>';
+    if(b==='upgrade')html+='<button class="wheel-btn back" onclick="taskUpgrade()">🔝 升级这条</button>';
     if(window._flGod)html+='<button class="wheel-btn back" onclick="godBoost()">➕ 上帝加码·'+window._flGod.name+'</button>'
       +'<button class="wheel-btn back" onclick="godPardon()">🕊️ 上帝赦免·'+window._flGod.name+'</button>';
     if(b==='swap')html+='<button class="wheel-btn back" onclick="flSwapTask()">🔄 替换('+ITEMS.swap+')</button>';
@@ -4116,12 +4209,12 @@ function flDoneTask(){
     if(SET.diff===1){
       var di=flDrawDuo();
       var pa=flPartner(p);
-      flWheelTask({who:(pa?p.name+' × '+pa.name:p.name),title:'💑 双人互动',target:di,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','swap'],
+      flWheelTask({who:(pa?p.name+' × '+pa.name:p.name),title:'💑 双人互动',target:di,pool:GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth),btns:['done','swap','upgrade'],
         redraw:function(){return flDrawDuo();}});
       return;
     }
     var item=flDrawSpicy(p);
-    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon'],
+    flWheelTask({who:p.name+'（'+(p.g==='M'?'♂':'♀')+'）',title:'💣 刺激挑战',target:item,pool:(p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy),btns:['done','swap','pardon','upgrade'],
       redraw:function(){return flDrawSpicy(p);}});
     return;
   }
