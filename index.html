@@ -3311,7 +3311,7 @@ renderHome();
 
 
 /* ============ V3 飞行棋引擎 (4玩法融合, 难度/人数/男女比例可自选) ============ */
-var FLIGHT_ICONS={truth:'💜',dare:'🔥',drink:'🍷',safe:'🛡',spicy:'💣',duo:'💑',duel:'⚔️',event:'🎁',prison:'⛓️',ktv:'🎤',item:'🎲',cross:'💞',start:'🏁'};
+var FLIGHT_ICONS={truth:'💜',dare:'🔥',drink:'🍷',safe:'🛡',spicy:'💣',duo:'💑',duel:'⚔️',event:'🎁',prison:'⛓️',ktv:'🎤',item:'🎲',cross:'💞',start:'🚩',end:'🏁'};
 function flIcon(t){return FLIGHT_ICONS[t]||'❓'}
 /* --- 开局设置 --- */
 function renderFlightSetup(c){
@@ -3401,7 +3401,7 @@ function flDist(len){ /* 按难度生成格子分布 */
   var spec={safe:d===1?0.25:(d===2?0.16:(d===3?0.10:0.06)),
             drink:d===1?0.10:(d===2?0.14:(d===3?0.18:0.22)),
             spicy:d===1?0:(d===2?0.08:(d===3?0.12:0.16)), /* V5.1: Lv1纯爱温和不再有刺激格 */
-            duo:d===1?0.10:0.08,duel:0.08,event:d===1?0.05:(d===2?0.07:(d===3?0.10:0.13))};
+            duo:d===1?0.10:0.08,duel:0.08,event:d===1?0.05:(d===2?0.08:(d===3?0.12:0.15))};
   var counts={};var rest=len;
   ['safe','drink','spicy','duo','duel','event'].forEach(function(k){counts[k]=Math.floor(len*spec[k]);rest-=counts[k];});
   var arr=[];
@@ -3436,7 +3436,7 @@ function flRender(){
   var mode=window._flMode;
   var html='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:4px">✈️ '+window._flModeName+'</h2>'
-    +'<div class="fl-ids">'+window._flP.map(function(p){return '<span style="color:'+p.color+'">'+p.name+'('+(p.g==='M'?'♂':'♀')+') '+p.idCard+'</span>';}).join('　')+'</div>'
+    +'<div class="fl-ids" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0">'+window._flP.map(function(p){return '<span style="color:'+p.color+';border:1px solid '+p.color+'66;background:'+p.color+'1a;padding:3px 9px;border-radius:12px;font-size:12px;white-space:nowrap">'+p.name+' '+(p.g==='M'?'♂':'♀')+' · '+p.idCard+'</span>';}).join('')+'</div>'
     +'<div class="fl-players">'+window._flP.map(function(p){
       var turn=window._flOrder[window._flTurn]===p.id;
       return '<span class="fl-p'+(turn?' cur':'')+'" style="border-color:'+p.color+'"><span style="color:'+p.color+'">●</span> '+p.name+' '+(p.g==='M'?'♂':'♀')+' 🍷'+p.drink+'/'+p.drinkMax+(p.done?' 🏁':'')+(p.skip?' ⛓️':'')+'</span>';
@@ -3477,7 +3477,11 @@ function flTurnMsg(){
   var btn=document.getElementById('flRollBtn');
   if(btn){btn.textContent=p.track!=='main'?('💞 '+p.name+' 支线前进1步'):('🎲 '+p.name+' 摇骰子');btn.style.background='linear-gradient(135deg,'+p.color+',#1a0a2e)';}
   if(el){el.style.borderColor=p.color;el.style.background='linear-gradient(90deg,'+p.color+'44,transparent)';
-    el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):(p.track!=='main'?('🎯 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）在支线 · 点按钮自动前进1步'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！'));}
+    var prog='';
+    if(window._flMode==='A'){var tp=window._flTPos[p.team];prog=' · '+tp+'/'+(window._flCells[p.team].length-1)+'格';}
+    else if(window._flMode==='B'||window._flMode==='D'){prog=' · 第'+(p.lap+1)+'圈 '+(p.pos%window._flCells.length)+'格';}
+    else if(window._flMode==='C'){prog=' · '+(p.track==='main'?p.pos+'格':'支线'+(p.sidePos+1));}
+    el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):(p.track!=='main'?('🎯 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）在支线 · 点按钮自动前进1步'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！'+prog));}
 }
 function flDiceRoll(v,cb){
   /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
@@ -3646,7 +3650,7 @@ function flMove(p,v){
     }
     flRender();
     var cell=window._flCells[p.pos%window._flCells.length];
-    if(mode==='D'){
+    if(mode==='D'||mode==='B'){
       var occ=window._flP.filter(function(x){return x.id!==p.id&&!x.done&&x.track==='main'&&x.pos%window._flCells.length===p.pos%window._flCells.length;});
       if(occ.length){flDuel(p,occ[0]);return;}
     }
