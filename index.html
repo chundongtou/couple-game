@@ -714,6 +714,13 @@ body.light .modal::before,body.sketch .modal::before{background:rgba(150,80,110,
 body.fx-lite .v12-cta::after{animation:none}
 body.fx-off .v12-combo,body.fx-off .v12-ripple{display:none}
 body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,body.fx-off .m-item{animation:none}
+/* Phase3a 任务协议展示 */
+.task-lv{font-size:11px;color:var(--v12-g);letter-spacing:2px;margin:6px 0 2px;text-align:center}
+.task-lv span{color:var(--v12-dim2);letter-spacing:.02em;font-size:10.5px;margin-left:4px}
+.task-lv-inline{font-size:10.5px;color:var(--v12-g);letter-spacing:1px;margin-left:5px}
+.v12-moodline{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.v12-mood{font-size:11px;color:var(--v12-c);border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.07);border-radius:999px;padding:4px 10px;letter-spacing:.04em}
+.v12-ledger{font-size:11px;color:var(--v12-dim2)}
 </style>
 </head>
 <body>
@@ -730,6 +737,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 <div class="v12-hero">
   <div class="names" id="cpNames" onclick="editNames()"><span class="nm-him">他</span><span class="nm-heart">❤</span><span class="nm-her">她</span></div>
   <div class="v12-sub" id="v12Sub">今晚还没开局 · 温度从零开始</div>
+  <div class="v12-moodline"><span class="v12-mood" id="v12Mood">✨ 今夜氛围 0</span><span class="v12-ledger" id="v12Ledger"></span></div>
   <div class="v12-bars">
     <div class="v12-bar-row"><span>亲密</span><div class="v12-bar m"><i id="v12BarHeat"></i></div><b id="v12ValHeat">0</b></div>
     <div class="v12-bar-row"><span>刺激</span><div class="v12-bar v"><i id="v12BarCombo"></i></div><b id="v12ValCombo">0</b></div>
@@ -1514,6 +1522,7 @@ function taskUpgrade(){ /* V10: 主动任务升级(每局限2条, 满3级开彩�
   }catch(e){toast('升级失败');}
 }
 function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密币+5 */
+  try{v12TaskDone();}catch(e){}
   heatUp();
   var stageBonus=heatStage()>=2?2:0; /* 升温线🔥阶段起: 亲密币加成 */
   coinAdd(5+stageBonus);
@@ -1528,6 +1537,7 @@ function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密�
   }catch(e){}
 }
 function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3; V11 温柔系数>=2 首次弃权不罚 */
+  try{v12TaskSkip();}catch(e){}
   var st=getStreak()+1;
   var _gv=0;try{_gv=gentGetV();}catch(e){}
   if(_gv>=2&&st===1){setStreak(0);setCombo(0);try{logEvent('🌤️ 温柔模式：本次弃权不计惩罚');}catch(e){}toast('🌤️ 温柔模式：这次弃权不罚');return;}
@@ -2210,6 +2220,11 @@ function spinWheel(canvasId,items,angleKey,spinningKey,resultId,cb){
     var idx=Math.floor(((360-finalAngle)%360)/seg)%n;
     sndDing();vibrate(100);
     try{v12Fx.burst(innerWidth/2,innerHeight*0.42,12);}catch(e){}
+    try{
+      var _rid=String(resultId||'');
+      var _ft=/truth/i.test(_rid)?'truth':(/dare/i.test(_rid)?'dare':(/punish|rou/i.test(_rid)?'punish':''));
+      v12RememberTask(items[idx],_ft);
+    }catch(e){}
     cb(idx);
   }
   var tm=setTimeout(finish,dur+80);
@@ -2260,7 +2275,7 @@ function spinTruthWheel(){
     window._swapHandler=function(){spinTruthWheel();};
     window._pardonHandler=function(){document.getElementById('truthResult').innerHTML='<div class="text">🍀 免罚生效！本轮跳过</div>';};
     document.getElementById('truthResult').innerHTML=
-      '<div class="pop-in"><div class="text">'+item+'</div><div class="star">💜 真心话</div><div class="player-tag">'+who+' 必须回答！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
+      '<div class="pop-in"><div class="text">'+item+'</div><div class="star">💜 真心话</div>'+v12TaskLvHtml(item)+'<div class="player-tag">'+who+' 必须回答！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="renderTruth(document.getElementById(\'gContent\'))">🔄 换一批</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
   });
 }
 
@@ -2304,7 +2319,7 @@ function spinDareWheel(){
     window._swapHandler=function(){spinDareWheel();};
     window._pardonHandler=function(){document.getElementById('dareResult').innerHTML='<div class="text">🍀 免罚生效！本轮跳过</div>';};
     document.getElementById('dareResult').innerHTML=
-      '<div class="pop-in"><div class="text">'+item+'</div><div class="star">🔥 大冒险</div><div class="player-tag">'+who+' 必须执行！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
+      '<div class="pop-in"><div class="text">'+item+'</div><div class="star">🔥 大冒险</div>'+v12TaskLvHtml(item)+'<div class="player-tag">'+who+' 必须执行！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="renderDare(document.getElementById(\'gContent\'))">🔄 换一批</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
   });
 }
 
@@ -2533,7 +2548,7 @@ function spinPunishWheel(){
     window._swapHandler=function(){spinPunishWheel();};
     window._pardonHandler=function(){document.getElementById('punishResult').innerHTML='<div class="text">🍀 免罚生效！本轮跳过</div>';};
     document.getElementById('punishResult').innerHTML=
-      '<div class="pop-in"><div class="text">'+item+'</div><div class="player-tag">💣 惩罚 · 受罚方：'+who+' 必须执行！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
+      '<div class="pop-in"><div class="text">'+item+'</div>'+v12TaskLvHtml(item)+'<div class="player-tag">💣 惩罚 · 受罚方：'+who+' 必须执行！</div></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
   });
 }
 
@@ -4558,6 +4573,7 @@ function taskBadge(txt){
   else if(/体能|俯卧撑|平板支撑|深蹲|运动/.test(txt))b='<span class="task-badge" style="background:rgba(46,204,113,0.25);color:#8be8b0">🏋️ 体能</span>';
   else if(/喝一杯|🍷|干杯|已饮/.test(txt))b='<span class="task-badge" style="background:rgba(255,193,7,0.25);color:#ffd977">🍷 喝酒</span>';
   else if(/亲吻|💋|吻/.test(txt))b='<span class="task-badge" style="background:rgba(255,107,157,0.25);color:#ff9dc0">💋 亲吻</span>';
+  try{b+='<span class="task-lv-inline">'+v12TaskStars(v12TaskMeta(txt).lv)+'</span>';}catch(e){}
   return b;
 }
 function favTask(){
@@ -4587,6 +4603,7 @@ function flTaskShow(content,btns){
   snapShot();
   content=evolve(content); /* V8: 任务进化引擎 */
   content=contractMark(content); /* V8: 契约标记 */
+  try{v12RememberTask(content);}catch(e){}
   var el=document.getElementById('flTask');if(!el)return;
   var p=window._flCur;
   var html='<div class="fl-task"><div class="who">'+(p?p.name+'（'+(p.g==='M'?'♂':'♀')+'）':'')+'<button class="fav-btn" onclick="favTask()" title="收藏到自定义题库">🤍</button></div><div>'+taskBadge(content)+content+'</div><div class="fl-btns">';
@@ -5612,6 +5629,14 @@ function v12SyncHome() {
   v12SetTrack('v12BarDrink', 'v12ValDrink', cups, 6, Math.round(cups * 10) / 10);
   var sub = document.getElementById('v12Sub');
   if (sub) sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
+  var mo = document.getElementById('v12Mood');
+  if (mo) mo.textContent = '✨ 今夜氛围 ' + v12MoodCalc();
+  var lg = document.getElementById('v12Ledger');
+  if (lg) {
+    var _c = 0, _d = 0;
+    try { _c = getCombo(); _d = debtCount(); } catch (e) {}
+    lg.textContent = (_c > 0 || _d > 0) ? ('⚡ 连击 ×' + _c + (_d > 0 ? ' · 💸 欠 ' + _d + ' 笔' : '')) : '';
+  }
   var cta = document.getElementById('v12Cta');
   if (cta) cta.textContent = v12NightOn() ? '继续升温 ›' : '开始今晚 ›';
 }
@@ -5622,7 +5647,8 @@ function v12SyncHud() {
   h.innerHTML = '<div class="hud-item"><span>亲密</span><div class="hud-bar m"><i style="width:' + v12PctRaw(heat, 100) + '%"></i></div></div>'
     + '<div class="hud-item"><span>刺激</span><div class="hud-bar v"><i style="width:' + v12PctRaw(combo, 10) + '%"></i></div></div>'
     + '<div class="hud-item"><span>醉意</span><div class="hud-bar g"><i style="width:' + v12PctRaw(cups, 6) + '%"></i></div></div>'
-    + (gent > 0 ? '<div class="hud-badge">🌤 +' + gent + '</div>' : '');
+    + (gent > 0 ? '<div class="hud-badge">🌤 +' + gent + '</div>' : '')
+    + '<div class="hud-badge" title="今夜氛围">✨ ' + v12MoodCalc() + '</div>';
 }
 function v12MainCta() {
   if (v12NightOn()) v12QuickStart();
@@ -5727,6 +5753,91 @@ function v12TaskComplete(btn) {
   try { vibrate([18, 30, 26]); } catch (e) {}
   try { toast('✅ 完成！热度+1 · 亲密币+5'); } catch (e) {}
   try { if (btn && btn.tagName === 'BUTTON') { btn.disabled = true; btn.textContent = '✅ 已完成'; btn.style.opacity = '.55'; } } catch (e) {}
+}
+
+/* ===== V12 Phase3a: 统一任务协议 / 任务统计 / 今夜氛围 ===== */
+function v12TaskMeta(txt, forceType) {
+  txt = String(txt || '').replace(/<[^>]*>/g, ' ').replace(/【[^】]*】/g, ' ').replace(/\s+/g, ' ').trim();
+  var type = 'other';
+  if (forceType) type = forceType;
+  else if (/真心话|💜|请回答|回答：/.test(txt)) type = 'truth';
+  else if (/大冒险|🔥|必须执行|指定/.test(txt)) type = 'dare';
+  else if (/亲吻|💋|吻|抱|触碰|抚摸|舔|含/.test(txt)) type = 'touch';
+  else if (/角色|扮演|演一/.test(txt)) type = 'role';
+  else if (/罚|惩罚|💣|刺激挑战/.test(txt)) type = 'punish';
+  else if (/喝|🍷|干杯|罚一杯|酒/.test(txt)) type = 'drink';
+  var s = 0;
+  if (/脱光|全裸|裸|插入|进入|做爱|口交|口爆|自慰|高潮|呻吟|射|乳|穴|湿|硬|骚|浪叫|后入|骑乘|SM|3P|多人|69/.test(txt)) s += 3;
+  if (/亲吻|吻|舌|锁骨|大腿|胸口|敏感|耳垂|脖子|腰/.test(txt)) s += 1;
+  if (/喝|🍷|罚/.test(txt)) s += 1;
+  if (/秒|分钟|持续|不许/.test(txt)) s += 1;
+  var lv = Math.max(1, Math.min(5, 1 + s));
+  var tags = [];
+  if (/对方|双人|两人|互相|一起/.test(txt)) tags.push('双人');
+  var dm = txt.match(/(\d+)\s*(秒|分钟)/);
+  if (dm) tags.push(dm[1] + dm[2]);
+  if (/蒙眼/.test(txt)) tags.push('蒙眼');
+  if (/角色|扮演/.test(txt)) tags.push('角色');
+  if (/酒|喝/.test(txt)) tags.push('喝酒');
+  return { type: type, lv: lv, tags: tags, text: txt };
+}
+function v12TaskStars(lv) { var s = ''; for (var i = 1; i <= 5; i++) s += (i <= lv ? '★' : '☆'); return s; }
+function v12TaskLvHtml(txt) {
+  var m = v12TaskMeta(txt);
+  return '<div class="task-lv">' + v12TaskStars(m.lv) + (m.tags.length ? ' <span>' + m.tags.map(function (t) { return '#' + t; }).join(' ') + '</span>' : '') + '</div>';
+}
+function v12StatsGet() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-tstats') || '{"d":""}');
+    if (S.d !== v11Today()) S = { d: v11Today(), done: 0, skip: 0, byType: {}, byLv: {} };
+    return S;
+  } catch (e) { return { d: v11Today(), done: 0, skip: 0, byType: {}, byLv: {} }; }
+}
+function v12StatsSave(S) { try { localStorage.setItem('couple-tstats', JSON.stringify(S)); } catch (e) {} }
+function v12LastText() {
+  try { var h = window._v11TaskHist || []; if (h.length) return h[h.length - 1]; } catch (e) {}
+  return window._lastTask || '';
+}
+function v12MoodCalc() {
+  var heat = 0, combo = 0, cups = 0, gent = 0;
+  try { heat = getHeat(); combo = getCombo(); cups = Math.max(gDrinkCups('him'), gDrinkCups('her')); gent = gentGetV(); } catch (e) {}
+  var v = heat * 0.45 + Math.min(combo, 10) * 4 + cups * 5 + gent * 3;
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
+function v12TaskDone(txt) {
+  try {
+    var m = v12TaskMeta(txt || v12LastText(), window._v12LastType || '');
+    var S = v12StatsGet();
+    S.done++;
+    S.byType[m.type] = (S.byType[m.type] || 0) + 1;
+    S.byLv[m.lv] = (S.byLv[m.lv] || 0) + 1;
+    v12StatsSave(S);
+  } catch (e) {}
+}
+function v12TaskSkip(txt) {
+  try {
+    var m = v12TaskMeta(txt || v12LastText(), window._v12LastType || '');
+    var S = v12StatsGet();
+    S.skip++;
+    S.byType[m.type] = (S.byType[m.type] || 0) + 1;
+    v12StatsSave(S);
+  } catch (e) {}
+}
+function v12StatsSummary() {
+  var S = v12StatsGet();
+  var top = Object.keys(S.byType).sort(function (a, b) { return S.byType[b] - S.byType[a]; })[0];
+  return { done: S.done, skip: S.skip, top: top || '', byType: S.byType, byLv: S.byLv, mood: v12MoodCalc() };
+}
+function v12RememberTask(txt, forceType) {
+  try {
+    var t = String(txt || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t) return;
+    window._lastTask = t;
+    window._v12LastType = forceType || '';
+    window._v11TaskHist = window._v11TaskHist || [];
+    if (window._v11TaskHist[window._v11TaskHist.length - 1] !== t) window._v11TaskHist.push(t);
+    if (window._v11TaskHist.length > 20) window._v11TaskHist.shift();
+  } catch (e) {}
 }
 
 </script>
