@@ -726,6 +726,10 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .v12-ring.on{display:flex}
 .v12-ring::before{content:'';position:absolute;inset:4px;border-radius:50%;background:rgba(10,5,20,.88)}
 .v12-ring span{position:relative;font-size:14px;font-weight:800;color:#fff}
+/* Phase3c 控制栏7按钮 */
+.ctrl-btns{gap:4px}
+.ctrl-btn{white-space:nowrap;font-size:11px;padding:0 2px;letter-spacing:0}
+.ctrl-btn.relax{flex:1.25;font-size:10.5px;padding:0 2px}
 </style>
 </head>
 <body>
@@ -773,6 +777,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 <div class="ctrl-bar" id="ctrlBar">
   <div class="ctrl-items" id="ctrlItems"><span class="ctrl-item" id="ctrlSwap">🃏 替换卡 ×1</span><span class="ctrl-item" id="ctrlPardon">🍀 免罚卡 ×1</span></div>
   <div class="ctrl-btns">
+    <button class="ctrl-btn" onclick="v12PanelDone()" title="统一完成：热度+1、亲密币+5、计入统计">✅ 完成</button>
     <button class="ctrl-btn" onclick="panelRedraw()">🔄 重抽</button>
     <button class="ctrl-btn" onclick="panelSkip()">⏭ 跳过</button>
     <button class="ctrl-btn" onclick="panelUndo()">↩ 撤销</button>
@@ -1262,6 +1267,11 @@ function poolByDiff(pool,key){
   if(window._gentSoft)arr=poolFilter(arr,HOT_KW);
   if(d===1)arr=poolFilter(arr,GENTLE_KW);            /* Lv1 纯爱温和: 强过滤 */
   else if(d===2)arr=poolFilter(arr,HOT_KW);           /* Lv2 暧昧甜撩: 过滤最硬核 */
+  try{ /* V12: 按任务强度统一过滤(不足12条自动回退) */
+    var _cap=({1:2,2:3,3:5,4:5,5:5})[d]||5;
+    var _f=arr.filter(function(x){return v12TaskMeta(x).lv<=_cap;});
+    if(_f.length>=12)arr=_f;
+  }catch(e){}
   var kind=key.indexOf('truth')>=0?'truth':key.indexOf('dare')>=0?'dare':key.indexOf('punish')>=0?'punish':key.indexOf('drink')>=0?'drink':'bomb';
   var cust=loadCustom();
   if(kind==='truth'&&cust.truths&&cust.truths.length)arr=arr.concat(cust.truths);
@@ -2096,6 +2106,7 @@ function otherPlayer(name){return name===HE.him?HE.her:HE.him}
 
 /* ===== Game List (首页) ===== */
 function goHome(){
+  try{v12FlStopTurnTimer();}catch(e){}
   if(window._escTv){clearInterval(window._escTv);window._escTv=null;}
   ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
     window[k]=false;window[k+'Sess']=(window[k+'Sess']||0)+1;
@@ -2131,6 +2142,7 @@ function renderHome(){
 
 /* ===== Start Game ===== */
 function startGame(id){
+  try{v12FlStopTurnTimer();}catch(e){}
   if(window._escTv){clearInterval(window._escTv);window._escTv=null;}
   ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
     window[k]=false;window[k+'Sess']=(window[k+'Sess']||0)+1;
@@ -3794,7 +3806,8 @@ function renderFlightSetup(c){
     +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑤ 快局模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.fast?' on':'')+'" onclick="toggleSet(\'fast\');renderFlightSetup(document.getElementById(\'gContent\'))">⚡ '+(SET.fast?'快局：棋盘缩短(约15分钟)':'普通局(约40分钟)')+'</span></div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑥ 脱衣模式</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(SET.strip?' on':'')+'" onclick="toggleSet(\'strip\')">🍒 '+(SET.strip?'脱衣模式：每人3件，脱光触发终极大冒险':'脱衣模式关闭')+'</span></div>'
-    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑦ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
+    +'<p style="color:#aaa;font-size:13px;margin-top:10px">⑦ 回合沙漏</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.hourglass?' on':'')+'" onclick="flSetHourglass()">⏳ '+(s.hourglass?'30 秒不掷骰自动罚半杯+代掷':'关闭（慢慢来）')+'</span></div>'
+    +((s.mode==='B'||s.mode==='D')?'<p style="color:#aaa;font-size:13px;margin-top:10px">⑧ 圈数</p><div style="text-align:center;margin:4px 0"><span class="mini-btn'+(s.laps===1?' on':'')+'" onclick="flSetLaps(1)">1圈</span><span class="mini-btn'+(s.laps===2?' on':'')+'" onclick="flSetLaps(2)">2圈</span><span style="display:none"></span></div>':'')
     +'<p style="text-align:center;font-size:11px;color:#888;margin-top:10px">🍷 酒量额度：男≤5杯 女≤3杯，超额度自动变亲吻格<br>每人1次弃权，女生半杯特权，掷6再掷，连3个6罚停</p>'
     +'<div class="wheel-btns" style="margin-top:12px"><button class="wheel-btn spin" onclick="flightStart()">🎮 开局！</button></div>'
     +'</div>';
@@ -3844,6 +3857,7 @@ function flightStart(){
   window._flLaps=s.laps||1;
   window._flTurn=0;
   window._flOrder= s.n===2?[0,1] : [0,2,1,3];
+  window._flHourglass=!!s.hourglass;
   window._flTPos=[0,0]; /* A模式: 队伍棋子位置 */
   window._flSix=0;
   window._flRolled=false;
@@ -3946,6 +3960,7 @@ function flTurnMsg(){
     el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):(p.track!=='main'?('🎯 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）在支线 · 点按钮自动前进1步'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！'+prog));}
 }
 function flDiceRoll(v,cb){
+  try{v12FlStopTurnTimer();}catch(e){}
   /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
   var sess=window._flSess||0; /* 本次摇骰所属局, 防止重开后旧回调串场 */
   var ov=document.getElementById('flDiceOverlay');
@@ -4061,6 +4076,7 @@ function flBoardC(){
 }
 /* --- 掷骰子 --- */
 function flRoll(){
+  try{v12FlStopTurnTimer();}catch(e){}
   var p=window._flP[window._flOrder[window._flTurn]];
   if(!p){return;}
   if(p.skip){p.skip=false;flNextTurn();return;}
@@ -4697,12 +4713,15 @@ function flNextTurn(){
     flRender();
     var el=document.getElementById('flTurnMsg');
     if(el)el.textContent='🎲 掷出6！'+window._flP[window._flOrder[window._flTurn]].name+' 再掷一次';
+    try{v12FlStartTurnTimer();}catch(e){}
     return;
   }
   window._flTurn=(window._flTurn+1)%order.length;
   flRender();
+  try{v12FlStartTurnTimer();}catch(e){}
 }
 function flWin(id,type){
+  try{v12FlStopTurnTimer();}catch(e){}
   window._flWin=true;
   if(window._flP.length===2){var wn=type==='team'?window._flP[id].name:window._flP[id].name;betScore(wn);} /* V9: 今晚赌约记分 */
   sndBoom();vibrate([60,40,100]);
@@ -5930,6 +5949,53 @@ function v12RingEnd() {
     if (window._v12RingTv) { clearInterval(window._v12RingTv); window._v12RingTv = null; }
     var r = document.getElementById('v12Ring');
     if (r) r.classList.remove('on');
+  } catch (e) {}
+}
+
+/* ===== V12 Phase3c: 全局完成 / 回合沙漏 ===== */
+function v12PanelDone() {
+  try { taskDone(); } catch (e) {}
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.62, 26); } catch (e) {}
+  try { vibrate([18, 30, 26]); } catch (e) {}
+  try { toast('✅ 完成！热度+1 · 亲密币+5'); } catch (e) {}
+}
+function flSetHourglass() {
+  var s = window._flSetup = window._flSetup || {};
+  s.hourglass = !s.hourglass;
+  try { renderFlightSetup(document.getElementById('gContent')); } catch (e) {}
+}
+function v12FlStopTurnTimer() {
+  try {
+    if (window._flTurnTimer) { clearTimeout(window._flTurnTimer); window._flTurnTimer = null; }
+    v12RingEnd();
+  } catch (e) {}
+}
+function v12FlStartTurnTimer() {
+  v12FlStopTurnTimer();
+  if (!window._flHourglass || window._flWin) return;
+  try {
+    var ov = document.getElementById('flWheelOverlay'), di = document.getElementById('flDiceOverlay');
+    if ((ov && ov.classList.contains('show')) || (di && di.classList.contains('show'))) return;
+    var sec = window._flHourglassSec || 30;
+    v12Ring(sec);
+    window._flTurnTimer = setTimeout(function () {
+      try {
+        window._flTurnTimer = null;
+        if (window._flWin) return;
+        var ov2 = document.getElementById('flWheelOverlay'), di2 = document.getElementById('flDiceOverlay');
+        if ((ov2 && ov2.classList.contains('show')) || (di2 && di2.classList.contains('show'))) { v12FlStartTurnTimer(); return; }
+        var p = window._flP && window._flP[window._flOrder[window._flTurn]];
+        if (p && !p.done) {
+          if (p.drink < p.drinkMax) {
+            p.drink += 0.5;
+            try { drinkSync(p.name, 0.5); } catch (e) {}
+          }
+          try { toast('⏳ 超时！' + p.name + ' 罚半杯，自动掷骰'); } catch (e) {}
+          try { logEvent('⏳ 回合超时：' + p.name + ' 罚半杯'); } catch (e) {}
+          try { flRoll(); } catch (e) {}
+        }
+      } catch (e) {}
+    }, sec * 1000);
   } catch (e) {}
 }
 
