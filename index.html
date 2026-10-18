@@ -5586,6 +5586,7 @@ function nightPoster(){
     var ch=gDrinkCups('him'),ce=gDrinkCups('her');
     if(ch||ce)awards.push('🍷 醉猫奖：'+(ch>ce?HE.him:(ce>ch?HE.her:'并列')));
     if((S.y||0)+(S.r||0)>0)awards.push('🚦 温柔守护：黄灯'+S.y+' · 红灯'+S.r);
+    try{var _ml=0;v12Thist().forEach(function(e){if((e.lv||0)>_ml)_ml=e.lv;});if(_ml>=3)awards.push('🔥 最大胆：最高强度 ★'+_ml);}catch(e){}
     if(!awards.length)awards.push('🌙 今晚开场奖：你们俩');
     x.textAlign='left';
     x.fillStyle='#ffd700';x.font='bold 24px "Microsoft YaHei",sans-serif';
