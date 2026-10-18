@@ -5771,7 +5771,10 @@ function v12TaskMeta(txt, forceType) {
   if (/亲吻|吻|舌|锁骨|大腿|胸口|敏感|耳垂|脖子|腰/.test(txt)) s += 1;
   if (/喝|🍷|罚/.test(txt)) s += 1;
   if (/秒|分钟|持续|不许/.test(txt)) s += 1;
-  var lv = Math.max(1, Math.min(5, 1 + s));
+  if (/表白|扑倒|幻想|欲望|性感|诱惑|心动|害羞|秘密|心跳|暧昧|情趣/.test(txt)) s += 1;
+  var base = (type === 'truth' || type === 'dare') ? 2 : 1;
+  if (/优点|夸|喜欢吃什么|爱好|第一次见|喜欢的颜色|吃什么/.test(txt)) base -= 1;
+  var lv = Math.max(1, Math.min(5, base + s));
   var tags = [];
   if (/对方|双人|两人|互相|一起/.test(txt)) tags.push('双人');
   var dm = txt.match(/(\d+)\s*(秒|分钟)/);
