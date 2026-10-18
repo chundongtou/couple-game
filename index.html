@@ -5530,16 +5530,17 @@ function nightCeremony(){
   if(((ST.byType&&ST.byType.role)||0)>0)awards.push({icon:'🎭',name:'最佳演技',who:'你们俩',desc:'今晚演了 '+ST.byType.role+' 段角色'});
   if(!awards.length)awards.push({icon:'🌙',name:'开场奖',who:'你们俩',desc:'今晚还没开玩，但来都来了，先抱一个'});
   var moments=v11Moments();
+  if(!moments.length){try{moments=th.slice(-3).map(function(e){return e.txt;});}catch(e){}}
   var wind=randItem(V11_WIND_DOWN);
   var bet='';try{bet=betResult();}catch(e){}
   var mHtml=moments.length?moments.map(function(x){return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">· '+String(x).slice(0,40)+'</div>';}).join(''):'<div style="font-size:12px;color:#9a93b5">今晚还没有记录，下次多玩两局~</div>';
   var aHtml=awards.map(function(a){return '<div class="award-row"><span>'+a.icon+' '+a.name+'<br><span style="font-size:11px;color:#9a93b5">'+a.desc+'</span></span><b>'+a.who+'</b></div>';}).join('');
   openModal('<h3>🌙 夜终仪式</h3>'
-    +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
+    +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7;flex-direction:column;align-items:center">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
     +'<div class="m-item" style="text-align:center;font-size:12px;line-height:1.7">📋 完成 '+(ST.done||0)+' · 弃权 '+(ST.skip||0)+(maxLv?' · 最高强度 ★'+maxLv:'')+'</div>'
     +'<div style="font-size:13px;color:#ffd700;margin:6px 0 2px">🏆 今晚颁奖</div>'+aHtml
     +'<div style="font-size:13px;color:#ffd700;margin:10px 0 2px">🎬 名场面回顾</div>'+mHtml
-    +'<div class="m-item" style="margin-top:10px;font-size:14px;line-height:1.8"><b>🌙 收尾任务</b><br>'+wind+'</div>'
+    +'<div class="m-item" style="margin-top:10px;font-size:14px;line-height:1.8;flex-direction:column;align-items:flex-start"><b>🌙 收尾任务</b><br>'+wind+'</div>'
     +(bet?'<div class="m-item" style="font-size:12px;line-height:1.7">'+bet+'</div>':'')
     +'<div class="wheel-btns" style="display:block;margin-top:10px">'
     +'<button class="wheel-btn spin" onclick="nightPoster()">🎨 生成今晚战报海报</button>'
