@@ -31,7 +31,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .wheel-wrap{position:relative;width:310px;height:310px;margin:20px auto 0}
 .wheel-wrap canvas{width:310px;height:310px;display:block}
 .wheel-pointer{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:30px solid #ffd700;z-index:10;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5))}
-.wheel-go-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ffd700,#ff6b9d);border:4px solid #fff;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;z-index:10;box-shadow:0 4px 15px rgba(0,0,0,0.4);transition:transform 0.1s}
+.wheel-go-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#ff2d95,#8b5cf6);border:4px solid #fff;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;z-index:10;box-shadow:0 0 24px rgba(255,45,149,.5),0 4px 15px rgba(0,0,0,0.4);transition:transform 0.1s}
 .wheel-go-btn:active{transform:translate(-50%,-50%) scale(0.9)}
 .wheel-result{margin:20px auto 0;background:rgba(255,255,255,0.1);border-radius:14px;padding:20px;max-width:340px;text-align:center;min-height:60px}
 .wheel-result .text{font-size:17px;line-height:1.6}
@@ -441,27 +441,292 @@ body.light .award-row{border-bottom-color:rgba(0,0,0,0.08)}
 .poster-wrap{text-align:center}
 .poster-wrap img{width:100%;max-width:340px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.5)}
 .wake-card{text-align:center;font-size:15px;line-height:2}
+/* ==================================================================
+   V12 · 霓虹夜店 设计系统 (Phase 1 换皮层)
+   变量驱动，浅色/手绘主题自动取浅色令牌
+   ================================================================== */
+:root{
+  --v12-ink:#f5f1ff;--v12-dim:#a79cc2;--v12-dim2:#6f6689;
+  --v12-surf:rgba(255,255,255,.055);--v12-surf2:rgba(255,255,255,.09);
+  --v12-line:rgba(255,255,255,.12);
+  --v12-m:#ff2d95;--v12-v:#8b5cf6;--v12-c:#22d3ee;--v12-g:#ffd166;--v12-danger:#ff5c7a;
+  --v12-glow-m:0 0 26px rgba(255,45,149,.32);--v12-glow-c:0 0 22px rgba(34,211,238,.22);
+}
+body.light,body.sketch{
+  --v12-ink:#3a2233;--v12-dim:#8a6b7c;--v12-dim2:#a98d9d;
+  --v12-surf:rgba(255,255,255,.78);--v12-surf2:rgba(255,255,255,.94);
+  --v12-line:rgba(150,80,110,.2);
+}
+body{
+  color:var(--v12-ink);
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(1100px 560px at 82% -8%,rgba(255,45,149,.20),transparent 60%),
+    radial-gradient(900px 520px at -12% 18%,rgba(34,211,238,.13),transparent 55%),
+    radial-gradient(760px 560px at 50% 112%,rgba(139,92,246,.20),transparent 60%),
+    linear-gradient(180deg,#0b0617,#07040f 52%,#0a0614);
+  background-attachment:fixed;
+}
+body.light,body.sketch{
+  background:
+    radial-gradient(900px 500px at 85% -6%,rgba(255,45,149,.14),transparent 60%),
+    radial-gradient(700px 460px at -10% 20%,rgba(34,211,238,.10),transparent 55%),
+    linear-gradient(180deg,#fff7fb,#fdf1f6 60%,#fff8fc);
+  background-attachment:fixed;
+}
+body::-webkit-scrollbar,#setBar::-webkit-scrollbar,.modal::-webkit-scrollbar{width:0;height:0}
+::selection{background:rgba(255,45,149,.35)}
+/* ---------- 页面转场 ---------- */
+.page.active{animation:v12PageIn .42s cubic-bezier(.2,.8,.2,1)}
+@keyframes v12PageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* ---------- 首页 ---------- */
+#homePage{padding:16px 16px 40px;max-width:460px;margin:0 auto}
+.v12-top{display:flex;align-items:center;justify-content:space-between;margin:2px 0 16px}
+.v12-date{font-size:12px;color:var(--v12-dim2);letter-spacing:.12em}
+.v12-pills{display:flex;gap:6px}
+.v12-pill{font-size:11px;color:var(--v12-dim);border:1px solid var(--v12-line);background:rgba(255,255,255,.04);padding:6px 11px;border-radius:999px;cursor:pointer;transition:all .2s}
+body.light .v12-pill,body.sketch .v12-pill{background:rgba(255,255,255,.6)}
+.v12-pill.on{color:var(--v12-c);border-color:rgba(34,211,238,.45);box-shadow:var(--v12-glow-c)}
+.v12-hero{padding:0 2px}
+.v12-hero .names{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.25;color:var(--v12-ink);text-align:left;margin:0}
+.v12-hero .names span{margin:0}
+.nm-him{color:#7dd3fc}
+.nm-her{color:#f9a8d4}
+.nm-heart{display:inline-block;margin:0 8px!important;font-size:22px;vertical-align:middle;filter:drop-shadow(0 0 12px rgba(255,45,149,.6))}
+.v12-sub{color:var(--v12-dim);font-size:12.5px;margin-top:6px}
+.v12-bars{margin:18px 0 4px;display:flex;flex-direction:column;gap:11px}
+.v12-bar-row{display:grid;grid-template-columns:52px 1fr 44px;align-items:center;gap:10px;font-size:11.5px;color:var(--v12-dim)}
+.v12-bar-row b{font-weight:600;color:var(--v12-ink);text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
+.v12-bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+body.light .v12-bar,body.sketch .v12-bar{background:rgba(150,80,110,.14)}
+.v12-bar i{display:block;height:100%;width:0;border-radius:99px;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.v12-bar.m i{background:linear-gradient(90deg,var(--v12-m),#ff7ab8);box-shadow:0 0 12px rgba(255,45,149,.5)}
+.v12-bar.v i{background:linear-gradient(90deg,var(--v12-v),var(--v12-c));box-shadow:0 0 12px rgba(139,92,246,.45)}
+.v12-bar.g i{background:linear-gradient(90deg,#ffb347,var(--v12-g));box-shadow:0 0 12px rgba(255,209,102,.4)}
+.v12-cta{
+  width:100%;height:58px;margin:18px 0 14px;border:0;border-radius:18px;cursor:pointer;
+  font-family:inherit;font-size:17px;font-weight:800;letter-spacing:.02em;color:#fff;
+  background:linear-gradient(135deg,#ff2d95 0%,#b83df5 55%,#8b5cf6 100%);
+  box-shadow:var(--v12-glow-m),inset 0 1px 0 rgba(255,255,255,.35);
+  position:relative;overflow:hidden;transition:transform .16s ease,box-shadow .2s;
+}
+.v12-cta:active{transform:scale(.975)}
+.v12-cta::after{content:"";position:absolute;inset:-40% -20%;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.32) 50%,transparent 65%);transform:translateX(-120%);animation:v12Sheen 3.8s ease-in-out infinite}
+@keyframes v12Sheen{0%,55%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
+.v12-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.v12-tile{
+  position:relative;padding:14px;border-radius:16px;cursor:pointer;
+  background:var(--v12-surf);border:1px solid var(--v12-line);
+  transition:transform .18s ease,border-color .18s,box-shadow .2s;
+}
+.v12-tile:active{transform:scale(.97)}
+.v12-tile:active{border-color:rgba(255,45,149,.4)}
+.v12-tile .ic{font-size:22px;line-height:1}
+.v12-tile .nm{font-weight:700;font-size:14px;margin-top:8px;color:var(--v12-ink)}
+.v12-tile .ds{font-size:11px;color:var(--v12-dim2);margin-top:3px;line-height:1.5}
+.v12-tile .tag{display:inline-block;margin-top:8px;font-size:10px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);border-radius:99px;padding:2px 7px}
+/* 设置横滑条 */
+#setBar{
+  display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:7px;
+  justify-content:flex-start;align-items:center;margin:16px 0 6px;padding:2px 2px 8px;
+  background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;
+  scrollbar-width:none;-ms-overflow-style:none;
+}
+#setBar .tb-item{
+  flex:0 0 auto;padding:7px 12px;border-radius:999px;font-size:11.5px;line-height:1.3;
+  border:1px solid var(--v12-line);background:rgba(255,255,255,.04);color:var(--v12-dim);
+  cursor:pointer;user-select:none;white-space:nowrap;
+}
+body.light #setBar .tb-item,body.sketch #setBar .tb-item{background:rgba(255,255,255,.65)}
+#setBar .tb-item.on{color:var(--v12-m);border-color:rgba(255,45,149,.48);box-shadow:0 0 16px rgba(255,45,149,.22);background:rgba(255,45,149,.08)}
+#setBar .tb-item.diff{color:var(--v12-c)}
+/* 全部玩法 */
+.v12-more{margin-top:10px}
+.v12-morebtn{
+  width:100%;height:46px;border-radius:14px;border:1px dashed rgba(255,255,255,.2);
+  background:rgba(255,255,255,.03);color:var(--v12-dim);font-family:inherit;font-size:13px;cursor:pointer;
+}
+body.light .v12-morebtn,body.sketch .v12-morebtn{border-color:rgba(150,80,110,.28);background:rgba(255,255,255,.5)}
+.v12-morebody{display:none;margin-top:10px}
+.v12-morebody.on{display:block;animation:v12CardIn .42s cubic-bezier(.2,.8,.2,1)}
+#gameGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0;margin-top:2px}
+.game-card{
+  position:relative;border-radius:16px;padding:14px 12px;text-align:center;cursor:pointer;
+  background:var(--v12-surf);border:1px solid var(--v12-line);
+  transition:transform .18s ease,border-color .18s,box-shadow .2s;color:var(--v12-ink);
+  box-shadow:none;
+}
+.game-card:active{transform:scale(.97)}
+.game-card.selected{border-color:rgba(255,45,149,.55);box-shadow:0 0 22px rgba(255,45,149,.18)}
+.game-card .icon{font-size:26px;line-height:1.1}
+.game-card .name{font-size:13.5px;font-weight:700;margin-top:6px;color:var(--v12-ink)}
+.game-card .desc{font-size:10.5px;color:var(--v12-dim2);margin-top:4px;line-height:1.45}
+.game-card .badge{position:absolute;top:6px;right:8px;font-size:10px;color:#22c55e}
+.game-card .g-help{
+  position:absolute;top:4px;left:8px;width:20px;height:20px;line-height:18px;border-radius:50%;
+  border:1px solid var(--v12-line);font-size:11px;color:var(--v12-dim);background:rgba(0,0,0,.2);
+}
+body.light .game-card .g-help{background:rgba(255,255,255,.6)}
+/* ---------- 游戏页 ---------- */
+#gamePage .header{
+  background:rgba(10,6,20,.78);border-bottom:1px solid var(--v12-line);box-shadow:none;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  padding:10px 14px;text-align:left;display:flex;align-items:center;gap:10px;
+}
+body.light #gamePage .header,body.sketch #gamePage .header{background:rgba(255,248,252,.85)}
+#gamePage .header h1{font-size:16px;font-weight:800;flex:1;text-align:center;margin:0 34px 0 0;letter-spacing:.02em;color:var(--v12-ink)}
+#gamePage .back-btn{
+  width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:var(--v12-surf);border:1px solid var(--v12-line);color:var(--v12-ink);font-size:16px;
+  cursor:pointer;flex:0 0 auto;
+}
+.v12-hud{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  position:sticky;top:57px;z-index:90;
+  background:linear-gradient(180deg,rgba(10,6,20,.82),rgba(10,6,20,.55));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+body.light .v12-hud,body.sketch .v12-hud{background:linear-gradient(180deg,rgba(255,248,252,.9),rgba(255,248,252,.6));border-bottom-color:rgba(150,80,110,.12)}
+.v12-hud .hud-item{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--v12-dim2);flex:1}
+.v12-hud .hud-item span{flex:0 0 auto;letter-spacing:.08em}
+.v12-hud .hud-bar{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+body.light .v12-hud .hud-bar,body.sketch .v12-hud .hud-bar{background:rgba(150,80,110,.16)}
+.v12-hud .hud-bar i{display:block;height:100%;border-radius:99px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.v12-hud .hud-bar.m i{background:linear-gradient(90deg,var(--v12-m),#ff7ab8)}
+.v12-hud .hud-bar.v i{background:linear-gradient(90deg,var(--v12-v),var(--v12-c))}
+.v12-hud .hud-bar.g i{background:linear-gradient(90deg,#ffb347,var(--v12-g))}
+.v12-hud .hud-badge{flex:0 0 auto;font-size:10px;color:#9df5b6;border:1px solid rgba(80,220,130,.4);border-radius:99px;padding:3px 8px;background:rgba(80,220,130,.08)}
+#gamePage{padding-bottom:150px}
+/* ---------- 通用表面 ---------- */
+.bomb-wrap{padding:18px 14px 8px;color:var(--v12-ink)}
+.bomb-wrap h2{font-size:20px;font-weight:800;letter-spacing:-.01em;color:var(--v12-ink)}
+.wheel-result{
+  background:var(--v12-surf);border:1px solid var(--v12-line);border-radius:18px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.fl-task{
+  background:var(--v12-surf);border:1px solid var(--v12-line);border-radius:18px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+.fl-task .who{font-size:11px;letter-spacing:.1em;color:var(--v12-dim2)}
+.cmd-card{
+  background:var(--v12-surf);border:1px solid var(--v12-line);border-radius:16px;
+  padding:14px;margin:8px 0;cursor:pointer;transition:transform .16s,border-color .2s,box-shadow .2s;
+  color:var(--v12-ink);
+}
+.cmd-card:active{transform:scale(.985)}
+.cmd-card:active{border-color:rgba(255,45,149,.4)}
+.m-item{
+  background:var(--v12-surf);border:1px solid var(--v12-line);border-radius:14px;
+  padding:12px 14px;margin:8px 0;color:var(--v12-ink);
+}
+.modal{
+  background:linear-gradient(180deg,#170c2c,#0b0616 72%);
+  border:1px solid var(--v12-line);border-radius:24px;
+  box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.light .modal,body.sketch .modal{background:linear-gradient(180deg,#fff9fc,#fff2f8 75%)}
+.modal h3{font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--v12-ink)}
+.modal-mask{background:rgba(4,2,10,.62);backdrop-filter:blur(6px)}
+.wheel-btn{
+  font-family:inherit;font-weight:700;border-radius:14px;min-height:46px;
+  transition:transform .15s ease,box-shadow .2s;
+}
+.wheel-btn:active{transform:scale(.97)}
+.wheel-btn.spin{
+  background:linear-gradient(135deg,#ff2d95,#8b5cf6);border:0;color:#fff;
+  box-shadow:0 0 22px rgba(255,45,149,.3),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.wheel-btn.back{
+  background:rgba(255,255,255,.05);border:1px solid var(--v12-line);color:var(--v12-dim);
+}
+body.light .wheel-btn.back,body.sketch .wheel-btn.back{background:rgba(255,255,255,.6);color:#6d4a5c}
+.mini-btn,.mini-btn.on{
+  font-family:inherit;border-radius:999px;border:1px solid var(--v12-line);
+  background:rgba(255,255,255,.04);color:var(--v12-dim);
+}
+.mini-btn.on{background:linear-gradient(135deg,rgba(255,45,149,.9),rgba(139,92,246,.9));color:#fff;border-color:transparent;box-shadow:0 0 18px rgba(255,45,149,.25)}
+input,textarea,select{
+  background:rgba(255,255,255,.05);border:1px solid var(--v12-line);color:var(--v12-ink);
+  border-radius:12px;padding:10px 12px;font-family:inherit;font-size:14px;
+}
+body.light input,body.light textarea,body.sketch input,body.sketch textarea{background:rgba(255,255,255,.85);color:#3a2233}
+.toast{
+  background:linear-gradient(135deg,rgba(255,45,149,.96),rgba(139,92,246,.96));
+  border:1px solid rgba(255,255,255,.25);border-radius:16px;
+  box-shadow:0 10px 40px rgba(255,45,149,.35);font-weight:600;
+}
+.safe-tip{color:var(--v12-dim2);font-size:11px}
+/* 控制栏 */
+.ctrl-bar{
+  background:rgba(10,5,20,.86);border-top:1px solid var(--v12-line);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 -10px 30px rgba(0,0,0,.35);
+}
+body.light .ctrl-bar,body.sketch .ctrl-bar{background:rgba(255,248,252,.92);border-top-color:rgba(150,80,110,.16)}
+.ctrl-btn{
+  background:rgba(255,255,255,.055);border:1px solid var(--v12-line);color:var(--v12-ink);
+  font-family:inherit;font-weight:600;border-radius:13px;
+}
+body.light .ctrl-btn,body.sketch .ctrl-btn{background:rgba(255,255,255,.65);color:#6d4a5c}
+.ctrl-btn:active{transform:scale(.97)}
+.ctrl-item{
+  border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.02em;
+}
+.ctrl-log-toggle,.ctrl-voice-toggle{
+  background:rgba(20,8,40,.92);border:1px solid var(--v12-line);border-radius:12px 12px 0 0;
+  color:var(--v12-dim);
+}
+body.light .ctrl-log-toggle,body.light .ctrl-voice-toggle,body.sketch .ctrl-log-toggle,body.sketch .ctrl-voice-toggle{background:rgba(255,248,252,.95);color:#6d4a5c}
+/* 卡片入场动效 */
+.wheel-result .pop-in,.fl-task,.cmd-card,.m-item{animation:v12CardIn .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes v12CardIn{from{opacity:0;transform:translateY(10px) rotateX(7deg)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){
+  .page.active,.wheel-result .pop-in,.fl-task,.cmd-card,.m-item,.v12-cta::after{animation:none}
+  *{transition-duration:.001s!important}
+}
+
 </style>
 </head>
 <body>
 
-<!-- 首页：游戏列表 -->
+<!-- 首页：V12 霓虹夜店 -->
 <div id="homePage" class="page active">
-<div class="header">
-<h1>💋 情侣升温游戏</h1>
-<div class="sub">选一个游戏，开始升温吧~</div>
+<div class="v12-top">
+  <div class="v12-date" id="v12Date">今晚</div>
+  <div class="v12-pills">
+    <span class="v12-pill" id="v12NightState" onclick="showNightIntro()">🌙 未开局</span>
+    <span class="v12-pill" id="v12SoundPill" onclick="toggleSet('sound')">🔊</span>
+  </div>
 </div>
-<div class="couple-banner">
-<div class="hearts">💕</div>
-<div class="names" id="cpNames" onclick="editNames()"><span style="color:#3498db">♂ 他</span><span class="vs">❤</span><span style="color:#e040fb">♀ 她</span></div><div style="font-size:10px;color:#777;margin-top:4px">👆 点昵称可修改</div>
+<div class="v12-hero">
+  <div class="names" id="cpNames" onclick="editNames()"><span class="nm-him">他</span><span class="nm-heart">❤</span><span class="nm-her">她</span></div>
+  <div class="v12-sub" id="v12Sub">今晚还没开局 · 温度从零开始</div>
+  <div class="v12-bars">
+    <div class="v12-bar-row"><span>亲密</span><div class="v12-bar m"><i id="v12BarHeat"></i></div><b id="v12ValHeat">0</b></div>
+    <div class="v12-bar-row"><span>刺激</span><div class="v12-bar v"><i id="v12BarCombo"></i></div><b id="v12ValCombo">0</b></div>
+    <div class="v12-bar-row"><span>醉意</span><div class="v12-bar g"><i id="v12BarDrink"></i></div><b id="v12ValDrink">0</b></div>
+  </div>
+  <button class="v12-cta" id="v12Cta" onclick="v12MainCta()">开始今晚 ›</button>
+  <div class="v12-tiles">
+    <div class="v12-tile" onclick="v12QuickStart()"><div class="ic">⚡</div><div class="nm">快速开始</div><div class="ds">随机抽一款，直接升温</div></div>
+    <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
+    <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
+    <div class="v12-tile" onclick="v12Soon('剧情模式')"><div class="ic">🎬</div><div class="nm">剧情模式</div><div class="ds">今夜故事线 · Phase 4</div><div class="tag">即将上线</div></div>
+  </div>
 </div>
 <div class="top-bar" id="setBar"></div>
-<div class="game-grid" id="gameGrid"></div>
+<div class="v12-more">
+  <button class="v12-morebtn" id="v12MoreBtn" onclick="v12ToggleMore()">全部玩法 · 25 款 ▾</button>
+  <div class="v12-morebody" id="v12MoreBody"><div class="game-grid" id="gameGrid"></div></div>
+</div>
 </div>
 
 <!-- 游戏页 -->
 <div id="gamePage" class="page">
 <div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="gTitle">游戏</h1></div>
+<div class="v12-hud" id="v12Hud"></div>
 <div id="gContent"></div><div class="safe-tip">🚩 安全词：随时说「停」即可结束本轮</div>
 <div class="ctrl-log-toggle" onclick="toggleLog()">📜 本局记录</div>
 <div class="ctrl-voice-toggle" id="ctrlVoiceBtn" onclick="voiceReplay()" style="display:none">🔊 重听</div>
@@ -828,7 +1093,8 @@ function editNames(){
   var b=prompt('输入女生/玩家2的昵称',HE.her);if(b===null)return;
   HE.him=a.trim()||'他';HE.her=b.trim()||'她';
   try{localStorage.setItem('couple-names',JSON.stringify({him:HE.him,her:HE.her}))}catch(e){}
-  document.getElementById('cpNames').innerHTML='<span style="color:#3498db">♂ '+HE.him+'</span><span class="vs">❤</span><span style="color:#e040fb">♀ '+HE.her+'</span>';
+  document.getElementById('cpNames').innerHTML='<span class="nm-him">'+HE.him+'</span><span class="nm-heart">❤</span><span class="nm-her">'+HE.her+'</span>';
+  try{v12SyncHome();}catch(e){}
   toast('昵称已更新 ✓');
 }
 /* ============ V2 全局设置系统 (难度4档/双主题/音效/BGM) ============ */
@@ -877,6 +1143,7 @@ function renderSettings(){
     +'<span class="tb-item" style="color:#ffd700">🌡️ '+heatStageName()+'</span>'
     +'<span class="tb-item" onclick="showHelp()">❓ 帮助</span>';
   applyTheme();
+  try{v12SyncHome();v12SyncHud();}catch(e){}
 }
 function openDiffModal(){
   var html='<h3>🎚️ 全局难度档位</h3><p style="font-size:12px;color:#aaa;margin-bottom:8px">题库会按档位自动过滤，随时可切</p>';
@@ -1216,6 +1483,7 @@ function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密�
   var cb=getCombo()+1;setCombo(cb);setStreak(0);
   if(cb>0&&cb%5===0){ITEMS.pardon=Math.min(ITEMS.pardon+1,99);saveItems();toast('🎁 连过'+cb+'关！奖励免罚卡+1');logEvent('🎁 连胜奖励：免罚卡+1');}
   try{gentTick();}catch(e){}
+  try{v12SyncHome();v12SyncHud();}catch(e){}
 }
 function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3; V11 温柔系数>=2 首次弃权不罚 */
   var st=getStreak()+1;
@@ -1677,6 +1945,7 @@ function renderCtrl(){
   }
   box.innerHTML=h;
   var vb=document.getElementById('ctrlVoiceBtn');if(vb)vb.style.display=SET.voice?'':'none';
+  try{v12SyncHud();}catch(e){}
 }
 var UNLOCKED=(function(){try{return JSON.parse(localStorage.getItem('couple-unlocked')||'null')}catch(e){return null}})()||{swap:1,pardon:1};
 function addRound(){ /* 每完成一次任务计1轮, 满10/15轮自动解锁道具卡(解锁上限与持有数分离, 防止用卡后自动回填) */
@@ -1800,6 +2069,7 @@ function renderHome(){
     +'<button class="wheel-btn back" style="max-width:none;width:100%;min-height:44px;padding:10px 6px;font-size:13px" onclick="showContract()">⚖️ 今晚契约</button>'
     +'</div>';
   renderSettings();
+  try{v12SyncHome();}catch(e){}
 }
 
 /* ===== Start Game ===== */
@@ -1823,6 +2093,7 @@ function startGame(id){
   renderCtrl();
   var g=GAMES.find(function(x){return x.id===id});
   document.getElementById('gTitle').textContent=g.icon+' '+g.name;
+  try{v12SyncHud();}catch(e){}
   var c=document.getElementById('gContent');
   if(id==='truth') renderTruth(c);
   else if(id==='dare') renderDare(c);
@@ -1918,9 +2189,6 @@ function renderTruth(c){
     +'<button class="wheel-go-btn" onclick="spinTruthWheel()">GO</button>'
     +'</div>'
     +'<div class="wheel-result" id="truthResult"><div class="text">点击GO旋转转盘</div><div class="star">💜 真心话</div></div>'
-    +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'truth\')">🔄 换一批</button>'
-    +'</div>'
     +'<div style="text-align:center;margin-top:6px"><button class="mini-btn" onclick="showLog(\'_truthLog\')">📜 已答回顾</button></div>';
   window._truthItems=items;window._truthShown=[];window._truthColors=colors;window._truthAngle=window._truthAngle||0;window._truthSpinning=false;
   window._truthSpinningSess=(window._truthSpinningSess||0)+1;
@@ -1963,9 +2231,6 @@ function renderDare(c){
     +'<button class="wheel-go-btn" onclick="spinDareWheel()">GO</button>'
     +'</div>'
     +'<div class="wheel-result" id="dareResult"><div class="text">点击GO旋转转盘</div><div class="star">🔥 大冒险</div></div>'
-    +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'dare\')">🔄 换一批</button>'
-    +'</div>'
     +'<div style="text-align:center;margin-top:6px"><span class="mini-btn'+(window._dareLocal?' on':'')+'" onclick="dareLocal()">🏠 仅就地取材</span> <button class="mini-btn" onclick="showLog(\'_dareLog\')">📜 已答回顾</button></div>'
     +'<div style="font-size:11px;color:#777;text-align:center;margin-top:6px">⚠️ 动作幅度大时留意周围环境，避免磕碰</div>';
   window._dareItems=items;window._dareShown=[];window._dareColors=colors;window._dareAngle=window._dareAngle||0;window._dareSpinning=false;
@@ -2198,9 +2463,7 @@ function renderPunish(c){
     +'<button class="wheel-go-btn" onclick="spinPunishWheel()">GO</button>'
     +'</div>'
     +'<div class="wheel-result" id="punishResult"><div class="text">点击GO抽取惩罚</div></div>'
-    +'<div class="wheel-btns">'
-    +'<button class="wheel-btn back" onclick="startGame(\'punish\')">🔄 换一批</button>'
-    +'</div>';
+    +'';
   window._punishItems=items;window._punishShown=[];window._punishColors=colors;window._punishAngle=0;window._punishSpinning=false;
   window._punishSpinningSess=(window._punishSpinningSess||0)+1;
   if(window._punishSpinningTimer){clearTimeout(window._punishSpinningTimer);window._punishSpinningTimer=null;}
@@ -3458,7 +3721,7 @@ function renderFlightSetup(c){
     +'<button class="mini-btn" style="min-width:44px;min-height:44px" onclick="flSetGender(1)">＋</button></div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">③ 玩法模式（按钮分开选）</p>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0">'
-    +modes.map(function(m){return '<div class="mini-btn" style="text-align:center;padding:10px;min-height:56px;cursor:pointer;'+(s.mode===m[0]?'background:linear-gradient(135deg,#ffd700,#ff6b9d);color:#1a0a2e;font-weight:bold;':'')+'" onclick="flSetMode(\''+m[0]+'\')">'+m[1]+'<br><span style="font-size:11px;font-weight:normal">'+m[2]+'</span></div>';}).join('')
+    +modes.map(function(m){return '<div class="mini-btn" style="text-align:center;padding:10px;min-height:56px;cursor:pointer;'+(s.mode===m[0]?'background:linear-gradient(135deg,#ff2d95,#8b5cf6);color:#fff;font-weight:bold;box-shadow:0 0 22px rgba(255,45,149,.35);':'')+'" onclick="flSetMode(\''+m[0]+'\')">'+m[1]+'<br><span style="font-size:11px;font-weight:normal">'+m[2]+'</span></div>';}).join('')
     +'</div>'
     +'<p style="color:#aaa;font-size:13px;margin-top:10px">④ 难度</p>'
     +'<div style="text-align:center;margin:4px 0">'+DIFF_NAMES.map(function(d,i){return '<span class="mini-btn'+(s.diff===i+1?' on':'')+'" onclick="flSetDiff('+(i+1)+')">Lv'+(i+1)+' '+d+'</span>';}).join(' ')+'</div>'
@@ -5267,6 +5530,75 @@ function nightPoster(){
       +'<button class="wheel-btn back" onclick="nightCeremony()">↩ 返回仪式</button></div>');
   }catch(e){toast('海报生成失败：'+e.message);}
 }
+
+/* ===== V12 Phase 1: 首页 / HUD 同步 ===== */
+function v12PctRaw(v, max) { return Math.max(0, Math.min(100, Math.round(((v || 0) / max) * 100))); }
+function v12SetTrack(barId, valId, v, max, label) {
+  var b = document.getElementById(barId); if (b) b.style.width = v12PctRaw(v, max) + '%';
+  var t = document.getElementById(valId); if (t) t.textContent = label;
+}
+function v12NightOn() { try { return typeof nightStarted === 'function' && nightStarted(); } catch (e) { return false; } }
+function v12PartyTasks() { try { var P = JSON.parse(localStorage.getItem('couple-party') || '{}'); return P.tasks || 0; } catch (e) { return 0; } }
+function v12SyncHome() {
+  var d = document.getElementById('v12Date');
+  if (d) {
+    var dt = new Date();
+    var wk = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dt.getDay()];
+    d.textContent = wk + ' · ' + (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2);
+  }
+  var ns = document.getElementById('v12NightState');
+  if (ns) {
+    var on = v12NightOn();
+    ns.textContent = on ? ('🌙 ' + heatStageName()) : '🌙 未开局';
+    if (on) ns.classList.add('on'); else ns.classList.remove('on');
+  }
+  var sp = document.getElementById('v12SoundPill');
+  if (sp) {
+    sp.textContent = SET.sound ? '🔊' : '🔇';
+    if (SET.sound) sp.classList.add('on'); else sp.classList.remove('on');
+  }
+  var cn = document.getElementById('cpNames');
+  if (cn) cn.innerHTML = '<span class="nm-him">' + HE.him + '</span><span class="nm-heart">❤</span><span class="nm-her">' + HE.her + '</span>';
+  var heat = 0, combo = 0, cups = 0;
+  try { heat = getHeat(); combo = getCombo(); cups = Math.max(gDrinkCups('him'), gDrinkCups('her')); } catch (e) {}
+  v12SetTrack('v12BarHeat', 'v12ValHeat', heat, 100, Math.round(heat));
+  v12SetTrack('v12BarCombo', 'v12ValCombo', combo, 10, combo);
+  v12SetTrack('v12BarDrink', 'v12ValDrink', cups, 6, Math.round(cups * 10) / 10);
+  var sub = document.getElementById('v12Sub');
+  if (sub) sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
+  var cta = document.getElementById('v12Cta');
+  if (cta) cta.textContent = v12NightOn() ? '继续升温 ›' : '开始今晚 ›';
+}
+function v12SyncHud() {
+  var h = document.getElementById('v12Hud'); if (!h) return;
+  var heat = 0, combo = 0, cups = 0, gent = 0;
+  try { heat = getHeat(); combo = getCombo(); cups = Math.max(gDrinkCups('him'), gDrinkCups('her')); gent = gentGetV(); } catch (e) {}
+  h.innerHTML = '<div class="hud-item"><span>亲密</span><div class="hud-bar m"><i style="width:' + v12PctRaw(heat, 100) + '%"></i></div></div>'
+    + '<div class="hud-item"><span>刺激</span><div class="hud-bar v"><i style="width:' + v12PctRaw(combo, 10) + '%"></i></div></div>'
+    + '<div class="hud-item"><span>醉意</span><div class="hud-bar g"><i style="width:' + v12PctRaw(cups, 6) + '%"></i></div></div>'
+    + (gent > 0 ? '<div class="hud-badge">🌤 +' + gent + '</div>' : '');
+}
+function v12MainCta() {
+  if (v12NightOn()) v12QuickStart();
+  else { try { showNightIntro(); } catch (e) { toast('今晚开局失败，可直接选游戏'); } }
+}
+function v12QuickStart() {
+  var pool = ['truth', 'dare', 'dice', 'rps', 'punish', 'roulette', 'escalate', 'double', 'king', 'gamble', 'sniper', 'blind', 'choice', 'cards', 'grid', 'potato', 'fitness', 'role', 'auction', 'vault', 'king5', 'blinddice', 'bomb'];
+  var last = null; try { last = localStorage.getItem('couple-last'); } catch (e) {}
+  var cand = pool.filter(function (x) { return x !== last; });
+  var id = cand[Math.floor(Math.random() * cand.length)] || pool[0];
+  try { toast('⚡ 快速开始'); } catch (e) {}
+  startGame(id);
+}
+function v12Soon(name) { toast('🎬 ' + name + '会在 Phase 4 上线，先玩快速开始吧'); }
+function v12ToggleMore() {
+  var b = document.getElementById('v12MoreBody'), btn = document.getElementById('v12MoreBtn');
+  if (!b) return;
+  var on = b.classList.toggle('on');
+  if (btn) btn.textContent = on ? '收起玩法 ▴' : '全部玩法 · 25 款 ▾';
+  if (on) { try { v12SyncHome(); } catch (e) {} }
+}
+try { setInterval(function () { try { v12SyncHome(); } catch (e) {} }, 30000); } catch (e) {}
 
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
