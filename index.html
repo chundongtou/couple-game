@@ -730,6 +730,13 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .ctrl-btns{gap:4px}
 .ctrl-btn{white-space:nowrap;font-size:11px;padding:0 2px;letter-spacing:0}
 .ctrl-btn.relax{flex:1.25;font-size:10.5px;padding:0 2px}
+/* Phase4 剧情条 + 成就 */
+.v12-storybar{display:none;align-items:center;gap:8px;padding:6px 14px;font-size:10.5px;color:var(--v12-dim);background:rgba(255,45,149,.07);border-bottom:1px solid rgba(255,45,149,.18);position:sticky;top:87px;z-index:88}
+.v12-storybar .sb-ch{color:#ffb3d9;white-space:nowrap}
+.v12-storybar .sb-goal{color:var(--v12-g);white-space:nowrap}
+.v12-storybar .sb-bar{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+.v12-storybar .sb-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--v12-m),var(--v12-v));border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.ach-chip{display:inline-block;font-size:10.5px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:99px;padding:3px 8px;margin:3px 4px 0 0}
 </style>
 </head>
 <body>
@@ -757,7 +764,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
     <div class="v12-tile" onclick="v12QuickStart()"><div class="ic">⚡</div><div class="nm">快速开始</div><div class="ds">随机抽一款，直接升温</div></div>
     <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
     <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
-    <div class="v12-tile" onclick="v12Soon('剧情模式')"><div class="ic">🎬</div><div class="nm">剧情模式</div><div class="ds">今夜故事线 · Phase 4</div><div class="tag">即将上线</div></div>
+    <div class="v12-tile" onclick="startStory()"><div class="ic">🎬</div><div class="nm">剧情模式</div><div class="ds">3 章 12 幕，把今晚讲成故事</div><div class="tag">3章12幕</div></div>
   </div>
 </div>
 <div class="top-bar" id="setBar"></div>
@@ -771,6 +778,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 <div id="gamePage" class="page">
 <div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="gTitle">游戏</h1></div>
 <div class="v12-hud" id="v12Hud"></div>
+<div class="v12-storybar" id="v12StoryBar"></div>
 <div id="gContent"></div><div class="safe-tip">🚩 安全词：随时说「停」即可结束本轮</div>
 <div class="ctrl-log-toggle" onclick="toggleLog()">📜 本局记录</div>
 <div class="ctrl-voice-toggle" id="ctrlVoiceBtn" onclick="voiceReplay()" style="display:none">🔊 重听</div>
@@ -1550,6 +1558,7 @@ function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密�
     var _cb=getCombo();
     if(_cb>=3&&_cb%3===0)v12Fx.combo('连击 ×'+_cb);
   }catch(e){}
+  try{v12StoryOnTask();v12CheckAch();}catch(e){}
 }
 function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3; V11 温柔系数>=2 首次弃权不罚 */
   try{v12TaskSkip();}catch(e){}
@@ -4722,6 +4731,7 @@ function flNextTurn(){
 }
 function flWin(id,type){
   try{v12FlStopTurnTimer();}catch(e){}
+  try{v12UnlockAch('flightwin');}catch(e){}
   window._flWin=true;
   if(window._flP.length===2){var wn=type==='team'?window._flP[id].name:window._flP[id].name;betScore(wn);} /* V9: 今晚赌约记分 */
   sndBoom();vibrate([60,40,100]);
@@ -5192,6 +5202,7 @@ function v11SoftDo(who){
   if(who==='him'&&S.him<=0){toast('♂ 黄灯已用完');return;}
   if(who==='her'&&S.her<=0){toast('♀ 黄灯已用完');return;}
   S[who]--;S.y=(S.y||0)+1;softSave(S);
+  try{v12UnlockAch('gent');}catch(e){}
   var nm=who==='him'?HE.him:HE.her;
   var ok=false;
   if(window._swapHandler){
@@ -5212,6 +5223,7 @@ function v11SoftDo(who){
 window._v11HugReady=false;
 function v11RedLight(){
   var S=softGet();S.r=(S.r||0)+1;softSave(S);
+  try{v12UnlockAch('red');}catch(e){}
   gentUp();
   window._v11HugReady=false;
   vibrate([60,40,120]);
@@ -5557,6 +5569,7 @@ function nightCeremony(){
   openModal('<h3>🌙 夜终仪式</h3>'
     +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7;flex-direction:column;align-items:center">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
     +'<div class="m-item" style="text-align:center;font-size:12px;line-height:1.7">📋 完成 '+(ST.done||0)+' · 弃权 '+(ST.skip||0)+(maxLv?' · 最高强度 ★'+maxLv:'')+'</div>'
+    +((function(){try{var _a=v12AchWallHtml();return _a?('<div class="m-item" style="flex-direction:column;align-items:flex-start;font-size:12px;line-height:1.8">🏅 成就（'+v12AchCount()+' 枚）<div style="width:100%;margin-top:4px">'+_a+'</div></div>'):'';}catch(e){return '';}})())
     +'<div style="font-size:13px;color:#ffd700;margin:6px 0 2px">🏆 今晚颁奖</div>'+aHtml
     +'<div style="font-size:13px;color:#ffd700;margin:10px 0 2px">🎬 名场面回顾</div>'+mHtml
     +'<div class="m-item" style="margin-top:10px;font-size:14px;line-height:1.8;flex-direction:column;align-items:flex-start"><b>🌙 收尾任务</b><br>'+wind+'</div>'
@@ -5686,6 +5699,7 @@ function v12SyncHud() {
     + '<div class="hud-item"><span>醉意</span><div class="hud-bar g"><i style="width:' + v12PctRaw(cups, 6) + '%"></i></div></div>'
     + (gent > 0 ? '<div class="hud-badge">🌤 +' + gent + '</div>' : '')
     + '<div class="hud-badge" title="今夜氛围">✨ ' + v12MoodCalc() + '</div>';
+  try { v12StorySync(); } catch (e) {}
 }
 function v12MainCta() {
   if (v12NightOn()) v12QuickStart();
@@ -5996,6 +6010,167 @@ function v12FlStartTurnTimer() {
         }
       } catch (e) {}
     }, sec * 1000);
+  } catch (e) {}
+}
+
+/* ===== V12 Phase4: 剧情模式 (3章12幕) + 成就墙 ===== */
+var V12_STORY = [
+  { t: '第一章 · 试探', sub: '把灯调暗一点', acts: [
+    { t: '入场', n: '灯关一半，手机静音。今晚不问过去，只问现在。', goal: 2, games: ['truth', 'choice', 'dice'] },
+    { t: '眼神', n: '先别急。看看对方眼睛里，今晚是什么颜色。', goal: 2, games: ['rps', 'bomb', 'truth'] },
+    { t: '靠近', n: '距离是可以用游戏换的。每一次赢，都可以往前一步。', goal: 3, games: ['grid', 'dice', 'dare'] },
+    { t: '章末 · 第一次越界', n: '试探到此为止。从这一句开始，不再客套。', goal: 3, minLv: 3, games: ['dare', 'escalate', 'king'] }
+  ] },
+  { t: '第二章 · 升温', sub: '收不住的边缘', acts: [
+    { t: '交换条件', n: '今晚的规则很简单：赢的人提要求。', goal: 3, games: ['king', 'double', 'gamble'] },
+    { t: '身体记忆', n: '有些温度，会被身体记住很久。', goal: 3, games: ['fitness', 'potato', 'cards'] },
+    { t: '谁先动心', n: '输的人先说真心话，赢的人可以追问。', goal: 3, games: ['escalate', 'truth', 'dare'] },
+    { t: '章末 · 失控边缘', n: '收不住了，就别收。今晚允许一次不理智。', goal: 4, minLv: 4, games: ['roulette', 'sniper', 'role'] }
+  ] },
+  { t: '第三章 · 沉沦', sub: '天快亮了', acts: [
+    { t: '夜色正浓', n: '灯灭了，剩下的交给感觉。', goal: 4, games: ['blind', 'night', 'auction'] },
+    { t: '交出主动权', n: '今晚，把选择权交出去。', goal: 4, games: ['vault', 'king5', 'blinddice'] },
+    { t: '最后一局', n: '输赢都不重要了，重要的是还没停。', goal: 4, games: ['flight', 'escalate', 'dare'] },
+    { t: '终幕 · 天快亮了', n: '把这一夜，收进一个拥抱里。', goal: 5, minLv: 4, games: ['truth', 'dare', 'night'] }
+  ] }
+];
+var V12_ACH = {
+  first: { icon: '💓', name: '初次心跳' },
+  combo5: { icon: '⚡', name: '连击 ×5' },
+  lv5: { icon: '🔥', name: '越界者' },
+  types5: { icon: '🧩', name: '全能玩家' },
+  gent: { icon: '🚦', name: '温柔守护' },
+  red: { icon: '🔴', name: '会喊停' },
+  flightwin: { icon: '✈️', name: '飞行棋赢家' },
+  drunk: { icon: '🍷', name: '醉猫' },
+  story12: { icon: '🎬', name: '全剧终' }
+};
+function storyGet() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-story') || '{"d":""}');
+    if (S.d !== v11Today()) S = { d: v11Today(), on: false, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 };
+    return S;
+  } catch (e) { return { d: v11Today(), on: false, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; }
+}
+function storySave(S) { try { localStorage.setItem('couple-story', JSON.stringify(S)); } catch (e) {} }
+function storyAct(ch, act) { try { return V12_STORY[ch].acts[act]; } catch (e) { return null; } }
+function startStory() {
+  var S = storyGet();
+  if (S.on && !S.fin) { v12StoryShowAct(S.ch, S.act, true); return; }
+  S = { d: v11Today(), on: true, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; storySave(S);
+  v12StoryShowAct(0, 0, false);
+}
+function v12StoryShowAct(ch, act, resume) {
+  var A = storyAct(ch, act); if (!A) return;
+  var CH = V12_STORY[ch];
+  openModal('<h3>🎬 ' + CH.t + '</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">'
+    + '<b>第 ' + (act + 1) + ' 幕 · ' + A.t + '</b><br>' + A.n
+    + '<br><span style="font-size:12px;color:#aaa">目标：完成 ' + A.goal + ' 条任务' + (A.minLv ? '（至少 1 条 ★' + A.minLv + '+）' : '') + '</span></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12StoryLaunch()">▶ ' + (resume ? '继续这一幕' : '开始第一幕') + '</button><button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
+}
+function v12StoryLaunch() {
+  try {
+    var S = storyGet(); var A = storyAct(S.ch, S.act);
+    if (!A) return;
+    closeModal();
+    var g = A.games[Math.floor(Math.random() * A.games.length)];
+    startGame(g);
+    v12StorySync();
+  } catch (e) {}
+}
+function v12StoryOnTask() {
+  var S = storyGet(); if (!S.on || S.fin) return;
+  var A = storyAct(S.ch, S.act); if (!A) return;
+  var m = v12TaskMeta(v12LastText(), window._v12LastType || '');
+  S.done = (S.done || 0) + 1;
+  if ((m.lv || 0) > (S.maxLv || 0)) S.maxLv = m.lv;
+  storySave(S);
+  v12StorySync();
+  if (S.done >= A.goal && ((!A.minLv) || S.maxLv >= A.minLv)) v12StoryCompleteAct();
+}
+function v12StoryCompleteAct() {
+  var S = storyGet(); var A = storyAct(S.ch, S.act); if (!A) return;
+  var last = (S.ch === 2 && S.act === 3);
+  if (last) { v12StoryFinale(); return; }
+  var nx = S.act + 1, nch = S.ch;
+  if (nx > 3) { nx = 0; nch = S.ch + 1; }
+  var N = storyAct(nch, nx), NCH = V12_STORY[nch];
+  var chEnd = (nx === 0);
+  openModal('<h3>🎬 本幕完成</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">'
+    + (chEnd ? '<b style="color:#ffd700">' + NCH.t + ' · ' + NCH.sub + '</b><br>' : '')
+    + '<b>下一幕 · ' + N.t + '</b><br>' + N.n + '</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12StoryAdvance()">▶ 进入下一幕</button><button class="wheel-btn back" onclick="closeModal()">歇一会儿</button></div>');
+  window._v12NextAct = { ch: nch, act: nx };
+}
+function v12StoryAdvance() {
+  var N = window._v12NextAct; if (!N) return;
+  var S = storyGet(); S.ch = N.ch; S.act = N.act; S.done = 0; S.maxLv = 0; storySave(S);
+  closeModal(); v12StorySync(); v12StoryLaunch();
+}
+function v12StoryFinale() {
+  var S = storyGet(); S.fin = 1; S.on = false; storySave(S);
+  v12UnlockAch('story12');
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 80); v12Fx.combo('🎬 全剧终'); } catch (e) {}
+  var chs = V12_STORY.map(function (c) { return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">· ' + c.t + ' — ' + c.sub + '</div>'; }).join('');
+  openModal('<h3>🌅 全剧终</h3>'
+    + '<div class="m-item" style="text-align:center;line-height:1.9;flex-direction:column;align-items:center">三章十二幕，走完了。<br><span style="font-size:12px;color:#aaa">' + heatStageName() + ' · 成就 ' + v12AchCount() + ' 枚</span></div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start">' + chs + '</div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start">🏅 成就：<div style="width:100%;margin-top:4px">' + (v12AchWallHtml() || '—') + '</div></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();nightCeremony()">🌙 进入夜终仪式</button><button class="wheel-btn back" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
+  v12StorySync();
+}
+function v12StorySync() {
+  var el = document.getElementById('v12StoryBar'); if (!el) return;
+  var S = storyGet();
+  if (!S.on) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  var CH = V12_STORY[S.ch] || V12_STORY[0];
+  var A = storyAct(S.ch, S.act) || {};
+  el.style.display = 'flex';
+  var pct = Math.min(100, Math.round((S.done || 0) / (A.goal || 1) * 100));
+  el.innerHTML = '<span class="sb-ch">' + CH.t + ' · 第' + (S.act + 1) + '幕</span>'
+    + '<span class="sb-goal">' + (S.done || 0) + '/' + (A.goal || 0) + (A.minLv ? ' ★' + A.minLv : '') + '</span>'
+    + '<div class="sb-bar"><i style="width:' + pct + '%"></i></div>';
+}
+function achGet() {
+  try {
+    var A = JSON.parse(localStorage.getItem('couple-ach') || '{"d":""}');
+    if (A.d !== v11Today()) A = { d: v11Today(), list: [] };
+    return A;
+  } catch (e) { return { d: v11Today(), list: [] }; }
+}
+function achSave(A) { try { localStorage.setItem('couple-ach', JSON.stringify(A)); } catch (e) {} }
+function v12UnlockAch(id) {
+  try {
+    if (!V12_ACH[id]) return;
+    var A = achGet();
+    if (A.list.indexOf(id) >= 0) return;
+    A.list.push(id); achSave(A);
+    try { toast('🏅 成就解锁：' + V12_ACH[id].icon + ' ' + V12_ACH[id].name); } catch (e) {}
+    try { logEvent('🏅 成就：' + V12_ACH[id].name); } catch (e) {}
+    try { v12Fx.burst(innerWidth / 2, innerHeight * 0.35, 18); } catch (e) {}
+  } catch (e) {}
+}
+function v12AchList() { return achGet().list; }
+function v12AchCount() { return achGet().list.length; }
+function v12AchWallHtml() {
+  try {
+    return achGet().list.map(function (id) {
+      var a = V12_ACH[id];
+      return a ? ('<span class="ach-chip">' + a.icon + ' ' + a.name + '</span>') : '';
+    }).join('');
+  } catch (e) { return ''; }
+}
+function v12CheckAch() {
+  try {
+    var ST = v12StatsSummary();
+    if ((ST.done || 0) >= 1) v12UnlockAch('first');
+    if ((getCombo() || 0) >= 5) v12UnlockAch('combo5');
+    var th = v12Thist();
+    if (th.some(function (e) { return (e.lv || 0) >= 5; })) v12UnlockAch('lv5');
+    if (Object.keys(ST.byType || {}).filter(function (k) { return ST.byType[k] > 0; }).length >= 5) v12UnlockAch('types5');
+    if ((typeof gDrunkMax === 'function' ? gDrunkMax() : 0) >= 3) v12UnlockAch('drunk');
   } catch (e) {}
 }
 
