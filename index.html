@@ -721,6 +721,11 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .v12-moodline{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .v12-mood{font-size:11px;color:var(--v12-c);border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.07);border-radius:999px;padding:4px 10px;letter-spacing:.04em}
 .v12-ledger{font-size:11px;color:var(--v12-dim2)}
+/* Phase3b 倒计时环 */
+.v12-ring{position:fixed;top:64px;right:14px;width:48px;height:48px;border-radius:50%;z-index:9200;pointer-events:none;display:none;align-items:center;justify-content:center;background:conic-gradient(var(--v12-m) calc(var(--p,100) * 1%),rgba(255,255,255,.12) 0);box-shadow:0 0 24px rgba(255,45,149,.35)}
+.v12-ring.on{display:flex}
+.v12-ring::before{content:'';position:absolute;inset:4px;border-radius:50%;background:rgba(10,5,20,.88)}
+.v12-ring span{position:relative;font-size:14px;font-weight:800;color:#fff}
 </style>
 </head>
 <body>
@@ -1433,8 +1438,8 @@ function heatUp(){try{var H=JSON.parse(localStorage.getItem('couple-heat')||'{"d
 function heatCool(){try{localStorage.setItem('couple-heat',JSON.stringify({d:new Date().toDateString(),v:0}));toast('🧊 热度已降温');renderSettings();}catch(e){}}
 function getCombo(){try{var C=JSON.parse(localStorage.getItem('couple-combo')||'{"d":"","v":0}');if(C.d!==new Date().toDateString())C={d:new Date().toDateString(),v:0};return C.v||0;}catch(e){return 0;}}
 function setCombo(v){try{localStorage.setItem('couple-combo',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
-function getStreak(){try{var S=JSON.parse(localStorage.getItem('couple-streak')||'{"d":"","v":0}');if(S.d!==new Date().toDateString())S={d:new Date().toDateString(),v:0};return S.v||0;}catch(e){return 0;}}
-function setStreak(v){try{localStorage.setItem('couple-streak',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
+function getStreak(){return ledgerGet().streak||0;}
+function setStreak(v){var L=ledgerGet();L.streak=v;ledgerSave(L);}
 /* ===== V9 当晚升温线(替代段位: 一晚制, 当晚清零) ===== */
 var HEATLINE=['🧊 初识寒暄','🌤️ 暧昧试探','🔥 逐步升温','💥 热情似火','🌋 融为一体'];
 function heatStage(){var g=0;try{g=gentGetV();}catch(e){}return Math.max(0,Math.min(4,Math.floor((getHeat()-g*4)/20)));} /* 热度20一档, 5阶段; V11 温柔系数会放缓升级 */
@@ -1545,10 +1550,10 @@ function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3; V11 温柔
   coinAdd(-3);
   if(st>=2)toast('⛓️ 惩罚等级升至 Lv'+st+'！再弃权将加罚');
 }
-function debtAdd(txt){try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};D.list.push(txt);localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}}
-function debtCount(){try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())return 0;return (D.list||[]).length;}catch(e){return 0;}}
+function debtAdd(txt){var L=ledgerGet();L.list.push(txt);ledgerSave(L);}
+function debtCount(){return (ledgerGet().list||[]).length;}
 function showDebt(){
-  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};}catch(e){D={d:new Date().toDateString(),list:[]};}
+  var D=ledgerGet();
   var DL=D.list||[];
   if(!DL.length){toast('💸 今晚暂无欠债，棒棒哒');return;}
   var item=DL[0];
@@ -1563,7 +1568,7 @@ function showDebt(){
     +'<button class="wheel-btn back" onclick="closeModal()">先记着</button></div>');
 }
 function debtPay(){
-  try{var D=JSON.parse(localStorage.getItem('couple-debt')||'{"d":"","list":[]}');if(D.d!==new Date().toDateString())D={d:new Date().toDateString(),list:[]};D.list.shift();localStorage.setItem('couple-debt',JSON.stringify(D));}catch(e){}
+  var D=ledgerGet();D.list.shift();D.paid=(D.paid||0)+1;ledgerSave(D);
   taskDone();
   logEvent('💸 还债成功');
   closeModal();
@@ -2670,17 +2675,19 @@ function escStart(){
   if(window._escTv)clearInterval(window._escTv);
   var left=8;
   document.getElementById('escFill').style.width='100%';
+  try{v12Ring(8);}catch(e){}
   window._escTv=setInterval(function(){
     var f=document.getElementById('escFill');
     if(!f){clearInterval(window._escTv);window._escTv=null;return;}
     left-=0.1;
     f.style.width=Math.max(0,left/8*100)+'%';
-    if(left<=0){clearInterval(window._escTv);escRefuse();}
+    if(left<=0){clearInterval(window._escTv);try{v12RingEnd();}catch(e){}escRefuse();}
   },100);
 }
 function escDone(){
   if(!window._escStarted){toast('先点「开始8秒倒计时」');return;}
   if(window._escTv)clearInterval(window._escTv);
+  try{v12RingEnd();}catch(e){}
   if(window._escPenalty){window._escPenalty=false;window._escStage=1;}
   else toast('干得漂亮！下一条~');
   escShow(pickFresh('_darePick',GAMEDATA.dare));
@@ -2688,6 +2695,7 @@ function escDone(){
 function escRefuse(){
   if(!window._escStarted){toast('先点「开始8秒倒计时」');return;}
   if(window._escTv)clearInterval(window._escTv);
+  try{v12RingEnd();}catch(e){}
   if(window._escPenalty){toast('惩罚必须执行，没有拒绝选项！');return;}
   if(window._escStage===1){
     window._escStage=2;
@@ -5506,6 +5514,10 @@ function nightCeremony(){
   var P={};try{P=JSON.parse(localStorage.getItem('couple-party')||'{}');}catch(e){}
   var D=duelStats();var S=softGet();
   var cupsH=gDrinkCups('him'),cupsE=gDrinkCups('her');
+  var ST={done:0,skip:0,top:'',byLv:{},byType:{}};try{ST=v12StatsSummary();}catch(e){}
+  var th=[];try{th=JSON.parse(localStorage.getItem('couple-thist')||'{"d":"","list":[]}').list||[];}catch(e){}
+  var maxLv=0,maxTxt='';
+  th.forEach(function(e){if((e.lv||0)>maxLv){maxLv=e.lv;maxTxt=e.txt||'';}});
   var awards=[];
   if(D.wHim||D.wHer)awards.push({icon:'⚔️',name:'决胜王',who:D.wHim>=D.wHer?HE.him:HE.her,desc:'放倒对方的次数最多（'+D.wHim+' : '+D.wHer+'）'});
   if(D.lHim||D.lHer)awards.push({icon:'🤸',name:'翻车王',who:D.lHim>=D.lHer?HE.him:HE.her,desc:'决斗翻车最多（'+D.lHim+' : '+D.lHer+'）'});
@@ -5514,6 +5526,8 @@ function nightCeremony(){
   var top=Object.keys(by).sort(function(a,b){return by[b]-by[a];})[0];
   if(top){var g=GAMES.find(function(x){return x.id===top;});awards.push({icon:'🎮',name:'最忙游戏',who:g?g.icon+' '+g.name:top,desc:'今晚玩了 '+by[top]+' 次'});}
   if((S.y||0)+(S.r||0)>0)awards.push({icon:'🚦',name:'温柔守护',who:'你们俩',desc:'黄灯 '+S.y+' 次 · 红灯 '+S.r+' 次，想停就停是最好的默契'});
+  if(maxLv>=3)awards.push({icon:'🔥',name:'最大胆',who:'你们俩',desc:'最高强度 ★'+maxLv+'（'+String(maxTxt).slice(0,16)+'…）'});
+  if(((ST.byType&&ST.byType.role)||0)>0)awards.push({icon:'🎭',name:'最佳演技',who:'你们俩',desc:'今晚演了 '+ST.byType.role+' 段角色'});
   if(!awards.length)awards.push({icon:'🌙',name:'开场奖',who:'你们俩',desc:'今晚还没开玩，但来都来了，先抱一个'});
   var moments=v11Moments();
   var wind=randItem(V11_WIND_DOWN);
@@ -5522,6 +5536,7 @@ function nightCeremony(){
   var aHtml=awards.map(function(a){return '<div class="award-row"><span>'+a.icon+' '+a.name+'<br><span style="font-size:11px;color:#9a93b5">'+a.desc+'</span></span><b>'+a.who+'</b></div>';}).join('');
   openModal('<h3>🌙 夜终仪式</h3>'
     +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
+    +'<div class="m-item" style="text-align:center;font-size:12px;line-height:1.7">📋 完成 '+(ST.done||0)+' · 弃权 '+(ST.skip||0)+(maxLv?' · 最高强度 ★'+maxLv:'')+'</div>'
     +'<div style="font-size:13px;color:#ffd700;margin:6px 0 2px">🏆 今晚颁奖</div>'+aHtml
     +'<div style="font-size:13px;color:#ffd700;margin:10px 0 2px">🎬 名场面回顾</div>'+mHtml
     +'<div class="m-item" style="margin-top:10px;font-size:14px;line-height:1.8"><b>🌙 收尾任务</b><br>'+wind+'</div>'
@@ -5552,7 +5567,7 @@ function nightPoster(){
     x.fillText(new Date().toLocaleDateString('zh-CN')+' · 一晚限定',W/2,200);
     var P={};try{P=JSON.parse(localStorage.getItem('couple-party')||'{}');}catch(e){}
     var cups=Math.round((gDrinkCups('him')+gDrinkCups('her'))*10)/10;
-    var stats=[['🎮 开局',(P.games||0)+' 次'],['📋 任务',(P.tasks||0)+' 条'],['🍷 酒杯',cups+' 杯'],['💋 亲吻',(P.kisses||0)+' 次'],['🌡️ 升温',heatStageName()],['💰 爱币',coinGet()+' 枚']];
+    var stats=[['🎮 开局',(P.games||0)+' 次'],['📋 任务',(P.tasks||0)+' 条'],['🍷 酒杯',cups+' 杯'],['💋 亲吻',(P.kisses||0)+' 次'],['🌡️ 升温',heatStageName()],['🎯 最高强度',(function(){try{var m=0;(JSON.parse(localStorage.getItem('couple-thist')||'{"d":"","list":[]}').list||[]).forEach(function(e){if((e.lv||0)>m)m=e.lv;});return m?('★'+m):'—';}catch(e){return '—';}})()]];
     for(var s=0;s<stats.length;s++){
       var col=s%2,row=Math.floor(s/2);
       var bx=60+col*310,by=250+row*96;
@@ -5578,6 +5593,7 @@ function nightPoster(){
     x.font='22px "Microsoft YaHei",sans-serif';x.fillStyle='#f0e8ff';
     for(var a=0;a<Math.min(awards.length,5);a++){x.fillText(awards[a],60,660+a*44);}
     var mm=v11Moments().slice(0,3);
+    if(!mm.length){try{var _th=JSON.parse(localStorage.getItem('couple-thist')||'{"d":"","list":[]}').list||[];mm=_th.slice(-3).map(function(e){return e.txt;});}catch(e){}}
     x.fillStyle='#ffd700';x.font='bold 24px "Microsoft YaHei",sans-serif';
     x.fillText('🎬 名场面',60,910);
     x.font='18px "Microsoft YaHei",sans-serif';x.fillStyle='rgba(255,255,255,0.75)';
@@ -5837,9 +5853,81 @@ function v12RememberTask(txt, forceType) {
     if (!t) return;
     window._lastTask = t;
     window._v12LastType = forceType || '';
+    try{
+      var _m=v12TaskMeta(t,forceType||'');
+      var H=JSON.parse(localStorage.getItem('couple-thist')||'{"d":""}');
+      if(H.d!==v11Today())H={d:v11Today(),list:[]};
+      var _l=H.list[H.list.length-1];
+      if(!_l||_l.txt!==t){
+        H.list.push({txt:t.slice(0,80),type:_m.type,lv:_m.lv,t:new Date().toTimeString().slice(0,5)});
+        if(H.list.length>50)H.list.shift();
+        localStorage.setItem('couple-thist',JSON.stringify(H));
+      }
+    }catch(e){}
     window._v11TaskHist = window._v11TaskHist || [];
     if (window._v11TaskHist[window._v11TaskHist.length - 1] !== t) window._v11TaskHist.push(t);
     if (window._v11TaskHist.length > 20) window._v11TaskHist.shift();
+  } catch (e) {}
+}
+
+/* ===== V12 Phase3b: 统一账本 / 任务历史 / 倒计时环 ===== */
+function ledgerGet() {
+  try {
+    var L = JSON.parse(localStorage.getItem('couple-ledger') || '{"d":""}');
+    if (!L || L.d !== v11Today()) L = { d: v11Today(), streak: 0, list: [], paid: 0 };
+    if (!L.list) L.list = [];
+    if (!L.streak && !L.list.length) {
+      try {
+        var S = JSON.parse(localStorage.getItem('couple-streak') || '{}');
+        var D = JSON.parse(localStorage.getItem('couple-debt') || '{}');
+        if (S && S.d === L.d && S.v) L.streak = S.v;
+        if (D && D.d === L.d && D.list && D.list.length) L.list = D.list.slice();
+      } catch (e) {}
+    }
+    return L;
+  } catch (e) { return { d: v11Today(), streak: 0, list: [], paid: 0 }; }
+}
+function ledgerSave(L) {
+  try { localStorage.setItem('couple-ledger', JSON.stringify(L)); } catch (e) {}
+  try { localStorage.setItem('couple-streak', JSON.stringify({ d: L.d, v: L.streak || 0 })); } catch (e) {}
+  try { localStorage.setItem('couple-debt', JSON.stringify({ d: L.d, list: L.list || [] })); } catch (e) {}
+}
+function v12Thist() {
+  try {
+    var H = JSON.parse(localStorage.getItem('couple-thist') || '{"d":"","list":[]}');
+    if (H.d !== v11Today()) return [];
+    return H.list || [];
+  } catch (e) { return []; }
+}
+function v12Ring(sec) {
+  try {
+    var r = document.getElementById('v12Ring');
+    if (!r) {
+      r = document.createElement('div');
+      r.id = 'v12Ring';
+      r.className = 'v12-ring';
+      r.innerHTML = '<span>0</span>';
+      document.body.appendChild(r);
+    }
+    r.classList.add('on');
+    var total = Math.max(1, sec) * 1000;
+    var end = Date.now() + total;
+    if (window._v12RingTv) clearInterval(window._v12RingTv);
+    var sp = r.querySelector('span');
+    window._v12RingTv = setInterval(function () {
+      var left = Math.max(0, end - Date.now());
+      var p = left / total * 100;
+      if (sp) sp.textContent = Math.ceil(left / 1000);
+      r.style.setProperty('--p', p.toFixed(1));
+      if (left <= 0) v12RingEnd();
+    }, 100);
+  } catch (e) {}
+}
+function v12RingEnd() {
+  try {
+    if (window._v12RingTv) { clearInterval(window._v12RingTv); window._v12RingTv = null; }
+    var r = document.getElementById('v12Ring');
+    if (r) r.classList.remove('on');
   } catch (e) {}
 }
 
