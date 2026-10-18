@@ -5594,8 +5594,8 @@ function nightPoster(){
     x.fillText('🏆 今晚颁奖',60,610);
     x.font='22px "Microsoft YaHei",sans-serif';x.fillStyle='#f0e8ff';
     for(var a=0;a<Math.min(awards.length,5);a++){x.fillText(awards[a],60,660+a*44);}
-    var mm=v11Moments().slice(0,3);
-    if(!mm.length){try{var _th=JSON.parse(localStorage.getItem('couple-thist')||'{"d":"","list":[]}').list||[];mm=_th.slice(-3).map(function(e){return e.txt;});}catch(e){}}
+    var mm=v11Moments().slice(0,2);
+    if(!mm.length){try{var _th=JSON.parse(localStorage.getItem('couple-thist')||'{"d":"","list":[]}').list||[];mm=_th.slice(-2).map(function(e){return e.txt;});}catch(e){}}
     x.fillStyle='#ffd700';x.font='bold 24px "Microsoft YaHei",sans-serif';
     x.fillText('🎬 名场面',60,910);
     x.font='18px "Microsoft YaHei",sans-serif';x.fillStyle='rgba(255,255,255,0.75)';
