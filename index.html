@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 情侣升温游戏 V11 · 氛围与仪式(读空气/醉意值/念题模式/道具卡3.0+黑市/夜终仪式/氛围引擎) -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -418,6 +419,28 @@ body.scene-camping #homePage::after{content:'🔥';position:fixed;bottom:16%;rig
 .task-badge{display:inline-block;font-size:11px;border-radius:9px;padding:2px 8px;margin-right:6px;vertical-align:middle}
 .fav-btn{float:right;background:none;border:none;font-size:16px;cursor:pointer;opacity:0.6}
 .fav-btn:hover{opacity:1}
+/* ============ V11 氛围与仪式(读空气/醉意值/念题模式/氛围音/道具卡3.0/夜终仪式) ============ */
+.ctrl-items{flex-wrap:wrap;row-gap:4px}
+.ctrl-btns{flex-wrap:wrap;row-gap:6px}
+.ctrl-btn{min-width:0;padding:0 4px}
+.ctrl-item.drink{color:#7ee0ff;background:rgba(126,224,255,0.08);border-color:rgba(126,224,255,0.35);cursor:pointer;user-select:none;-webkit-user-select:none}
+.ctrl-item.drink.lv1{color:#ffd977;background:rgba(255,215,0,0.12);border-color:rgba(255,215,0,0.45)}
+.ctrl-item.drink.lv2{color:#ffa76b;background:rgba(255,140,60,0.14);border-color:rgba(255,140,60,0.5)}
+.ctrl-item.drink.lv3{color:#ff6b9d;background:rgba(255,60,120,0.16);border-color:rgba(255,60,120,0.55);animation:driftPulse 1.2s infinite}
+@keyframes driftPulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.ctrl-item .mini-minus{display:inline-block;margin-left:4px;padding:0 5px;border-radius:8px;background:rgba(255,255,255,0.14);cursor:pointer}
+.ctrl-item.gent{color:#9df5b6;background:rgba(80,220,130,0.1);border-color:rgba(80,220,130,0.45)}
+.ctrl-item.pack{color:#ffd700;cursor:pointer;background:rgba(255,215,0,0.12)}
+.ctrl-btn.relax{border-color:rgba(126,224,255,0.55);color:#bfeaff;white-space:nowrap;font-size:11px;padding:0 2px}
+.ctrl-voice-toggle{position:absolute;right:8px;top:-52px;font-size:11px;color:#ffd700;background:rgba(20,8,40,0.9);border:1px solid rgba(255,215,0,0.4);border-radius:10px;padding:3px 10px;cursor:pointer}
+body.light .ctrl-voice-toggle{background:rgba(255,255,255,0.92);border-color:rgba(214,69,110,0.35);color:#8c3a55}
+.hug-count{font-size:46px;text-align:center;color:#ff6b9d;margin:12px 0;font-weight:bold;text-shadow:0 0 18px rgba(255,107,157,0.6)}
+.award-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:6px 2px;border-bottom:1px dashed rgba(255,255,255,0.12)}
+.award-row b{color:#ffd700;text-align:right;margin-left:8px}
+body.light .award-row{border-bottom-color:rgba(0,0,0,0.08)}
+.poster-wrap{text-align:center}
+.poster-wrap img{width:100%;max-width:340px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.5)}
+.wake-card{text-align:center;font-size:15px;line-height:2}
 </style>
 </head>
 <body>
@@ -441,14 +464,16 @@ body.scene-camping #homePage::after{content:'🔥';position:fixed;bottom:16%;rig
 <div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="gTitle">游戏</h1></div>
 <div id="gContent"></div><div class="safe-tip">🚩 安全词：随时说「停」即可结束本轮</div>
 <div class="ctrl-log-toggle" onclick="toggleLog()">📜 本局记录</div>
+<div class="ctrl-voice-toggle" id="ctrlVoiceBtn" onclick="voiceReplay()" style="display:none">🔊 重听</div>
 <div class="ctrl-bar" id="ctrlBar">
-  <div class="ctrl-items"><span class="ctrl-item" id="ctrlSwap">🃏 替换卡 ×1</span><span class="ctrl-item" id="ctrlPardon">🍀 免罚卡 ×1</span></div>
+  <div class="ctrl-items" id="ctrlItems"><span class="ctrl-item" id="ctrlSwap">🃏 替换卡 ×1</span><span class="ctrl-item" id="ctrlPardon">🍀 免罚卡 ×1</span></div>
   <div class="ctrl-btns">
     <button class="ctrl-btn" onclick="panelRedraw()">🔄 重抽</button>
     <button class="ctrl-btn" onclick="panelSkip()">⏭ 跳过</button>
     <button class="ctrl-btn" onclick="panelUndo()">↩ 撤销</button>
     <button class="ctrl-btn" onclick="panelReset()">🔁 重置</button>
     <button class="ctrl-btn" onclick="panelHome()">🏠 大厅</button>
+    <button class="ctrl-btn relax" id="ctrlRelax" title="轻点=换温柔版｜长按=停一下抱10秒">🚦 缓一缓</button>
   </div>
 </div></div>
 
@@ -742,7 +767,7 @@ drink:["一起干一杯交杯酒","输的人喝一整杯","各自倒满，深情
 pairs:["亲对方耳垂30秒｜脱一件衣服","说一句最撩人的情话｜用嘴帮对方脱一件衣服","喝一口酒再亲对方10秒｜喝一整杯","让对方摸你的腰10秒｜你摸对方的敏感部位10秒","学猫叫三声｜让对方把你抱起来10秒","深吻10秒｜湿吻30秒","说一个自己的小秘密｜让对方问你任何问题并如实回答","亲对方的手背｜亲对方的大腿内侧","喝一杯交杯酒｜用嘴喂对方喝三口","让对方亲你锁骨｜你亲对方的小腹","十指相扣对视30秒｜对视并互相说骚话","给对方按摩肩30秒｜让对方给你按摩大腿内侧30秒","喝半杯｜蒙眼让对方喂你喝一杯","亲对方的额头10秒｜亲对方的手背20秒","学对方说话1分钟｜用对方的称呼叫自己10声","让对方抱你转一圈｜你把对方横抱起来","喝一口喷在对方脖子上再亲掉｜两人一起喝完两杯","说出对方最性感的部位并亲一下｜用嘴指出你最想被亲的地方并亲一下","深吻10秒｜舌吻到呼吸急促","让对方脱你一件衣服｜你脱对方两件衣服","用吸管共饮一杯｜闭眼喝交杯酒","在对方耳边说悄悄话｜在对方耳边吹气1分钟","让对方夸你5句｜你夸对方5句","亲对方下巴｜从下巴一路亲到锁骨","喝一口再亲10秒｜连喝三口每口亲一下","和对方额头贴额头10秒｜抱着对方转三圈","说一个你的幻想｜把你的幻想演出来10秒","摸对方的手｜把你的手放进对方衣服里10秒","干杯说一句情话｜干杯后湿吻10秒","让对方指定你亲哪里｜你指定对方亲哪里并执行"],
 exercise:["平板支撑30秒","深蹲保持20秒","靠墙静蹲30秒","单脚站立30秒","俯卧撑×3","仰卧起坐×5"],
 roles:["主人|宠物","老板|秘书","老师|学生","医生|病人","将军|士兵","骑士|公主","导演|演员","大灰狼|小红帽","霸道总裁|小助理","房东|租客","教官|学员","君王|妃子","护士|病人","健身教练|学员","警察|小偷","国王|仆人","明星|狂热粉丝","邻居|新搬来的","船长|乘客","导演|新人演员","主人|小猫咪","记者|大明星"],
-extra:{truths:["你最喜欢被哪种体位弄到求饶？","你幻想过被对方用玩具玩到哭吗？","你高潮时最想喊什么话？","你希望对方做完后怎么安抚你？","你最能接受在什么场合偷偷亲热？","你幻想过被两个人同时服务吗？","你最想对方把吻痕留在哪？","你偷偷想过被对方朋友看到吗？","你最喜欢对方在哪个部位留下牙印？","你愿意为对方拍多大尺度的照片？","你最想被绑成什么姿势？","你希望对方怎么惩罚不听话的你？","你最喜欢哪种姿势，为什么？","你最想尝试但一直没敢开口的姿势是什么？","你更喜欢在上面还是被压着？","你幻想过被按在什么家具上做？","你更享受过程还是高潮前的那一刻？","你上次结束后最想说什么但没说？","你更喜欢床还是刺激的场合？","你最想被对方用哪种姿势对待？","你幻想过一边做一边被对方说什么？","你最想在做之前得到怎样的前戏？","你幻想过被对方用玩具玩到求饶吗？","你最想试试哪种玩具？","你敢蒙着眼让对方用道具玩弄你10分钟吗？","你幻想过被绑起来任对方摆布吗？","你最想被对方用什么绳结固定？","你愿意为对方录多大尺度的视频？","你幻想过用冰块或温水刺激过对方吗？","你最想让对方用嘴帮你戴或摘什么？","你偷偷搜过哪种道具的用法？","你希望对方用道具折磨你还是取悦你？","你最想在哪个公开场合偷偷亲热？","你幻想过在车里被对方要吗？","你敢在电影院最后一排动手动脚吗？","你幻想过在阳台上被从后面进入吗？","你最想在哪次聚会上偷溜出去亲热？","你幻想过穿着正经衣服在办公室做吗？","你试过和对方约定公共场合的暗号吗？","你最想在楼梯间还是电梯里？","你幻想过在洗手间速战速决吗？","你最想和对方去哪旅行并疯狂做？","你最想扮演什么角色让对方惩罚你？","你幻想过自己是老师被学生反扑吗？","你最想让对方扮成谁？","你敢全程角色扮演一次完整的前戏吗？","你幻想过被老板单独留下加班吗？","你更想当猎物还是猎手？","你最想听对方用什么身份命令你？","你幻想过扮成陌生人互相搭讪吗？","你愿意为对方换什么制服？","你幻想过被医生检查身体吗？","你最想被对方用什么语气命令？","你内心其实想被支配还是想支配对方？","你最想听到的命令是什么？","你敢让对方蒙眼全程指挥你吗？","你幻想过跪下求对方吗？","你最想被罚做什么？","你喜欢被叫宝贝还是更粗的称呼？","你敢把今晚全权交给对方安排吗？","你最想对对方下什么命令？","你幻想过被对方要求不许动吗？","你最想被挑逗到哪种程度才被满足？","你忍过最久的前戏是多长？","你幻想过被做到一半停下来的惩罚吗？","你最想让对方在临门一脚时怎么折磨你？","你喜欢被控制节奏吗？","你最想被撩到求着对方继续吗？","你幻想过被数着次数惩罚吗？","你更想要一次到底还是反复折磨？","你最想被按着不许释放多久？","你喜欢结束后被继续刺激吗？"],
+extra:{truths:["你最喜欢被哪种体位弄到求饶？","你幻想过被对方用玩具玩到哭吗？","你高潮时最想喊什么话？","你希望对方做完后怎么安抚你？","你最能接受在什么场合偷偷亲热？","你最想对方把吻痕留在哪？","你偷偷想过被对方朋友看到吗？","你最喜欢对方在哪个部位留下牙印？","你愿意为对方拍多大尺度的照片？","你最想被绑成什么姿势？","你希望对方怎么惩罚不听话的你？","你最喜欢哪种姿势，为什么？","你最想尝试但一直没敢开口的姿势是什么？","你更喜欢在上面还是被压着？","你幻想过被按在什么家具上做？","你更享受过程还是高潮前的那一刻？","你上次结束后最想说什么但没说？","你更喜欢床还是刺激的场合？","你最想被对方用哪种姿势对待？","你幻想过一边做一边被对方说什么？","你最想在做之前得到怎样的前戏？","你幻想过被对方用玩具玩到求饶吗？","你最想试试哪种玩具？","你敢蒙着眼让对方用道具玩弄你10分钟吗？","你幻想过被绑起来任对方摆布吗？","你最想被对方用什么绳结固定？","你愿意为对方录多大尺度的视频？","你幻想过用冰块或温水刺激过对方吗？","你最想让对方用嘴帮你戴或摘什么？","你偷偷搜过哪种道具的用法？","你希望对方用道具折磨你还是取悦你？","你最想在哪个公开场合偷偷亲热？","你幻想过在车里被对方要吗？","你敢在电影院最后一排动手动脚吗？","你幻想过在阳台上被从后面进入吗？","你最想在哪次聚会上偷溜出去亲热？","你幻想过穿着正经衣服在办公室做吗？","你试过和对方约定公共场合的暗号吗？","你最想在楼梯间还是电梯里？","你幻想过在洗手间速战速决吗？","你最想和对方去哪旅行并疯狂做？","你最想扮演什么角色让对方惩罚你？","你幻想过自己是老师被学生反扑吗？","你最想让对方扮成谁？","你敢全程角色扮演一次完整的前戏吗？","你幻想过被老板单独留下加班吗？","你更想当猎物还是猎手？","你最想听对方用什么身份命令你？","你幻想过扮成陌生人互相搭讪吗？","你愿意为对方换什么制服？","你幻想过被医生检查身体吗？","你最想被对方用什么语气命令？","你内心其实想被支配还是想支配对方？","你最想听到的命令是什么？","你敢让对方蒙眼全程指挥你吗？","你幻想过跪下求对方吗？","你最想被罚做什么？","你喜欢被叫宝贝还是更粗的称呼？","你敢把今晚全权交给对方安排吗？","你最想对对方下什么命令？","你幻想过被对方要求不许动吗？","你最想被挑逗到哪种程度才被满足？","你忍过最久的前戏是多长？","你幻想过被做到一半停下来的惩罚吗？","你最想让对方在临门一脚时怎么折磨你？","你喜欢被控制节奏吗？","你最想被撩到求着对方继续吗？","你幻想过被数着次数惩罚吗？","你更想要一次到底还是反复折磨？","你最想被按着不许释放多久？","你喜欢结束后被继续刺激吗？"],
 dare:["让对方把你按在墙上，边亲边摸30秒","用嘴给对方全身留下10个吻痕","坐在对方腿上磨蹭到对方求饶","扮演宠物爬过去求对方摸头","边做深蹲边用最撩的语气报数","让对方蒙住你的眼睛，用手指划过你全身","在对方耳边喘气10秒不许笑","用冰块从对方锁骨滑到胸口","给对方跳一段最诱惑的舞","让对方把你的手按住，亲你到求饶","用舌头在对方后颈写三个字","让对方从脚踝一路亲到大腿根","把对方抱到桌边，站着从后面顶20秒","让对方坐在你身上自己动20秒","从背后环抱对方，贴着磨蹭30秒","把对方按在墙上，单腿抬起顶住15秒","让对方趴好，你从上面压着亲后颈1分钟","面对面盘腿相拥，让身体贴紧30秒","让对方骑在你身上，你扶着他的腰","把对方的一条腿架在你肩上保持10秒","躺着让对方跨坐，双手扣住他的手腕","背靠背互贴，同时向中间挤压10秒","用眼罩蒙住对方，用你的手当玩具游走1分钟","用丝带把对方手腕松松绑在身后，亲到他说要","拿一块冰块，沿对方锁骨划到小腹","用温热的掌心贴住对方后背慢慢下移","让对方咬住你的衣角，你用手让他全身绷紧","用羽毛或指尖在对方大腿根画圈1分钟","让对方闭上眼，你用三种不同温度亲吻他","用你的腰带轻轻拍打对方的大腿外侧","蒙住对方眼睛，喂他一块水果再用嘴去接","让对方四肢摊开躺好，你悬在他上方挑逗不准碰","把窗帘拉开，在窗边抱紧对方10秒","一起去阳台吹风，趁没人偷偷亲30秒","抱着对方躲在门后，等脚步声经过再亲","在客厅地板上滚作一团1分钟","让对方坐在厨房台面上，你站在他两腿之间","在镜子前从背后抱住对方一起看10秒","把对方抱到门口，让他背贴门你压上去","一起钻进衣柜，黑灯瞎火里亲30秒","在沙发上用毯子盖住腿，底下手指勾在一起","让对方假装摔倒，你扶住他顺势搂紧","扮演严厉老师，把学生叫到跟前教训，末了亲一下","扮演霸道总裁，把对方壁咚住说一句台词","扮演医生，让病人张嘴，检查完亲他一口","扮演女仆，单膝下跪为对方服务脱鞋","扮演陌生人，用最生疏的语气夸对方身材","扮演警察，把对方双手反扣在身后审问3个问题","扮演司机与乘客，让对方坐你腿上指路","扮演健身教练，手把手纠正对方动作1分钟","扮演邻居，隔着一道门说悄悄话，最后开门扑倒","扮演皇上与妃子，让对方请安，你赏他一个吻","让对方跪下，仰头看着你，你摸他的脸","命令对方不许动，你用一分钟做任何想做的事","让对方学小狗趴好，你牵着他散步到床边","命令对方大声说三遍我想要你","让对方双手背在身后，你负责喂他吃一口","命令对方只准用嘴，把你的外套拉链拉下来","让对方跪坐在地上，抬头对你撒娇求放过","命令对方爬到门口再爬回来","让对方仰头张嘴，你悬空滴水进去","命令对方把眼睛蒙上，等你亲到才许睁开","亲对方全身，唯独跳过最想被亲的地方","在对方耳边吹气，快碰到又缩回来，重复10次","用手在对方小腹画圈，就是不肯往下","把对方撩到起身追你，然后按住他","亲吻到对方喘气，然后突然停下对视10秒","用指尖顺着对方大腿向上，到顶端前停住","让对方闭眼数30秒，你全程挑逗但禁止他动","把对方逼到墙边，近到嘴唇快碰到，保持5秒再亲","先给一个深吻，吻到腿软再扶着他慢慢放倒","用最慢的速度解开对方一颗扣子，解开后亲一下"]},
 extra5:{truths:["你愿意让对方完全支配你一整晚吗？","你幻想过被两个人同时服务吗？","你最想在对方面前被怎样对待？","你幻想过被公开围观你们做吗？","你敢把最羞耻的幻想完整说给对方听吗？","你幻想过被对方绑在床上随意使用吗？","你最想被怎么惩罚才会爽到哭？","你幻想过一边做一边被录像吗？","你敢和对方玩一次今天你只是玩具吗？","你最想被命令做什么最羞耻的事？","你幻想过对方边做边骂你吗？","你愿意把自己的身体完全交给对方一晚吗？","你最想被折磨多久才许你释放？","你幻想过对方叫别人来帮忙吗？","你敢全程被捂嘴做吗？","你最想在哪被对方就地正法？","你幻想过被对方在身上写什么？","你愿意让对方决定你今晚穿什么、不穿什么吗？","你最想被对方用什么方式逼供？","你幻想过自己是被惩罚的那一方吗？","你敢让对方拍下你最有感觉的一刻吗？","你最想被按在镜子前从后面看自己吗？","你幻想过被对方吊着双臂做吗？","你愿意做一晚只会点头的人吗？","你最想被对方在哪个部位留满痕迹？","你幻想过被对方强迫着说羞耻的话吗？","你敢和对方玩谁先求饶谁输吗？","你最想被怎么处刑？","你幻想过全程蒙眼被换着姿势玩吗？","你愿意把安全词之外的一切交给对方吗？","你最想被对方用什么堵住嘴？","你幻想过被对方按在餐桌上当菜吗？","你敢让对方在你身上玩一次人体盛宴吗？","你最想被强迫摆出什么姿势？","你幻想过被对方牵着走吗？","你愿意当一晚对方的专属玩具吗？","你最想被对方用什么姿势教育？","你幻想过自己求着被继续吗？","你敢把今晚的一切决定权交给对方吗？","你最想对对方做但怕被说变态的事是什么？"],dare:["把对方双手捆在床头，亲到他主动抬腰","让对方趴在床边，你从后面压住他的手腕","用你的领带蒙住对方眼睛，骑上去","把对方按在镜子上，让他看着自己被你亲","让对方张嘴，你把手指放在他唇边让他舔","从后面抱住对方，一手扣腰一手扣喉","让对方跪下抱你的腿，抬头叫你主人","用一条腿挤进对方双腿之间磨蹭","把对方抱上餐桌，掀开衣摆亲他的小腹","让对方背对你坐你腿上，你环住他的腰","用你的手掌量对方的腰，报出尺寸再收紧","把对方逼到墙角，一条手臂撑在墙上俯视他","让对方趴在床上，你骑坐他大腿上给他按肩","咬住对方的后颈，手从衣摆下探进去","让对方双手举过头顶贴着墙，你慢慢亲下去","用丝巾把对方眼睛蒙住，牵着他走三步","把对方的腿抬起来搭在你肩上，亲他的小腿","让对方数着你的亲吻，数错一个加罚一次","用最慢的速度把对方衣服往上推，边推边亲","让对方仰躺，你俯身用手肘撑在他两侧","用牙齿把对方的内衣边勾下来一点","让对方跪在床上，你从背后贴紧他","在对方大腿内侧吸出一小块红印","把对方手腕用一只手扣在头顶，另一只手解他扣子","让对方坐镜子前，你站在身后替他整理头发，手往下滑","用刚洗过的手贴住对方的胸口","把对方抱起来抵在墙上，双腿环住你","让对方爬着去关灯，你在后面轻拍他","用你的嘴唇代替手指，从对方耳垂一路点到锁骨","把对方按在沙发上，一条腿跪进他两腿之间","让对方闭上眼，你用三种力度亲吻他的脖子","用手指抬起对方下巴，亲一口再问服不服","把对方翻过来，从脚踝亲到大腿","让对方张嘴伸出舌头，你悬空滴一滴水","用皮带轻轻圈住对方腰，把人拉近","让对方趴下，你沿着他的脊椎一路亲下去","把对方的手放在你腰上，你带着他感受你的节奏","让对方仰头，你吻他的喉结并轻轻吮一下","用你的外套裹住对方，从背后抱紧慢慢收紧","把对方整个人圈在怀里，在耳边低声数一二三再深吻"]},
 flightM:{dare:["给她按摩肩膀1分钟","公主抱她走3步","用10句话夸她不许重样","即兴给她跳30秒","单膝下跪对她说一句情话","做10个俯卧撑边报数边喊她名字","蒙眼帮她剥一个水果喂她","抱着她原地转三圈","想尽办法在一分钟内把她哄笑","学她说最娇嗔的一句话","用她的发绳给自己扎个小揪揪保持一局","替她完成一条她不想做的任务","背着她走10步","用三种语言对她说我爱你","给她唱两句走心的情歌","深情凝视她20秒然后说一个她的优点"],
@@ -817,6 +842,10 @@ var SET=JSON.parse((function(){try{return localStorage.getItem('couple-set')}cat
   if(!SET.theme)SET.theme='dark';
   if(!SET.scene)SET.scene='none';
   if(SET.bgm===undefined)SET.bgm=false;
+  if(SET.voice===undefined){SET.voice=false;ch=true;}
+  if(SET.voiceSlow===undefined){SET.voiceSlow=false;ch=true;}
+  if(SET.ambient===undefined){SET.ambient='off';ch=true;}
+  if(SET.quiet===undefined){SET.quiet=false;ch=true;}
   if(ch)try{localStorage.setItem('couple-set',JSON.stringify(SET))}catch(e){}
 })();
 function setOpt(k,v){SET[k]=v;try{localStorage.setItem('couple-set',JSON.stringify(SET))}catch(e){}}
@@ -834,12 +863,16 @@ function renderSettings(){
     +'<span class="tb-item'+(SET.drink?' on':'')+'" onclick="toggleSet(\'drink\')">🍷 喝酒</span>'
     +'<span class="tb-item'+(SET.sound?' on':'')+'" onclick="toggleSet(\'sound\')">🔊 音效</span>'
     +'<span class="tb-item'+(SET.bgm?' on':'')+'" onclick="toggleSet(\'bgm\')">🎵 音乐</span>'
+    +'<span class="tb-item'+(SET.voice?' on':'')+'" onclick="toggleSet(\'voice\')">'+(SET.voice?(SET.voiceSlow?'🐢 慢速念题':'🗣️ 念题中'):'🗣️ 念题')+'</span>'
+    +'<span class="tb-item'+((SET.ambient&&SET.ambient!=='off')?' on':'')+'" onclick="toggleSet(\'ambient\')">'+(SET.ambient==='rain'?'🌧️ 雨夜':SET.ambient==='fire'?'🔥 壁炉':SET.ambient==='club'?'🎧 夜店':'🌙 氛围音')+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'theme\')">🌓 '+{dark:'暗夜夜灯',light:'浅色浪漫',sketch:'手绘情书'}[SET.theme||'dark']+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'scene\')">🎀 '+{none:'场景',beach:'海滩',christmas:'圣诞',camping:'露营'}[SET.scene||'none']+'</span>'
     +'<span class="tb-item" onclick="heatCool()">🔥 热度 '+getHeat()+'</span>'
+    +((function(){try{var lv=Math.max(gDrunkLv('him'),gDrunkLv('her'));return lv>0?'<span class="tb-item" onclick="showCardPack()" style="color:#ffd977">'+['','🥂 微醺','🍻 上头','🌙 断片'][lv]+'</span>':'';}catch(e){return '';}})())
     +'<span class="tb-item" onclick="toggleLimit()">'+(SET.limit?'🔞 极限中':'🔒 极限')+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'god\')">'+(SET.god?'🎛️ 上帝开':'🎛️ 上帝')+'</span>'
     +'<span class="tb-item" onclick="toggleIncognito()">'+(SET.incognito?'🛡️ 无痕中':'🛡️ 无痕')+'</span>'
+    +'<span class="tb-item'+(SET.quiet?' on':'')+'" onclick="toggleSet(\'quiet\')">'+(SET.quiet?'🤫 安静中':'🤫 安静')+'</span>'
     +'<span class="tb-item" onclick="showShop()">💰 '+coinGet()+'</span>'
     +'<span class="tb-item" style="color:#ffd700">🌡️ '+heatStageName()+'</span>'
     +'<span class="tb-item" onclick="showHelp()">❓ 帮助</span>';
@@ -862,7 +895,7 @@ function setDiff(n){
   toast('已切换难度：'+(n===5?'🔞 无底线':DIFF_NAMES[n-1]));
 }
 function toggleSet(k){
-  if(k==='drink'){setOpt('drink',!SET.drink);toast(SET.drink?'已开启喝酒玩法 🍷':'已关闭喝酒玩法，酒类题替换为亲吻 💋');}
+  if(k==='drink'){setOpt('drink',!SET.drink);toast(SET.drink?'已开启喝酒玩法 🍷':'已关闭喝酒玩法，酒类题替换为亲吻 💋');if(typeof renderCtrl==='function')renderCtrl();}
   else if(k==='sound'){setOpt('sound',!SET.sound);toast(SET.sound?'音效已开启 🔊':'音效已静音 🔇');}
   else if(k==='bgm'){setOpt('bgm',!SET.bgm);if(SET.bgm)bgmOn();else bgmOff();toast(SET.bgm?'背景音乐已开启 🎵':'背景音乐已关闭');}
   else if(k==='theme'){var next=SET.theme==='dark'?'light':(SET.theme==='light'?'sketch':'dark');setOpt('theme',next);toast(next==='light'?'已切换浅色浪漫主题 🌸':(next==='sketch'?'已切换手绘情书主题 ✏️':'已切换暗夜夜灯主题 🌙'));}
@@ -870,11 +903,15 @@ function toggleSet(k){
   else if(k==='fast'){setOpt('fast',!SET.fast);toast(SET.fast?'⚡ 快局模式开启：棋盘缩短，约15分钟/局':'普通局：约40分钟/局');var g=document.getElementById('gContent');if(g&&typeof renderFlightSetup==='function')renderFlightSetup(g);}
   else if(k==='strip'){setOpt('strip',!SET.strip);toast(SET.strip?'🍒 脱衣模式开启：每人3件衣服，脱光触发终极大冒险':'🍒 脱衣模式关闭');var g2=document.getElementById('gContent');if(g2&&typeof renderFlightSetup==='function')renderFlightSetup(g2);}
   else if(k==='god'){setOpt('god',!SET.god);toast(SET.god?'🎛️ 上帝之手开启：每局随机一方成为上帝（特权2次/局）':'🎛️ 上帝之手关闭');}
+  else if(k==='voice'){if(!SET.voice){setOpt('voice',true);setOpt('voiceSlow',false);toast('🗣️ 念题模式开启：每道题自动朗读');}else if(!SET.voiceSlow){setOpt('voiceSlow',true);toast('🐢 慢速念题：语速放慢，更有味道');}else{setOpt('voice',false);setOpt('voiceSlow',false);toast('🔇 念题模式已关闭');}if(typeof renderCtrl==='function')renderCtrl();}
+  else if(k==='ambient'){var aorder=['off','rain','fire','club'];var acur=aorder.indexOf(SET.ambient||'off');var anx=aorder[(acur+1)%4];setOpt('ambient',anx);ambApply();toast(anx==='off'?'🌙 氛围音已关闭':(anx==='rain'?'🌧️ 雨夜氛围已开启':(anx==='fire'?'🔥 壁炉氛围已开启':'🎧 夜店氛围已开启')));}
+  else if(k==='quiet'){setOpt('quiet',!SET.quiet);if(SET.quiet){bgmOff();ambStop();toast('🤫 安静模式：音效全静音，震动保留');}else{if(SET.bgm)bgmOn();ambApply();toast('🔊 安静模式已关闭');}}
   renderSettings();
 }
 /* --- 背景音乐(轻和弦循环, WebAudio合成) --- */
 var _bgmTv=null;
 function bgmTick(){
+  if(SET.quiet)return;
   try{
     var ctx=getAudioCtx();var notes=[261.63,329.63,392.0,196.0];
     var f=notes[Math.floor(Math.random()*4)];
@@ -887,7 +924,7 @@ function bgmTick(){
 function bgmOn(){if(!_bgmTv)_bgmTv=setInterval(bgmTick,2600);}
 function bgmOff(){if(_bgmTv){clearInterval(_bgmTv);_bgmTv=null;}}
 var KISS_POOL=['深情舌吻对方15秒','捧着对方的脸亲一下再夸一句','亲吻对方额头10秒','从嘴唇亲到锁骨再回来','闭眼让对方吻你10秒','亲对方手背并说一句情话','十指相扣互相亲吻','给对方一个缓慢的深吻','亲吻对方耳垂5秒','连续亲对方三下'];
-function pickDrink(){return SET.drink?('🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink)):('💋 代替喝酒：'+randItem(KISS_POOL));}
+function pickDrink(){if(!SET.drink)return '💋 代替喝酒：'+randItem(KISS_POOL);return '🍷 喝酒：'+pickFresh('_drinkPick',GAMEDATA.drink)+'<span style="font-size:11px;color:#888">（喝完点底部酒杯 +1）</span>'+v11DrunkEgg();}
 var GENTLE_KW=['高潮','做爱','口交','自慰','呻吟','进入','脱光','全裸','性经历','性幻想','约炮','3P','多人','SM','偷情','龟头','阴蒂','阴茎','阴道','插入','口爆','后入','骑乘','掰开','69','舔到','舔你','舔他','舔她','含住','吞下','射','骚','浪叫','情趣内衣','情趣用品','暴露','野战','车震','欲火','喘息','挑逗','勾引','湿了','硬了','胸部','小腹','大腿内侧','锁骨'];
 var HOT_KW=['69','3P','口交','肛','射','呻吟','高潮','插入','做爱','自慰','SM','约炮','野战','车震','口爆','后入','吞','骚','淫','脱光','全裸','舔到','含住','湿了','硬了','勃起'];
 function poolFilter(arr,kw){
@@ -906,7 +943,11 @@ function saveCustom(c){try{localStorage.setItem('couple-custom',JSON.stringify(c
 /* --- 按难度档位取题库: 纯爱温和/暧昧甜撩/热辣升温/极限刺激 --- */
 function poolByDiff(pool,key){
   var d=SET&&SET.diff?SET.diff:3;
+  var _gv=0;try{_gv=gentGetV();}catch(e){}
+  if(window._gentSoft||_gv>=2){if(d>1)d--;}
+  if(_gv>=4&&d>1)d--;
   var arr=pool;
+  if(window._gentSoft)arr=poolFilter(arr,HOT_KW);
   if(d===1)arr=poolFilter(arr,GENTLE_KW);            /* Lv1 纯爱温和: 强过滤 */
   else if(d===2)arr=poolFilter(arr,HOT_KW);           /* Lv2 暧昧甜撩: 过滤最硬核 */
   var kind=key.indexOf('truth')>=0?'truth':key.indexOf('dare')>=0?'dare':key.indexOf('punish')>=0?'punish':key.indexOf('drink')>=0?'drink':'bomb';
@@ -918,6 +959,12 @@ function poolByDiff(pool,key){
     if(kind==='truth')arr=arr.concat(RANK_POOL.truths);
     if(kind==='dare')arr=arr.concat(RANK_POOL.dare);
   }
+  try{ /* V11 醉意值: 微醺起注入醉后题池 */
+    if(typeof gDrunkMax==='function'&&gDrunkMax()>=1){
+      if(kind==='truth'&&typeof DRUNK_POOL!=='undefined')arr=arr.concat(DRUNK_POOL.truths);
+      if(kind==='dare'&&typeof DRUNK_POOL!=='undefined')arr=arr.concat(DRUNK_POOL.dare);
+    }
+  }catch(e){}
   if(kind==='truth'&&GAMEDATA.extra){
     if(d>=4)arr=arr.concat(GAMEDATA.extra.truths);
     else if(heat>=25)arr=arr.concat(GAMEDATA.extra.truths);   /* V7: 热度25+ 注入极限池 */
@@ -971,6 +1018,7 @@ var played=JSON.parse(localStorage.getItem('couple-game-played')||'[]');
 var audioCtx=null;
 function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
 function playBeep(freq,dur,type,vol){
+  if(SET.quiet)return;
   try{var ctx=getAudioCtx(),o=ctx.createOscillator(),g=ctx.createGain();
   o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||0.15;
   o.connect(g);g.connect(ctx.destination);o.start();
@@ -1077,7 +1125,7 @@ function getStreak(){try{var S=JSON.parse(localStorage.getItem('couple-streak')|
 function setStreak(v){try{localStorage.setItem('couple-streak',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
 /* ===== V9 当晚升温线(替代段位: 一晚制, 当晚清零) ===== */
 var HEATLINE=['🧊 初识寒暄','🌤️ 暧昧试探','🔥 逐步升温','💥 热情似火','🌋 融为一体'];
-function heatStage(){return Math.min(4,Math.floor(getHeat()/20));} /* 热度20一档, 5阶段 */
+function heatStage(){var g=0;try{g=gentGetV();}catch(e){}return Math.max(0,Math.min(4,Math.floor((getHeat()-g*4)/20)));} /* 热度20一档, 5阶段; V11 温柔系数会放缓升级 */
 function heatStageName(){return HEATLINE[heatStage()];}
 function heatSet(v){try{localStorage.setItem('couple-heat',JSON.stringify({d:new Date().toDateString(),v:v}));}catch(e){}}
 function heatCheck(){/* 一晚制: 每晚开头按起点定热度, 见开场三步 */}
@@ -1086,18 +1134,32 @@ function coinGet(){try{var C=JSON.parse(localStorage.getItem('couple-coins')||'{
 function coinAdd(n){try{var v=coinGet()+n;localStorage.setItem('couple-coins',JSON.stringify({d:new Date().toDateString(),v:v}));return v;}catch(e){return 0;}}
 function showShop(){
   var v=coinGet();
-  openModal('<h3>💰 爱币商店</h3><div class="m-item" style="text-align:center"><b style="font-size:22px;color:#ffd700">'+v+' 币</b><br><span style="font-size:12px;color:#aaa">完成任务+5币，弃权-3币，每晚战报结算</span></div>'
+  var hh=(new Date()).getHours();
+  var blackOpen=(hh>=21||hh<5);
+  var html='<h3>💰 爱币商店</h3><div class="m-item" style="text-align:center"><b style="font-size:22px;color:#ffd700">'+v+' 币</b><br><span style="font-size:12px;color:#aaa">完成任务+5币，弃权-3币，每晚战报结算</span></div>'
     +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(10,\'pardon\',\'🍀 免罚卡\')"><b>🍀 免罚卡</b> — 10 币<br><span style="font-size:12px;color:#aaa">跳过任意一条惩罚</span></div>'
     +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(10,\'swap\',\'🃏 替换卡\')"><b>🃏 替换卡</b> — 10 币<br><span style="font-size:12px;color:#aaa">重抽一条任务</span></div>'
     +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(15,\'drinkboost\',\'🍷 豁免券\')"><b>🍷 豁免券</b> — 15 币<br><span style="font-size:12px;color:#aaa">今晚两人酒量额度各+1杯</span></div>'
-    +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(5,\'kiss\',\'💋 热吻券\')"><b>💋 热吻券</b> — 5 币<br><span style="font-size:12px;color:#aaa">立即获得一个亲吻任务</span></div>'
-    +'<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">关闭</button></div>');
+    +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(5,\'kiss\',\'💋 热吻券\')"><b>💋 热吻券</b> — 5 币<br><span style="font-size:12px;color:#aaa">立即获得一个亲吻任务</span></div>';
+  if(blackOpen){
+    html+='<div class="m-item" style="border-color:rgba(255,107,157,0.5);background:rgba(255,60,120,0.08)"><b>🌙 黑市（21:00-05:00 营业中）</b></div>'
+      +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(20,\'exchange\',\'🔀 交换卡\')"><b>🔀 交换卡</b> — 20 币<br><span style="font-size:12px;color:#aaa">把当前任务换给对方执行</span></div>'
+      +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(15,\'role\',\'🎭 角色卡\')"><b>🎭 角色卡</b> — 15 币<br><span style="font-size:12px;color:#aaa">抽一组角色，即兴演 3 分钟</span></div>'
+      +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(25,\'redo\',\'⏪ 复读卡\')"><b>⏪ 复读卡</b> — 25 币<br><span style="font-size:12px;color:#aaa">把上一条任务加码重来一遍</span></div>'
+      +'<div class="m-item" style="cursor:pointer" onclick="shopBuy(10,\'bribe\',\'🤫 贿赂卡\')"><b>🤫 贿赂卡</b> — 10 币<br><span style="font-size:12px;color:#aaa">让对方代做当前任务（可拒绝但欠双倍）</span></div>';
+  }else{
+    var nh=(21-hh+24)%24;
+    html+='<div class="m-item" style="text-align:center;color:#9a93b5">🌙 黑市 21:00 开市（约 '+nh+' 小时后），越晚越敢买</div>';
+  }
+  html+='<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">关闭</button></div>';
+  openModal(html);
 }
 function shopBuy(cost,item,name){
   if(coinGet()<cost){toast('💰 爱币不够，快去完成任务赚币！');return;}
   coinAdd(-cost);
   if(item==='pardon'){ITEMS.pardon=Math.min(ITEMS.pardon+1,99);saveItems();}
   if(item==='swap'){ITEMS.swap=Math.min(ITEMS.swap+1,99);saveItems();}
+  if(item==='exchange'||item==='role'||item==='redo'||item==='bribe'){ITEMS[item]=Math.min((ITEMS[item]||0)+1,99);saveItems();}
   if(item==='drinkboost'){try{localStorage.setItem('couple-drinkboost',String(new Date().toDateString()));}catch(e){}}
   if(item==='kiss'){toast('💋 热吻券生效！');}
   logEvent('💰 商店购买 '+name);
@@ -1153,9 +1215,13 @@ function taskDone(){ /* 完成任务: 热度+1, 连胜+1, 阶梯清零, 亲密�
   coinAdd(5+stageBonus);
   var cb=getCombo()+1;setCombo(cb);setStreak(0);
   if(cb>0&&cb%5===0){ITEMS.pardon=Math.min(ITEMS.pardon+1,99);saveItems();toast('🎁 连过'+cb+'关！奖励免罚卡+1');logEvent('🎁 连胜奖励：免罚卡+1');}
+  try{gentTick();}catch(e){}
 }
-function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3 */
-  var st=getStreak()+1;setStreak(st);setCombo(0);
+function taskPardoned(){ /* 弃权: 阶梯+1, 连胜清零, 爱币-3; V11 温柔系数>=2 首次弃权不罚 */
+  var st=getStreak()+1;
+  var _gv=0;try{_gv=gentGetV();}catch(e){}
+  if(_gv>=2&&st===1){setStreak(0);setCombo(0);try{logEvent('🌤️ 温柔模式：本次弃权不计惩罚');}catch(e){}toast('🌤️ 温柔模式：这次弃权不罚');return;}
+  setStreak(st);setCombo(0);
   coinAdd(-3);
   if(st>=2)toast('⛓️ 惩罚等级升至 Lv'+st+'！再弃权将加罚');
 }
@@ -1167,6 +1233,8 @@ function showDebt(){
   if(!DL.length){toast('💸 今晚暂无欠债，棒棒哒');return;}
   var item=DL[0];
   var extra=randItem(GAMEDATA.extra?GAMEDATA.extra.dare:GAMEDATA.dare);
+  var noInt=false;try{noInt=gDrunkMax()>=2;}catch(e){}
+  if(noInt)extra='🍻 上头豁免：今晚不滚利息，还清本金就好';
   window._debtCur=item;
   openModal('<h3>💸 还债时间（欠 '+DL.length+' 笔）</h3>'
     +'<div class="m-item" style="font-size:15px;line-height:1.8">原欠：<b>'+item+'</b></div>'
@@ -1227,7 +1295,14 @@ function showDirector(){
     +'<button class="wheel-btn spin" onclick="closeModal();directorStart(90)">⏱️ 90 分钟</button>'
     +'<button class="wheel-btn back" onclick="closeModal()">取消</button></div>');
 }
-function directorScene(sc){window._dirScene=sc||'home';}
+function directorScene(sc){
+  window._dirScene=sc||'home';
+  try{
+    var m={bar:'club',hotel:'rain',home:'fire'};
+    var k=m[window._dirScene];
+    if(k&&SET.ambient!=='off'){setOpt('ambient',k);ambApply();toast('🎐 氛围音已切换：'+(k==='club'?'夜店鼓点':k==='rain'?'雨夜':'壁炉'));}
+  }catch(e){}
+}
 function directorStart(mins){
   var ov=document.getElementById('dirOverlay');
   if(ov)ov.classList.add('show');
@@ -1496,7 +1571,7 @@ function showPartyReport(){
     +(rows?'<div style="font-size:13px;color:#aaa;margin:4px 0">各游戏出场次数</div>'+rows:'<div class="m-item" style="text-align:center;color:#aaa">今晚还没开玩，快去大厅选一个吧~</div>')
     +'<div class="m-item" style="text-align:center;font-size:12px;color:#9a93b5;margin-top:8px">'+(function(){try{var T2=JSON.parse(localStorage.getItem('couple-total')||'{}');return '📈 历史累计：开局 '+((T2.games||0)+(games||0))+' 次 · 任务 '+((T2.tasks||0)+(tasks||0))+' 次 · 喝酒 '+((T2.drinks||0)+(drinks||0))+' 次 · 亲吻 '+((T2.kisses||0)+(kisses||0))+' 次';}catch(e){return '';}})()+'</div>'
     +'<div class="wheel-btns" style="margin-top:10px">'
-    +'<button class="wheel-btn back" onclick="freshNight()">🌅 全新一晚</button>'
+    +'<button class="wheel-btn back" onclick="nightCeremony()">🌙 夜终仪式</button>'
     +'<button class="wheel-btn back" onclick="if(confirm(\'清空今晚战报？\')){localStorage.removeItem(\'couple-party\');closeModal();toast(\'已清空\');}">🗑️ 清空</button>'
     +'<button class="wheel-btn spin" onclick="closeModal()">收工！</button>'
     +'</div>');
@@ -1505,6 +1580,11 @@ function showHelp(){
   openModal('<h3>❓ 新手指南</h3>'
     +'<div class="m-item"><b>🎚️ 难度档位</b>：纯爱温和→暧昧甜撩→热辣升温→极限刺激，题库自动过滤，随时切换</div>'
     +'<div class="m-item"><b>🃏 道具卡</b>：重抽消耗替换卡，跳过消耗免罚卡；每玩10/15局自动解锁新卡</div>'
+    +'<div class="m-item"><b>🚦 缓一缓</b>：底部按钮轻点=黄灯（换温柔版，每人每晚 3 次）；长按=红灯（全场暂停+抱 10 秒，不限次数）</div>'
+    +'<div class="m-item"><b>🍷 醉意值</b>：底部酒杯点一下记 1 杯（− 撤销）；微醺起自动混入醉后题池，6 杯触发强制醒酒</div>'
+    +'<div class="m-item"><b>🗣️ 念题 / 🌧️ 氛围 / 🤫 安静</b>：首页顶栏开启；念题自动朗读每道题，慢速更色气，可点🔊重听</div>'
+    +'<div class="m-item"><b>🎴 卡包 & 黑市</b>：点底部卡包用卡；21:00-05:00 商店开黑市（交换/角色/复读/贿赂卡）</div>'
+    +'<div class="m-item"><b>🌙 夜终仪式</b>：大厅「本晚战报」→ 颁奖+名场面+收尾任务，可生成并下载今晚战报海报</div>'
     +'<div class="m-item"><b>📜 底部面板</b>：重抽本轮、跳过本轮、撤销上一步、重置本局、返回大厅</div>'
     +'<div class="m-item"><b>✍️ 自定义题库</b>：点大厅底部「题库管理」按钮新增自己的问题/冒险</div>'
     +'<div class="m-item"><b>🚫 黑名单</b>：抽到不喜欢的任务点「拉黑」，本局及以后不再出现</div>'
@@ -1576,13 +1656,27 @@ function showOnboard(){
 }
 function onboardDone(){try{localStorage.setItem('couple-onboarded','1')}catch(e){}closeModal();}
 /* ============ V2 道具卡/本局记录/控制面板 ============ */
-var ITEMS=(function(){try{var s=JSON.parse(localStorage.getItem('couple-items')||'null');return s&&s.swap!==undefined?s:{swap:1,pardon:1};}catch(e){return {swap:1,pardon:1}}})();
+var ITEMS=(function(){try{var s=JSON.parse(localStorage.getItem('couple-items')||'null');var o=(s&&s.swap!==undefined)?s:{swap:1,pardon:1};['exchange','role','redo','bribe'].forEach(function(k){if(o[k]===undefined)o[k]=0;});return o;}catch(e){return {swap:1,pardon:1,exchange:0,role:0,redo:0,bribe:0}}})();
 function saveItems(){try{localStorage.setItem('couple-items',JSON.stringify(ITEMS))}catch(e){}}
 var ROUNDS=parseInt(localStorage.getItem('couple-rounds')||'0',10)||0;
 function renderCtrl(){
-  var a=document.getElementById('ctrlSwap'),b=document.getElementById('ctrlPardon');
-  if(a)a.textContent='🃏 替换卡 ×'+ITEMS.swap;
-  if(b)b.textContent='🍀 免罚卡 ×'+ITEMS.pardon;
+  var box=document.getElementById('ctrlItems');
+  if(!box)return;
+  var h='<span class="ctrl-item" id="ctrlSwap" onclick="showCardPack()">🃏 替换 ×'+ITEMS.swap+'</span><span class="ctrl-item" id="ctrlPardon" onclick="showCardPack()">🍀 免罚 ×'+ITEMS.pardon+'</span>';
+  var extra=(ITEMS.exchange||0)+(ITEMS.role||0)+(ITEMS.redo||0)+(ITEMS.bribe||0);
+  if(extra>0)h+='<span class="ctrl-item pack" onclick="showCardPack()">🎴 卡包 +'+extra+'</span>';
+  var g=0;try{g=gentGetV();}catch(e){}
+  if(g>0)h+='<span class="ctrl-item gent" title="温柔系数：题目难度自动降档，下一次抽题生效">🌤️ 温柔+'+g+'</span>';
+  if(SET.drink){
+    ['him','her'].forEach(function(who){
+      var lv=0,cups=0;
+      try{lv=gDrunkLv(who);cups=gDrinkCups(who);}catch(e){}
+      var nm=who==='him'?HE.him:HE.her;
+      h+='<span class="ctrl-item drink lv'+lv+'" onclick="drinkQuick(\''+who+'\',1)" title="'+nm+'：点一下记1杯；− 撤销">'+(who==='him'?'♂':'♀')+['🍸','🥂','🍻','🌙'][lv]+cups+'<span class="mini-minus" onclick="event.stopPropagation();drinkQuick(\''+who+'\',-1)">−</span></span>';
+    });
+  }
+  box.innerHTML=h;
+  var vb=document.getElementById('ctrlVoiceBtn');if(vb)vb.style.display=SET.voice?'':'none';
 }
 var UNLOCKED=(function(){try{return JSON.parse(localStorage.getItem('couple-unlocked')||'null')}catch(e){return null}})()||{swap:1,pardon:1};
 function addRound(){ /* 每完成一次任务计1轮, 满10/15轮自动解锁道具卡(解锁上限与持有数分离, 防止用卡后自动回填) */
@@ -1686,8 +1780,8 @@ function goHome(){
 function renderHome(){
   heatCheck(); /* V9: 一晚制升温线, 每早自动归零 */
   incognitoSweep(); /* V9: 无痕模式 */
-  if(!nightStarted()){setTimeout(showNightIntro,400);} /* V9: 开场三步 */
-  if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(showOnboard,600);} /* V2: 首次打开新手引导 */
+  if(!nightStarted()){setTimeout(function(){try{if(nightStarted())return;var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showNightIntro();}catch(e){}},400);} /* V9: 开场三步(有弹窗时不打扰) */
+  if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(function(){try{var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showOnboard();}catch(e){}},600);} /* V2: 首次打开新手引导(有弹窗时不打扰) */
   var last=(function(){try{return localStorage.getItem('couple-last')}catch(e){return null}})();
   var h='';GAMES.forEach(function(g){
     var badge=played.indexOf(g.id)>=0?'<div class="badge">✓</div>':'';
@@ -2608,7 +2702,7 @@ function renderBlind(c){renderDuel(c,function(){renderBlindBody(c);});}
 /* ===== 开局对决 ===== */
 function duelHeader(inner){return '<h2 style="margin-bottom:10px">⚔️ 开局对决</h2><p style="color:#aaa;font-size:13px">赢家做主，输家先执行！</p>'+inner;}
 function duelStreak(name){return (window._duelStreak&&window._duelStreak[name])||0;}
-function duelRecord(w){var l=otherPlayer(w);window._duelStreak=window._duelStreak||{};window._duelStreak[l]=(window._duelStreak[l]||0)+1;window._duelStreak[w]=0;}
+function duelRecord(w){var l=otherPlayer(w);window._duelStreak=window._duelStreak||{};window._duelStreak[l]=(window._duelStreak[l]||0)+1;window._duelStreak[w]=0;try{duelStatAdd(w,l);}catch(e){}}
 function duelSkip(){
   window._duelReactState='done';
   if(window._duelTapState==='go')window._duelTapState='done';
@@ -3759,7 +3853,7 @@ function flLand(p,t,idx){
   }else if(t==='prison'){
     p.skip=true;
     flTaskShow('⛓️ 监狱！'+p.name+' 下轮跳过 + 罚半杯',['done']);
-    if(p.drink<p.drinkMax)p.drink+=0.5;
+    if(p.drink<p.drinkMax){p.drink+=0.5;try{drinkSync(p.name,0.5);}catch(e){}}
   }else if(t==='ktv'){
     var ok=p.idCard.indexOf('麦霸')>=0;
     flTaskShow('🎤 KTV！'+p.name+(ok?'（麦霸免罚！）':' 唱一句情歌才放行'),['done','pardon']);
@@ -3785,7 +3879,7 @@ function flDrink(p){
     return;
   }
   var wouldExceed=p.drink+1>p.drinkMax;
-  if(!wouldExceed)p.drink++; /* 落格即饮, 累计杯数 */
+  if(!wouldExceed){p.drink++;try{drinkSync(p.name,1);}catch(e){}} /* 落格即饮, 累计杯数 */
   if(wouldExceed){
     var k2=randItem(KISS_POOL);
     if(SET.strip)flStrip(p,'酒量爆了');
@@ -3822,6 +3916,7 @@ function flDrunkFail(){
   if(!p){flDoneTask();return;}
   if(p.drink+1<=p.drinkMax){
     p.drink++;
+    try{drinkSync(p.name,1);}catch(e){}
     toast('🍷 答不上来！再罚一杯');
     if(p.drink>=3){
       flTaskShow('🍻 醉态大冒险！蒙眼转 3 圈，然后凭感觉找到对方亲一口（找不到亲错也认）',['done','pardon']);
@@ -3874,8 +3969,8 @@ function flDuelRoll(side){
       if(window._flMode==='A'){window._flTPos[loser.team]=Math.max(0,window._flTPos[loser.team]-2);}
       else{loser.pos=Math.max(0,loser.pos-2);}
       var item=(loser.drink+1>loser.drinkMax)?('💋 '+loser.name+' 输了对撞，后退2格（酒量将满改亲吻）'):('🍷 '+loser.name+' 输了对撞，后退2格+罚一杯');
-      if(loser.drink+1<=loser.drinkMax)loser.drink++;
-      else loser.drink=Math.min(loser.drink+0.5,loser.drinkMax);
+      if(loser.drink+1<=loser.drinkMax){loser.drink++;try{drinkSync(loser.name,1);}catch(e){}}
+      else{loser.drink=Math.min(loser.drink+0.5,loser.drinkMax);try{drinkSync(loser.name,0.5);}catch(e){}}
       if(SET.strip)flStrip(loser,'对撞输了');
       sndBoom();vibrate([60,40,100]);
       logEvent('✈️ 抢格对决：'+winner.name+' '+d.r1+'点 胜 '+loser.name+' '+d.r2+'点');
@@ -4246,7 +4341,7 @@ function flPardonTask(){
 }
 function flHalfTask(){
   var p=window._flCur;
-  if(p.drink<p.drinkMax)p.drink+=0.5;
+  if(p.drink<p.drinkMax){p.drink+=0.5;try{drinkSync(p.name,0.5);}catch(e){}}
   p.half=0;
   flTaskShow('🍷 半杯已饮（'+p.drink+'/'+p.drinkMax+' 杯），女生特权已用',['done']);
 }
@@ -4542,9 +4637,9 @@ function renderNightBody(c){
   c.innerHTML='<div class="bomb-wrap">'
     +'<h2 style="margin-bottom:10px">🕯️ 主题之夜</h2>'
     +'<p style="color:#aaa;font-size:13px">三个剧本可选：酒店之夜（四幕剧情25条）、角色扮演之夜（24组角色入戏）、蒙眼之夜（感官引导）。全程带进度条，可随时跳过/暂停</p>'
-    +'<div class="cmd-card" onclick="ntSet(\'hotel\')"><b>🏨 酒店之夜</b><br><span style="font-size:12px;color:#aaa">入场→浴室→正题→安抚，四幕渐进</span></div>'
-    +'<div class="cmd-card" onclick="ntSet(\'role\')"><b>🎭 角色扮演之夜</b><br><span style="font-size:12px;color:#aaa">24组角色入戏，跳戏罚酒</span></div>'
-    +'<div class="cmd-card" onclick="ntSet(\'blind\')"><b>🕯️ 蒙眼之夜</b><br><span style="font-size:12px;color:#aaa">一方蒙眼，全程触觉引导</span></div>'
+    +'<div class="cmd-card" data-novoice="1" onclick="ntSet(\'hotel\')"><b>🏨 酒店之夜</b><br><span style="font-size:12px;color:#aaa">入场→浴室→正题→安抚，四幕渐进</span></div>'
+    +'<div class="cmd-card" data-novoice="1" onclick="ntSet(\'role\')"><b>🎭 角色扮演之夜</b><br><span style="font-size:12px;color:#aaa">24组角色入戏，跳戏罚酒</span></div>'
+    +'<div class="cmd-card" data-novoice="1" onclick="ntSet(\'blind\')"><b>🕯️ 蒙眼之夜</b><br><span style="font-size:12px;color:#aaa">一方蒙眼，全程触觉引导</span></div>'
     +'</div>';
 }
 function ntSet(s){
@@ -4633,6 +4728,546 @@ function ntFinish(c){
     +'<div class="cmd-card" style="text-align:center;font-size:16px">今晚的主题之夜圆满收官~<br>奖励：互相说一句最想说的话，然后亲一下</div>'
     +'<div class="wheel-btns"><button class="wheel-btn spin" onclick="renderNightBody(document.getElementById(\'gContent\'))">🔄 换个剧本</button></div></div>';
 }
+/* ===== V11 题库: 醉后池 / 醉态彩蛋 / 收尾任务 (当晚制, 不落旧数据) ===== */
+var DRUNK_POOL={
+  truths:[
+    "喝到微醺的时候，你最想给对方发一句什么话？",
+    "你有没有清醒时忍住、喝多了才敢说出口的心里话？",
+    "今晚如果只能记住一个画面，你想记住哪一个？",
+    "说一件你从来没告诉过对方的小秘密。",
+    "酒后最容易暴露的你的哪个小毛病？",
+    "你觉得对方最性感的样子是什么时候？",
+    "有没有哪次你假装喝多，其实只是想靠近对方？",
+    "微醺的时候，你更容易想起对方哪一点？",
+    "如果现在酒精放大你的欲望，你最想做的一件事是什么？",
+    "说一个你一直想尝试、但清醒时不敢提的亲密小玩法。",
+    "你喝醉后做过最丢人的一件事是什么？",
+    "你有没有偷偷闻过对方的衣服或者枕头？",
+    "说出你心里对方最可爱的三个瞬间。",
+    "你希望对方在酒局上怎么照顾你？",
+    "如果今晚可以提一个过分的小要求，你会提什么？",
+    "你觉得你们之间最像酒的一件事是什么？",
+    "喝到上头时，你最想吃对方做的哪道菜？",
+    "说出第一次觉得栽在这个人手里的那个瞬间。",
+    "有没有哪个瞬间，你想把对方醉倒，然后只是安静地看着他/她？",
+    "说一句你清醒时绝对说不出口的表白。"
+  ],
+  dare:[
+    "用微醺的嗓音给对方念一段土味情话，不许笑场。",
+    "醉醺醺地唱一句歌，跑调了要重唱一遍。",
+    "假装自己是酒吧驻唱，给对方唱 10 秒情歌。",
+    "给对方倒一杯水，用最深情的方式双手递上。",
+    "用「我醉了」开头，说三句真心话。",
+    "醉态版：走一条直线给对方看，走歪了罚亲一下。",
+    "抱紧对方 20 秒，下巴搁在对方肩上，不许说话。",
+    "学对方说话的语气，讲一句只给他/她听的悄悄话。",
+    "给对方一个醉汉式的额头吻。",
+    "用手指在对方手心画一个心，让他/她猜是什么。",
+    "醉态告白：大声说三遍「今晚我最喜欢的人是你」。",
+    "把对方的手放在你脸上，闭眼待 10 秒。",
+    "用最慢的语速说一句世界上最好听的情话。",
+    "假装醉倒，让对方接住你，然后赖着不起来 5 秒。",
+    "给对方起一个今晚专属的醉酒昵称，然后整晚都用它。",
+    "用鼻尖碰对方的鼻尖，坚持 5 秒不许笑。",
+    "醉醺醺地给对方捏肩 1 分钟，全程不许说话。",
+    "用最浮夸的醉态，夸对方三个优点。",
+    "抱对方转一圈，转完说一句「头晕，但看你很清楚」。",
+    "用醉话给对方讲一个 30 秒的睡前故事。"
+  ]
+};
+var DRUNK_EGGS=[
+  "对瓶吹三秒，然后学猫叫一声。",
+  "用醉醺醺的口气把对方的昵称念三遍，一遍比一遍温柔。",
+  "敬对方一杯，说一句最肉麻的祝酒词。",
+  "表演一段自创醉拳，不满 30 秒罚亲一口。",
+  "闭眼指一个方向，对方要亲你指的哪个部位。",
+  "用最慢的语速说一句情话，中间不许笑场。",
+  "用酒杯当话筒，给对方唱一句改词版的生日快乐歌。",
+  "假装微醺跌倒，对方必须接住你。",
+  "学服务员报菜名，把对方从头到脚报一遍，不许漏。",
+  "唱一句跑调的歌，对方笑了你要重唱一遍。"
+];
+var V11_WIND_DOWN=[
+  "给对方按脚或按肩 10 分钟，让今晚慢慢落地。",
+  "抱着对方，说一句「今晚最喜欢的一刻」。",
+  "一起喝一杯温水，靠在沙发上发会儿呆。",
+  "帮对方揉揉手，说一句辛苦啦。",
+  "互相捏捏脸，叫一声今晚的专属昵称。",
+  "关灯前抱够 30 秒，再说晚安。",
+  "一起把手机放到一边，聊 3 分钟「下次想玩什么」。",
+  "给对方掖好被角，亲一下额头。"
+];
+
+/* ==================================================================
+   V11 氛围与仪式 (1/2) 读空气 · 醉意值 · 念题模式 · 氛围引擎 · 战绩
+   ================================================================== */
+function v11Today(){return new Date().toDateString();}
+
+/* ---------- 读空气: 温柔系数 0-5 ---------- */
+function gentGet(){try{var G=JSON.parse(localStorage.getItem('couple-gent')||'{"d":"","v":0,"dn":0}');if(G.d!==v11Today()){G={d:v11Today(),v:0,dn:0};localStorage.setItem('couple-gent',JSON.stringify(G));}return G;}catch(e){return {d:v11Today(),v:0,dn:0};}}
+function gentSave(G){try{localStorage.setItem('couple-gent',JSON.stringify(G));}catch(e){}}
+function gentGetV(){var G=gentGet();return G.v||0;}
+function gentUp(){var G=gentGet();G.v=Math.min(5,(G.v||0)+1);gentSave(G);try{if(typeof renderCtrl==='function')renderCtrl();}catch(e){}return G.v;}
+function gentTick(){var G=gentGet();G.dn=(G.dn||0)+1;if(G.dn>=3){G.dn=0;G.v=Math.max(0,(G.v||0)-1);}gentSave(G);}
+
+/* ---------- 读空气: 黄灯/红灯 ---------- */
+function softGet(){try{var S=JSON.parse(localStorage.getItem('couple-soft')||'{"d":""}');if(S.d!==v11Today()){S={d:v11Today(),him:3,her:3,y:0,r:0};localStorage.setItem('couple-soft',JSON.stringify(S));}return S;}catch(e){return {d:v11Today(),him:3,her:3,y:0,r:0};}}
+function softSave(S){try{localStorage.setItem('couple-soft',JSON.stringify(S));}catch(e){}}
+var V11_GENTLE_ALT=[
+  "互相按摩肩膀 1 分钟，全程不说话",
+  "十指相扣对视 10 秒，先笑的人罚亲一口",
+  "认真说出对方三个优点，一条都不能重复",
+  "从背后抱紧对方 30 秒",
+  "给对方倒一杯水，双手递过去",
+  "额头抵着额头，静静待一会儿，感受彼此的呼吸"
+];
+function v11SoftYellow(){
+  var S=softGet();
+  var canH=S.him>0,canE=S.her>0;
+  if(!canH&&!canE){
+    openModal('<h3>🚦 黄灯用完了</h3><div class="m-item" style="line-height:1.9">今晚的黄灯次数都用完了~<br>但<b>红灯永远不限</b>：长按「缓一缓」或点下面按钮，随时停下来抱一会儿。</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();v11RedLight()">🔴 停一下（抱10秒）</button><button class="wheel-btn back" onclick="closeModal()">继续</button></div>');
+    return;
+  }
+  if(canH&&canE){
+    openModal('<h3>🟡 缓一缓</h3><div class="m-item" style="line-height:1.9">当前任务换成更温柔的版本（尺度自动降一档），不罚不丢面子。<br><span style="font-size:12px;color:#aaa;display:block;margin-top:6px">黄灯余额：♂ '+HE.him+' 剩 '+S.him+' 次 ｜ ♀ '+HE.her+' 剩 '+S.her+' 次</span></div><div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();v11SoftDo(\'him\')">♂ '+HE.him+' 按的（剩'+S.him+'）</button><button class="wheel-btn spin" onclick="closeModal();v11SoftDo(\'her\')">♀ '+HE.her+' 按的（剩'+S.her+'）</button><button class="wheel-btn back" onclick="closeModal()">取消</button></div>');
+  }else{
+    v11SoftDo(canH?'him':'her');
+  }
+}
+function v11SoftDo(who){
+  var S=softGet();
+  if(who==='him'&&S.him<=0){toast('♂ 黄灯已用完');return;}
+  if(who==='her'&&S.her<=0){toast('♀ 黄灯已用完');return;}
+  S[who]--;S.y=(S.y||0)+1;softSave(S);
+  var nm=who==='him'?HE.him:HE.her;
+  var ok=false;
+  if(window._swapHandler){
+    window._gentSoft=true;
+    try{window._swapHandler();ok=true;}catch(e){ok=false;}finally{window._gentSoft=false;}
+  }
+  if(ok){
+    try{logEvent('🟡 '+nm+' 按了黄灯：本条已换温柔版');}catch(e){}
+    toast('🟡 已换成温柔版，不罚不丢面子');
+    return;
+  }
+  var alt=randItem(V11_GENTLE_ALT);
+  try{snapShot();logEvent('🟡 '+nm+' 按了黄灯：'+alt);}catch(e){}
+  openModal('<h3>🟡 缓一缓</h3><div class="m-item" style="font-size:16px;line-height:1.9">已切换温柔版：<br><b>'+alt+'</b></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();try{taskDone();}catch(e){}">✅ 完成</button><button class="wheel-btn back" onclick="closeModal()">先跳过</button></div>');
+}
+
+/* ---------- 读空气: 红灯(暂停+拥抱10秒) ---------- */
+window._v11HugReady=false;
+function v11RedLight(){
+  var S=softGet();S.r=(S.r||0)+1;softSave(S);
+  gentUp();
+  window._v11HugReady=false;
+  vibrate([60,40,120]);
+  openModal('<h3>🔴 停一下</h3><div class="m-item" style="line-height:1.9">已暂停，什么都不用做。<br>抱紧对方 <b>10 秒</b>，抱够再继续。<br><span style="font-size:12px;color:#aaa">想跳过这条就直接说，谁都不会勉强。</span></div><div class="hug-count" id="v11HugN">10</div><div class="wheel-btns" style="display:block"><button class="wheel-btn back" id="v11HugBtn" onclick="v11HugDone()" style="opacity:0.45">抱抱倒计时中…</button></div>');
+  var n=10;
+  var tv=setInterval(function(){
+    var el=document.getElementById('v11HugN');
+    if(!el){clearInterval(tv);return;}
+    n--;
+    if(n<=0){
+      clearInterval(tv);
+      window._v11HugReady=true;
+      el.textContent='💞 抱抱完成';
+      el.style.fontSize='26px';
+      var b=document.getElementById('v11HugBtn');
+      if(b){b.className='wheel-btn spin';b.style.opacity='1';b.textContent='✅ 继续玩';}
+      vibrate([60,40,60]);
+      return;
+    }
+    el.textContent=n;
+    vibrate(20);
+  },1000);
+}
+function v11HugDone(){
+  if(!window._v11HugReady){toast('再抱一会儿，抱够10秒就好~');return;}
+  closeModal();
+  try{logEvent('🔴 红灯：抱了10秒（温柔+1）');}catch(e){}
+  toast('🌤️ 温柔+1，今晚会更贴心');
+}
+
+/* ---------- 醉意值 ---------- */
+var V11_LVNAME=['🍸 点酒','🥂 微醺','🍻 上头','🌙 断片边缘'];
+function drinkAll(){try{var D=JSON.parse(localStorage.getItem('couple-drinklog')||'{"d":""}');if(D.d!==v11Today()){D={d:v11Today(),him:0,her:0,up1:0,wakeHim:0,wakeHer:0};localStorage.setItem('couple-drinklog',JSON.stringify(D));}return D;}catch(e){return {d:v11Today(),him:0,her:0,up1:0,wakeHim:0,wakeHer:0};}}
+function drinkSave(D){try{localStorage.setItem('couple-drinklog',JSON.stringify(D));}catch(e){}}
+function gDrinkCups(who){var D=drinkAll();return Math.round((D[who]||0)*10)/10;}
+function gDrunkLv(who){var c=gDrinkCups(who);return c>=6?3:(c>=4?2:(c>=2?1:0));}
+function gDrunkMax(){return Math.max(gDrunkLv('him'),gDrunkLv('her'));}
+function drinkQuick(who,delta){
+  if(!SET.drink){toast('🍷 喝酒玩法已关闭（首页顶栏可开）');return;}
+  if(delta===undefined)delta=1;
+  var D=drinkAll();
+  var cups=Math.max(0,Math.round(((D[who]||0)+delta)*10)/10);
+  D[who]=cups;
+  var lv=cups>=6?3:(cups>=4?2:(cups>=2?1:0));
+  var nm=who==='him'?HE.him:HE.her;
+  drinkSave(D);
+  try{renderCtrl();}catch(e){}
+  if(delta<0){toast('🍸 已撤销一杯：'+nm+' 现在 '+gDrinkCups(who)+' 杯');return;}
+  if(lv>0)toast(V11_LVNAME[lv]+'（'+nm+' '+gDrinkCups(who)+' 杯）');
+  if(lv>=2&&!D.up1){
+    D.up1=1;drinkSave(D);
+    ITEMS.pardon=Math.min((ITEMS.pardon||0)+1,99);
+    try{saveItems();}catch(e){}
+    try{renderCtrl();}catch(e){}
+    toast('🍻 '+nm+' 喝到上头，系统心疼你：免罚卡 +1');
+    try{logEvent('🍻 '+nm+' 喝到上头（免罚卡+1）');}catch(e){}
+  }
+  var wk='wake'+(who==='him'?'Him':'Her');
+  if(lv>=3&&!D[wk]){D[wk]=1;drinkSave(D);v11WakeUp(who);}
+}
+function drinkSync(name,n){
+  var who=null;
+  if(name===HE.him)who='him';else if(name===HE.her)who='her';
+  if(!who)return;
+  var D=drinkAll();
+  D[who]=Math.max(0,Math.round(((D[who]||0)+n)*10)/10);
+  drinkSave(D);
+  try{renderCtrl();}catch(e){}
+  var wk='wake'+(who==='him'?'Him':'Her');
+  if(gDrunkLv(who)>=3&&!D[wk]){D[wk]=1;drinkSave(D);v11WakeUp(who);}
+}
+function v11WakeUp(who){
+  var nm=who==='him'?HE.him:HE.her;
+  vibrate([80,40,80,40,160]);
+  try{logEvent('🌙 '+nm+' 喝到断片边缘，触发强制醒酒');}catch(e){}
+  openModal('<h3>🌙 该醒醒酒了</h3><div class="wake-card">'+nm+' 已经到断片边缘啦~<br>接下来 5 分钟，先把自己照顾好：<br>💧 喝一大杯温水<br>🚶 起来走两步透透气<br>🍊 互喂几瓣水果<br>🤗 抱一会儿，慢慢缓</div><div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v11WakeDone(\''+who+'\')">✅ 醒酒完成（酒意降两档）</button><button class="wheel-btn back" onclick="closeModal()">先记着，等下补</button></div>');
+}
+function v11WakeDone(who){
+  var D=drinkAll();D[who]=Math.max(0,(D[who]||0)-2);drinkSave(D);
+  try{renderCtrl();}catch(e){}
+  closeModal();
+  var nm=who==='him'?HE.him:HE.her;
+  toast('🌙 醒酒完成！'+nm+' 的酒意降了两档');
+  try{logEvent('🌙 醒酒完成：'+nm+' 酒意降两档');}catch(e){}
+}
+function v11DrunkEgg(){
+  var lv=gDrunkMax();
+  if(lv<=0)return '';
+  var p=lv>=2?0.35:0.15;
+  if(Math.random()>p)return '';
+  return '<br>🍻 醉态彩蛋：'+randItem(DRUNK_EGGS);
+}
+
+/* ---------- 念题模式(TTS) ---------- */
+function voiceSpeak(text,force){
+  if(!SET.voice||!text)return;
+  if(!('speechSynthesis' in window))return;
+  var t=String(text).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  if(t.length<4||t.length>400)return;
+  if(!force&&t===window._v11LastSpoken)return;
+  window._v11LastSpoken=t;
+  try{
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(t);
+    u.lang='zh-CN';
+    u.rate=SET.voiceSlow?0.82:1.05;
+    u.pitch=1.05;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function voiceReplay(){
+  var t=window._v11LastTaskVisited||window._v11LastSpoken;
+  if(!t){toast('还没有可重听的内容');return;}
+  if(!SET.voice){toast('先在首页顶栏开启「🗣️ 念题」');return;}
+  voiceSpeak(t,true);
+}
+var V11_VOICE_SEL=['#flWheelResult .fl-task div:nth-child(2)','#flWheelResult .fl-task','#flTask .fl-task div:nth-child(2)','#flTask .fl-task','#blindTask','.wheel-result .pop-in .text','.bomb-wrap .cmd-card'];
+function v11VoiceScan(){
+  if(!SET.voice)return;
+  var el=null;
+  for(var i=0;i<V11_VOICE_SEL.length;i++){
+    var cand=document.querySelector(V11_VOICE_SEL[i]);
+    if(cand&&!cand.closest('[data-novoice]')){el=cand;break;}
+  }
+  if(!el)return;
+  var txt=(el.textContent||'').replace(/\s+/g,' ').trim();
+  if(!txt||txt.length<6)return;
+  if(/^(点击|请先|还没有|暂无|关闭|开始)/.test(txt))return;
+  if(txt.indexOf('🔇')>=0)return;
+  window._v11LastTaskVisited=txt;
+  window._v11TaskHist=window._v11TaskHist||[];
+  if(window._v11TaskHist[window._v11TaskHist.length-1]!==txt)window._v11TaskHist.push(txt);
+  if(window._v11TaskHist.length>20)window._v11TaskHist.shift();
+  window._lastTask=txt;
+  voiceSpeak(txt);
+}
+(function(){
+  if(window._v11ObsReady)return;window._v11ObsReady=true;
+  var tm=null;
+  function arm(){
+    var gc=document.getElementById('gContent');
+    if(gc){
+      var o1=new MutationObserver(function(){if(tm)clearTimeout(tm);tm=setTimeout(v11VoiceScan,150);});
+      o1.observe(gc,{childList:true,subtree:true,characterData:true});
+    }
+    var fw=document.getElementById('flWheelOverlay');
+    if(fw){
+      var o2=new MutationObserver(function(){if(tm)clearTimeout(tm);tm=setTimeout(v11VoiceScan,150);});
+      o2.observe(fw,{childList:true,subtree:true,characterData:true});
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',arm);else arm();
+})();
+
+/* ---------- 氛围引擎(合成环境音) ---------- */
+var _ambNode={};
+function ambStop(){
+  try{
+    if(_ambNode.tv){clearInterval(_ambNode.tv);_ambNode.tv=null;}
+    if(_ambNode.src&&_ambNode.src.stop){_ambNode.src.stop();}
+  }catch(e){}
+  _ambNode={};
+}
+function ambApply(){
+  ambStop();
+  if(!SET.ambient||SET.ambient==='off'||SET.quiet)return;
+  try{
+    var ctx=getAudioCtx();
+    var kind=SET.ambient;
+    var len=Math.floor(ctx.sampleRate*2);
+    var buf=ctx.createBuffer(1,len,ctx.sampleRate);
+    var ch=buf.getChannelData(0);
+    var last=0;
+    for(var i=0;i<len;i++){
+      var w=Math.random()*2-1;
+      if(kind==='fire'){last=(last+0.02*w)/1.02;ch[i]=last*3.5;}
+      else{ch[i]=w*0.5;}
+    }
+    var src=ctx.createBufferSource();src.buffer=buf;src.loop=true;
+    var f=ctx.createBiquadFilter();var g=ctx.createGain();
+    if(kind==='rain'){f.type='lowpass';f.frequency.value=1400;g.gain.value=0.10;}
+    else if(kind==='fire'){f.type='lowpass';f.frequency.value=420;g.gain.value=0.30;}
+    else{f.type='lowpass';f.frequency.value=180;g.gain.value=0.10;}
+    src.connect(f);f.connect(g);g.connect(ctx.destination);src.start();
+    _ambNode={src:src,g:g};
+    if(kind==='rain'){
+      _ambNode.tv=setInterval(function(){if(SET.quiet||SET.ambient!=='rain')return;try{playBeep(1800+Math.random()*1200,0.05,'sine',0.02);}catch(e){}},400);
+    }else if(kind==='fire'){
+      _ambNode.tv=setInterval(function(){if(SET.quiet||SET.ambient!=='fire')return;try{playBeep(120+Math.random()*180,0.04,'square',0.03);}catch(e){}},260);
+    }else{
+      _ambNode.tv=setInterval(function(){if(SET.quiet||SET.ambient!=='club')return;try{
+        var c2=getAudioCtx();
+        var o=c2.createOscillator();var gg=c2.createGain();
+        o.type='sine';o.frequency.value=52;
+        gg.gain.setValueAtTime(0.12,c2.currentTime);
+        gg.gain.exponentialRampToValueAtTime(0.001,c2.currentTime+0.22);
+        o.connect(gg);gg.connect(c2.destination);
+        o.start();o.stop(c2.currentTime+0.24);
+      }catch(e){}},500);
+    }
+  }catch(e){}
+}
+
+/* ---------- 对决战绩(用于夜终颁奖) ---------- */
+function duelStats(){try{var D=JSON.parse(localStorage.getItem('couple-duel')||'{"d":""}');if(D.d!==v11Today()){D={d:v11Today(),wHim:0,wHer:0,lHim:0,lHer:0};localStorage.setItem('couple-duel',JSON.stringify(D));}return D;}catch(e){return {d:v11Today(),wHim:0,wHer:0,lHim:0,lHer:0};}}
+function duelStatsSave(D){try{localStorage.setItem('couple-duel',JSON.stringify(D));}catch(e){}}
+function duelStatAdd(w,l){
+  try{
+    var D=duelStats();
+    if(w===HE.him)D.wHim=(D.wHim||0)+1;else if(w===HE.her)D.wHer=(D.wHer||0)+1;
+    if(l===HE.him)D.lHim=(D.lHim||0)+1;else if(l===HE.her)D.lHer=(D.lHer||0)+1;
+    duelStatsSave(D);
+  }catch(e){}
+}
+
+/* ---------- 🚦 缓一缓按钮: 轻点=黄灯 / 长按=红灯 ---------- */
+(function(){
+  var btn=document.getElementById('ctrlRelax');
+  if(!btn||btn._v11)return;btn._v11=true;
+  var lp={t:null,long:false};
+  btn.addEventListener('pointerdown',function(){
+    lp.long=false;
+    if(lp.t)clearTimeout(lp.t);
+    lp.t=setTimeout(function(){lp.t=null;lp.long=true;v11RedLight();},650);
+  });
+  btn.addEventListener('pointerup',function(){
+    if(lp.t){clearTimeout(lp.t);lp.t=null;v11SoftYellow();}
+  });
+  btn.addEventListener('pointercancel',function(){if(lp.t){clearTimeout(lp.t);lp.t=null;}});
+  btn.addEventListener('pointerleave',function(){if(lp.t){clearTimeout(lp.t);lp.t=null;}});
+  btn.addEventListener('contextmenu',function(e){e.preventDefault();v11RedLight();});
+})();
+
+/* ===== V11 (2/2) 道具卡3.0 · 黑市 · 夜终仪式 · 战报海报 ===== */
+var V11_CARD_DEFS={
+  swap:{icon:'🃏',name:'替换卡',desc:'重抽当前任务（底部按钮直接用）',use:false},
+  pardon:{icon:'🍀',name:'免罚卡',desc:'跳过当前惩罚（底部按钮直接用）',use:false},
+  exchange:{icon:'🔀',name:'交换卡',desc:'把当前任务换给对方执行',use:true},
+  role:{icon:'🎭',name:'角色卡',desc:'抽一组角色，即兴演 3 分钟',use:true},
+  redo:{icon:'⏪',name:'复读卡',desc:'把上一条任务加码重来一遍',use:true},
+  bribe:{icon:'🤫',name:'贿赂卡',desc:'让对方代做当前任务（可拒绝但欠双倍）',use:true}
+};
+var V11_ROLE_PAIRS=[
+  ['霸道总裁','小助理'],
+  ['医生','病人'],
+  ['老师','学生'],
+  ['酒吧老板','第一次来的客人'],
+  ['健身教练','偷懒学员'],
+  ['摄影师','模特'],
+  ['少爷','贴身管家'],
+  ['机长','头等舱乘客'],
+  ['新搬来的邻居','热情的住户'],
+  ['主播','榜一大哥'],
+  ['按摩师','怕痒的客人'],
+  ['深夜食堂老板','加班到很晚的食客']
+];
+function v11LastTaskText(){
+  var h=window._v11TaskHist||[];
+  var t=h.length?h[h.length-1]:'';
+  if(!t)t=window._lastTask||'';
+  return t;
+}
+function v11PrevTaskText(){
+  var h=window._v11TaskHist||[];
+  return h.length>1?h[h.length-2]:(h[0]||window._lastTask||'');
+}
+function showCardPack(){
+  var h='<h3>🎴 卡包</h3><div class="m-item" style="font-size:12px;color:#aaa">底部「🃏 替换」「🍀 免罚」可直接用；黑市卡点「使用」按钮生效（黑市 21:00 后商店可买）</div>';
+  Object.keys(V11_CARD_DEFS).forEach(function(k){
+    var d=V11_CARD_DEFS[k],n=ITEMS[k]||0;
+    h+='<div class="m-item" style="display:flex;justify-content:space-between;align-items:center;opacity:'+(n>0?1:0.45)+'"><div style="flex:1"><b>'+d.icon+' '+d.name+' ×'+n+'</b><br><span style="font-size:12px;color:#aaa">'+d.desc+'</span></div>'+(d.use?'<button class="wheel-btn spin" style="width:auto;padding:8px 14px;margin-left:8px" '+(n>0?'onclick="cardUse(\''+k+'\')"':'disabled')+'>使用</button>':'')+'</div>';
+  });
+  h+='<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">关闭</button></div>';
+  openModal(h);
+}
+function cardUse(k){
+  if((ITEMS[k]||0)<=0){toast('这张卡用完了');return;}
+  var t=v11LastTaskText();
+  if(k==='exchange'){
+    ITEMS[k]--;saveItems();renderCtrl();
+    try{logEvent('🔀 交换卡：本条任务改由对方执行');}catch(e){}
+    var el=document.getElementById('flTask');
+    if(el)el.insertAdjacentHTML('beforeend','<div style="margin-top:8px;font-size:13px;color:#7ee0ff;border-top:1px dashed rgba(126,224,255,0.4);padding-top:6px">🔀 交换卡生效：本条由对方执行</div>');
+    closeModal();
+    toast('🔀 交换生效：本条由对方执行');
+    return;
+  }
+  if(k==='role'){
+    ITEMS[k]--;saveItems();renderCtrl();
+    var pr=randItem(V11_ROLE_PAIRS);
+    try{logEvent('🎭 角色卡：'+pr[0]+' × '+pr[1]);}catch(e){}
+    openModal('<h3>🎭 角色卡</h3><div class="m-item" style="font-size:16px;line-height:1.9;text-align:center"><b>'+HE.him+' 演「'+pr[0]+'」<br>'+HE.her+' 演「'+pr[1]+'」</b><br><span style="font-size:13px;color:#bbb">接下来 3 分钟，'+pr[0]+' 用角色语气提要求，'+pr[1]+' 只能用角色身份回应，出戏的人亲对方一下</span></div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal()">✅ 演完了</button><button class="wheel-btn back" onclick="closeModal()">先收着</button></div>');
+    return;
+  }
+  if(k==='redo'){
+    ITEMS[k]--;saveItems();renderCtrl();
+    var prev=v11PrevTaskText()||'上一条任务';
+    try{logEvent('⏪ 复读卡：上一条任务加码重来');}catch(e){}
+    openModal('<h3>⏪ 复读加码</h3><div class="m-item" style="font-size:15px;line-height:1.9">上一条任务：<br><b>'+prev+'</b></div><div class="m-item" style="font-size:14px;line-height:1.8;color:#ff9d9d">加码规则：时长/强度 ×1.5，由对方先开始，中途不许停</div><div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal()">✅ 完成</button><button class="wheel-btn back" onclick="closeModal()">先收着</button></div>');
+    return;
+  }
+  if(k==='bribe'){
+    ITEMS[k]--;saveItems();renderCtrl();
+    openModal('<h3>🤫 贿赂卡</h3><div class="m-item" style="font-size:15px;line-height:1.9">当前任务：<br><b>'+(t||'（还没有进行中的任务，先抽一条）')+'</b></div><div class="m-item" style="font-size:14px;line-height:1.8">规则：让对方代做这条。接受就翻篇；拒绝的话，欠你 <b>2 条</b>（写入今晚欠债）。</div><div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();try{logEvent(\'🤫 贿赂生效：对方代做一条任务\');}catch(e){}toast(\'🤫 贿赂生效，对方代做\')">🤝 对方接受了</button><button class="wheel-btn back" onclick="closeModal();debtAdd(\'贿赂被拒：补偿任务 ×2\');debtAdd(\'贿赂被拒：补偿任务 ×2\');try{logEvent(\'🤫 贿赂被拒：欠双倍\');}catch(e){}toast(\'🙅 拒绝成功：欠你双倍\')">🙅 对方拒绝了</button></div>');
+    return;
+  }
+}
+/* ---------- 夜终仪式 ---------- */
+function v11Moments(){
+  var log=(window._sessionLog||[]).slice(0,80);
+  var hot=/刺激|极限|挑战|裸|醉|酒|对决|输了|赢了|亲|吻|脱|升级|契约|上帝|飞行|惩罚/;
+  var scored=log.map(function(e,i){return {x:e.x||'',s:(hot.test(e.x||'')?2:0)+((e.x||'').length>12?1:0),i:i};});
+  scored.sort(function(a,b){return b.s-a.s||a.i-b.i;});
+  var out=scored.filter(function(e){return e.s>0;}).slice(0,5).map(function(e){return e.x;});
+  if(!out.length)out=log.slice(0,5).map(function(e){return e.x;}).filter(Boolean);
+  return out;
+}
+function nightCeremony(){
+  var P={};try{P=JSON.parse(localStorage.getItem('couple-party')||'{}');}catch(e){}
+  var D=duelStats();var S=softGet();
+  var cupsH=gDrinkCups('him'),cupsE=gDrinkCups('her');
+  var awards=[];
+  if(D.wHim||D.wHer)awards.push({icon:'⚔️',name:'决胜王',who:D.wHim>=D.wHer?HE.him:HE.her,desc:'放倒对方的次数最多（'+D.wHim+' : '+D.wHer+'）'});
+  if(D.lHim||D.lHer)awards.push({icon:'🤸',name:'翻车王',who:D.lHim>=D.lHer?HE.him:HE.her,desc:'决斗翻车最多（'+D.lHim+' : '+D.lHer+'）'});
+  if(cupsH||cupsE)awards.push({icon:'🍷',name:'醉猫奖',who:cupsH>cupsE?HE.him:(cupsE>cupsH?HE.her:'并列'),desc:'今晚喝了 '+cupsH+' : '+cupsE+' 杯'});
+  var by=P.byGame||{};
+  var top=Object.keys(by).sort(function(a,b){return by[b]-by[a];})[0];
+  if(top){var g=GAMES.find(function(x){return x.id===top;});awards.push({icon:'🎮',name:'最忙游戏',who:g?g.icon+' '+g.name:top,desc:'今晚玩了 '+by[top]+' 次'});}
+  if((S.y||0)+(S.r||0)>0)awards.push({icon:'🚦',name:'温柔守护',who:'你们俩',desc:'黄灯 '+S.y+' 次 · 红灯 '+S.r+' 次，想停就停是最好的默契'});
+  if(!awards.length)awards.push({icon:'🌙',name:'开场奖',who:'你们俩',desc:'今晚还没开玩，但来都来了，先抱一个'});
+  var moments=v11Moments();
+  var wind=randItem(V11_WIND_DOWN);
+  var bet='';try{bet=betResult();}catch(e){}
+  var mHtml=moments.length?moments.map(function(x){return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">· '+String(x).slice(0,40)+'</div>';}).join(''):'<div style="font-size:12px;color:#9a93b5">今晚还没有记录，下次多玩两局~</div>';
+  var aHtml=awards.map(function(a){return '<div class="award-row"><span>'+a.icon+' '+a.name+'<br><span style="font-size:11px;color:#9a93b5">'+a.desc+'</span></span><b>'+a.who+'</b></div>';}).join('');
+  openModal('<h3>🌙 夜终仪式</h3>'
+    +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
+    +'<div style="font-size:13px;color:#ffd700;margin:6px 0 2px">🏆 今晚颁奖</div>'+aHtml
+    +'<div style="font-size:13px;color:#ffd700;margin:10px 0 2px">🎬 名场面回顾</div>'+mHtml
+    +'<div class="m-item" style="margin-top:10px;font-size:14px;line-height:1.8"><b>🌙 收尾任务</b><br>'+wind+'</div>'
+    +(bet?'<div class="m-item" style="font-size:12px;line-height:1.7">'+bet+'</div>':'')
+    +'<div class="wheel-btns" style="display:block;margin-top:10px">'
+    +'<button class="wheel-btn spin" onclick="nightPoster()">🎨 生成今晚战报海报</button>'
+    +'<button class="wheel-btn back" onclick="freshNight()">🌅 全新一晚</button>'
+    +'<button class="wheel-btn back" onclick="closeModal()">再玩会儿</button>'
+    +'</div>');
+}
+function nightPoster(){
+  try{
+    var W=720,H=1080;
+    var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    var x=cv.getContext('2d');
+    var lg=x.createLinearGradient(0,0,W,H);
+    lg.addColorStop(0,'#1a0b2e');lg.addColorStop(0.55,'#2d1039');lg.addColorStop(1,'#3a1030');
+    x.fillStyle=lg;x.fillRect(0,0,W,H);
+    for(var i=0;i<90;i++){x.globalAlpha=Math.random()*0.55+0.1;x.fillStyle='#fff';x.beginPath();x.arc(Math.random()*W,Math.random()*H*0.6,Math.random()*1.6+0.4,0,7);x.fill();}
+    x.globalAlpha=1;
+    x.strokeStyle='rgba(255,215,0,0.45)';x.lineWidth=3;x.strokeRect(26,26,W-52,H-52);
+    x.textAlign='center';
+    x.fillStyle='#ffd700';x.font='bold 44px "Microsoft YaHei",sans-serif';
+    x.fillText('💋 今晚战报',W/2,108);
+    x.fillStyle='#ff9dc0';x.font='bold 30px "Microsoft YaHei",sans-serif';
+    x.fillText(HE.him+' ❤ '+HE.her,W/2,162);
+    x.fillStyle='rgba(255,255,255,0.55)';x.font='20px "Microsoft YaHei",sans-serif';
+    x.fillText(new Date().toLocaleDateString('zh-CN')+' · 一晚限定',W/2,200);
+    var P={};try{P=JSON.parse(localStorage.getItem('couple-party')||'{}');}catch(e){}
+    var cups=Math.round((gDrinkCups('him')+gDrinkCups('her'))*10)/10;
+    var stats=[['🎮 开局',(P.games||0)+' 次'],['📋 任务',(P.tasks||0)+' 条'],['🍷 酒杯',cups+' 杯'],['💋 亲吻',(P.kisses||0)+' 次'],['🌡️ 升温',heatStageName()],['💰 爱币',coinGet()+' 枚']];
+    for(var s=0;s<stats.length;s++){
+      var col=s%2,row=Math.floor(s/2);
+      var bx=60+col*310,by=250+row*96;
+      x.fillStyle='rgba(255,255,255,0.06)';x.strokeStyle='rgba(255,255,255,0.12)';x.lineWidth=1;
+      x.beginPath();x.rect(bx,by,290,80);x.fill();x.stroke();
+      x.textAlign='left';
+      x.fillStyle='rgba(255,255,255,0.55)';x.font='18px "Microsoft YaHei",sans-serif';
+      x.fillText(stats[s][0],bx+20,by+32);
+      x.fillStyle='#ffd700';x.font='bold 26px "Microsoft YaHei",sans-serif';
+      x.fillText(stats[s][1],bx+20,by+64);
+      x.textAlign='center';
+    }
+    var D=duelStats(),S=softGet(),awards=[];
+    if(D.wHim||D.wHer)awards.push('⚔️ 决胜王：'+(D.wHim>=D.wHer?HE.him:HE.her));
+    if(D.lHim||D.lHer)awards.push('🤸 翻车王：'+(D.lHim>=D.lHer?HE.him:HE.her));
+    var ch=gDrinkCups('him'),ce=gDrinkCups('her');
+    if(ch||ce)awards.push('🍷 醉猫奖：'+(ch>ce?HE.him:(ce>ch?HE.her:'并列')));
+    if((S.y||0)+(S.r||0)>0)awards.push('🚦 温柔守护：黄灯'+S.y+' · 红灯'+S.r);
+    if(!awards.length)awards.push('🌙 今晚开场奖：你们俩');
+    x.textAlign='left';
+    x.fillStyle='#ffd700';x.font='bold 24px "Microsoft YaHei",sans-serif';
+    x.fillText('🏆 今晚颁奖',60,610);
+    x.font='22px "Microsoft YaHei",sans-serif';x.fillStyle='#f0e8ff';
+    for(var a=0;a<Math.min(awards.length,5);a++){x.fillText(awards[a],60,660+a*44);}
+    var mm=v11Moments().slice(0,3);
+    x.fillStyle='#ffd700';x.font='bold 24px "Microsoft YaHei",sans-serif';
+    x.fillText('🎬 名场面',60,910);
+    x.font='18px "Microsoft YaHei",sans-serif';x.fillStyle='rgba(255,255,255,0.75)';
+    if(mm.length){for(var m=0;m<mm.length;m++){x.fillText('· '+String(mm[m]).slice(0,26),60,950+m*32);}}
+    else{x.fillText('· 今晚的每一刻都算',60,950);}
+    x.textAlign='center';x.fillStyle='rgba(255,215,0,0.7)';x.font='18px "Microsoft YaHei",sans-serif';
+    x.fillText('💞 数据一晚清零 · 你们的秘密只属于今晚',W/2,H-56);
+    var url=cv.toDataURL('image/png');
+    window._v11Poster=url;
+    openModal('<h3>🎨 今晚战报</h3><div class="poster-wrap"><img src="'+url+'" alt="今晚战报"></div>'
+      +'<div class="m-item" style="text-align:center;font-size:12px;color:#aaa">手机长按图片保存，或点下面按钮下载</div>'
+      +'<div class="wheel-btns" style="display:block"><a class="wheel-btn spin" style="display:block;text-align:center;text-decoration:none;color:#fff" download="今晚战报.png" href="'+url+'">⬇️ 下载图片</a>'
+      +'<button class="wheel-btn back" onclick="nightCeremony()">↩ 返回仪式</button></div>');
+  }catch(e){toast('海报生成失败：'+e.message);}
+}
+
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
 <div id="flDiceOverlay">
