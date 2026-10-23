@@ -737,6 +737,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .v12-storybar .sb-bar{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
 .v12-storybar .sb-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--v12-m),var(--v12-v));border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .ach-chip{display:inline-block;font-size:10.5px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:99px;padding:3px 8px;margin:3px 4px 0 0}
+.v12-storybar .sb-x{flex:0 0 auto;color:var(--v12-dim2);padding:0 4px;cursor:pointer;font-size:12px}
 </style>
 </head>
 <body>
@@ -764,7 +765,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
     <div class="v12-tile" onclick="v12QuickStart()"><div class="ic">⚡</div><div class="nm">快速开始</div><div class="ds">随机抽一款，直接升温</div></div>
     <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
     <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
-    <div class="v12-tile" onclick="startStory()"><div class="ic">🎬</div><div class="nm">剧情模式</div><div class="ds">3 章 12 幕，把今晚讲成故事</div><div class="tag">3章12幕</div></div>
+    <div class="v12-tile" onclick="startStory()"><div class="ic">🎬</div><div class="nm" id="v12StoryNm">剧情模式</div><div class="ds" id="v12StoryDs">3 章 12 幕，把今晚讲成故事</div><div class="tag">3章12幕</div></div>
   </div>
 </div>
 <div class="top-bar" id="setBar"></div>
@@ -2152,6 +2153,12 @@ function renderHome(){
 /* ===== Start Game ===== */
 function startGame(id){
   try{v12FlStopTurnTimer();}catch(e){}
+  try{
+    if(!window._v12StoryLaunching){
+      var _S=storyGet();
+      if(_S.on){_S.on=false;_S.run=false;storySave(_S);try{v12StorySync();}catch(e){}}
+    }
+  }catch(e){}
   if(window._escTv){clearInterval(window._escTv);window._escTv=null;}
   ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
     window[k]=false;window[k+'Sess']=(window[k+'Sess']||0)+1;
@@ -5679,6 +5686,17 @@ function v12SyncHome() {
   v12SetTrack('v12BarDrink', 'v12ValDrink', cups, 6, Math.round(cups * 10) / 10);
   var sub = document.getElementById('v12Sub');
   if (sub) sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
+  try{
+    var _st = storyGet();
+    var _nm = document.getElementById('v12StoryNm'), _ds = document.getElementById('v12StoryDs');
+    if (_nm && _ds) {
+      if (_st.fin) { _nm.textContent = '剧情模式'; _ds.textContent = '今晚已全剧终 · 可从头再来'; }
+      else if ((_st.ch || 0) > 0 || (_st.act || 0) > 0 || (_st.done || 0) > 0) {
+        _nm.textContent = '继续剧情';
+        _ds.textContent = (V12_STORY[_st.ch] || V12_STORY[0]).t + ' · 第' + ((_st.act || 0) + 1) + '幕';
+      } else { _nm.textContent = '剧情模式'; _ds.textContent = '3 章 12 幕，把今晚讲成故事'; }
+    }
+  }catch(e){}
   var mo = document.getElementById('v12Mood');
   if (mo) mo.textContent = '✨ 今夜氛围 ' + v12MoodCalc();
   var lg = document.getElementById('v12Ledger');
@@ -6048,16 +6066,22 @@ var V12_ACH = {
 function storyGet() {
   try {
     var S = JSON.parse(localStorage.getItem('couple-story') || '{"d":""}');
-    if (S.d !== v11Today()) S = { d: v11Today(), on: false, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 };
+    if (S.d !== v11Today()) S = { d: v11Today(), on: false, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 };
+    if (S.run === undefined) S.run = false;
+    if (S.pending === undefined) S.pending = 0;
     return S;
-  } catch (e) { return { d: v11Today(), on: false, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; }
+  } catch (e) { return { d: v11Today(), on: false, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; }
 }
 function storySave(S) { try { localStorage.setItem('couple-story', JSON.stringify(S)); } catch (e) {} }
 function storyAct(ch, act) { try { return V12_STORY[ch].acts[act]; } catch (e) { return null; } }
 function startStory() {
   var S = storyGet();
-  if (S.on && !S.fin) { v12StoryShowAct(S.ch, S.act, true); return; }
-  S = { d: v11Today(), on: true, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; storySave(S);
+  if (!S.fin && ((S.ch || 0) > 0 || (S.act || 0) > 0 || (S.done || 0) > 0)) {
+    S.on = true; S.pending = 0; storySave(S);
+    v12StoryShowAct(S.ch, S.act, true);
+    return;
+  }
+  S = { d: v11Today(), on: true, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; storySave(S);
   v12StoryShowAct(0, 0, false);
 }
 function v12StoryShowAct(ch, act, resume) {
@@ -6073,21 +6097,24 @@ function v12StoryLaunch() {
   try {
     var S = storyGet(); var A = storyAct(S.ch, S.act);
     if (!A) return;
+    S.on = true; S.run = true; storySave(S);
     closeModal();
     var g = A.games[Math.floor(Math.random() * A.games.length)];
+    window._v12StoryLaunching = true;
     startGame(g);
+    setTimeout(function () { window._v12StoryLaunching = false; }, 0);
     v12StorySync();
   } catch (e) {}
 }
 function v12StoryOnTask() {
-  var S = storyGet(); if (!S.on || S.fin) return;
+  var S = storyGet(); if (!S.on || !S.run || S.fin || S.pending) return;
   var A = storyAct(S.ch, S.act); if (!A) return;
   var m = v12TaskMeta(v12LastText(), window._v12LastType || '');
   S.done = (S.done || 0) + 1;
   if ((m.lv || 0) > (S.maxLv || 0)) S.maxLv = m.lv;
   storySave(S);
   v12StorySync();
-  if (S.done >= A.goal && ((!A.minLv) || S.maxLv >= A.minLv)) v12StoryCompleteAct();
+  if (S.done >= A.goal && ((!A.minLv) || S.maxLv >= A.minLv)) { S.pending = 1; storySave(S); v12StoryCompleteAct(); }
 }
 function v12StoryCompleteAct() {
   var S = storyGet(); var A = storyAct(S.ch, S.act); if (!A) return;
@@ -6106,11 +6133,11 @@ function v12StoryCompleteAct() {
 }
 function v12StoryAdvance() {
   var N = window._v12NextAct; if (!N) return;
-  var S = storyGet(); S.ch = N.ch; S.act = N.act; S.done = 0; S.maxLv = 0; storySave(S);
+  var S = storyGet(); S.ch = N.ch; S.act = N.act; S.done = 0; S.maxLv = 0; S.pending = 0; S.on = true; S.run = true; storySave(S);
   closeModal(); v12StorySync(); v12StoryLaunch();
 }
 function v12StoryFinale() {
-  var S = storyGet(); S.fin = 1; S.on = false; storySave(S);
+  var S = storyGet(); S.fin = 1; S.on = false; S.run = false; S.pending = 0; storySave(S);
   v12UnlockAch('story12');
   try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 80); v12Fx.combo('🎬 全剧终'); } catch (e) {}
   var chs = V12_STORY.map(function (c) { return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">· ' + c.t + ' — ' + c.sub + '</div>'; }).join('');
@@ -6121,17 +6148,25 @@ function v12StoryFinale() {
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();nightCeremony()">🌙 进入夜终仪式</button><button class="wheel-btn back" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
   v12StorySync();
 }
+function v12StoryPause() {
+  try {
+    var S = storyGet(); S.on = false; S.run = false; storySave(S);
+    v12StorySync();
+    toast('🎬 剧情已暂停，首页「剧情模式」可继续');
+  } catch (e) {}
+}
 function v12StorySync() {
   var el = document.getElementById('v12StoryBar'); if (!el) return;
   var S = storyGet();
-  if (!S.on) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (!S.on || !S.run) { el.style.display = 'none'; el.innerHTML = ''; return; }
   var CH = V12_STORY[S.ch] || V12_STORY[0];
   var A = storyAct(S.ch, S.act) || {};
   el.style.display = 'flex';
   var pct = Math.min(100, Math.round((S.done || 0) / (A.goal || 1) * 100));
   el.innerHTML = '<span class="sb-ch">' + CH.t + ' · 第' + (S.act + 1) + '幕</span>'
     + '<span class="sb-goal">' + (S.done || 0) + '/' + (A.goal || 0) + (A.minLv ? ' ★' + A.minLv : '') + '</span>'
-    + '<div class="sb-bar"><i style="width:' + pct + '%"></i></div>';
+    + '<div class="sb-bar"><i style="width:' + pct + '%"></i></div>'
+    + '<span class="sb-x" onclick="v12StoryPause()">✕</span>';
 }
 function achGet() {
   try {
