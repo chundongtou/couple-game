@@ -739,6 +739,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .ach-chip{display:inline-block;font-size:10.5px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:99px;padding:3px 8px;margin:3px 4px 0 0}
 .v12-storybar .sb-x{flex:0 0 auto;color:var(--v12-dim2);padding:0 4px;cursor:pointer;font-size:12px}
 .ctrl-item.idchip{color:#c9a7f5;border-color:rgba(201,167,245,.35);background:rgba(201,167,245,.08);cursor:pointer}
+.ctrl-item.energy{color:#ffd166;border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.08);cursor:pointer}
 /* 家族页签 */
 .hub-wrap{padding:12px 0 0}
 .hub-tabs{display:flex;gap:7px;overflow-x:auto;padding:0 14px 10px;justify-content:flex-start;scrollbar-width:none}
@@ -1539,7 +1540,10 @@ function evolve(txt){
 function taskUpgrade(){ /* V10: 主动任务升级(每局限2条, 满3级开彩蛋) */
   var p=window._flCur||window._flP[window._flOrder[window._flTurn]];
   if(!p)return;
-  if((window._flUpUses||0)>=2){toast('🔝 每局只能主动升级 2 条任务');return;}
+  if((window._flUpUses||0)>=2){
+    if(window._flEnergyUp||!energySpend(2)){toast('🔝 每局 2 次（可花 2 精力额外升级 1 次）');return;}
+    window._flEnergyUp=1;
+  }
   var el=document.querySelector('#flWheelResult .fl-task div:nth-child(2)')||document.querySelector('.fl-task div:nth-child(2)');
   var txt=el?el.textContent.replace(/【.*?】/g,'').replace(/^⛓️[^ ]* /,'').replace(/^💜 /,'').replace(/^🔥 /,'').replace(/^💣 /,'').replace(/^💑 /,'').slice(0,60).trim():'';
   if(!txt||txt.length<4){toast('暂无任务可升级');return;}
@@ -2026,7 +2030,8 @@ function renderCtrl(){
   var extra=(ITEMS.exchange||0)+(ITEMS.role||0)+(ITEMS.redo||0)+(ITEMS.bribe||0);
   if(extra>0)h+='<span class="ctrl-item pack" onclick="showCardPack()">🎴 卡包 +'+extra+'</span>';
   h+='<span class="ctrl-item idchip" onclick="showIdentity()">🎭 身份</span>'
-   +'<span class="ctrl-item idchip" onclick="showSecrets()">🔐 秘密'+(typeof v12SecretTickets==='function'&&v12SecretTickets()>0?(' '+v12SecretTickets()):'')+'</span>';
+   +'<span class="ctrl-item idchip" onclick="showSecrets()">🔐 秘密'+(typeof v12SecretTickets==='function'&&v12SecretTickets()>0?(' '+v12SecretTickets()):'')+'</span>'
+   +'<span class="ctrl-item energy" onclick="showEnergy()">⚡ '+(typeof energyGet==='function'?energyGet().v:8)+'</span>';
   var g=0;try{g=gentGetV();}catch(e){}
   if(g>0)h+='<span class="ctrl-item gent" title="温柔系数：题目难度自动降档，下一次抽题生效">🌤️ 温柔+'+g+'</span>';
   if(SET.drink){
@@ -2098,17 +2103,17 @@ var RESET_MAP={
  cards:'renderCardsBody',grid:'renderGridBody',potato:'renderPotatoBody',fitness:'renderFitBody',
  role:'renderRoleBody',auction:'renderAuctionBody',flight:'renderFlightSetup'
 };
-function panelRedraw(){ /* 重抽本轮: 消耗1张替换卡 */
+function panelRedraw(){ /* 重抽本轮: 替换卡优先, 无卡时花 2 精力 */
   if(!window._swapHandler){toast('本环节不支持重抽');return;}
-  if(ITEMS.swap<=0){toast('🃏 替换卡不足(每玩10局解锁1张)');return;}
-  ITEMS.swap--;saveItems();renderCtrl();
+  if(ITEMS.swap>0){ITEMS.swap--;saveItems();renderCtrl();}
+  else if(!energySpend(2)){energyAsk(2,function(){try{panelRedraw();}catch(e){}});return;}
   var h=window._swapHandler;window._swapHandler=null;
   h();
 }
-function panelSkip(){ /* 跳过本轮: 消耗1张免罚卡 */
+function panelSkip(){ /* 跳过本轮: 免罚卡优先, 无卡时花 3 精力免费跳过 */
   if(!window._pardonHandler){toast('本环节不支持跳过');return;}
-  if(ITEMS.pardon<=0){toast('🍀 免罚卡不足(每玩15局解锁1张)');return;}
-  ITEMS.pardon--;saveItems();renderCtrl();
+  if(ITEMS.pardon>0){ITEMS.pardon--;saveItems();renderCtrl();}
+  else if(!energySpend(3)){energyAsk(3,function(){try{panelSkip();}catch(e){}});return;}
   var h=window._pardonHandler;window._pardonHandler=null;
   h();
 }
@@ -3898,6 +3903,7 @@ function flightStart(){
   window._flTurn=0;
   window._flOrder= s.n===2?[0,1] : [0,2,1,3];
   window._flHourglass=!!s.hourglass;
+  window._flEnergyUp=0;
   window._flTPos=[0,0]; /* A模式: 队伍棋子位置 */
   window._flSix=0;
   window._flRolled=false;
@@ -6521,6 +6527,76 @@ function v12SecretAsk() {
     + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">秘密：<b>' + s.t + '</b><br>追问：<b style="color:#ffd166">' + q + '</b></div>'
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();try{taskDone();}catch(e){};toast(\'🎟 追问完成\')">✅ 回答完了</button><button class="wheel-btn back" onclick="closeModal()">先不答</button></div>');
   try { logEvent('🎟 使用追问券'); } catch (e) {}
+}
+
+/* ===== V13 B: 精力点 ===== */
+function energyGet() {
+  try {
+    var E = JSON.parse(localStorage.getItem('couple-energy') || '{"d":""}');
+    if (E.d !== v11Today()) E = { d: v11Today(), v: 8 };
+    if (typeof E.v !== 'number') E.v = 8;
+    return E;
+  } catch (e) { return { d: v11Today(), v: 8 }; }
+}
+function energySave(E) { try { localStorage.setItem('couple-energy', JSON.stringify(E)); } catch (e) {} }
+function energySpend(n) {
+  var E = energyGet();
+  if (E.v < n) return false;
+  E.v -= n; energySave(E);
+  try { renderCtrl(); } catch (e) {}
+  return true;
+}
+function energyAdd(n) {
+  var E = energyGet();
+  E.v = Math.min(12, (E.v || 0) + n); energySave(E);
+  try { renderCtrl(); } catch (e) {}
+}
+function showEnergy() {
+  var E = energyGet();
+  openModal('<h3>⚡ 精力</h3>'
+    + '<div class="m-item" style="text-align:center;font-size:14px;line-height:1.8;flex-direction:column;align-items:center">本晚剩余 <b style="font-size:26px;color:#ffd166">' + E.v + '</b> 点<br><span style="font-size:12px;color:#aaa">每晚重置 · 上限 12</span></div>'
+    + '<div class="m-item" style="font-size:12px;line-height:1.9;flex-direction:column;align-items:flex-start">用法：<br>· 没有替换卡时，重抽一次 = 2 点<br>· 没有免罚卡时，免费跳过 = 3 点<br>· 飞行棋额外升级一条 = 2 点</div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start"><b>补充精力</b><div class="wheel-btns" style="display:block;margin-top:8px">'
+    + '<button class="wheel-btn back" onclick="energyDrink(\'him\')">🍷 ' + HE.him + ' 喝半杯 +1</button>'
+    + '<button class="wheel-btn back" onclick="energyDrink(\'her\')">🍷 ' + HE.her + ' 喝半杯 +1</button>'
+    + '<button class="wheel-btn back" onclick="energyBuy()">💰 5 币 +1</button></div></div>'
+    + '<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">关闭</button></div>');
+}
+function energyDrink(who) {
+  try { drinkSync(who === 'him' ? HE.him : HE.her, 0.5); } catch (e) {}
+  energyAdd(1);
+  toast('⚡ +1 精力（' + ((who === 'him') ? HE.him : HE.her) + ' 半杯）');
+  showEnergy();
+}
+function energyBuy() {
+  if (coinGet() < 5) { toast('💰 币不够（需要 5）'); return; }
+  coinAdd(-5); energyAdd(1); toast('⚡ +1 精力（-5 币）');
+  showEnergy();
+}
+function energyAsk(need, cb) {
+  var E = energyGet();
+  window._energyCb = cb || null;
+  openModal('<h3>⚡ 精力不足</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.8">这个动作需要 <b>' + need + '</b> 点，你现在有 <b>' + E.v + '</b> 点。<br><span style="font-size:12px;color:#aaa">可以喝半杯或花 5 币补 1 点</span></div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + '<button class="wheel-btn back" onclick="energyAskDo(\'him\',' + need + ')">🍷 ' + HE.him + ' 喝半杯 +1</button>'
+    + '<button class="wheel-btn back" onclick="energyAskDo(\'her\',' + need + ')">🍷 ' + HE.her + ' 喝半杯 +1</button>'
+    + '<button class="wheel-btn back" onclick="energyAskBuy(' + need + ')">💰 5 币 +1</button>'
+    + '<button class="wheel-btn back" onclick="closeModal()">算了</button></div>');
+}
+function energyAskDo(who, need) {
+  try { drinkSync(who === 'him' ? HE.him : HE.her, 0.5); } catch (e) {}
+  energyAdd(1);
+  var cb = window._energyCb;
+  if (energyGet().v >= need) { closeModal(); if (cb) cb(); }
+  else energyAsk(need, cb);
+}
+function energyAskBuy(need) {
+  if (coinGet() < 5) { toast('💰 币不够'); return; }
+  coinAdd(-5); energyAdd(1);
+  var cb = window._energyCb;
+  if (energyGet().v >= need) { closeModal(); if (cb) cb(); }
+  else energyAsk(need, cb);
 }
 
 </script>
