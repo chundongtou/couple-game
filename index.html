@@ -1175,6 +1175,7 @@ var SET=JSON.parse((function(){try{return localStorage.getItem('couple-set')}cat
   if(SET.chain===undefined){SET.chain=true;ch=true;}
   if(SET.toys===undefined){SET.toys=false;ch=true;}
   if(SET.bond===undefined){SET.bond=false;ch=true;}
+  if(SET.show===undefined){SET.show=false;ch=true;}
   if(SET.voice===undefined){SET.voice=false;ch=true;}
   if(SET.voiceSlow===undefined){SET.voiceSlow=false;ch=true;}
   if(SET.ambient===undefined){SET.ambient='off';ch=true;}
@@ -1204,6 +1205,7 @@ function renderSettings(){
     +'<span class="tb-item'+((SET.chain===false)?'':' on')+'" onclick="toggleSet(\'chain\')">'+(SET.chain===false?'🔗 续章关':'🔗 续章')+'</span>'
     +'<span class="tb-item'+(SET.toys?' on':'')+'" onclick="toggleSet(\'toys\')">🧸 玩具</span>'
     +'<span class="tb-item'+(SET.bond?' on':'')+'" onclick="toggleSet(\'bond\')">🪢 束缚</span>'
+    +'<span class="tb-item'+(SET.show?' on':'')+'" onclick="toggleSet(\'show\')">👀 露出</span>'
     +'<span class="tb-item" onclick="toggleSet(\'theme\')">🌓 '+{dark:'暗夜夜灯',light:'浅色浪漫',sketch:'手绘情书'}[SET.theme||'dark']+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'scene\')">🎀 '+{none:'场景',beach:'海滩',christmas:'圣诞',camping:'露营'}[SET.scene||'none']+'</span>'
     +'<span class="tb-item" onclick="heatCool()">🔥 热度 '+getHeat()+'</span>'
@@ -1250,6 +1252,7 @@ function toggleSet(k){
   else if(k==='chain'){setOpt('chain',!SET.chain);toast(SET.chain?'🔗 续章开启：完成任务后可加码再来一环':'🔗 续章已关闭');}
   else if(k==='toys'){if(!SET.limit){toast('先开启 🔞 极限模式');return;}setOpt('toys',!SET.toys);toast(SET.toys?'🧸 玩具包已开启（仅极限模式）':'🧸 玩具包已关闭');}
   else if(k==='bond'){if(!SET.limit){toast('先开启 🔞 极限模式');return;}setOpt('bond',!SET.bond);toast(SET.bond?'🪢 束缚包已开启（仅极限模式）':'🪢 束缚包已关闭');}
+  else if(k==='show'){if(!SET.limit){toast('先开启 🔞 极限模式');return;}setOpt('show',!SET.show);toast(SET.show?'👀 露出包已开启：仅限私密可控空间，确认无人能看到':'👀 露出包已关闭');}
   renderSettings();
 }
 /* --- 背景音乐(轻和弦循环, WebAudio合成) --- */
@@ -1338,6 +1341,7 @@ function poolByDiff(pool,key){
       if(kind==='punish'&&typeof V14_PUNISH!=='undefined')arr=arr.concat(V14_PUNISH);
       if(SET.toys&&typeof V14_TOYS!=='undefined'&&(kind==='dare'||kind==='punish'))arr=arr.concat(V14_TOYS);
       if(SET.bond&&typeof V14_BOND!=='undefined'&&(kind==='dare'||kind==='punish'))arr=arr.concat(V14_BOND);
+      if(SET.show&&typeof V14_SHOW!=='undefined'&&kind==='dare')arr=arr.concat(V14_SHOW);
     }
   }catch(e){}
   if(BLACK.length)arr=arr.filter(function(x){return BLACK.indexOf(x)<0;});   /* 黑名单过滤 */
@@ -4233,6 +4237,7 @@ function flDrawSpicy(p){
       var _v14 = (typeof V14_DARE!=='undefined') ? V14_DARE.slice() : [];
       if(SET.toys&&typeof V14_TOYS!=='undefined')_v14=_v14.concat(V14_TOYS);
       if(SET.bond&&typeof V14_BOND!=='undefined')_v14=_v14.concat(V14_BOND);
+      if(SET.show&&typeof V14_SHOW!=='undefined')_v14=_v14.concat(V14_SHOW);
       if(_v14.length)return pickFresh(p.g==='M'?'_v14MX':'_v14FX',_v14);
     }
   }catch(e){}
@@ -7070,6 +7075,40 @@ var V14_BOND = [
 "用领带把对方双手绑在身后，命令他/她跪下，说一句求你的话。",
 "让对方躺着，双手被绑在头顶，你从脚亲到腰。",
 "用软绳把对方手腕绑在床头，你躺在他/她身边，慢慢撩到求饶。"
+];
+
+/* V14 露出向 · 30 条（仅限私密/可控空间） */
+var V14_SHOW = [
+  "在自家客厅只穿一件衬衫，让对方坐在沙发上看着你走一圈。",
+  "晚上在自家阳台（确认对面看不到）解开两颗扣子吹风 10 秒。",
+  "在酒店房间拉开窗帘（确认外面看不到里面）站 20 秒。",
+  "在自家玄关脱到只剩内衣，等对方回家。",
+  "只穿围裙在厨房做饭，让对方从背后抱住。",
+  "在自家院子或露台（确认无人）背对对方脱掉上衣 15 秒。",
+  "私家车停进车库熄火后，脱掉上衣让对方看 30 秒。",
+  "在家里不穿内裤，穿短裙或短裤走一圈。",
+  "在浴缸里让对方进来看着你 10 秒。",
+  "只裹浴巾去阳台收衣服（夜晚、确认无人）。",
+  "在自家窗边把窗帘拉开一角，只露肩膀和腿，坐 10 秒。",
+  "让对方坐在椅子上，你在房间里一件件脱，走到窗边停住。",
+  "私家车停自家车库，车窗留一条缝，脱到只剩内衣 1 分钟。",
+  "自家天台夜晚（确认无人）只穿外套、里面真空，吹风 30 秒。",
+  "在家里只穿对方的衬衫，光腿走动 5 分钟。",
+  "让对方把窗帘拉上，你在窗边慢慢脱，只给他/她看。",
+  "在自家阳台隔着纱帘做 10 秒贴身舞。",
+  "让对方选一件最少的衣服，你穿着它在屋里走一圈。",
+  "在浴室镜子前只围毛巾，让对方看着你擦身体。",
+  "只穿袜子在房间里走一圈，其余不穿。",
+  "让对方坐在床边，你在窗前（窗帘半拉）慢慢坐下去磨 30 秒。",
+  "在家门口只穿内衣，让对方在门外等 5 秒再进来。",
+  "在私家车里（车库）让对方把手伸进你衣服里 1 分钟。",
+  "在自家阳台夜晚只披一件外套、里面真空，抱对方 30 秒。",
+  "让对方在你脱衣服时数数，数到 10 必须脱完最后一件。",
+  "在房间里只开一盏小灯，站远一点让对方看不清，再慢慢走近。",
+  "在自家客厅把灯关掉只留电视光，脱到只剩内衣跳 30 秒。",
+  "让对方坐在沙发上，你背对他/她慢慢脱下外套，再回头。",
+  "在酒店房间只开浴室灯，你在昏暗中走到床边站 10 秒。",
+  "在自家露台（确认无人）披一条毯子，里面真空，坐下时毯子滑落一半，保持 15 秒。"
 ];
 
 </script>
