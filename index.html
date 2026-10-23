@@ -738,6 +738,13 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .v12-storybar .sb-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--v12-m),var(--v12-v));border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .ach-chip{display:inline-block;font-size:10.5px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:99px;padding:3px 8px;margin:3px 4px 0 0}
 .v12-storybar .sb-x{flex:0 0 auto;color:var(--v12-dim2);padding:0 4px;cursor:pointer;font-size:12px}
+/* 家族页签 */
+.hub-wrap{padding:12px 0 0}
+.hub-tabs{display:flex;gap:7px;overflow-x:auto;padding:0 14px 10px;justify-content:flex-start;scrollbar-width:none}
+.hub-tabs::-webkit-scrollbar{display:none}
+.hub-tab{flex:0 0 auto;font-size:12px;padding:8px 13px;border-radius:999px;border:1px solid var(--v12-line);background:rgba(255,255,255,.05);color:var(--v12-dim);cursor:pointer;white-space:nowrap;transition:all .18s}
+.hub-tab.on{background:linear-gradient(135deg,var(--v12-m),var(--v12-v));color:#fff;border-color:transparent;box-shadow:0 0 18px rgba(255,45,149,.3)}
+body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 </style>
 </head>
 <body>
@@ -770,7 +777,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 </div>
 <div class="top-bar" id="setBar"></div>
 <div class="v12-more">
-  <button class="v12-morebtn" id="v12MoreBtn" onclick="v12ToggleMore()">全部玩法 · 25 款 ▾</button>
+  <button class="v12-morebtn" id="v12MoreBtn" onclick="v12ToggleMore()">全部玩法 ▾</button>
   <div class="v12-morebody" id="v12MoreBody"><div class="game-grid" id="gameGrid"></div></div>
 </div>
 </div>
@@ -1315,30 +1322,34 @@ function localFilter(arr){
   return out.length>=8?out:arr;
 }
 var GAMES=[
-{id:'truth',icon:'💜',name:'真心话',desc:'转盘决定你要回答的真心话'},
-{id:'dare',icon:'🔥',name:'大冒险',desc:'转盘决定你要执行的刺激大冒险'},
-{id:'bomb',icon:'💣',name:'数字炸弹',desc:'1-100猜数字，踩中炸弹接受惩罚'},
-{id:'dice',icon:'🎲',name:'骰子大冒险',desc:'摇骰子决定谁受罚（不是开局对决哦）'},
-{id:'rps',icon:'✊',name:'石头剪刀布',desc:'双方同时出拳，输的人接受惩罚'},
-{id:'punish',icon:'🎡',name:'惩罚大转盘',desc:'随机抽取刺激惩罚'},
-{id:'roulette',icon:'🔫',name:'极限轮盘',desc:'六分之一逃过，中枪必执行'},
+{id:'wheelhub',icon:'🎡',name:'转盘',desc:'真心话 / 大冒险 / 惩罚 / 极限轮盘 · 四盘切换'},
+{id:'duelhub',icon:'⚔️',name:'开局对决',desc:'石头剪刀布 / 数字炸弹 / 骰子 · 三选一'},
+{id:'kinghub',icon:'👑',name:'国王时间',desc:'快速国王 / 经典国王 · 命令权'},
+{id:'boxhub',icon:'🎁',name:'盲盒',desc:'九宫格 / 盲盒骰子 · 两种开法'},
+{id:'truth',hidden:true,icon:'💜',name:'真心话',desc:'转盘决定你要回答的真心话'},
+{id:'dare',hidden:true,icon:'🔥',name:'大冒险',desc:'转盘决定你要执行的刺激大冒险'},
+{id:'bomb',hidden:true,icon:'💣',name:'数字炸弹',desc:'1-100猜数字，踩中炸弹接受惩罚'},
+{id:'dice',hidden:true,icon:'🎲',name:'骰子大冒险',desc:'摇骰子决定谁受罚（不是开局对决哦）'},
+{id:'rps',hidden:true,icon:'✊',name:'石头剪刀布',desc:'双方同时出拳，输的人接受惩罚'},
+{id:'punish',hidden:true,icon:'🎡',name:'惩罚大转盘',desc:'随机抽取刺激惩罚'},
+{id:'roulette',hidden:true,icon:'🔫',name:'极限轮盘',desc:'六分之一逃过，中枪必执行'},
 {id:'escalate',icon:'⛓️',name:'越拒绝越刺激',desc:'5秒倒计时，拒绝只会更狠'},
 {id:'double',icon:'🔥',name:'同时开火',desc:'边做大冒险边答真心话'},
-{id:'king',icon:'🧎',name:'国王小时',desc:'三道命令，无条件服从'},
+{id:'king',hidden:true,icon:'🧎',name:'国王小时',desc:'三道命令，无条件服从'},
 {id:'gamble',icon:'💥',name:'赌徒翻倍',desc:'翻倍换题，欠债必还'},
 {id:'sniper',icon:'🎯',name:'敏感点狙击',desc:'忍15秒别出声，出声加罚'},
 {id:'blind',icon:'🪢',name:'蒙眼服从',desc:'蒙眼执行，声音引导'},
 {id:'choice',icon:'🎰',name:'命运二选一',desc:'一刺激一更刺激，必须选一个'},
 {id:'cards',icon:'🂡',name:'出牌对决',desc:'抽牌坑对方，留狠牌关键甩'},
-{id:'grid',icon:'📦',name:'九宫格盲盒',desc:'9格藏玄机，越开越刺激'},
+{id:'grid',hidden:true,icon:'📦',name:'九宫格盲盒',desc:'9格藏玄机，越开越刺激'},
 {id:'potato',icon:'⏱️',name:'烫手山芋',desc:'传手机先亲一口，爆炸者受罚'},
 {id:'fitness',icon:'🏋️',name:'体力情话',desc:'边做运动边撩，撑不住翻倍'},
 {id:'role',icon:'🎭',name:'身份扮演',desc:'抽身份卡，整局按身份来'},
 {id:'auction',icon:'💰',name:'勇气竞拍',desc:'100勇气拍权力，输家连抽'},
 {id:'flight',icon:'✈️',name:'飞行棋',desc:'骰子棋盘，对飞/环岛/双轨/融合四玩法'},
 {id:'vault',icon:'💰',name:'真心话保险箱',desc:'押注逼问，答不出就赔'},
-{id:'king5',icon:'👑',name:'五分钟国王',desc:'三道命令牌，勇气换自由'},
-{id:'blinddice',icon:'🎲',name:'盲盒骰子',desc:'六面惩罚盲盒，敢不敢摇'},
+{id:'king5',hidden:true,icon:'👑',name:'五分钟国王',desc:'三道命令牌，勇气换自由'},
+{id:'blinddice',hidden:true,icon:'🎲',name:'盲盒骰子',desc:'六面惩罚盲盒，敢不敢摇'},
 {id:'night',icon:'🕯️',name:'主题之夜',desc:'酒店/角色/蒙眼三大剧情'}
 ];
 
@@ -2131,6 +2142,7 @@ function renderHome(){
   if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(function(){try{var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showOnboard();}catch(e){}},600);} /* V2: 首次打开新手引导(有弹窗时不打扰) */
   var last=(function(){try{return localStorage.getItem('couple-last')}catch(e){return null}})();
   var h='';GAMES.forEach(function(g){
+    if(g.hidden)return;
     var badge=played.indexOf(g.id)>=0?'<div class="badge">✓</div>':'';
     var sel=g.id===last?' selected':'';
     h+='<div class="game-card'+sel+'" onclick="startGame(\''+g.id+'\')">'+badge
@@ -2180,7 +2192,11 @@ function startGame(id){
   document.getElementById('gTitle').textContent=g.icon+' '+g.name;
   try{v12SyncHud();}catch(e){}
   var c=document.getElementById('gContent');
-  if(id==='truth') renderTruth(c);
+  if(id==='wheelhub') renderHub(c,'wheel');
+  else if(id==='duelhub') renderHub(c,'duel');
+  else if(id==='kinghub') renderHub(c,'king');
+  else if(id==='boxhub') renderHub(c,'box');
+  else if(id==='truth') renderTruth(c);
   else if(id==='dare') renderDare(c);
   else if(id==='bomb') renderBomb(c);
   else if(id==='dice') renderDice(c);
@@ -5697,6 +5713,12 @@ function v12SyncHome() {
       } else { _nm.textContent = '剧情模式'; _ds.textContent = '3 章 12 幕，把今晚讲成故事'; }
     }
   }catch(e){}
+  try {
+    var _mb = document.getElementById('v12MoreBtn'), _mbody = document.getElementById('v12MoreBody');
+    if (_mb && _mbody && !_mbody.classList.contains('on')) {
+      _mb.textContent = '全部玩法 · ' + GAMES.filter(function (g) { return !g.hidden; }).length + ' 款 ▾';
+    }
+  } catch (e) {}
   var mo = document.getElementById('v12Mood');
   if (mo) mo.textContent = '✨ 今夜氛围 ' + v12MoodCalc();
   var lg = document.getElementById('v12Ledger');
@@ -5724,7 +5746,7 @@ function v12MainCta() {
   else { try { showNightIntro(); } catch (e) { toast('今晚开局失败，可直接选游戏'); } }
 }
 function v12QuickStart() {
-  var pool = ['truth', 'dare', 'dice', 'rps', 'punish', 'roulette', 'escalate', 'double', 'king', 'gamble', 'sniper', 'blind', 'choice', 'cards', 'grid', 'potato', 'fitness', 'role', 'auction', 'vault', 'king5', 'blinddice', 'bomb'];
+  var pool = GAMES.filter(function (g) { return !g.hidden && g.id !== 'night' && g.id !== 'flight'; }).map(function (g) { return g.id; });
   var last = null; try { last = localStorage.getItem('couple-last'); } catch (e) {}
   var cand = pool.filter(function (x) { return x !== last; });
   var id = cand[Math.floor(Math.random() * cand.length)] || pool[0];
@@ -5736,7 +5758,7 @@ function v12ToggleMore() {
   var b = document.getElementById('v12MoreBody'), btn = document.getElementById('v12MoreBtn');
   if (!b) return;
   var on = b.classList.toggle('on');
-  if (btn) btn.textContent = on ? '收起玩法 ▴' : '全部玩法 · 25 款 ▾';
+  if (btn) btn.textContent = on ? '收起玩法 ▴' : ('全部玩法 · ' + GAMES.filter(function (g) { return !g.hidden; }).length + ' 款 ▾');
   if (on) { try { v12SyncHome(); } catch (e) {} }
 }
 try { setInterval(function () { try { v12SyncHome(); } catch (e) {} }, 30000); } catch (e) {}
@@ -6209,6 +6231,35 @@ function v12CheckAch() {
   } catch (e) {}
 }
 
+/* ===== V12 家族页签 ===== */
+var V12_HUB = {
+  wheel: [['truth', '💜 真心话'], ['dare', '🔥 大冒险'], ['punish', '🎯 惩罚'], ['roulette', '🎡 极限轮盘']],
+  duel: [['rps', '✊ 石头剪刀布'], ['bomb', '💣 数字炸弹'], ['dice', '🎲 骰子']],
+  king: [['king5', '⚡ 快速国王'], ['king', '👑 经典国王']],
+  box: [['grid', '📦 九宫格'], ['blinddice', '🎁 盲盒骰子']]
+};
+function renderHub(c, kind) {
+  var tabs = V12_HUB[kind] || []; if (!tabs.length) return;
+  window._hubKind = kind;
+  c.innerHTML = '<div class="bomb-wrap hub-wrap"><div class="hub-tabs">'
+    + tabs.map(function (t, i) { return '<span class="hub-tab' + (i === 0 ? ' on' : '') + '" data-id="' + t[0] + '" onclick="hubPick(this)">' + t[1] + '</span>'; }).join('')
+    + '</div><div id="hubBody"></div></div>';
+  hubLaunch(tabs[0][0]);
+}
+function hubPick(el) {
+  var tabs = el.parentNode.querySelectorAll('.hub-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('on');
+  el.classList.add('on');
+  hubLaunch(el.getAttribute('data-id'));
+}
+function hubLaunch(id) {
+  var body = document.getElementById('hubBody'); if (!body) return;
+  var g = null; try { g = GAMES.find(function (x) { return x.id === id; }); } catch (e) {}
+  if (g) { var t = document.getElementById('gTitle'); if (t) t.textContent = g.icon + ' ' + g.name; }
+  var fns = { truth: renderTruth, dare: renderDare, punish: renderPunish, roulette: renderRoulette, rps: renderRPS, bomb: renderBomb, dice: renderDice, king: renderKing, king5: renderKing5, grid: renderGrid, blinddice: renderBlindDice };
+  var fn = fns[id];
+  if (typeof fn === 'function') fn(body);
+}
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
 <div id="flDiceOverlay">
