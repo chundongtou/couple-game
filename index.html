@@ -6554,7 +6554,7 @@ function energyAdd(n) {
 function showEnergy() {
   var E = energyGet();
   openModal('<h3>⚡ 精力</h3>'
-    + '<div class="m-item" style="text-align:center;font-size:14px;line-height:1.8;flex-direction:column;align-items:center">本晚剩余 <b style="font-size:26px;color:#ffd166">' + E.v + '</b> 点<br><span style="font-size:12px;color:#aaa">每晚重置 · 上限 12</span></div>'
+    + '<div class="m-item" style="text-align:center;font-size:14px;line-height:1.8;flex-direction:column;align-items:center"><div style="width:100%">本晚剩余 <b style="font-size:26px;color:#ffd166">' + E.v + '</b> 点<br><span style="font-size:12px;color:#aaa">每晚重置 · 上限 12</span></div></div>'
     + '<div class="m-item" style="font-size:12px;line-height:1.9;flex-direction:column;align-items:flex-start">用法：<br>· 没有替换卡时，重抽一次 = 2 点<br>· 没有免罚卡时，免费跳过 = 3 点<br>· 飞行棋额外升级一条 = 2 点</div>'
     + '<div class="m-item" style="flex-direction:column;align-items:flex-start"><b>补充精力</b><div class="wheel-btns" style="display:block;margin-top:8px">'
     + '<button class="wheel-btn back" onclick="energyDrink(\'him\')">🍷 ' + HE.him + ' 喝半杯 +1</button>'
