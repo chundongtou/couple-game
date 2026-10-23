@@ -738,6 +738,7 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .v12-storybar .sb-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--v12-m),var(--v12-v));border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .ach-chip{display:inline-block;font-size:10.5px;color:var(--v12-g);border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:99px;padding:3px 8px;margin:3px 4px 0 0}
 .v12-storybar .sb-x{flex:0 0 auto;color:var(--v12-dim2);padding:0 4px;cursor:pointer;font-size:12px}
+.ctrl-item.idchip{color:#c9a7f5;border-color:rgba(201,167,245,.35);background:rgba(201,167,245,.08);cursor:pointer}
 /* 家族页签 */
 .hub-wrap{padding:12px 0 0}
 .hub-tabs{display:flex;gap:7px;overflow-x:auto;padding:0 14px 10px;justify-content:flex-start;scrollbar-width:none}
@@ -761,7 +762,7 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 <div class="v12-hero">
   <div class="names" id="cpNames" onclick="editNames()"><span class="nm-him">他</span><span class="nm-heart">❤</span><span class="nm-her">她</span></div>
   <div class="v12-sub" id="v12Sub">今晚还没开局 · 温度从零开始</div>
-  <div class="v12-moodline"><span class="v12-mood" id="v12Mood">✨ 今夜氛围 0</span><span class="v12-ledger" id="v12Ledger"></span></div>
+  <div class="v12-moodline"><span class="v12-mood" id="v12Mood">✨ 今夜氛围 0</span><span class="v12-ledger" id="v12Ledger"></span><span class="v12-ledger" id="v12Dual"></span></div>
   <div class="v12-bars">
     <div class="v12-bar-row"><span>亲密</span><div class="v12-bar m"><i id="v12BarHeat"></i></div><b id="v12ValHeat">0</b></div>
     <div class="v12-bar-row"><span>刺激</span><div class="v12-bar v"><i id="v12BarCombo"></i></div><b id="v12ValCombo">0</b></div>
@@ -2024,6 +2025,8 @@ function renderCtrl(){
   var h='<span class="ctrl-item" id="ctrlSwap" onclick="showCardPack()">🃏 替换 ×'+ITEMS.swap+'</span><span class="ctrl-item" id="ctrlPardon" onclick="showCardPack()">🍀 免罚 ×'+ITEMS.pardon+'</span>';
   var extra=(ITEMS.exchange||0)+(ITEMS.role||0)+(ITEMS.redo||0)+(ITEMS.bribe||0);
   if(extra>0)h+='<span class="ctrl-item pack" onclick="showCardPack()">🎴 卡包 +'+extra+'</span>';
+  h+='<span class="ctrl-item idchip" onclick="showIdentity()">🎭 身份</span>'
+   +'<span class="ctrl-item idchip" onclick="showSecrets()">🔐 秘密'+(typeof v12SecretTickets==='function'&&v12SecretTickets()>0?(' '+v12SecretTickets()):'')+'</span>';
   var g=0;try{g=gentGetV();}catch(e){}
   if(g>0)h+='<span class="ctrl-item gent" title="温柔系数：题目难度自动降档，下一次抽题生效">🌤️ 温柔+'+g+'</span>';
   if(SET.drink){
@@ -2189,6 +2192,7 @@ function startGame(id){
     ITEMS.swap=IL.swap;ITEMS.pardon=IL.pardon;
   }catch(e){}
   UNLOCKED.swap=99;UNLOCKED.pardon=99;
+  try{v12IdOnGameStart();}catch(e){}
   try{var P2=JSON.parse(localStorage.getItem('couple-party')||'{"d":""}');if(P2.d!==new Date().toDateString()){P2={d:new Date().toDateString(),games:0,tasks:0,drinks:0,kisses:0,punished:0,byGame:{}};}P2.games=(P2.games||0)+1;localStorage.setItem('couple-party',JSON.stringify(P2));}catch(e){}
   try{localStorage.setItem('couple-last',id)}catch(e){}
   renderCtrl();
@@ -5230,6 +5234,7 @@ function v11SoftDo(who){
   if(who==='her'&&S.her<=0){toast('♀ 黄灯已用完');return;}
   S[who]--;S.y=(S.y||0)+1;softSave(S);
   try{v12UnlockAch('gent');}catch(e){}
+  try{v12DualAdd('warm',5);}catch(e){}
   var nm=who==='him'?HE.him:HE.her;
   var ok=false;
   if(window._swapHandler){
@@ -5251,6 +5256,7 @@ window._v11HugReady=false;
 function v11RedLight(){
   var S=softGet();S.r=(S.r||0)+1;softSave(S);
   try{v12UnlockAch('red');}catch(e){}
+  try{v12DualAdd('warm',8);}catch(e){}
   gentUp();
   window._v11HugReady=false;
   vibrate([60,40,120]);
@@ -5596,6 +5602,7 @@ function nightCeremony(){
   openModal('<h3>🌙 夜终仪式</h3>'
     +'<div class="m-item" style="text-align:center;font-size:14px;line-height:1.7;flex-direction:column;align-items:center">今晚这一局，到这里就圆满了<br><span style="font-size:12px;color:#aaa">'+heatStageName()+' · 热度 '+getHeat()+' · 亲密币 '+coinGet()+'</span></div>'
     +'<div class="m-item" style="text-align:center;font-size:12px;line-height:1.7">📋 完成 '+(ST.done||0)+' · 弃权 '+(ST.skip||0)+(maxLv?' · 最高强度 ★'+maxLv:'')+'</div>'
+    +((function(){try{var _dl=v12DualLabel();return '<div class="m-item" style="text-align:center;font-size:12px;line-height:1.7">🌡 关系：'+_dl.t+' — '+_dl.d+'</div>';}catch(e){return '';}})())
     +((function(){try{var _a=v12AchWallHtml();return _a?('<div class="m-item" style="flex-direction:column;align-items:flex-start;font-size:12px;line-height:1.8">🏅 成就（'+v12AchCount()+' 枚）<div style="width:100%;margin-top:4px">'+_a+'</div></div>'):'';}catch(e){return '';}})())
     +'<div style="font-size:13px;color:#ffd700;margin:6px 0 2px">🏆 今晚颁奖</div>'+aHtml
     +'<div style="font-size:13px;color:#ffd700;margin:10px 0 2px">🎬 名场面回顾</div>'+mHtml
@@ -5731,6 +5738,10 @@ function v12SyncHome() {
     try { _c = getCombo(); _d = debtCount(); } catch (e) {}
     lg.textContent = (_c > 0 || _d > 0) ? ('⚡ 连击 ×' + _c + (_d > 0 ? ' · 💸 欠 ' + _d + ' 笔' : '')) : '';
   }
+  try {
+    var _du = document.getElementById('v12Dual');
+    if (_du) { var _D = dualGet(); _du.textContent = '🌡 ' + Math.round(_D.warm || 0) + ' · ⚡ ' + Math.round(_D.tens || 0); }
+  } catch (e) {}
   var cta = document.getElementById('v12Cta');
   if (cta) cta.textContent = v12NightOn() ? '继续升温 ›' : '开始今晚 ›';
 }
@@ -5911,6 +5922,7 @@ function v12TaskDone(txt) {
     S.byType[m.type] = (S.byType[m.type] || 0) + 1;
     S.byLv[m.lv] = (S.byLv[m.lv] || 0) + 1;
     v12StatsSave(S);
+    try{v12DualFromTask(m.type);v12SecretMaybeTicket();}catch(e){}
   } catch (e) {}
 }
 function v12TaskSkip(txt) {
@@ -6331,6 +6343,7 @@ function v12ChainDone() {
   try {
     var C = window._v12Chain = window._v12Chain || { lv: 0 };
     C.lv++;
+    try{v12DualAdd('tens',4);}catch(e){}
     closeModal();
     coinAdd(3);
     try { v12RememberTask(window._v12ChainTask || ''); } catch (e) {}
@@ -6352,6 +6365,162 @@ function v12ChainStop(silent) {
   window._v12Chain = null;
   closeModal();
   if (!silent) toast('🔗 链条收下');
+}
+
+/* ===== V13 C/D/G: 今晚身份 / 关系双轨 / 秘密银行 ===== */
+var V12_IDS = {
+  king: { icon: '👑', name: '国王', active: '命令', desc: '本条任务改由对方执行', kind: 'cmd' },
+  knight: { icon: '⚔️', name: '骑士', active: '挡酒', desc: '替对方接下这半杯（对方酒意 -0.5）', kind: 'drink' },
+  mage: { icon: '🎤', name: '麦霸', active: '免罚', desc: '获得 1 张免罚卡', kind: 'pardon' },
+  trick: { icon: '😈', name: '捣蛋鬼', active: '点名', desc: '本条任务改由对方执行', kind: 'cmd' },
+  queen: { icon: '👸', name: '女王', active: '下令', desc: '本条任务改由对方执行', kind: 'cmd' },
+  fairy: { icon: '🧚', name: '仙女', passive: '每局多 1 张免罚', active: '祝福', desc: '送对方 1 张免罚卡', kind: 'bless' },
+  cat: { icon: '🐱', name: '猫咪', active: '撒娇', desc: '本条换成温柔版', kind: 'soft' },
+  pet: { icon: '🎀', name: '团宠', active: '点名', desc: '本条任务改由对方执行', kind: 'cmd' }
+};
+var V12_IDS_M = ['king', 'knight', 'mage', 'trick'], V12_IDS_F = ['queen', 'fairy', 'cat', 'pet'];
+function idsGet() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-ids') || '{"d":""}');
+    if (S.d !== v11Today()) S = { d: v11Today(), him: V12_IDS_M[Math.floor(Math.random() * 4)], her: V12_IDS_F[Math.floor(Math.random() * 4)], usedHim: 0, usedHer: 0 };
+    if (!S.him) S.him = V12_IDS_M[0];
+    if (!S.her) S.her = V12_IDS_F[0];
+    return S;
+  } catch (e) { return { d: v11Today(), him: 'king', her: 'queen', usedHim: 0, usedHer: 0 }; }
+}
+function idsSave(S) { try { localStorage.setItem('couple-ids', JSON.stringify(S)); } catch (e) {} }
+function v12IdOnGameStart() {
+  var S = idsGet(); S.usedHim = 0; S.usedHer = 0; idsSave(S);
+  if (S.her === 'fairy') {
+    ITEMS.pardon = Math.min((ITEMS.pardon || 0) + 1, 99); saveItems();
+    try { renderCtrl(); } catch (e) {}
+    toast('🧚 仙女被动：本局免罚卡 +1');
+  }
+}
+function showIdentity() {
+  var S = idsGet();
+  function row(who, id) {
+    var d = V12_IDS[id]; var used = who === 'him' ? S.usedHim : S.usedHer;
+    var nm = who === 'him' ? HE.him : HE.her;
+    return '<div class="m-item" style="flex-direction:column;align-items:flex-start;gap:2px">'
+      + '<b>' + d.icon + ' ' + nm + ' · ' + d.name + '</b>'
+      + '<span style="font-size:12px;color:#aaa">' + (d.passive ? ('被动：' + d.passive + '　') : '') + '主动：' + d.active + ' — ' + d.desc + '</span>'
+      + '<button class="wheel-btn ' + (used ? 'back' : 'spin') + '" style="margin-top:8px;height:40px" ' + (used ? 'disabled' : 'onclick="v12IdUse(\'' + who + '\')"') + '>' + (used ? '本局已用' : '使用主动技') + '</button></div>';
+  }
+  openModal('<h3>🎭 今晚身份</h3>'
+    + '<div class="m-item" style="font-size:12px;color:#aaa;flex-direction:column;align-items:flex-start">身份每晚随机，主动技每局各 1 次，被动常驻。</div>'
+    + row('him', S.him) + row('her', S.her)
+    + '<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">关闭</button></div>');
+}
+function v12IdUse(who) {
+  var S = idsGet(); var id = who === 'him' ? S.him : S.her; var d = V12_IDS[id];
+  if ((who === 'him' ? S.usedHim : S.usedHer) >= 1) { toast('本局已用过了'); return; }
+  var other = who === 'him' ? HE.her : HE.him;
+  var me = who === 'him' ? HE.him : HE.her;
+  if (d.kind === 'cmd') {
+    try { logEvent('🎭 ' + me + ' 使用「' + d.active + '」：本条由 ' + other + ' 执行'); } catch (e) {}
+    toast('🎭 命令生效：本条由 ' + other + ' 执行');
+  } else if (d.kind === 'drink') {
+    try { drinkSync(other, -0.5); } catch (e) {}
+    toast('⚔️ 挡酒：' + other + ' 的酒意 -0.5');
+  } else if (d.kind === 'pardon') {
+    ITEMS.pardon = Math.min((ITEMS.pardon || 0) + 1, 99); saveItems(); toast('🎤 本局免罚卡 +1');
+  } else if (d.kind === 'bless') {
+    ITEMS.pardon = Math.min((ITEMS.pardon || 0) + 1, 99); saveItems(); toast('🧚 祝福：免罚卡 +1');
+  } else if (d.kind === 'soft') {
+    var ok = false;
+    if (window._swapHandler) { window._gentSoft = true; try { window._swapHandler(); ok = true; } catch (e) {} finally { window._gentSoft = false; } }
+    toast(ok ? '🐱 撒娇成功：已换成温柔版' : '🐱 已记下：本条建议温柔执行');
+  }
+  if (who === 'him') S.usedHim = 1; else S.usedHer = 1;
+  idsSave(S); closeModal();
+  try { renderCtrl(); } catch (e) {}
+}
+/* --- 关系双轨 --- */
+function dualGet() {
+  try {
+    var D = JSON.parse(localStorage.getItem('couple-dual') || '{"d":""}');
+    if (D.d !== v11Today()) D = { d: v11Today(), warm: 0, tens: 0 };
+    return D;
+  } catch (e) { return { d: v11Today(), warm: 0, tens: 0 }; }
+}
+function dualSave(D) { try { localStorage.setItem('couple-dual', JSON.stringify(D)); } catch (e) {} }
+function v12DualAdd(k, n) {
+  var D = dualGet(); D[k] = Math.max(0, Math.min(100, (D[k] || 0) + n)); dualSave(D);
+  try { v12SyncHome(); } catch (e) {}
+}
+function v12DualFromTask(type) {
+  if (type === 'truth' || type === 'role') v12DualAdd('warm', 2);
+  else if (type === 'touch') v12DualAdd('warm', 3);
+  else if (type === 'dare') v12DualAdd('tens', 2);
+  else if (type === 'punish') v12DualAdd('tens', 3);
+  else if (type === 'drink') v12DualAdd('tens', 2);
+  try {
+    var D = dualGet();
+    if ((D.tens - D.warm) >= 30 && !window._dualHintT) { window._dualHintT = 1; toast('🌡 温度有点低，抱一下再继续？'); }
+    if ((D.warm - D.tens) >= 30 && !window._dualHintW) { window._dualHintW = 1; toast('⚡ 张力有点低，要不要加点料？'); }
+  } catch (e) {}
+}
+function v12DualLabel() {
+  var D = dualGet(); var d = (D.warm || 0) - (D.tens || 0);
+  return d >= 20 ? { t: '温柔型', d: '你们今晚更偏照顾与靠近' } : d <= -20 ? { t: '张力型', d: '你们今晚更偏刺激与越界' } : { t: '平衡型', d: '温柔和刺激刚刚好' };
+}
+/* --- 秘密银行 --- */
+function secGet() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-secrets') || '{"d":""}');
+    if (S.d !== v11Today()) S = { d: v11Today(), list: [], tickets: 0 };
+    if (!S.list) S.list = [];
+    if (!S.tickets) S.tickets = 0;
+    return S;
+  } catch (e) { return { d: v11Today(), list: [], tickets: 0 }; }
+}
+function secSave(S) { try { localStorage.setItem('couple-secrets', JSON.stringify(S)); } catch (e) {} }
+function v12SecretTickets() { return secGet().tickets || 0; }
+function v12SecretAdd() {
+  var el = document.getElementById('secInput'); var v = el ? el.value.trim() : '';
+  if (!v) { toast('先写一条秘密'); return; }
+  var S = secGet(); S.list.push({ t: v.slice(0, 120), ts: new Date().toTimeString().slice(0, 5) });
+  if (S.list.length > 20) S.list.shift();
+  secSave(S);
+  toast('🔐 已存进秘密银行（仅本机、今晚清零）');
+  showSecrets();
+}
+function v12SecretMaybeTicket() {
+  try {
+    var ST = v12StatsSummary();
+    if ((ST.done || 0) > 0 && (ST.done % 3 === 0)) {
+      var S = secGet(); S.tickets = (S.tickets || 0) + 1; secSave(S);
+      toast('🎟 获得 1 张追问券（每 3 条任务）');
+    }
+  } catch (e) {}
+}
+function showSecrets() {
+  var S = secGet();
+  var start = Math.max(0, S.list.length - 5);
+  var list = S.list.slice(start).map(function (x, i) {
+    return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">' + (start + i + 1) + '. ' + x.t + ' <span style="color:#666;font-size:10px">' + x.ts + '</span></div>';
+  }).join('') || '<div style="font-size:12px;color:#888">还没有秘密，先存一条</div>';
+  openModal('<h3>🔐 秘密银行</h3>'
+    + '<div class="m-item" style="font-size:12px;color:#aaa;flex-direction:column;align-items:flex-start">只存本机、今晚清零、不上传。每完成 3 条任务得 1 张追问券。</div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start"><b>最近秘密</b><div style="width:100%;margin-top:4px">' + list + '</div></div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:stretch"><b>存一条</b><textarea id="secInput" rows="2" style="margin-top:6px;width:100%" placeholder="比如：其实我很怕黑…"></textarea><button class="wheel-btn spin" style="margin-top:8px" onclick="v12SecretAdd()">存进银行</button></div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + '<button class="wheel-btn ' + (S.tickets > 0 ? 'spin' : 'back') + '" ' + (S.tickets > 0 ? 'onclick="v12SecretAsk()"' : 'disabled') + '>🎟 用追问券（剩 ' + S.tickets + '）</button>'
+    + '<button class="wheel-btn back" onclick="closeModal()">关闭</button></div>');
+}
+function v12SecretAsk() {
+  var S = secGet();
+  if (!S.tickets) { toast('没有追问券了'); return; }
+  if (!S.list.length) { toast('银行里还没有秘密'); return; }
+  var s = S.list[Math.floor(Math.random() * S.list.length)];
+  var qs = ['为什么？', '当时你在想什么？', '还有谁知道？', '如果重来一次，你还会这样吗？', '这件事最让你心跳的是哪一刻？'];
+  var q = qs[Math.floor(Math.random() * qs.length)];
+  S.tickets--; secSave(S);
+  openModal('<h3>🎟 追问券</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">秘密：<b>' + s.t + '</b><br>追问：<b style="color:#ffd166">' + q + '</b></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();try{taskDone();}catch(e){};toast(\'🎟 追问完成\')">✅ 回答完了</button><button class="wheel-btn back" onclick="closeModal()">先不答</button></div>');
+  try { logEvent('🎟 使用追问券'); } catch (e) {}
 }
 
 </script>
