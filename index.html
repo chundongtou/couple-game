@@ -1318,6 +1318,13 @@ function poolByDiff(pool,key){
     else if(heat>=25)arr=arr.concat(GAMEDATA.extra.dare);
     if(GAMEDATA.extra5&&(d>=5||SET.limit||heat>=45))arr=arr.concat(GAMEDATA.extra5.dare);
   }
+  try{ /* V13 极限池: 仅极限模式或热度>=55 */
+    if((SET.limit||heat>=55)&&typeof V12_SPICY!=='undefined'){
+      if(kind==='truth')arr=arr.concat(V12_SPICY.truths);
+      if(kind==='dare')arr=arr.concat(V12_SPICY.dare);
+      if(kind==='punish')arr=arr.concat(V12_SPICY.punish);
+    }
+  }catch(e){}
   if(BLACK.length)arr=arr.filter(function(x){return BLACK.indexOf(x)<0;});   /* 黑名单过滤 */
   return arr.length>=5?arr:pool;
 }
@@ -4205,7 +4212,14 @@ function flSideStep(p){
 /* V5.1 抽任务统一助手: 性别专属池也走洗牌袋, 同局不重样 */
 function flDrawTruth(p){return Math.random()<0.5?pickFresh(p.g==='M'?'_flMTruthPick':'_flFTruthPick',p.g==='M'?GAMEDATA.flightM.truth:GAMEDATA.flightF.truth):pickFresh('_truthPick',GAMEDATA.truths);}
 function flDrawDare(p){return Math.random()<0.5?pickFresh(p.g==='M'?'_flMDarePick':'_flFDarePick',p.g==='M'?GAMEDATA.flightM.dare:GAMEDATA.flightF.dare):pickFresh('_darePick',GAMEDATA.dare);}
-function flDrawSpicy(p){return pickFresh(p.g==='M'?'_flMSpicyPick':'_flFSpicyPick',p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);}
+function flDrawSpicy(p){
+  try{
+    if((SET.limit||getHeat()>=55)&&typeof V12_SPICY!=='undefined'&&Math.random()<0.5){
+      return pickFresh(p.g==='M'?'_spicyMX':'_spicyFX',V12_SPICY.dare);
+    }
+  }catch(e){}
+  return pickFresh(p.g==='M'?'_flMSpicyPick':'_flFSpicyPick',p.g==='M'?GAMEDATA.flightM.spicy:GAMEDATA.flightF.spicy);
+}
 function flDrawDuo(){return pickFresh('_flDuoPick',GAMEDATA.flightD.dare.concat(GAMEDATA.flightD.truth));}
 /* --- 格子结算 --- */
 function flLand(p,t,idx){
@@ -6598,6 +6612,68 @@ function energyAskBuy(need) {
   if (energyGet().v >= need) { closeModal(); if (cb) cb(); }
   else energyAsk(need, cb);
 }
+
+/* ===== V13 极限池 (仅 极限模式 / 热度≥55 解锁) ===== */
+var V12_SPICY = {
+  truths: [
+    "你最想被对方用什么方式撩到失控？说细一点。",
+    "说一个你最想尝试的姿势，描述一下细节。",
+    "你有没有幻想过被对方用嘴弄到说不出话？想在哪里？",
+    "你最敏感的三个地方，按顺序说出来，再告诉对方怎么碰最舒服。",
+    "你第一次有反应是什么时候，当时脑子里在想谁？",
+    "如果今晚只能用一分钟，你会怎么用？",
+    "你最想让对方在你耳边说什么下流话？学一句。",
+    "你有没有偷偷用过玩具？最喜欢哪一种感觉？",
+    "你想被对方绑起来吗？愿意被绑多久、能接受到什么程度？",
+    "你最喜欢对方身体的哪个部位，想对它做什么？",
+    "说出一次你假装没事、其实已经很有感觉的瞬间。",
+    "你想不想在镜子前做？为什么？",
+    "你最想试的节奏：快、慢、还是停停走走？描述一下。",
+    "有没有一个你一直没敢提的小癖好？现在说出来。",
+    "你想让对方用手还是用嘴？选一个，说理由。",
+    "你被对方弄到最高潮的一次是什么样子？描述给他/她听。",
+    "如果戴上眼罩，你最怕对方先碰哪里？",
+    "你想不想被对方命令？想被命令做什么？",
+    "说出你脑子里最常回放的一次亲密画面。",
+    "你现在最想被对方碰哪里？说具体一点。"
+  ],
+  dare: [
+    "用嘴让对方在 30 秒内说不出完整的话（不许真咬）。",
+    "坐在对方腿上，隔着衣服慢慢磨 1 分钟，全程不许出声。",
+    "给对方口交 30 秒，然后停下来问他想不想继续。",
+    "用舌尖从对方锁骨一路舔到腰，来回两遍。",
+    "让对方选一个姿势，保持 30 秒不许动，动了重来。",
+    "蒙上对方眼睛，用嘴唇找到他最敏感的地方，亲 10 秒。",
+    "在对方耳边说一句你最下流的话，说完亲一下耳垂。",
+    "骑在对方身上，自己控制节奏 1 分钟，不许他动手。",
+    "用冰块在对方胸口画一个圈，再用嘴把水舔掉。",
+    "把对方的手按在头顶，深吻 20 秒，另一只手不许老实。",
+    "让对方隔着内裤摸你 30 秒，你要说出感受。",
+    "跪在对方腿间，抬头看他/她 10 秒，再决定要不要继续。",
+    "只用嘴解开对方一颗扣子或拉链。",
+    "背对对方坐下，让对方从背后亲你的后颈和肩膀 1 分钟。",
+    "让对方用指尖从你的脚踝一路划到大腿根，不许躲。",
+    "对着镜子，从背后抱住对方，做 30 秒慢动作。",
+    "用领带或丝巾绑住对方一只手，然后撩他/她 1 分钟。",
+    "用最轻的力气咬对方肩膀，留下一个浅浅的牙印。",
+    "让对方选：你舔他/她，还是他/她舔你？选了就做 1 分钟。",
+    "贴着对方耳朵，把今晚最想做的事说一遍，越具体越好。"
+  ],
+  punish: [
+    "被对方用手掌打三下屁股（力度先商量好）。",
+    "跪在对方脚边 1 分钟，双手背在身后，抬头看着对方。",
+    "被蒙眼绑手 3 分钟，只能等对方来碰你。",
+    "用嘴给对方脱掉一件衣服，脱不下来就重来。",
+    "被对方用手指弄到快到时停下，晾 30 秒再说。",
+    "趴在床上，让对方在你背上写三个字，猜错加罚 1 分钟。",
+    "对着镜子说三遍「我现在很想被你要」，一次比一次小声。",
+    "被对方用冰块沿着脊椎滑一遍，不许躲。",
+    "跪着给对方口交 30 秒，然后说一句感谢的话。",
+    "被对方按住手腕保持一个姿势 1 分钟，动一下就重来。",
+    "用对方的领带或丝巾把自己的手绑在床头，等对方 30 秒。",
+    "让对方在你耳边说一句惩罚指令，你必须照做，不能讨价还价。"
+  ]
+};
 
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
