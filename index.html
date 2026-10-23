@@ -747,6 +747,17 @@ body.fx-off .wheel-result .pop-in,body.fx-off .fl-task,body.fx-off .cmd-card,bod
 .hub-tab{flex:0 0 auto;font-size:12px;padding:8px 13px;border-radius:999px;border:1px solid var(--v12-line);background:rgba(255,255,255,.05);color:var(--v12-dim);cursor:pointer;white-space:nowrap;transition:all .18s}
 .hub-tab.on{background:linear-gradient(135deg,var(--v12-m),var(--v12-v));color:#fff;border-color:transparent;box-shadow:0 0 18px rgba(255,45,149,.3)}
 body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
+/* V14 真实骰子 */
+.dice3d-wrap{perspective:900px}
+.dice3d-stage{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(-12deg) rotateY(-16deg)}
+.dice3d-wrap::after{display:none}
+.dice-shadow{position:absolute;left:50%;bottom:-20px;width:86px;height:16px;background:radial-gradient(ellipse at center,rgba(0,0,0,.55) 0%,rgba(0,0,0,.22) 42%,rgba(255,45,149,.20) 64%,transparent 78%);filter:blur(3px);opacity:.9;pointer-events:none;z-index:0}
+.dice3d-wrap.shaking{animation:none}
+.df{box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -6px 12px rgba(120,70,150,.18);border-radius:12px}
+#flDiceOverlay .dice3d-stage{transform:rotateX(-12deg) rotateY(-16deg) scale(1.25)}
+#flDiceOverlay .dice-shadow{width:120px;bottom:-22px}
+#flDiceOverlay .fl-ov-zoom{margin-bottom:76px;position:relative}
+#flDiceOverlay .fl-ov-zoom::after{content:'';position:absolute;left:50%;bottom:-8px;width:240px;height:72px;transform:translateX(-50%);background:radial-gradient(ellipse,rgba(255,45,149,.30),rgba(139,92,246,.12) 55%,transparent 72%);filter:blur(7px);pointer-events:none;z-index:-1}
 </style>
 </head>
 <body>
@@ -2479,38 +2490,35 @@ function guessBomb(){
 
 /* ===== 骰子 ===== */
 function renderDice(c){
-  var faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
   c.innerHTML='<div class="dice-wrap">'
     +'<h2 style="margin-bottom:10px">🎲 骰子大冒险</h2>'
-    +'<div class="dice-box" id="diceBox">🎲</div>'
+    +'<div class="dice3d-wrap" id="diceBox" style="width:88px;height:88px"></div>'
     +'<div class="dice-result" id="diceResult">点击下方按钮摇骰子</div>'
     +'<button class="dice-submit" style="background:linear-gradient(135deg,#f39c12,#e67e22)" onclick="rollDice()">🎲 摇！</button>'
     +'<div class="wheel-btns" style="margin-top:14px"><button class="wheel-btn back" onclick="startGame(\'dice\')">🔄 重来</button></div>'
     +'</div>';
-  window._faces=faces;
+  try{v12DicePrepare(document.getElementById('diceBox'));}catch(e){}
 }
 function rollDice(){
   if(window._diceRolling)return;
   window._diceRolling=true;
   sndSpin();
   var box=document.getElementById('diceBox');
-  box.classList.add('rolling');
-  var count=0;var iv=setInterval(function(){
-    box.textContent=window._faces[Math.floor(Math.random()*6)];count++;
-    if(count>20){
-      clearInterval(iv);window._diceRolling=false;box.classList.remove('rolling');
-      var result=Math.floor(Math.random()*6);
-      box.textContent=window._faces[result];
-      var val=result+1;sndDing();vibrate([40,30,60]);
-      var who=Math.random()<0.5?HE.him:HE.her;
-      var punish=pickFresh('_punishPick',GAMEDATA.punish);
-      window._lastTask=punish;
-      snapShot();logEvent('🎲 骰子 '+val+'点 · '+who+'：'+punish);
-      window._pardonHandler=function(){document.getElementById('diceResult').innerHTML='<div style="font-size:20px">🍀 免罚生效！</div>';};
-      document.getElementById('diceResult').innerHTML=
-        '<div class="pop-in" style="font-size:22px;margin-bottom:8px">🎲 '+val+'点！</div><div>'+who+'：'+punish+'</div><div class="wheel-btns" style="margin-top:10px"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
-    }
-  },80);
+  var cube=v12DicePrepare(box);
+  var result=Math.floor(Math.random()*6)+1;
+  var done=function(){
+    window._diceRolling=false;
+    var val=result;sndDing();vibrate([40,30,60]);
+    var who=Math.random()<0.5?HE.him:HE.her;
+    var punish=pickFresh('_punishPick',GAMEDATA.punish);
+    window._lastTask=punish;
+    snapShot();logEvent('🎲 骰子 '+val+'点 · '+who+'：'+punish);
+    window._pardonHandler=function(){document.getElementById('diceResult').innerHTML='<div style="font-size:20px">🍀 免罚生效！</div>';};
+    document.getElementById('diceResult').innerHTML=
+      '<div class="pop-in" style="font-size:22px;margin-bottom:8px">🎲 '+val+'点！</div><div>'+who+'：'+punish+'</div><div class="wheel-btns" style="margin-top:10px"><button class="wheel-btn spin" onclick="v12TaskComplete(this)">✅ 完成</button><button class="wheel-btn back" onclick="blackAddLast()">🚫 拉黑这条</button></div>';
+    try{v12Fx.burst(innerWidth/2,innerHeight*0.5,12);}catch(e){}
+  };
+  try{v12DiceSpin(cube,result,{duration:1200,onDone:done});}catch(e){done();}
 }
 
 /* ===== 石头剪刀布 ===== */
@@ -4038,8 +4046,7 @@ function flDiceRoll(v,cb){
   var ov=document.getElementById('flDiceOverlay');
   var wrap=document.getElementById('flDiceOverlayWrap');
   if(!ov||!wrap){(cb||function(){})();return;}
-  var d=wrap.querySelector('.dice3d');
-  d.innerHTML=flDiceFaces();
+  var d=v12DicePrepare(wrap);
   var lbl=document.getElementById('flDiceOverlayLabel');
   var who='';
   var st=window._flDuelState;
@@ -4047,28 +4054,22 @@ function flDiceRoll(v,cb){
   else{var p=window._flP[window._flOrder[window._flTurn]];if(p)who=p.name;}
   lbl.textContent='';
   ov.classList.add('show');
-  wrap.classList.add('shaking');
   sndSpin();
-  var target={1:'rotateX(0deg) rotateY(0deg)',2:'rotateX(0deg) rotateY(-90deg)',3:'rotateX(0deg) rotateY(180deg)',4:'rotateX(0deg) rotateY(90deg)',5:'rotateX(-90deg) rotateY(0deg)',6:'rotateX(90deg) rotateY(0deg)'}[v];
-  var txn=target.indexOf('-90deg')>=0||target.indexOf('180deg')>=0?-1:1;
-  var sx=txn<0?-720:720, sy=(v===5||v===6)?900:720+Math.floor(Math.random()*360);
-  d.style.transition='none';
-  d.style.transform='rotateX('+sx+'deg) rotateY('+sy+'deg)';
-  void d.offsetWidth;
-  d.style.transition='transform 1.5s cubic-bezier(0.22,0.78,0.25,1)';
-  d.style.transform=target;
-  setTimeout(function(){
-    wrap.classList.remove('shaking');
-    d.style.animation='diceLand 0.45s cubic-bezier(0.34,1.56,0.64,1)'; /* 落地回弹 */
+  try{
+    v12DiceSpin(d,v,{duration:1650,onDone:function(){
+      lbl.textContent=who+' 摇出 '+v+' 点！';
+      sndDing();vibrate([40,30,60]);
+      try{v12Fx.ripple(innerWidth/2,innerHeight/2);}catch(e){}
+      setTimeout(function(){
+        ov.classList.remove('show');
+        setTimeout(function(){if(window._flSess===sess)cb();},330);
+      },1100);
+    }});
+  }catch(e){
     lbl.textContent=who+' 摇出 '+v+' 点！';
     sndDing();vibrate([40,30,60]);
-    try{v12Fx.ripple(innerWidth/2,innerHeight/2);}catch(e){}
-    /* 停稳显示点数1秒后淡出, 再结算(校验会话防串场) */
-    setTimeout(function(){
-      ov.classList.remove('show');
-      setTimeout(function(){if(window._flSess===sess)cb();},330);
-    },1000);
-  },1550);
+    setTimeout(function(){ov.classList.remove('show');setTimeout(function(){if(window._flSess===sess)cb();},330);},900);
+  }
 }
 function flTeamPlayer(lane){ /* 2人=各自1道, 4人=按队分道 */
   return window._flP.length===2?window._flP[lane]:window._flP[lane*2];
@@ -7110,6 +7111,72 @@ var V14_SHOW = [
   "在酒店房间只开浴室灯，你在昏暗中走到床边站 10 秒。",
   "在自家露台（确认无人）披一条毯子，里面真空，坐下时毯子滑落一半，保持 15 秒。"
 ];
+
+/* ===== V14 真实骰子引擎 ===== */
+var V12_DICE_BASE = { 1: { x: 0, y: 0 }, 2: { x: 0, y: -90 }, 3: { x: 0, y: 180 }, 4: { x: 0, y: 90 }, 5: { x: -90, y: 0 }, 6: { x: 90, y: 0 } };
+function v12DicePrepare(wrap) {
+  if (!wrap) return null;
+  if (!wrap.querySelector('.dice3d-stage')) {
+    wrap.innerHTML = '<div class="dice3d-stage"><div class="dice3d"></div></div><div class="dice-shadow"></div>';
+  }
+  var cube = wrap.querySelector('.dice3d');
+  if (cube && !cube.getAttribute('data-faces')) {
+    cube.innerHTML = flDiceFaces();
+    cube.setAttribute('data-faces', '1');
+  }
+  return cube;
+}
+function v12DiceSpin(cube, value, opts) {
+  opts = opts || {};
+  if (!cube) { if (opts.onDone) opts.onDone(); return; }
+  var base = V12_DICE_BASE[value] || V12_DICE_BASE[1];
+  var tx = (3 + Math.floor(Math.random() * 2)) * 360 + base.x;
+  var ty = (3 + Math.floor(Math.random() * 2)) * 360 + base.y;
+  var dur = opts.duration || 1650;
+  try { if (cube._v12Anim) cube._v12Anim.cancel(); } catch (e) {}
+  cube.style.transform = 'rotateX(0deg) rotateY(0deg)';
+  var kf = [
+    { offset: 0, transform: 'translateY(0) rotateX(0deg) rotateY(0deg) scale(1)' },
+    { offset: .12, transform: 'translateY(-56px) rotateX(' + (tx * .18) + 'deg) rotateY(' + (ty * .15) + 'deg) scale(1.07)' },
+    { offset: .42, transform: 'translateY(-30px) rotateX(' + (tx * .55) + 'deg) rotateY(' + (ty * .5) + 'deg) scale(1.05)' },
+    { offset: .72, transform: 'translateY(-6px) rotateX(' + (tx * .9) + 'deg) rotateY(' + (ty * .88) + 'deg) scale(1.04,.97)' },
+    { offset: .8, transform: 'translateY(0) rotateX(' + tx + 'deg) rotateY(' + ty + 'deg) scale(1.08,.92)' },
+    { offset: .86, transform: 'translateY(-12px) rotateX(' + tx + 'deg) rotateY(' + ty + 'deg) scale(.98,1.03)' },
+    { offset: .93, transform: 'translateY(0) rotateX(' + tx + 'deg) rotateY(' + ty + 'deg) scale(1.03,.98)' },
+    { offset: 1, transform: 'translateY(0) rotateX(' + tx + 'deg) rotateY(' + ty + 'deg) scale(1)' }
+  ];
+  var anim;
+  try { anim = cube.animate(kf, { duration: dur, easing: 'cubic-bezier(.18,.72,.22,1)', fill: 'forwards' }); }
+  catch (e) { cube.style.transform = 'rotateX(' + base.x + 'deg) rotateY(' + base.y + 'deg)'; if (opts.onDone) opts.onDone(); return; }
+  cube._v12Anim = anim;
+  var wrap = cube.closest('.dice3d-wrap');
+  var sh = wrap ? wrap.querySelector('.dice-shadow') : null;
+  if (sh && sh.animate) {
+    try {
+      sh.animate([
+        { offset: 0, transform: 'translateX(-50%) scale(1)', opacity: .65 },
+        { offset: .14, transform: 'translateX(-50%) scale(.6)', opacity: .3 },
+        { offset: .72, transform: 'translateX(-50%) scale(.88)', opacity: .5 },
+        { offset: .8, transform: 'translateX(-50%) scale(1.18)', opacity: .85 },
+        { offset: .87, transform: 'translateX(-50%) scale(.94)', opacity: .6 },
+        { offset: 1, transform: 'translateX(-50%) scale(1)', opacity: .65 }
+      ], { duration: dur, easing: 'linear', fill: 'forwards' });
+    } catch (e) {}
+  }
+  try {
+    [0.12, 0.34, 0.56, 0.74].forEach(function (t) {
+      setTimeout(function () {
+        try { playBeep(240 + Math.random() * 90, 0.03, 'square', 0.05); } catch (e) {}
+        try { vibrate(9); } catch (e) {}
+      }, dur * t);
+    });
+  } catch (e) {}
+  anim.onfinish = function () {
+    try { anim.cancel(); } catch (e) {}
+    cube.style.transform = 'rotateX(' + base.x + 'deg) rotateY(' + base.y + 'deg)';
+    if (opts.onDone) opts.onDone();
+  };
+}
 
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
