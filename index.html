@@ -1170,6 +1170,7 @@ var SET=JSON.parse((function(){try{return localStorage.getItem('couple-set')}cat
   if(!SET.scene)SET.scene='none';
   if(SET.bgm===undefined)SET.bgm=false;
   if(SET.fx===undefined){SET.fx='full';ch=true;}
+  if(SET.chain===undefined){SET.chain=true;ch=true;}
   if(SET.voice===undefined){SET.voice=false;ch=true;}
   if(SET.voiceSlow===undefined){SET.voiceSlow=false;ch=true;}
   if(SET.ambient===undefined){SET.ambient='off';ch=true;}
@@ -1196,6 +1197,7 @@ function renderSettings(){
     +'<span class="tb-item'+(SET.voice?' on':'')+'" onclick="toggleSet(\'voice\')">'+(SET.voice?(SET.voiceSlow?'🐢 慢速念题':'🗣️ 念题中'):'🗣️ 念题')+'</span>'
     +'<span class="tb-item'+((SET.ambient&&SET.ambient!=='off')?' on':'')+'" onclick="toggleSet(\'ambient\')">'+(SET.ambient==='rain'?'🌧️ 雨夜':SET.ambient==='fire'?'🔥 壁炉':SET.ambient==='club'?'🎧 夜店':'🌙 氛围音')+'</span>'
     +'<span class="tb-item'+((SET.fx&&SET.fx!=='full')?'':' on')+'" onclick="toggleSet(\'fx\')">'+(SET.fx==='off'?'🚫 动效关':SET.fx==='lite'?'🍃 简约动效':'✨ 动效全开')+'</span>'
+    +'<span class="tb-item'+((SET.chain===false)?'':' on')+'" onclick="toggleSet(\'chain\')">'+(SET.chain===false?'🔗 续章关':'🔗 续章')+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'theme\')">🌓 '+{dark:'暗夜夜灯',light:'浅色浪漫',sketch:'手绘情书'}[SET.theme||'dark']+'</span>'
     +'<span class="tb-item" onclick="toggleSet(\'scene\')">🎀 '+{none:'场景',beach:'海滩',christmas:'圣诞',camping:'露营'}[SET.scene||'none']+'</span>'
     +'<span class="tb-item" onclick="heatCool()">🔥 热度 '+getHeat()+'</span>'
@@ -1239,6 +1241,7 @@ function toggleSet(k){
   else if(k==='ambient'){var aorder=['off','rain','fire','club'];var acur=aorder.indexOf(SET.ambient||'off');var anx=aorder[(acur+1)%4];setOpt('ambient',anx);ambApply();toast(anx==='off'?'🌙 氛围音已关闭':(anx==='rain'?'🌧️ 雨夜氛围已开启':(anx==='fire'?'🔥 壁炉氛围已开启':'🎧 夜店氛围已开启')));}
   else if(k==='quiet'){setOpt('quiet',!SET.quiet);if(SET.quiet){bgmOff();ambStop();toast('🤫 安静模式：音效全静音，震动保留');}else{if(SET.bgm)bgmOn();ambApply();toast('🔊 安静模式已关闭');}}
   else if(k==='fx'){var _fo=['full','lite','off'];var _fc=_fo.indexOf(SET.fx||'full');var _fn=_fo[(_fc+1)%3];setOpt('fx',_fn);applyTheme();toast(_fn==='full'?'✨ 动效全开：过场 · 礼花 · 粒子':(_fn==='lite'?'🍃 简约动效：只保留必要反馈':'🚫 动效已关闭'));}
+  else if(k==='chain'){setOpt('chain',!SET.chain);toast(SET.chain?'🔗 续章开启：完成任务后可加码再来一环':'🔗 续章已关闭');}
   renderSettings();
 }
 /* --- 背景音乐(轻和弦循环, WebAudio合成) --- */
@@ -2165,6 +2168,7 @@ function renderHome(){
 /* ===== Start Game ===== */
 function startGame(id){
   try{v12FlStopTurnTimer();}catch(e){}
+  try{v12ChainReset();}catch(e){}
   try{
     if(!window._v12StoryLaunching){
       var _S=storyGet();
@@ -5844,6 +5848,7 @@ function v12TaskComplete(btn) {
   try { vibrate([18, 30, 26]); } catch (e) {}
   try { toast('✅ 完成！热度+1 · 亲密币+5'); } catch (e) {}
   try { if (btn && btn.tagName === 'BUTTON') { btn.disabled = true; btn.textContent = '✅ 已完成'; btn.style.opacity = '.55'; } } catch (e) {}
+  (function () { var _t = window._v12ChainTok = (window._v12ChainTok || 0) + 1; setTimeout(function () { if (window._v12ChainTok === _t) v12ChainOffer(); }, 450); })();
 }
 
 /* ===== V12 Phase3a: 统一任务协议 / 任务统计 / 今夜氛围 ===== */
@@ -6012,6 +6017,7 @@ function v12PanelDone() {
   try { v12Fx.burst(innerWidth / 2, innerHeight * 0.62, 26); } catch (e) {}
   try { vibrate([18, 30, 26]); } catch (e) {}
   try { toast('✅ 完成！热度+1 · 亲密币+5'); } catch (e) {}
+  (function () { var _t = window._v12ChainTok = (window._v12ChainTok || 0) + 1; setTimeout(function () { if (window._v12ChainTok === _t) v12ChainOffer(); }, 450); })();
 }
 function flSetHourglass() {
   var s = window._flSetup = window._flSetup || {};
@@ -6088,8 +6094,9 @@ var V12_ACH = {
 function storyGet() {
   try {
     var S = JSON.parse(localStorage.getItem('couple-story') || '{"d":""}');
-    if (S.d !== v11Today()) S = { d: v11Today(), on: false, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 };
+    if (S.d !== v11Today()) S = { d: v11Today(), on: false, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0, bias: '' };
     if (S.run === undefined) S.run = false;
+    if (S.bias === undefined) S.bias = '';
     if (S.pending === undefined) S.pending = 0;
     return S;
   } catch (e) { return { d: v11Today(), on: false, run: false, pending: 0, ch: 0, act: 0, done: 0, maxLv: 0, fin: 0 }; }
@@ -6132,11 +6139,13 @@ function v12StoryOnTask() {
   var S = storyGet(); if (!S.on || !S.run || S.fin || S.pending) return;
   var A = storyAct(S.ch, S.act); if (!A) return;
   var m = v12TaskMeta(v12LastText(), window._v12LastType || '');
+  var goal = (A.goal || 1) + (S.bias === 'hot' ? 1 : (S.bias === 'soft' ? -1 : 0));
+  if (goal < 1) goal = 1;
   S.done = (S.done || 0) + 1;
   if ((m.lv || 0) > (S.maxLv || 0)) S.maxLv = m.lv;
   storySave(S);
   v12StorySync();
-  if (S.done >= A.goal && ((!A.minLv) || S.maxLv >= A.minLv)) { S.pending = 1; storySave(S); v12StoryCompleteAct(); }
+  if (S.done >= goal && ((!A.minLv) || S.maxLv >= A.minLv)) { S.pending = 1; storySave(S); v12StoryCompleteAct(); }
 }
 function v12StoryCompleteAct() {
   var S = storyGet(); var A = storyAct(S.ch, S.act); if (!A) return;
@@ -6146,12 +6155,30 @@ function v12StoryCompleteAct() {
   if (nx > 3) { nx = 0; nch = S.ch + 1; }
   var N = storyAct(nch, nx), NCH = V12_STORY[nch];
   var chEnd = (nx === 0);
+  if (S.bias === 'hot') { try { coinAdd(5); } catch (e) {} }
+  window._v12NextAct = { ch: nch, act: nx };
+  if (chEnd) {
+    openModal('<h3>🌗 章节选择</h3>'
+      + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">'
+      + '<b style="color:#ffd700">' + NCH.t + ' · ' + NCH.sub + '</b><br>你们想怎么继续？</div>'
+      + '<div class="wheel-btns" style="display:block">'
+      + '<button class="wheel-btn spin" onclick="v12StoryBias(\'hot\')">🔥 继续加码（每幕目标 +1，完成每幕 +5 币）</button>'
+      + '<button class="wheel-btn back" onclick="v12StoryBias(\'soft\')">🌙 温柔收尾（温柔 +1，每幕目标 -1）</button></div>');
+    return;
+  }
   openModal('<h3>🎬 本幕完成</h3>'
     + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">'
-    + (chEnd ? '<b style="color:#ffd700">' + NCH.t + ' · ' + NCH.sub + '</b><br>' : '')
     + '<b>下一幕 · ' + N.t + '</b><br>' + N.n + '</div>'
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12StoryAdvance()">▶ 进入下一幕</button><button class="wheel-btn back" onclick="closeModal()">歇一会儿</button></div>');
-  window._v12NextAct = { ch: nch, act: nx };
+}
+function v12StoryBias(kind) {
+  try {
+    var S = storyGet(); S.bias = kind;
+    if (kind === 'soft') { try { gentUp(); } catch (e) {} }
+    storySave(S);
+    closeModal();
+    v12StoryAdvance();
+  } catch (e) {}
 }
 function v12StoryAdvance() {
   var N = window._v12NextAct; if (!N) return;
@@ -6163,8 +6190,9 @@ function v12StoryFinale() {
   v12UnlockAch('story12');
   try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 80); v12Fx.combo('🎬 全剧终'); } catch (e) {}
   var chs = V12_STORY.map(function (c) { return '<div style="font-size:12px;color:#c9c2dd;margin-top:4px">· ' + c.t + ' — ' + c.sub + '</div>'; }).join('');
+  var _biasLine = S.bias === 'hot' ? '你们选择了加码，把夜色烧到了最后。' : (S.bias === 'soft' ? '你们选择了温柔，把这一夜抱得很稳。' : '三章十二幕，走完了。');
   openModal('<h3>🌅 全剧终</h3>'
-    + '<div class="m-item" style="text-align:center;line-height:1.9;flex-direction:column;align-items:center">三章十二幕，走完了。<br><span style="font-size:12px;color:#aaa">' + heatStageName() + ' · 成就 ' + v12AchCount() + ' 枚</span></div>'
+    + '<div class="m-item" style="text-align:center;line-height:1.9;flex-direction:column;align-items:center">' + _biasLine + '<br><span style="font-size:12px;color:#aaa">' + heatStageName() + ' · 成就 ' + v12AchCount() + ' 枚</span></div>'
     + '<div class="m-item" style="flex-direction:column;align-items:flex-start">' + chs + '</div>'
     + '<div class="m-item" style="flex-direction:column;align-items:flex-start">🏅 成就：<div style="width:100%;margin-top:4px">' + (v12AchWallHtml() || '—') + '</div></div>'
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();nightCeremony()">🌙 进入夜终仪式</button><button class="wheel-btn back" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
@@ -6184,9 +6212,11 @@ function v12StorySync() {
   var CH = V12_STORY[S.ch] || V12_STORY[0];
   var A = storyAct(S.ch, S.act) || {};
   el.style.display = 'flex';
-  var pct = Math.min(100, Math.round((S.done || 0) / (A.goal || 1) * 100));
+  var _goal = (A.goal || 1) + (S.bias === 'hot' ? 1 : (S.bias === 'soft' ? -1 : 0));
+  if (_goal < 1) _goal = 1;
+  var pct = Math.min(100, Math.round((S.done || 0) / _goal * 100));
   el.innerHTML = '<span class="sb-ch">' + CH.t + ' · 第' + (S.act + 1) + '幕</span>'
-    + '<span class="sb-goal">' + (S.done || 0) + '/' + (A.goal || 0) + (A.minLv ? ' ★' + A.minLv : '') + '</span>'
+    + '<span class="sb-goal">' + (S.done || 0) + '/' + _goal + (A.minLv ? ' ★' + A.minLv : '') + '</span>'
     + '<div class="sb-bar"><i style="width:' + pct + '%"></i></div>'
     + '<span class="sb-x" onclick="v12StoryPause()">✕</span>';
 }
@@ -6260,6 +6290,70 @@ function hubLaunch(id) {
   var fn = fns[id];
   if (typeof fn === 'function') fn(body);
 }
+/* ===== V13 任务链: 完成后可加码再来一环 ===== */
+function v12ChainReset() {
+  window._v12Chain = null; window._v12ChainTask = '';
+  window._v12ChainTok = (window._v12ChainTok || 0) + 1;
+}
+function v12ChainOffer() {
+  try {
+    if (SET.chain === false) return;
+    if (!window._v12Chain || !(window._v12Chain.lv >= 0)) { window._v12Chain = { lv: 0 }; }
+    if ((v12LastText() || '').length < 4) return;
+    var m = document.getElementById('modalMask');
+    if (m && m.classList.contains('show')) return;
+    var C = window._v12Chain || { lv: 0 };
+    if (C.lv >= 3) { window._v12Chain = null; toast('🔗 三环走完，收工！'); return; }
+    var meta = v12TaskMeta(v12LastText(), window._v12LastType || '');
+    var target = Math.min(5, (meta.lv || 2) + 1);
+    var next = C.lv + 1;
+    openModal('<h3>🔗 续章？</h3>'
+      + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">上一条完成得不错。<br>再来一环：强度提到 <b style="color:#ffd166">★' + target + '</b>，完成额外 <b>+3 亲密币</b>；第 3 环另有彩蛋。<br><span style="font-size:12px;color:#aaa">第 ' + next + '/3 环 · 断了不罚</span></div>'
+      + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12ChainStart(' + target + ')">🔗 再来一环</button><button class="wheel-btn back" onclick="v12ChainStop(1)">收下，见好就收</button></div>');
+  } catch (e) {}
+}
+function v12ChainStart(target) {
+  try {
+    var C = window._v12Chain = window._v12Chain || { lv: 0 };
+    var pool = (GAMEDATA.dare || []).concat(GAMEDATA.truth || []);
+    var cand = pool.filter(function (x) { return v12TaskMeta(x).lv >= target; });
+    if (cand.length < 6) cand = pool.slice();
+    var t = cand[Math.floor(Math.random() * cand.length)];
+    window._v12ChainTask = t;
+    openModal('<h3>🔗 第 ' + (C.lv + 1) + ' 环 · ★' + target + '</h3>'
+      + '<div class="m-item" style="font-size:17px;line-height:1.9;flex-direction:column;align-items:flex-start">' + t + '</div>'
+      + v12TaskLvHtml(t)
+      + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12ChainDone()">✅ 完成（+3 币）</button><button class="wheel-btn back" onclick="v12ChainStop(1)">到这里</button></div>');
+    try { logEvent('🔗 续章第' + (C.lv + 1) + '环（★' + target + '）'); } catch (e) {}
+  } catch (e) {}
+}
+function v12ChainDone() {
+  try {
+    var C = window._v12Chain = window._v12Chain || { lv: 0 };
+    C.lv++;
+    closeModal();
+    coinAdd(3);
+    try { v12RememberTask(window._v12ChainTask || ''); } catch (e) {}
+    try { taskDone(); } catch (e) {}
+    try { v12Fx.burst(innerWidth / 2, innerHeight * 0.5, 26); vibrate([18, 30, 26]); } catch (e) {}
+    if (C.lv >= 3) {
+      coinAdd(10);
+      window._v12Chain = null;
+      try { v12Fx.combo('🔗 三环达成'); } catch (e) {}
+      toast('🎉 三环达成！额外 +10 亲密币');
+      try { logEvent('🔗 三环达成（额外 +10 币）'); } catch (e) {}
+      return;
+    }
+    toast('🔗 第 ' + C.lv + ' 环完成，+3 币');
+    setTimeout(function () { v12ChainOffer(); }, 550);
+  } catch (e) {}
+}
+function v12ChainStop(silent) {
+  window._v12Chain = null;
+  closeModal();
+  if (!silent) toast('🔗 链条收下');
+}
+
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
 <div id="flDiceOverlay">
