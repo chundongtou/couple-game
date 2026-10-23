@@ -6308,7 +6308,7 @@ function v12ChainOffer() {
     var target = Math.min(5, (meta.lv || 2) + 1);
     var next = C.lv + 1;
     openModal('<h3>🔗 续章？</h3>'
-      + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">上一条完成得不错。<br>再来一环：强度提到 <b style="color:#ffd166">★' + target + '</b>，完成额外 <b>+3 亲密币</b>；第 3 环另有彩蛋。<br><span style="font-size:12px;color:#aaa">第 ' + next + '/3 环 · 断了不罚</span></div>'
+      + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9"><div style="width:100%">上一条完成得不错。<br>再来一环：强度提到 <b style="color:#ffd166">★' + target + '</b>，完成额外 <b>+3 亲密币</b>；第 3 环另有彩蛋。<br><span style="font-size:12px;color:#aaa">第 ' + next + '/3 环 · 断了不罚</span></div></div>'
       + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v12ChainStart(' + target + ')">🔗 再来一环</button><button class="wheel-btn back" onclick="v12ChainStop(1)">收下，见好就收</button></div>');
   } catch (e) {}
 }
