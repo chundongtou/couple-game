@@ -758,6 +758,35 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 #flDiceOverlay .dice-shadow{width:120px;bottom:-22px}
 #flDiceOverlay .fl-ov-zoom{margin-bottom:76px;position:relative}
 #flDiceOverlay .fl-ov-zoom::after{content:'';position:absolute;left:50%;bottom:-8px;width:240px;height:72px;transform:translateX(-50%);background:radial-gradient(ellipse,rgba(255,45,149,.30),rgba(139,92,246,.12) 55%,transparent 72%);filter:blur(7px);pointer-events:none;z-index:-1}
+
+/* ===== V15 今夜地图 ===== */
+#runPage{padding-bottom:30px;min-height:100vh}
+.run-wrap{padding:12px 14px 34px;max-width:480px;margin:0 auto}
+.run-theme{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,rgba(255,45,149,.16),rgba(122,92,255,.14));border:1px solid rgba(255,255,255,.12);font-size:14px;color:#fff}
+.run-theme span{font-size:11px;color:#b9b0d0}
+.run-hud{display:flex;gap:6px;margin:10px 0;flex-wrap:nowrap}
+.run-hud span{flex:1 1 0;min-width:0;text-align:center;padding:7px 2px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-size:11px;color:#e7e2f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.run-chapter{display:flex;flex-direction:column;gap:2px;margin:6px 0 4px}
+.run-chapter b{font-size:15px;color:#ffd166}
+.run-chapter span{font-size:11px;color:#a79cc2}
+.run-map{padding:6px 0 4px}
+.run-layer{display:flex;justify-content:center;gap:16px;position:relative;margin:9px 0}
+.run-layer:first-child{margin-top:2px}
+.run-node{position:relative;width:94px;min-height:72px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);transition:transform .15s,border-color .2s}
+.run-node .ic{font-size:20px;line-height:1}
+.run-node .nm{font-size:11px;color:#cfc7e2;letter-spacing:.5px}
+.run-node .ok{position:absolute;top:3px;right:6px;font-size:10px;color:#6fe3a1}
+.run-node.run-boss{width:150px;background:linear-gradient(135deg,rgba(255,45,149,.2),rgba(122,92,255,.2));border-color:rgba(255,45,149,.4)}
+.run-node.visited{opacity:.72;border-color:rgba(90,220,150,.45);background:rgba(90,220,150,.07)}
+.run-node.next{cursor:pointer;border-color:rgba(255,45,149,.65);box-shadow:0 0 22px rgba(255,45,149,.28);animation:v15Pulse 1.8s ease-in-out infinite}
+.run-node.next:active{transform:scale(.95)}
+.run-node.locked{opacity:.32;filter:grayscale(1)}
+.run-tip{text-align:center;font-size:11px;color:#8f86a8;margin-top:8px}
+.run-warn{text-align:center;font-size:11px;color:#ffb4b4;margin-top:5px}
+.task-card{display:block;width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:11px 12px}
+@keyframes v15Pulse{0%,100%{box-shadow:0 0 14px rgba(255,45,149,.2)}50%{box-shadow:0 0 26px rgba(255,45,149,.42)}}
+@media(max-width:360px){.run-hud{gap:4px}.run-hud span{font-size:10px;padding:6px 1px}.run-node{width:88px}.run-node.run-boss{width:140px}}
+
 </style>
 </head>
 <body>
@@ -782,7 +811,7 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
   </div>
   <button class="v12-cta" id="v12Cta" onclick="v12MainCta()">开始今晚 ›</button>
   <div class="v12-tiles">
-    <div class="v12-tile" onclick="v12QuickStart()"><div class="ic">⚡</div><div class="nm">快速开始</div><div class="ds">随机抽一款，直接升温</div></div>
+    <div class="v12-tile" onclick="v15Intro()"><div class="ic">🗺️</div><div class="nm">今夜地图</div><div class="ds">18 节点 · 自由选路</div><div class="tag">NEW</div></div>
     <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
     <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
     <div class="v12-tile" onclick="startStory()"><div class="ic">🎬</div><div class="nm" id="v12StoryNm">剧情模式</div><div class="ds" id="v12StoryDs">3 章 12 幕，把今晚讲成故事</div><div class="tag">3章12幕</div></div>
@@ -2175,6 +2204,7 @@ function otherPlayer(name){return name===HE.him?HE.her:HE.him}
 
 /* ===== Game List (首页) ===== */
 function goHome(){
+  try{window._v15Map=false;}catch(e){}
   try{v12FlStopTurnTimer();}catch(e){}
   if(window._escTv){clearInterval(window._escTv);window._escTv=null;}
   ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
@@ -5761,7 +5791,11 @@ function v12SyncHome() {
   v12SetTrack('v12BarCombo', 'v12ValCombo', combo, 10, combo);
   v12SetTrack('v12BarDrink', 'v12ValDrink', cups, 6, Math.round(cups * 10) / 10);
   var sub = document.getElementById('v12Sub');
-  if (sub) sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
+  if (sub) {
+    var _run = null; try { _run = v15Get(); } catch (e) {}
+    if (_run && !_run.finished) sub.textContent = '🗺️ 今夜地图 · ' + V15_CH[_run.ch].name + ' · 下一层 第' + Math.min(6, _run.layer + 1) + '层';
+    else sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
+  }
   try{
     var _st = storyGet();
     var _nm = document.getElementById('v12StoryNm'), _ds = document.getElementById('v12StoryDs');
@@ -5792,7 +5826,10 @@ function v12SyncHome() {
     if (_du) { var _D = dualGet(); _du.textContent = '🌡 ' + Math.round(_D.warm || 0) + ' · ⚡ ' + Math.round(_D.tens || 0); }
   } catch (e) {}
   var cta = document.getElementById('v12Cta');
-  if (cta) cta.textContent = v12NightOn() ? '继续升温 ›' : '开始今晚 ›';
+  if (cta) {
+    var _ra = false; try { _ra = v15RunActive(); } catch (e) {}
+    cta.textContent = _ra ? '继续今晚 ›' : '开始今晚 ›';
+  }
 }
 function v12SyncHud() {
   var h = document.getElementById('v12Hud'); if (!h) return;
@@ -5806,6 +5843,8 @@ function v12SyncHud() {
   try { v12StorySync(); } catch (e) {}
 }
 function v12MainCta() {
+  if (typeof v15RunActive === 'function' && v15RunActive()) { v15Show(); return; }
+  if (typeof v15Intro === 'function') { v15Intro(); return; }
   if (v12NightOn()) v12QuickStart();
   else { try { showNightIntro(); } catch (e) { toast('今晚开局失败，可直接选游戏'); } }
 }
@@ -6359,6 +6398,7 @@ function v12ChainReset() {
 function v12ChainOffer() {
   try {
     if (SET.chain === false) return;
+    if (window._v15Map) return;
     if (!window._v12Chain || !(window._v12Chain.lv >= 0)) { window._v12Chain = { lv: 0 }; }
     if ((v12LastText() || '').length < 4) return;
     var m = document.getElementById('modalMask');
@@ -7177,6 +7217,485 @@ function v12DiceSpin(cube, value, opts) {
     if (opts.onDone) opts.onDone();
   };
 }
+
+
+/* V15 map core */
+/* ===== V15 今夜地图 · 核心 ===== */
+var V15_THEMES = {
+  hotel: { icon: '🏨', name: '酒店之夜', desc: '商店 9 折 · Boss 奖励 +10%', shop: 0.9, boss: 1.1 },
+  home: { icon: '🏠', name: '居家之夜', desc: '篝火额外 +1 精力', rest: 3 },
+  rain: { icon: '🌧️', name: '雨夜', desc: '事件更多 · 自动雨声', event: 1 },
+  anni: { icon: '🎉', name: '纪念日', desc: '所有奖励 +20%', reward: 1.2 }
+};
+var V15_CH = [
+  { name: '第一章 · 试探', sub: '把灯调暗一点', goal: 4, pools: ['truth', 'dice', 'choice', 'rps', 'bomb', 'grid'], weights: { task: 5, event: 2, shop: 1.5, rest: 1.5 } },
+  { name: '第二章 · 升温', sub: '收不住的边缘', goal: 5, pools: ['dare', 'escalate', 'king', 'double', 'gamble', 'cards', 'potato', 'fitness'], weights: { task: 4.5, duel: 1.5, event: 1.5, shop: 1.5, rest: 1 } },
+  { name: '第三章 · 沉沦', sub: '天快亮了', goal: 6, pools: ['truth', 'dare', 'roulette', 'sniper', 'blind', 'auction', 'vault', 'king5', 'blinddice', 'role'], weights: { task: 4, duel: 1.5, elite: 1.5, event: 1, shop: 1, rest: 1 } }
+];
+var V15_TYPES = {
+  start: { icon: '🌙', name: '章首' }, task: { icon: '💜', name: '任务' }, duel: { icon: '⚔️', name: '对决' },
+  shop: { icon: '🛒', name: '商店' }, event: { icon: '🎁', name: '事件' }, rest: { icon: '🌙', name: '篝火' },
+  elite: { icon: '🔥', name: '精英' }, boss: { icon: '👑', name: 'Boss' }
+};
+function v15Get() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-run') || '{"d":""}');
+    if (!S || S.d !== v11Today()) return null;
+    return S;
+  } catch (e) { return null; }
+}
+function v15Save(S) { try { localStorage.setItem('couple-run', JSON.stringify(S)); } catch (e) {} }
+function v15RunActive() { var S = v15Get(); return !!(S && !S.finished && S.ch >= 0 && S.map && S.map.length === 3 && S.map[S.ch]); }
+function v15Theme(S) { return V15_THEMES[S.theme] || V15_THEMES.rain; }
+function v15Mult(S) { var t = v15Theme(S); return t.reward || 1; }
+function v15GenMap(theme) {
+  var map = [];
+  for (var ch = 0; ch < 3; ch++) {
+    var layers = [];
+    layers.push([{ ch: ch, layer: 0, idx: 0, type: 'start' }]);
+    for (var L = 1; L <= 4; L++) {
+      var arr = [];
+      for (var i = 0; i < 2; i++) arr.push({ ch: ch, layer: L, idx: i, type: v15PickType(ch, theme) });
+      layers.push(arr);
+    }
+    layers.push([{ ch: ch, layer: 5, idx: 0, type: 'boss' }]);
+    map.push(layers);
+  }
+  return map;
+}
+function v15PickType(ch, theme) {
+  var w = V15_CH[ch].weights, t = theme || 'rain';
+  var bag = [];
+  Object.keys(w).forEach(function (k) {
+    var n = Math.round(w[k] * (k === 'event' && t === 'rain' ? 2 : 1) * 2);
+    for (var i = 0; i < n; i++) bag.push(k);
+  });
+  if (V15_CH[ch].weights.elite && Math.random() < 0.25) bag.push('elite');
+  return bag[Math.floor(Math.random() * bag.length)] || 'task';
+}
+function v15NodeKey(n) { return n.ch + '-' + n.layer + '-' + n.idx; }
+function v15Visited(S, n) { return (S.path || []).indexOf(v15NodeKey(n)) >= 0; }
+function v15EnsurePage() {
+  if (document.getElementById('runPage')) return;
+  var d = document.createElement('div');
+  d.id = 'runPage'; d.className = 'page';
+  d.innerHTML = '<div class="header"><div class="back-btn" onclick="goHome()">←</div><h1 id="runTitle">今夜地图</h1></div><div id="runBody"></div>';
+  document.body.appendChild(d);
+}
+function v15Intro() {
+  if (v15RunActive()) { v15Show(); return; }
+  openModal('<h3>🗺️ 今夜地图</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">3 章 × 6 节点（共 18 节点），每层自由选相邻节点。<br>任务 / 对决 / 商店 / 事件 / 篝火 / 精英 / Boss，资源和仪式都接入。<br><span style="font-size:12px;color:#aaa">题库完全复用，随时可回大厅玩自由模式。</span></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15StartFlow()">▶ 生成今晚地图</button><button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
+}
+function v15StartFlow() {
+  if (!SET.limit) { v15NewRun(); return; }
+  openModal('<h3>🛑 今晚底线清单</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.95">'
+    + '· 任何一方说停就停，不需要理由<br>'
+    + '· 不拍、不录、不传播<br>'
+    + '· 束缚和玩具随时可以解开，先约定安全词<br>'
+    + '· 只在私密、可控的空间，不打扰邻居<br>'
+    + '· 不窒息、不见血、不留下伤害'
+    + '<br><span style="font-size:12px;color:#aaa">极限内容只会从第二章开始出现，且必须双方都同意。</span></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();v15NewRun()">✅ 我们确认，开始</button>'
+    + '<button class="wheel-btn back" onclick="closeModal();setOpt(\'limit\',false);v15NewRun()">🌤 今晚不开极限</button></div>');
+}
+function v15NewRun() {
+  try { closeModal(); } catch (e) {}
+  var themes = Object.keys(V15_THEMES);
+  var theme = themes[Math.floor(Math.random() * themes.length)];
+  var S = {
+    d: v11Today(), theme: theme, ch: 0, layer: 1, done: 0, skips: 0,
+    path: ['0-0-0'], map: v15GenMap(theme), finished: false, intel: 0, startAt: Date.now()
+  };
+  v15Save(S);
+  try { var E = energyGet(); E.v = Math.max(E.v, 8); energySave(E); } catch (e) {}
+  coinAdd(Math.round(20 * v15Mult(S)));
+  try { v12IdOnGameStart(); } catch (e) {}
+  if (theme === 'rain' && (!SET.ambient || SET.ambient === 'off') && !SET.quiet) {
+    try { setOpt('ambient', 'rain'); ambApply(); } catch (e) {}
+  }
+  try { var ST = storyGet(); ST.on = false; ST.run = false; storySave(ST); } catch (e) {}
+  window._v15Map = true;
+  v15Show();
+}
+function v15Show() {
+  var S = v15Get();
+  if (!S || S.finished || !S.map || !S.map[S.ch]) { v15Intro(); return; }
+  window._v15Map = true;
+  v15EnsurePage();
+  showPage('runPage');
+  v15Render();
+}
+function v15Render() {
+  var S = v15Get(); if (!S) return;
+  var body = document.getElementById('runBody'); if (!body) return;
+  var ch = V15_CH[S.ch] || V15_CH[0];
+  var theme = v15Theme(S);
+  var dm = 0; try { var D = dualGet(); dm = (D.warm || 0) - (D.tens || 0); } catch (e) {}
+  var cups = 0; try { cups = Math.max(gDrinkCups('him'), gDrinkCups('her')); } catch (e) {}
+  var h = '<div class="run-wrap">'
+    + '<div class="run-theme">' + theme.icon + ' ' + theme.name + ' · 标准局 18 节点<span>' + theme.desc + '</span></div>'
+    + '<div class="run-hud">'
+    + '<span>⚡ ' + (typeof energyGet === 'function' ? energyGet().v : 8) + '</span>'
+    + '<span>💰 ' + coinGet() + '</span>'
+    + '<span>🌡 ' + (dm >= 0 ? '温+' : '张+') + Math.abs(dm) + '</span>'
+    + '<span>🍸 ' + cups + '</span>'
+    + '<span onclick="showIdentity()" style="cursor:pointer">🎭 身份</span>'
+    + '</div>'
+    + '<div class="run-chapter"><b>' + ch.name + '</b><span>第 ' + (S.ch + 1) + '/3 章 · ' + ch.sub + ' · 目标 ' + ch.goal + ' 条 · 已完成 ' + (S.done || 0) + '</span></div>';
+  var layers = S.map[S.ch] || [];
+  h += '<div class="run-map">';
+  for (var L = 0; L < layers.length; L++) {
+    var nodes = layers[L];
+    h += '<div class="run-layer">';
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var visited = v15Visited(S, n);
+      var selectable = (n.layer === S.layer && n.type !== 'start' && (!visited || n.type === 'boss'));
+      var locked = n.layer > S.layer;
+      var reveal = !locked || (S.intel && n.layer <= S.layer + 1);
+      var label = reveal ? V15_TYPES[n.type].name : '？？';
+      var icon = reveal ? V15_TYPES[n.type].icon : '❓';
+      var cls = 'run-node' + (n.type === 'boss' ? ' run-boss' : '')
+        + (visited ? ' visited' : '') + (selectable ? ' next' : '') + (locked ? ' locked' : '');
+      var click = selectable ? ' onclick="v15Enter(' + n.ch + ',' + n.layer + ',' + n.idx + ')"' : '';
+      h += '<div class="' + cls + '"' + click + '><div class="ic">' + icon + '</div><div class="nm">' + label + '</div>' + (visited ? '<div class="ok">✓</div>' : '') + '</div>';
+    }
+    h += '</div>';
+  }
+  h += '</div><div class="run-tip">' + (S.layer > 5 ? '章节已完成' : '点击发光的节点，选择今晚的下一步') + '</div>';
+  if (S.skips > 0) h += '<div class="run-warn">连续跳过 ' + S.skips + '/3 次会触发强制休息</div>';
+  h += '<div class="run-tip" style="margin-top:16px;text-decoration:underline" onclick="v15FreeMode()">🎲 不想走地图？回大厅玩自由模式</div>';
+  h += '</div>';
+  body.innerHTML = h;
+  var t = document.getElementById('runTitle'); if (t) t.textContent = '🗺️ 今夜地图';
+}
+
+/* V15 map nodes */
+/* ===== V15 今夜地图 · 节点结算 ===== */
+function v15FindNode(S, key) {
+  var p = String(key).split('-'); var ch = +p[0], L = +p[1], i = +p[2];
+  try { return S.map[ch][L][i]; } catch (e) { return null; }
+}
+function v15Enter(ch, layer, idx) {
+  var S = v15Get(); if (!S || S.finished) return;
+  if (layer !== S.layer) { toast('只能选择下一层节点'); return; }
+  var n = v15FindNode(S, ch + '-' + layer + '-' + idx); if (!n) return;
+  S.path = S.path || []; if (S.path.indexOf(v15NodeKey(n)) < 0) S.path.push(v15NodeKey(n));
+  if (n.type !== 'boss') S.layer = layer + 1;
+  v15Save(S);
+  window._v15Node = n;
+  if (n.type === 'task') return v15TaskNode(n, false);
+  if (n.type === 'elite') return v15TaskNode(n, true);
+  if (n.type === 'duel') return v15DuelNode(n);
+  if (n.type === 'shop') return v15ShopNode(n);
+  if (n.type === 'event') return v15EventNode(n);
+  if (n.type === 'rest') return v15RestNode(n);
+  if (n.type === 'boss') return v15BossNode(n);
+  v15AfterNode(n, '继续前进');
+}
+function v15AfterNode(n, txt) {
+  var S = v15Get(); if (!S) return;
+  v15Save(S); v15Render();
+  if (txt) toast(txt);
+}
+function v15FreeMode() {
+  try { closeModal(); } catch (e) {}
+  goHome();
+  setTimeout(function () {
+    try {
+      var b = document.getElementById('v12MoreBody');
+      if (b && !b.classList.contains('on')) v12ToggleMore();
+      var g = document.getElementById('gameGrid');
+      if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {}
+  }, 260);
+}
+function v15DrawAt(ch, lv) {
+  var S = v15Get();
+  var pool = (GAMEDATA.truths || []).concat(GAMEDATA.dare || []);
+  if (ch >= 2 && SET.limit) {
+    if (typeof V14_TRUTHS !== 'undefined') pool = pool.concat(V14_TRUTHS, V14_DARE);
+  }
+  if (ch >= 2 && SET.limit) {
+    if (typeof V12_SPICY !== 'undefined') pool = pool.concat(V12_SPICY.truths, V12_SPICY.dare);
+    if (SET.toys && typeof V14_TOYS !== 'undefined') pool = pool.concat(V14_TOYS);
+    if (SET.bond && typeof V14_BOND !== 'undefined') pool = pool.concat(V14_BOND);
+    if (SET.show && typeof V14_SHOW !== 'undefined') pool = pool.concat(V14_SHOW);
+  }
+  var cand = pool.filter(function (x) { var m = v12TaskMeta(x); return m.lv >= lv - 1 && m.lv <= lv + 1; });
+  if (cand.length < 8) cand = pool;
+  return cand[Math.floor(Math.random() * cand.length)];
+}
+function v15TaskNode(n, elite) {
+  window._v15Node = n;
+  var label = elite ? '🔥 精英任务' : '💜 任务节点';
+  openModal('<h3>' + label + '</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">同一道题，两档强度：<br>· 轻档：原强度，完成 +5 币<br>· 重档：强度 +1，完成 +8 币' + (elite ? '<br><span style="color:#ff9d9d">精英失败扣 5 币</span>' : '') + '</div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + '<button class="wheel-btn back" onclick="v15TaskStart(false,' + (elite ? 1 : 0) + ')">🌙 轻档</button>'
+    + '<button class="wheel-btn spin" onclick="v15TaskStart(true,' + (elite ? 1 : 0) + ')">🔥 重档（强度+1）</button>'
+    + '<button class="wheel-btn back" onclick="closeModal();v15AfterNode(window._v15Node,\'放弃节点\')">先不抽</button></div>');
+}
+function v15TaskStart(heavy, elite) {
+  var S = v15Get(); if (!S) return;
+  var lv = (S.ch + 2) + (heavy ? 1 : 0) + (elite ? 1 : 0);
+  var t = v15DrawAt(S.ch, lv);
+  window._v15Task = { t: t, heavy: !!heavy, elite: !!elite };
+  var reward = (heavy ? 8 : 5) + (elite ? 10 : 0);
+  openModal('<h3>' + (elite ? '🔥 精英任务' : '💜 任务节点') + '</h3>'
+    + '<div class="m-item task-card" style="font-size:16px;line-height:1.8">' + t + '</div>'
+    + v12TaskLvHtml(t)
+    + '<div class="m-item" style="text-align:center;font-size:12px">完成奖励：<b style="color:#ffd166">+' + reward + ' 亲密币</b></div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + '<button class="wheel-btn spin" onclick="v15TaskDone()">✅ 完成</button>'
+    + '<button class="wheel-btn back" onclick="v15TaskSkip()">⏭ 跳过（无奖励）</button></div>');
+}
+function v15TaskDone() {
+  var S = v15Get(), T = window._v15Task; if (!S || !T) return;
+  try { taskDone(); } catch (e) {}
+  try { v12DualFromTask(v12TaskMeta(T.t).type); } catch (e) {}
+  var reward = (T.heavy ? 3 : 0) + (T.elite ? 10 : 0);
+  if (reward) coinAdd(Math.round(reward * v15Mult(S)));
+  S.done = (S.done || 0) + 1; S.totalDone = (S.totalDone || 0) + 1; S.skips = 0; v15Save(S);
+  closeModal();
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.5, 20); } catch (e) {}
+  v15AfterNode(window._v15Node, '✅ 节点完成，+奖励');
+}
+function v15TaskSkip() {
+  var S = v15Get(), T = window._v15Task; if (!S) return;
+  if (T && T.elite) coinAdd(-Math.min(5, Math.max(0, coinGet())));
+  S.skips = (S.skips || 0) + 1;
+  S.totalSkips = (S.totalSkips || 0) + 1;
+  try { v12DualAdd('tens', 3); } catch (e) {}
+  v15Save(S); closeModal();
+  if (S.skips >= 3) { v15Render(); v15ForcedRest(window._v15Node); return; }
+  v15AfterNode(window._v15Node, '已跳过：无奖励，张力 +3');
+}
+function v15ForcedRest(n) {
+  openModal('<h3>🌙 强制休息</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">连续跳过 3 次，先停一下。<br>喝水、抱一会儿、说说现在的感觉，再继续。</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15ForcedRestDone()">✅ 休息好了</button></div>');
+}
+function v15ForcedRestDone() {
+  var S = v15Get(); if (S) { S.skips = 0; v15Save(S); }
+  try { energyAdd(2); gentUp(); } catch (e) {}
+  closeModal(); v15Render(); toast('🌙 已休息，继续');
+}
+/* --- 对决 --- */
+function v15DuelNode(n) {
+  window._v15Node = n; window._v15Duel = { rolled: false };
+  openModal('<h3>⚔️ 对决节点</h3>'
+    + '<div class="m-item" style="text-align:center;font-size:13px;line-height:1.8">双方各掷一颗骰子，点数大的人赢 <b>+5 币 · +1 精力</b></div>'
+    + '<div style="display:flex;justify-content:center;align-items:center;gap:18px;margin:8px 0">'
+    + '<div class="dice3d-wrap" id="v15Da" style="width:88px;height:88px"></div>'
+    + '<div style="color:#a79cc2">VS</div>'
+    + '<div class="dice3d-wrap" id="v15Db" style="width:88px;height:88px"></div></div>'
+    + '<div id="v15DuelMsg" style="text-align:center;min-height:22px;font-size:13px"></div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" id="v15DuelBtn" onclick="v15RollDuel()">🎲 掷骰</button>'
+    + '<button class="wheel-btn back" onclick="closeModal();v15AfterNode(window._v15Node,\'离开对决\')">先跳过</button></div>');
+  try { v12DicePrepare(document.getElementById('v15Da')); v12DicePrepare(document.getElementById('v15Db')); } catch (e) {}
+}
+function v15RollDuel() {
+  var D = window._v15Duel; if (!D || D.rolled) return;
+  D.rolled = true;
+  var btn = document.getElementById('v15DuelBtn'); if (btn) btn.disabled = true;
+  var a = Math.floor(Math.random() * 6) + 1, b = Math.floor(Math.random() * 6) + 1;
+  try { sndSpin(); } catch (e) {}
+  try {
+    v12DiceSpin(document.querySelector('#v15Da .dice3d'), a, { duration: 1400 });
+    v12DiceSpin(document.querySelector('#v15Db .dice3d'), b, { duration: 1500 });
+  } catch (e) {}
+  setTimeout(function () {
+    var msg = document.getElementById('v15DuelMsg');
+    var win = a > b ? HE.him : (b > a ? HE.her : '平局');
+    if (a !== b) { coinAdd(5); try { energyAdd(1); } catch (e) {} }
+    if (msg) msg.innerHTML = HE.him + ' ' + a + ' 点 · ' + HE.her + ' ' + b + ' 点<br>' + (a === b ? '平局，不计胜负' : '🏆 ' + win + ' 赢 +5 币 +1 精力');
+    try { sndDing(); vibrate([30, 20, 40]); } catch (e) {}
+    var box = document.querySelector('#modalBox .wheel-btns');
+    if (box) box.insertAdjacentHTML('afterbegin', '<button class="wheel-btn spin" onclick="closeModal();v15AfterNode(window._v15Node,\'对决结束\')">✅ 继续</button>');
+  }, 1750);
+}
+/* --- 商店 --- */
+function v15ShopNode(n) { window._v15Node = n; v15ShopRender(); }
+function v15ShopRender() {
+  var S = v15Get(); var t = v15Theme(S); var disc = t.shop || 1;
+  var pCard = Math.round(10 * disc), pEnergy = Math.round(8 * disc), pIntel = Math.round(5 * disc);
+  var c = coinGet();
+  openModal('<h3>🛒 商店节点</h3>'
+    + '<div class="m-item" style="text-align:center;font-size:12px">💰 ' + c + ' 币 · ' + (disc < 1 ? '今晚商店 9 折' : '明码标价') + '</div>'
+    + '<div class="m-item" style="display:flex;justify-content:space-between;align-items:center"><span>🎴 随机道具卡<br><span style="font-size:11px;color:#aaa">替换/免罚/交换/角色/复读/贿赂</span></span><button class="wheel-btn ' + (c >= pCard ? 'spin' : 'back') + '" ' + (c >= pCard ? 'onclick="v15ShopBuy(\'card\')"' : 'disabled') + '>' + pCard + ' 币</button></div>'
+    + '<div class="m-item" style="display:flex;justify-content:space-between;align-items:center"><span>⚡ 精力 +2</span><button class="wheel-btn ' + (c >= pEnergy ? 'spin' : 'back') + '" ' + (c >= pEnergy ? 'onclick="v15ShopBuy(\'energy\')"' : 'disabled') + '>' + pEnergy + ' 币</button></div>'
+    + '<div class="m-item" style="display:flex;justify-content:space-between;align-items:center"><span>🔍 情报<br><span style="font-size:11px;color:#aaa">预览下一层节点</span></span><button class="wheel-btn ' + (c >= pIntel ? 'spin' : 'back') + '" ' + (c >= pIntel ? 'onclick="v15ShopBuy(\'intel\')"' : 'disabled') + '>' + pIntel + ' 币</button></div>'
+    + '<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal();v15AfterNode(window._v15Node,\'离开商店\')">离开</button></div>');
+}
+function v15ShopBuy(k) {
+  var S = v15Get(); if (!S) return;
+  var disc = v15Theme(S).shop || 1;
+  var price = Math.round((k === 'card' ? 10 : k === 'energy' ? 8 : 5) * disc);
+  if (coinGet() < price) { toast('💰 币不够'); return; }
+  coinAdd(-price);
+  if (k === 'card') {
+    var cards = ['swap', 'pardon', 'exchange', 'role', 'redo', 'bribe'];
+    var c = cards[Math.floor(Math.random() * cards.length)];
+    ITEMS[c] = Math.min((ITEMS[c] || 0) + 1, 99); saveItems(); renderCtrl();
+    toast('🎴 获得道具卡 +1');
+  } else if (k === 'energy') { energyAdd(2); toast('⚡ 精力 +2'); }
+  else { S.intel = 1; v15Save(S); toast('🔍 情报：下一层已可见'); }
+  v15ShopRender();
+}
+/* --- 事件 --- */
+var V15_EVENTS = [
+  { t: '窗外突然下起雨，谁去关窗？去的人 +1 精力，留下的人亲一下对方。', fx: 'energy', n: 1 },
+  { t: '手机同时响起消息。谁先看谁罚 3 币，另一个抱他/她 10 秒。', fx: 'coins', n: -3 },
+  { t: '翻到一张旧照片，两个人各说一句当时的回忆。温度 +6。', fx: 'warm', n: 6 },
+  { t: '楼下传来邻居的声音。谁先笑出声，谁喝半杯。', fx: 'drink', n: 0.5 },
+  { t: '突然停电 10 秒。黑暗中找到对方的手，张力 +6。', fx: 'tens', n: 6 },
+  { t: '对方收到一条夸奖。把这句话转送给彼此，+8 币。', fx: 'coins', n: 8 },
+  { t: '冰箱里只剩一瓶水。谁先喝，谁负责今晚的收尾任务。', fx: 'energy', n: 2 },
+  { t: '一首歌随机响起。跟着哼两句，热度 +10。', fx: 'heat', n: 10 }
+];
+function v15EventNode(n) {
+  window._v15Node = n;
+  var e = V15_EVENTS[Math.floor(Math.random() * V15_EVENTS.length)];
+  try {
+    if (e.fx === 'coins') coinAdd(e.n);
+    else if (e.fx === 'energy') energyAdd(e.n);
+    else if (e.fx === 'warm') v12DualAdd('warm', e.n);
+    else if (e.fx === 'tens') v12DualAdd('tens', e.n);
+    else if (e.fx === 'heat') heatSet(Math.min(100, getHeat() + e.n));
+    else if (e.fx === 'drink') { drinkSync(HE.him, e.n); drinkSync(HE.her, e.n); }
+  } catch (err) {}
+  openModal('<h3>🎁 事件节点</h3><div class="m-item" style="font-size:15px;line-height:1.9">' + e.t + '</div>'
+    + '<div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();v15AfterNode(window._v15Node,\'事件结束\')">继续</button></div>');
+}
+/* --- 篝火 --- */
+function v15RestNode(n) {
+  window._v15Node = n;
+  openModal('<h3>🌙 篝火节点</h3>'
+    + '<div class="m-item" style="text-align:center;font-size:13px">恢复精力 +' + (v15Theme(v15Get()).rest || 2) + '，选一个方向：</div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + '<button class="wheel-btn back" onclick="v15RestPick(\'cool\')">🌡 降温（温柔 +1）</button>'
+    + '<button class="wheel-btn back" onclick="v15RestPick(\'heat\')">🔥 升温（热度 +10）</button>'
+    + '<button class="wheel-btn back" onclick="v15RestPick(\'care\')">🤗 Aftercare（温度 +5）</button></div>');
+}
+function v15RestPick(k) {
+  var S = v15Get(); if (!S) return;
+  var add = v15Theme(S).rest || 2;
+  energyAdd(add);
+  if (k === 'cool') gentUp();
+  else if (k === 'heat') heatSet(Math.min(100, getHeat() + 10));
+  else v12DualAdd('warm', 5);
+  S.skips = 0; v15Save(S);
+  closeModal(); v15AfterNode(window._v15Node, '🌙 篝火：恢复 ' + add + ' 精力');
+}
+/* --- Boss --- */
+function v15BossNode(n) {
+  window._v15Node = n;
+  var S = v15Get(); var A = V15_CH[S.ch];
+  var lv = S.ch + 2 + ((S.done || 0) >= A.goal ? 0 : 1);
+  window._v15Boss = { done: 0, lv: lv };
+  v15BossRound();
+}
+function v15BossRound() {
+  var B = window._v15Boss, S = v15Get(); if (!B || !S) return;
+  if (B.done >= 2) { v15BossPass(); return; }
+  var who = B.done === 0 ? HE.him : HE.her;
+  var A = V15_CH[S.ch];
+  var met = (S.done || 0) >= A.goal;
+  var t = v15DrawAt(S.ch, B.lv);
+  window._v15BossTask = t;
+  openModal('<h3>👑 Boss · 第 ' + (B.done + 1) + '/2 条</h3>'
+    + '<div class="m-item" style="text-align:center;font-size:13px">' + who + ' 的任务，两条都完成才算通过<br><span style="font-size:11px;color:' + (met ? '#6fe3a1' : '#ffb4b4') + '">本章任务 ' + (S.done || 0) + '/' + A.goal + (met ? ' · 已达标' : ' · 未达标：Boss 强度 +1，章节奖励少 10') + '</span></div>'
+    + '<div class="m-item task-card" style="font-size:16px;line-height:1.8">' + t + '</div>'
+    + v12TaskLvHtml(t)
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15BossDone()">✅ 完成</button>'
+    + '<button class="wheel-btn back" onclick="v15BossFail()">💔 放弃</button></div>');
+}
+function v15BossDone() {
+  var B = window._v15Boss; if (!B) return;
+  B.done++;
+  var S = v15Get(); if (S) { S.totalDone = (S.totalDone || 0) + 1; v15Save(S); }
+  try { taskDone(); } catch (e) {}
+  try { v12DualFromTask(v12TaskMeta(window._v15BossTask || '').type); } catch (e) {}
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.45, 24); } catch (e) {}
+  closeModal();
+  setTimeout(function () { if (B.done >= 2) v15BossPass(); else v15BossRound(); }, 350);
+}
+function v15BossFail() {
+  closeModal();
+  openModal('<h3>👑 Boss 未通过</h3>'
+    + '<div class="m-item" style="font-size:14px;line-height:1.8">还差一点。可以花 10 币重试，或接受降档进入下一章。</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15BossRetry()">💰 花 10 币重试</button>'
+    + '<button class="wheel-btn back" onclick="v15BossAccept()">🌙 接受降档</button></div>');
+}
+function v15BossRetry() {
+  if (coinGet() < 10) { toast('💰 币不够'); return; }
+  coinAdd(-10); window._v15Boss.done = 0; closeModal(); v15BossRound();
+}
+function v15BossAccept() {
+  closeModal(); try { gentUp(); } catch (e) {}
+  coinAdd(5);
+  v15ChapterNext(true);
+}
+function v15BossPass() {
+  var S = v15Get(); if (!S) return;
+  var A = V15_CH[S.ch];
+  var base = 20 + ((S.done || 0) >= A.goal ? 10 : 0);
+  coinAdd(Math.round(base * v15Mult(S) * (v15Theme(S).boss || 1)));
+  try { toast('👑 章节通过'); } catch (e) {}
+  closeModal();
+  v15ChapterNext(false);
+}
+function v15ChapterNext(degraded) {
+  var S = v15Get(); if (!S) return;
+  S.ch = S.ch + 1; S.done = 0; S.skips = 0; S.layer = 1; S.intel = 0;
+  if (S.ch > 2) { S.finished = true; v15Save(S); v15Finale(); return; }
+  S.path = S.path || []; if (S.path.indexOf(S.ch + '-0-0') < 0) S.path.push(S.ch + '-0-0');
+  coinAdd(Math.round(5 * v15Mult(S)));
+  v15Save(S);
+  var ch = V15_CH[S.ch];
+  openModal('<h3>🎬 ' + ch.name + '</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">' + ch.sub + '<br>目标：完成 ' + ch.goal + ' 条任务<br><span style="font-size:12px;color:#aaa">' + (degraded ? '上一章降档通过，奖励减少' : '章节奖励已到账') + '</span></div>'
+    + '<div class="wheel-btns"><button class="wheel-btn spin" onclick="closeModal();v15Render()">▶ 进入下一章</button></div>');
+  v15Render();
+}
+function v15Finale() {
+  var S = v15Get(); if (!S) return;
+  window._v15Map = false;
+  var rows = [], icons = [], cnt = {};
+  (S.path || []).forEach(function (k) {
+    var n = v15FindNode(S, k); if (!n) return;
+    var d = V15_TYPES[n.type] || { icon: '·', name: '节点' };
+    cnt[n.type] = (cnt[n.type] || 0) + 1;
+    icons.push(d.icon);
+    rows.push('<div style="font-size:12px;color:#c9c2dd;margin-top:3px">· 第' + (n.ch + 1) + '章 第' + (n.layer + 1) + '层 · ' + d.icon + ' ' + d.name + '</div>');
+  });
+  var D = dualGet(); var w = D.warm || 0, t = D.tens || 0;
+  var gentle = (cnt.rest || 0) + (cnt.shop || 0) + (cnt.event || 0);
+  var tense = (cnt.duel || 0) + (cnt.elite || 0) + (cnt.boss || 0);
+  var ending;
+  if ((w - t) >= 12 || gentle >= tense + 2) ending = { icon: '🌙', name: '温柔收尾', desc: '今晚的路线更偏照顾和靠近，收在软软的地方。' };
+  else if ((t - w) >= 12 || tense >= gentle + 2) ending = { icon: '🔥', name: '张力收尾', desc: '今晚一直在往上走，心跳比话多，收在还想要的地方。' };
+  else ending = { icon: '⚖️', name: '平衡收尾', desc: '有推有拉，有热也有抱，刚刚好停在两个人都舒服的位置。' };
+  S.ending = ending.name; v15Save(S);
+  var done = (S.path || []).length;
+  var countTxt = Object.keys(cnt).map(function (k) { return (V15_TYPES[k] ? V15_TYPES[k].icon + '×' + cnt[k] : ''); }).join(' ');
+  openModal('<h3>🌅 今夜地图 · 走完了</h3>'
+    + '<div class="m-item" style="text-align:center;line-height:1.9;flex-direction:column;align-items:center">' + (v15Theme(S).icon + ' ' + v15Theme(S).name) + '<br><span style="font-size:12px;color:#aaa">共 ' + done + ' 个节点 · 完成 ' + (S.totalDone || 0) + ' 条 · 跳过 ' + (S.totalSkips || 0) + ' 次</span></div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.8"><b>' + ending.icon + ' 结局 · ' + ending.name + '</b><span style="font-size:13px;color:#c9c2dd">' + ending.desc + '</span><span style="font-size:12px;color:#8f86a8">温度 ' + Math.round(w) + ' · 张力 ' + Math.round(t) + ' · ' + countTxt + '</span></div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start"><b>今晚路线</b><div style="font-size:17px;letter-spacing:3px;line-height:1.7">' + icons.join(' → ') + '</div>' + rows.join('') + '</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();nightCeremony()">🌙 进入夜终仪式</button>'
+    + '<button class="wheel-btn back" onclick="closeModal();goHome()">🏠 回大厅</button></div>');
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 60); } catch (e) {}
+}
+
+/* V15：脚本全部就绪后再同步一次首页 CTA，避免首屏早于存档读取 */
+try {
+  window.addEventListener('load', function () { try { v12SyncHome(); } catch (e) {} });
+} catch (e) {}
 
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
