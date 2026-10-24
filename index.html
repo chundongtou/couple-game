@@ -787,6 +787,81 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 @keyframes v15Pulse{0%,100%{box-shadow:0 0 14px rgba(255,45,149,.2)}50%{box-shadow:0 0 26px rgba(255,45,149,.42)}}
 @media(max-width:360px){.run-hud{gap:4px}.run-hud span{font-size:10px;padding:6px 1px}.run-node{width:88px}.run-node.run-boss{width:140px}}
 
+/* ===== V16 剧本之夜 ===== */
+#scriptPage{min-height:100vh;padding-bottom:30px}
+.script-wrap{max-width:480px;margin:0 auto;padding:12px 14px 34px}
+.script-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;color:#b9b0d0}
+.script-book{font-size:14px;color:#ffd166;font-weight:700}
+.script-bar{height:4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 10px}
+.script-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#ff2d95,#8b5cf6);transition:width .35s}
+.script-hud{display:flex;gap:6px;margin:0 0 12px;flex-wrap:nowrap}
+.script-hud span{flex:1 1 0;min-width:0;text-align:center;padding:7px 3px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-size:11px;color:#e7e2f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.script-card{padding:14px;border-radius:16px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);margin-bottom:12px}
+.script-card h2{font-size:19px;margin:2px 0 8px;color:#fff}
+.script-card p{font-size:14px;line-height:1.9;color:#d8d1e8;margin:0 0 8px}
+.script-kicker{font-size:11px;letter-spacing:1px;color:#ff9dce;text-transform:uppercase;margin-bottom:3px}
+.script-small{font-size:12px !important;color:#a79cc2 !important;line-height:1.7 !important}
+.script-note{font-size:12px;color:#8f86a8;margin-top:8px;line-height:1.7;text-align:center}
+.script-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.script-role{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:104px;padding:10px 6px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:transform .15s,border-color .2s}
+.script-role:active{transform:scale(.97)}
+.script-role .ic{font-size:26px;line-height:1}
+.script-role b{font-size:14px;color:#fff}
+.script-role span{font-size:11px;color:#a79cc2}
+.script-role.done{border-color:rgba(110,227,161,.45);background:rgba(110,227,161,.07)}
+.script-role.done span{color:#6fe3a1}
+.script-btn{display:block;width:100%;box-sizing:border-box;margin-top:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+.script-btn.primary{background:linear-gradient(135deg,#ff2d95,#8b5cf6);border:0;box-shadow:0 8px 24px rgba(255,45,149,.28)}
+.script-btn.ghost{background:transparent;color:#c9c2dd}
+.script-btn:active{transform:scale(.98)}
+.script-role-book .script-sec{padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+.script-role-book .script-sec b{display:block;font-size:12px;color:#ffd166;margin-bottom:4px}
+.script-role-book .script-sec p{font-size:14px;line-height:1.85;color:#e2dcf0;margin:0}
+.script-role-book .script-sec.secret{background:rgba(255,45,149,.09);border:1px solid rgba(255,45,149,.25);border-radius:12px;padding:10px;margin:8px 0}
+.script-role-book .script-sec.secret b{color:#ff9dce}
+.script-task{background:linear-gradient(135deg,rgba(255,45,149,.12),rgba(139,92,246,.1));border:1px solid rgba(255,45,149,.22);border-radius:12px;padding:12px;font-size:16px;line-height:1.85;color:#fff;margin:8px 0}
+.script-loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.script-loc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:105px;padding:10px 6px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.script-loc .ic{font-size:27px}
+.script-loc b{font-size:14px;color:#fff}
+.script-loc span{font-size:11px;color:#a79cc2;text-align:center;line-height:1.5}
+.script-loc.done{border-color:rgba(110,227,161,.4);background:rgba(110,227,161,.06);cursor:default}
+.script-loc.done span{color:#6fe3a1}
+.script-clue-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.script-clue{padding:10px 11px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.script-clue b{display:block;font-size:13px;color:#fff;margin-bottom:2px}
+.script-clue span{display:block;font-size:12px;color:#a79cc2;line-height:1.6}
+.script-clue.locked{border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.06)}
+.script-clue.locked span{color:#ffd166}
+.script-choices{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.script-choice{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;padding:12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.script-choice b{font-size:14px}
+.script-choice span{font-size:12px;color:#a79cc2;line-height:1.6}
+.script-choice:active{transform:scale(.99);border-color:rgba(255,45,149,.5)}
+.script-truth{display:flex;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+.script-truth .ic{font-size:22px;line-height:1.2}
+.script-truth b{display:block;font-size:13px;color:#ffd166;margin-bottom:3px}
+.script-truth p{font-size:13px;line-height:1.75;margin:0;color:#d8d1e8}
+.script-ending{text-align:center;padding:8px 2px}
+.script-end-icon{font-size:52px;line-height:1.2;margin:4px 0}
+.script-end-tag{font-size:13px;color:#ffd166;margin:2px 0 12px}
+.script-ending p{text-align:left;font-size:14px;line-height:1.9;color:#d8d1e8}
+.script-quote{margin:12px 0;padding:12px;border-left:3px solid #ff2d95;background:rgba(255,45,149,.07);border-radius:0 10px 10px 0;text-align:left;font-size:13px;line-height:1.8;color:#ffd6ea}
+.script-stats{font-size:12px;color:#a79cc2;margin:12px 0 8px;line-height:1.7}
+.script-recap{text-align:left;padding:11px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.8;color:#c9c2dd;margin:8px 0}
+.script-recap b{display:block;color:#ffd166;margin-bottom:4px}
+.script-foot{text-align:center;font-size:11px;color:#7f7699;margin-top:16px;line-height:1.7}
+.script-privacy{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 20%,rgba(90,30,100,.7),rgba(8,5,16,.98) 70%);display:none;align-items:center;justify-content:center;padding:22px}
+.script-privacy.show{display:flex}
+.script-priv-box{width:100%;max-width:420px;max-height:88vh;overflow:auto;padding:22px;border-radius:18px;background:rgba(25,18,38,.98);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.script-priv-box h2{font-size:20px;margin:2px 0 8px;color:#fff}
+.script-priv-box p{font-size:14px;line-height:1.9;color:#d8d1e8}
+.script-priv-kicker{font-size:12px;color:#a79cc2;text-align:center;letter-spacing:1px}
+.script-priv-hand{font-size:26px;font-weight:800;text-align:center;color:#ffd166;margin:8px 0 4px}
+.script-priv-sub{font-size:12px;line-height:1.8;color:#b9b0d0;text-align:center;margin-bottom:16px}
+.script-priv-box .script-btn{margin-top:12px}
+@media(max-width:360px){.script-hud span{font-size:10px;padding:6px 1px}.script-role,.script-loc{min-height:96px}.script-card{padding:12px}}
+
 </style>
 </head>
 <body>
@@ -814,7 +889,7 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
     <div class="v12-tile" onclick="v15Intro()"><div class="ic">🗺️</div><div class="nm">今夜地图</div><div class="ds">18 节点 · 自由选路</div><div class="tag">NEW</div></div>
     <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
     <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
-    <div class="v12-tile" onclick="startStory()"><div class="ic">🎬</div><div class="nm" id="v12StoryNm">剧情模式</div><div class="ds" id="v12StoryDs">3 章 12 幕，把今晚讲成故事</div><div class="tag">3章12幕</div></div>
+    <div class="v12-tile" onclick="v16Intro()"><div class="ic">🕵️</div><div class="nm" id="v16ScriptNm">剧本之夜</div><div class="ds" id="v16ScriptDs">情感悬疑 · 4幕约45分钟</div><div class="tag" id="v16ScriptTag">NEW</div></div>
   </div>
 </div>
 <div class="top-bar" id="setBar"></div>
@@ -2205,6 +2280,7 @@ function otherPlayer(name){return name===HE.him?HE.her:HE.him}
 /* ===== Game List (首页) ===== */
 function goHome(){
   try{window._v15Map=false;}catch(e){}
+  try{window._v16Script=false;}catch(e){}
   try{v12FlStopTurnTimer();}catch(e){}
   if(window._escTv){clearInterval(window._escTv);window._escTv=null;}
   ['_truthSpinning','_dareSpinning','_punishSpinning'].forEach(function(k){
@@ -5797,14 +5873,22 @@ function v12SyncHome() {
     else sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
   }
   try{
-    var _st = storyGet();
-    var _nm = document.getElementById('v12StoryNm'), _ds = document.getElementById('v12StoryDs');
+    var _sc = null; try { _sc = v16Get(); } catch (e) {}
+    var _nm = document.getElementById('v16ScriptNm'), _ds = document.getElementById('v16ScriptDs'), _tg = document.getElementById('v16ScriptTag');
     if (_nm && _ds) {
-      if (_st.fin) { _nm.textContent = '剧情模式'; _ds.textContent = '今晚已全剧终 · 可从头再来'; }
-      else if ((_st.ch || 0) > 0 || (_st.act || 0) > 0 || (_st.done || 0) > 0) {
-        _nm.textContent = '继续剧情';
-        _ds.textContent = (V12_STORY[_st.ch] || V12_STORY[0]).t + ' · 第' + ((_st.act || 0) + 1) + '幕';
-      } else { _nm.textContent = '剧情模式'; _ds.textContent = '3 章 12 幕，把今晚讲成故事'; }
+      if (_sc && _sc.fin) {
+        _nm.textContent = '剧本之夜';
+        _ds.textContent = '已通关 · 可再走一次';
+        if (_tg) _tg.textContent = '已通关';
+      } else if (_sc && !_sc.fin) {
+        _nm.textContent = '继续剧本';
+        _ds.textContent = '《失踪的第七封信》· 第' + Math.min(4, (_sc.act || 0) + 1) + '幕';
+        if (_tg) _tg.textContent = '4幕';
+      } else {
+        _nm.textContent = '剧本之夜';
+        _ds.textContent = '情感悬疑 · 4幕约45分钟';
+        if (_tg) _tg.textContent = 'NEW';
+      }
     }
   }catch(e){}
   try {
@@ -6399,6 +6483,7 @@ function v12ChainOffer() {
   try {
     if (SET.chain === false) return;
     if (window._v15Map) return;
+    if (window._v16Script) return;
     if (!window._v12Chain || !(window._v12Chain.lv >= 0)) { window._v12Chain = { lv: 0 }; }
     if ((v12LastText() || '').length < 4) return;
     var m = document.getElementById('modalMask');
@@ -7710,6 +7795,660 @@ function v15Finale() {
 try {
   window.addEventListener('load', function () { try { v12SyncHome(); } catch (e) {} });
 } catch (e) {}
+
+
+/* V16 script data */
+/* ===== V16 剧本之夜 · 数据 ===== */
+var V16_SCRIPT = {
+  id: 'letter7',
+  title: '失踪的第七封信',
+  sub: '海风、旧照片，和一封没有寄出的信',
+  minutes: 45,
+  roles: {
+    him: {
+      key: 'him', icon: '🧥', name: '程野', age: 32, job: '建筑师',
+      public: '你们结婚三年。你话不多，习惯把事做完再说；这次旅行是你订的。',
+      secret: '三年前，你拿到外地事务所的 offer，却偷偷拒了，留在林晚的城市。你从没告诉她。',
+      goal: '今晚把那句迟到三年的话说完，再求一次婚。',
+      note: '你提前三天订了 201 房。口袋里有一张戒指收据。你不知道林晚也有一封没寄出的信。'
+    },
+    her: {
+      key: 'her', icon: '📷', name: '林晚', age: 30, job: '摄影师',
+      public: '你是自由摄影师，最近接了一个外地驻留计划，犹豫要不要去。',
+      secret: '三年前你以为程野为你放弃了外地机会，于是也放弃了自己的驻留名额。你一直以为他不知道。',
+      goal: '把写了很久的第七封信交给他，问他愿不愿意一起去外地。',
+      note: '你的相机里有一卷没洗的底片。驻留计划的回复截止今晚 23:59。'
+    }
+  },
+  locations: [
+    { id: 'living', name: '客厅', icon: '🛋️', desc: '沙发、茶几、留言本' },
+    { id: 'bedroom', name: '卧室', icon: '🛏️', desc: '床、枕头、行李箱' },
+    { id: 'bath', name: '浴室', icon: '🛁', desc: '镜柜、毛巾、窗台' },
+    { id: 'balcony', name: '阳台', icon: '🌿', desc: '栏杆、晾衣绳、海风' }
+  ],
+  clues: {
+    c1: { title: '空信封', p: null, loc: 'living', text: '桌上只剩一个空信封，收件人写着「程野 & 林晚」，邮戳是三年前的今天。' },
+    c2: { title: '两支笔', p: null, loc: 'living', text: '信封旁并排放着两支笔：一支黑色钢笔，一支绿色铅笔。笔帽都没盖。' },
+    c3: { title: '203 的钥匙', p: null, loc: 'bath', text: '前台抽屉里多出一把 203 的钥匙，房号被划掉又描了一遍。' },
+    c4: { title: '旧照片', p: null, loc: 'bath', text: '一张旧照片：年轻女人站在同一片海边，背面写着「阿岚，1998」。' },
+    c5: { title: '留言本', p: null, loc: 'living', text: '留言本上有一行被撕掉一半的字，只剩「如果那年我走了」。' },
+    c6: { title: '三年前的天气', p: null, loc: 'bath', text: '三年前今天的天气预报：台风橙色预警，去外地的最后一班车停运。' },
+    c7: { title: '戒指收据', p: 'him', loc: 'bedroom', text: '一张戒指收据，日期是今天，尺寸是林晚的。原来他本来打算今晚再求一次婚。' },
+    c8: { title: '驻留计划邮件', p: 'her', loc: 'balcony', text: '手机里的驻留计划邮件：外地六个月，回复截止今晚 23:59。' },
+    c9: { title: '撕掉的一页', p: null, loc: 'bedroom', text: '信封里有一页被撕掉的信，只剩半句：「我其实……」' },
+    c10: { title: '203 房里的信', p: null, loc: 'balcony', text: '203 房里的信，收件人不是你们，是「阿岚」。落款是周叔，日期是昨天。' },
+    c11: { title: '未使用的车票', p: 'him', loc: 'balcony', text: '一张三年前的车票，去外地，未使用，盖着退票章。' },
+    c12: { title: '没洗的底片', p: 'her', loc: 'bedroom', text: '相机里有一卷没洗的底片，最后一张是程野在三年前的车站睡着了。' }
+  },
+  acts: [
+    {
+      title: '第一幕 · 入住', time: '8–10 分钟',
+      narration: '台风刚过，海边民宿有一股潮湿的木头味。周叔把钥匙递给程野：「201，你们三年前也住这间。」\n房门推开，桌上放着一个空信封。收件人写着你们的名字，邮戳是三年前的今天。\n林晚去开窗，程野把行李箱放在床边。谁都没有先说话。'
+    },
+    {
+      title: '第二幕 · 搜证', time: '12–15 分钟',
+      narration: '雨又下起来，敲在玻璃上。你们决定找一找，那封信是不是被放错了房间。\n客厅、卧室、浴室、阳台——每找到一条线索，就离三年前那晚更近一点。'
+    },
+    {
+      title: '第三幕 · 停电', time: '10–12 分钟',
+      narration: '灯突然灭了。楼下传来周叔的声音：「保险丝烧了，别急——」\n黑暗把房间压得很小。你们只能听见彼此的呼吸，和雨。',
+      questions: {
+        him: '问她：三年前台风那晚，你有没有后悔留在这里？',
+        her: '问他：如果我现在要去外地六个月，你会不会跟我走？'
+      }
+    },
+    {
+      title: '第四幕 · 天亮', time: '8–10 分钟',
+      narration: '天快亮的时候，雨停了。周叔上楼来道歉，手里拿着 203 的钥匙。\n他说，那间房是给阿岚留的。照片、信、三年前的台风，全都有了答案。\n现在轮到你们，决定要不要把最后一句话说完。'
+    }
+  ],
+  truth: [
+    { icon: '✉️', title: '203 的信', text: '收件人是阿岚，落款是周叔。那不是给你们的信，是周叔写给亡妻的第七封信。' },
+    { icon: '📷', title: '旧照片', text: '照片里的女人是年轻时的阿岚。周叔每年都会在海边给她拍一张照。' },
+    { icon: '🎫', title: '两张票根', text: '程野的退票，林晚的驻留邮件。三年前，两个人都为对方放弃了一个机会，却都以为对方不知道。' },
+    { icon: '💌', title: '第七封信', text: '林晚写了很久，没寄。程野也写了一封，藏在枕头下。空信封不是有人偷走了信，是两个人都不敢先递出去。' }
+  ],
+  choices: {
+    peek: {
+      prompt: '你看到对方包里露出那封没寄出的信的一角。',
+      options: [
+        { id: 'peek', label: '拆开看', sub: '你会知道她没说出口的半句话，但信任 -10。', trust: -10, result: '信纸上只有一句：「我其实不想走。」你把信折回去，假装没看见。' },
+        { id: 'respect', label: '放回去，等TA自己说', sub: '信任 +6。', trust: 6, result: '你把信角塞回包里，拉好拉链。有些话，应该由她自己递给你。' },
+        { id: 'ask', label: '直接问', sub: '信任 +8。', trust: 8, result: '你问：「那封信，是写给我的吗？」她愣了一下，没有否认。' }
+      ]
+    },
+    final: {
+      prompt: '天亮了。两封信都在桌上，第七封还没有写完。',
+      options: [
+        { id: 'say', label: '把两封信读出来', sub: '两个人都说出秘密，且信任 ≥60，才会走向「说开」。' },
+        { id: 'leave', label: '把信放回信封，等以后', sub: '留白结局。' },
+        { id: 'rewrite', label: '拿一张新纸，现场写第七封', sub: '信任 ≥50 时走向「重写」。' }
+      ]
+    }
+  },
+  endings: {
+    say: {
+      icon: '🌙', name: '说开', tag: '你们把最后一句话留在了天亮之前',
+      text: [
+        '程野先读。他的声音很低，读到「我其实不想走」的时候停了一下。',
+        '林晚没有抢着解释。她把自己的信推过去，说：「那我们一起走。」',
+        '第七封信最后没有寄出去。它被夹进了相册，和那张旧照片放在一起。'
+      ],
+      quote: '有些秘密不是为了瞒住对方，是怕对方为自己留下。'
+    },
+    leave: {
+      icon: '⚖️', name: '留白', tag: '有些话还来得及，只是不是今晚',
+      text: [
+        '你们把两封信重新装回信封，没有拆开。',
+        '天亮之后，谁都没有提 203 房。周叔送你们到门口，说下次再来。',
+        '车开上海边公路的时候，林晚把手放在程野手背上。那封信还在包里，像一颗没有拆开的糖。'
+      ],
+      quote: '留白不是结束，是把最后一句话留给下一次。'
+    },
+    rewrite: {
+      icon: '🔥', name: '重写', tag: '第七封信有了新的开头',
+      text: [
+        '程野从抽屉里翻出一张干净的纸，林晚把笔递给他。',
+        '这一次，两个人一起写。写到「明年」的时候，程野停笔，问：「你想写几个月？」',
+        '信没有装进信封。它被贴在房间的留言板上，落款是两个人的名字。'
+      ],
+      quote: '过去那封信没有寄出去，但今晚这一封，不用寄。'
+    }
+  }
+};
+
+/* ===== V16 状态 ===== */
+function v16Default() {
+  return {
+    d: v11Today(), id: 'letter7', scale: 'soft', act: 0, beat: 'role',
+    trust: 50, roleRead: {}, questions: {}, searched: {}, searchCount: 0,
+    clues: [], viewed: {}, shared: {}, choices: {},
+    secrets: { him: null, her: null },
+    task: null, taskQueue: [], taskFinal: '',
+    tasksDone: 0, tasksSkip: 0, fin: false, ending: '', startedAt: Date.now()
+  };
+}
+function v16Norm(S) {
+  var D = v16Default();
+  if (!S || typeof S !== 'object') return D;
+  Object.keys(D).forEach(function (k) { if (S[k] === undefined) S[k] = D[k]; });
+  if (!S.secrets || typeof S.secrets !== 'object') S.secrets = { him: null, her: null };
+  if (!S.roleRead || typeof S.roleRead !== 'object') S.roleRead = {};
+  if (!S.questions || typeof S.questions !== 'object') S.questions = {};
+  if (!S.searched || typeof S.searched !== 'object') S.searched = {};
+  if (!S.viewed || typeof S.viewed !== 'object') S.viewed = {};
+  if (!S.shared || typeof S.shared !== 'object') S.shared = {};
+  if (!S.choices || typeof S.choices !== 'object') S.choices = {};
+  if (!S.clues || !S.clues.length) S.clues = [];
+  if (!S.taskQueue || !S.taskQueue.length) S.taskQueue = [];
+  return S;
+}
+function v16Get() {
+  try {
+    var S = JSON.parse(localStorage.getItem('couple-script') || 'null');
+    if (!S || S.d !== v11Today()) return null;
+    return v16Norm(S);
+  } catch (e) { return null; }
+}
+function v16Save(S) { try { localStorage.setItem('couple-script', JSON.stringify(S)); } catch (e) {} }
+function v16Active() { var S = v16Get(); return !!(S && !S.fin && S.act < 4); }
+function v16Role(who) { return V16_SCRIPT.roles[who] || V16_SCRIPT.roles.him; }
+function v16RoleName(who) { return who === 'him' ? HE.him : HE.her; }
+function v16Clue(id) { return V16_SCRIPT.clues[id] || null; }
+function v16LocClues(loc) {
+  return Object.keys(V16_SCRIPT.clues).filter(function (id) { return V16_SCRIPT.clues[id].loc === loc; });
+}
+function v16ActTitle(n) { return (V16_SCRIPT.acts[n] || V16_SCRIPT.acts[0]).title; }
+
+/* ===== 入口 / 开局 ===== */
+function v16Intro() {
+  if (v16Active()) { v16Show(); return; }
+  var done = false; try { var S = v16Get(); done = !!(S && S.fin); } catch (e) {}
+  openModal('<h3>🕵️ 剧本之夜</h3>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.85">'
+    + '<b>《失踪的第七封信》</b><br>'
+    + '4 幕 · 约 45 分钟 · 双人情感悬疑<br>'
+    + '你们是结婚三年的夫妻，回到第一次旅行的海边民宿。一封写给你们的信不见了，桌上只剩一个空信封。'
+    + '<br><span style="font-size:12px;color:#ffd166">所有角色和秘密都是虚构的，不翻真实旧账；任何一方说停就停。</span>'
+    + '<br><span style="font-size:12px;color:#aaa">' + (done ? '今晚已通关，可再走一次。' : '读完角色本、搜证、做选择，最后会走向 3 种结局之一。') + '</span></div>'
+    + '<div class="wheel-btns" style="display:block">'
+    + (done ? '<button class="wheel-btn back" onclick="v16ShowEnding()">📖 重看结局</button>' : '')
+    + '<button class="wheel-btn spin" onclick="v16ChooseScale(\'soft\')">🌙 氛围版 · 开始</button>'
+    + '<button class="wheel-btn back" onclick="v16ChooseScale(\'hot\')">🔥 热辣版 · 开始</button>'
+    + '<button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
+}
+function v16ShowEnding() {
+  try { closeModal(); } catch (e) {}
+  var S = v16Get();
+  if (!S || !S.fin) { v16Intro(); return; }
+  if (S.ending) { S.beat = 'ending'; v16Save(S); }
+  window._v16Script = true; v16EnsurePage(); showPage('scriptPage'); v16Render();
+}
+function v16ChooseScale(scale) {
+  if (scale === 'hot' && SET.limit) {
+    openModal('<h3>🛑 热辣版底线清单</h3>'
+      + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.95">'
+      + '· 任何一方说停就停，不需要理由<br>'
+      + '· 不拍、不录、不传播<br>'
+      + '· 束缚和玩具随时可以解开，先约定安全词<br>'
+      + '· 只在私密、可控的空间，不打扰邻居<br>'
+      + '· 不窒息、不见血、不留下伤害'
+      + '<br><span style="font-size:12px;color:#aaa">剧本里的秘密都是虚构角色；热辣版只会抽更高强度的现有任务，跳过不影响剧情。</span></div>'
+      + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();v16New(\'hot\')">✅ 我们确认，开始</button>'
+      + '<button class="wheel-btn back" onclick="closeModal();v16New(\'soft\')">🌙 换成氛围版</button></div>');
+    return;
+  }
+  v16New(scale);
+}
+function v16New(scale) {
+  try { closeModal(); } catch (e) {}
+  if (scale !== 'hot') scale = 'soft';
+  var S = v16Default(); S.scale = scale; v16Save(S);
+  try { if (!nightStarted()) nightSave({ d: v11Today() }); } catch (e) {}
+  try { var ST = storyGet(); ST.on = false; ST.run = false; storySave(ST); } catch (e) {}
+  try { v12ChainReset(); } catch (e) {}
+  window._v16Script = true;
+  v16Show();
+}
+function v16EnsurePage() {
+  if (document.getElementById('scriptPage')) return;
+  var d = document.createElement('div');
+  d.id = 'scriptPage'; d.className = 'page';
+  d.innerHTML = '<div class="header"><div class="back-btn" onclick="v16Leave()">←</div><h1>剧本之夜</h1></div><div id="scriptBody"></div>';
+  document.body.appendChild(d);
+}
+function v16Show() {
+  var S = v16Get();
+  if (!S) { v16Intro(); return; }
+  window._v16Script = true;
+  v16EnsurePage();
+  showPage('scriptPage');
+  v16Render();
+}
+function v16Leave() {
+  try { closeModal(); } catch (e) {}
+  window._v16Script = false;
+  goHome();
+}
+function v16RestartAsk() {
+  var S = v16Get(); if (!S) { v16Intro(); return; }
+  openModal('<h3>↻ 重新开始本场？</h3><div class="m-item" style="font-size:14px;line-height:1.8">当前进度会清空，从第一幕重新开始。</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v16RestartNow()">重新开始</button>'
+    + '<button class="wheel-btn back" onclick="closeModal()">继续本场</button></div>');
+}
+function v16RestartNow() {
+  var S = v16Get(); var scale = S ? S.scale : 'soft';
+  try { closeModal(); } catch (e) {}
+  v16New(scale);
+}
+
+/* V16 script engine */
+/* ===== V16 剧本之夜 · 渲染与流程 ===== */
+function v16Nl(t) { return String(t || '').replace(/\n/g, '<br>'); }
+function v16Clamp(n) { return Math.max(0, Math.min(100, n || 0)); }
+function v16SetBeat(b) {
+  var S = v16Get(); if (!S) return;
+  S.beat = b; v16Save(S); v16Render();
+}
+function v16Render() {
+  var S = v16Get();
+  if (!S) { v16Intro(); return; }
+  var body = document.getElementById('scriptBody'); if (!body) return;
+  var stage = '';
+  try {
+    if (S.beat === 'role') stage = v16StageRole(S);
+    else if (S.beat === 'task') stage = v16StageTask(S);
+    else if (S.beat === 'search') stage = v16StageSearch(S);
+    else if (S.beat === 'act2') stage = v16StageAct2(S);
+    else if (S.beat === 'choice') stage = v16StageChoice(S);
+    else if (S.beat === 'choiceResult') stage = v16StageChoiceResult(S);
+    else if (S.beat === 'act3') stage = v16StageAct3(S);
+    else if (S.beat === 'truth') stage = v16StageTruth(S);
+    else if (S.beat === 'secret') stage = v16StageSecret(S);
+    else if (S.beat === 'final') stage = v16StageFinal(S);
+    else if (S.beat === 'ending') stage = v16StageEnding(S);
+    else stage = '<div class="script-card"><div class="script-kicker">继续</div><button class="script-btn primary" onclick="v16Render()">刷新</button></div>';
+  } catch (e) {
+    stage = '<div class="script-card"><div class="script-kicker">出错了</div><p>' + (e && e.message ? e.message : '未知错误') + '</p><button class="script-btn" onclick="v16Leave()">回大厅</button></div>';
+  }
+  var act = Math.min(4, (S.act || 0) + 1);
+  body.innerHTML = '<div class="script-wrap">'
+    + '<div class="script-meta"><span class="script-book">《' + V16_SCRIPT.title + '》</span><span>第 ' + act + '/4 幕</span></div>'
+    + '<div class="script-bar"><i style="width:' + (act / 4 * 100) + '%"></i></div>'
+    + '<div class="script-hud">'
+    + '<span>🤝 信任 ' + v16Clamp(S.trust) + '</span>'
+    + '<span>🔎 线索 ' + (S.clues || []).length + '/12</span>'
+    + '<span onclick="v16OpenClues()">📁 线索</span>'
+    + '<span onclick="v16RestartAsk()">↻ 重开</span>'
+    + '</div>'
+    + stage
+    + '<div class="script-foot">🛑 任何一方说停就停 · 剧本里的秘密都是虚构角色</div>'
+    + '</div>';
+}
+
+/* ===== 隐私递手机层 ===== */
+function v16Priv(hand, label, html, done, noDone) {
+  var el = document.getElementById('scriptPrivacy');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'scriptPrivacy'; el.className = 'script-privacy';
+    document.body.appendChild(el);
+  }
+  window._v16Priv = { html: html, done: done || null, noDone: !!noDone };
+  el.innerHTML = '<div class="script-priv-box"><div class="script-priv-kicker">请把手机交给</div>'
+    + '<div class="script-priv-hand">' + hand + '</div>'
+    + '<div class="script-priv-sub">' + label + '</div>'
+    + '<button class="script-btn primary" onclick="v16PrivReveal()">我准备好了，开始看</button></div>';
+  el.classList.add('show');
+}
+function v16PrivReveal() {
+  var P = window._v16Priv, el = document.getElementById('scriptPrivacy');
+  if (!P || !el) return;
+  el.innerHTML = '<div class="script-priv-box">' + P.html + (P.noDone ? '' : '<button class="script-btn primary" onclick="v16PrivDone()">我读完了，收好</button>') + '</div>';
+}
+function v16ClosePriv() {
+  var el = document.getElementById('scriptPrivacy');
+  if (el) el.classList.remove('show');
+  window._v16Priv = null;
+}
+function v16PrivDone() {
+  var P = window._v16Priv;
+  v16ClosePriv();
+  if (P && P.done) setTimeout(function () { try { P.done(); } catch (e) {} }, 30);
+}
+
+/* ===== 第一幕：角色本 ===== */
+function v16StageRole(S) {
+  var rH = !!S.roleRead.him, rE = !!S.roleRead.her;
+  var html = '<div class="script-card"><div class="script-kicker">第一幕 · 入住</div><h2>201 房</h2><p>' + v16Nl(V16_SCRIPT.acts[0].narration) + '</p></div>';
+  html += '<div class="script-card"><div class="script-kicker">角色本</div><p class="script-small">两个人分开读。把手机递给对方，看完再换人。</p>'
+    + '<div class="script-grid2">'
+    + v16RoleBtn('him', rH)
+    + v16RoleBtn('her', rE)
+    + '</div>';
+  if (rH && rE) html += '<button class="script-btn primary" onclick="v16StartTask(2,\'search\')">▶ 两人都读完了，继续</button>';
+  else html += '<div class="script-note">两个人都读完后继续。</div>';
+  html += '</div>';
+  return html;
+}
+function v16RoleBtn(who, read) {
+  var r = v16Role(who);
+  return '<div class="script-role' + (read ? ' done' : '') + '" onclick="v16ReadRole(\'' + who + '\')">'
+    + '<div class="ic">' + r.icon + '</div><b>' + r.name + '</b>'
+    + '<span>' + r.job + ' · ' + (read ? '已读' : '点击阅读') + '</span></div>';
+}
+function v16ReadRole(who) {
+  var S = v16Get(); if (!S) return;
+  var r = v16Role(who);
+  var html = '<div class="script-role-book">'
+    + '<div class="script-kicker">你的角色</div>'
+    + '<h2>' + r.icon + ' ' + r.name + '</h2>'
+    + '<div class="script-small">' + r.age + ' 岁 · ' + r.job + '</div>'
+    + '<div class="script-sec"><b>公开身份</b><p>' + r.public + '</p></div>'
+    + '<div class="script-sec secret"><b>🔒 你的秘密</b><p>' + r.secret + '</p></div>'
+    + '<div class="script-sec"><b>你的目标</b><p>' + r.goal + '</p></div>'
+    + '<div class="script-sec"><b>你知道的</b><p>' + r.note + '</p></div>'
+    + '</div>';
+  v16Priv(v16RoleName(who) + '（' + r.name + '）', '这是只给你看的角色本，不要让对方看到。', html, function () {
+    var N = v16Get(); if (!N) return;
+    N.roleRead[who] = true; v16Save(N); v16Render();
+  });
+}
+
+/* ===== 线索 ===== */
+function v16ClueCard(id) {
+  var S = v16Get(), C = v16Clue(id); if (!C) return '';
+  var shared = !!(S && S.shared[id]);
+  if (C.p && !shared) {
+    var owner = v16Role(C.p);
+    return '<div class="script-clue locked" onclick="v16ViewClue(\'' + id + '\')"><b>🔒 ' + C.title + '</b><span>私密线索 · 只给 ' + owner.name + '</span></div>';
+  }
+  var shortText = C.text.length > 34 ? C.text.slice(0, 34) + '…' : C.text;
+  return '<div class="script-clue" onclick="v16ViewClue(\'' + id + '\')"><b>' + C.title + '</b><span>' + shortText + '</span></div>';
+}
+function v16OpenClues() {
+  var S = v16Get(); if (!S) return;
+  if (!S.clues.length) { toast('还没有找到线索'); return; }
+  openModal('<h3>📁 已找到的线索</h3><div class="script-clue-list">'
+    + S.clues.map(v16ClueCard).join('')
+    + '</div><div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">收好</button></div>');
+}
+function v16ViewClue(id) {
+  var S = v16Get(), C = v16Clue(id); if (!S || !C) return;
+  var shared = !!S.shared[id];
+  if (C.p && !shared) {
+    var owner = v16Role(C.p);
+    var html = '<div class="script-role-book"><div class="script-kicker">私密线索</div><h2>🔒 ' + C.title + '</h2>'
+      + '<div class="script-sec secret"><p>' + C.text + '</p></div>'
+      + '<p class="script-small">这条线索只有 ' + owner.name + ' 看到。要不要告诉对方？</p>'
+      + '<div class="script-actions" style="display:block">'
+      + '<button class="script-btn primary" onclick="v16ShareClue(\'' + id + '\')">📢 公开给TA（信任 +6）</button>'
+      + '<button class="script-btn ghost" onclick="v16KeepClue(\'' + id + '\')">🤫 先收好</button></div></div>';
+    v16Priv(v16RoleName(C.p) + '（' + owner.name + '）', '这条线索只给你看，先别让对方看到。', html, null, true);
+    return;
+  }
+  openModal('<h3>' + (C.p ? '📢 ' : '🔎 ') + C.title + '</h3><div class="m-item" style="font-size:15px;line-height:1.9">' + C.text + '</div>'
+    + '<div class="wheel-btns"><button class="wheel-btn back" onclick="closeModal()">收好</button></div>');
+}
+function v16ShareClue(id) {
+  var S = v16Get(); if (!S) return;
+  S.shared[id] = true; S.viewed[id] = true; S.trust = v16Clamp(S.trust + 6); v16Save(S);
+  v16ClosePriv(); try { closeModal(); } catch (e) {}
+  v16Render(); toast('📢 线索已公开，信任 +6');
+}
+function v16KeepClue(id) {
+  var S = v16Get(); if (!S) return;
+  S.viewed[id] = true; v16Save(S);
+  v16ClosePriv(); try { closeModal(); } catch (e) {}
+  v16Render(); toast('🤫 线索先收好');
+}
+
+/* ===== 第二幕：搜证 ===== */
+function v16StageSearch(S) {
+  var done = S.searchCount || 0;
+  var html = '<div class="script-card"><div class="script-kicker">第二幕 · 搜证</div><h2>四个地方</h2><p>' + v16Nl(V16_SCRIPT.acts[1].narration) + '</p></div>';
+  html += '<div class="script-loc-grid">';
+  V16_SCRIPT.locations.forEach(function (l) {
+    var searched = !!S.searched[l.id];
+    html += '<div class="script-loc' + (searched ? ' done' : '') + '"' + (searched ? '' : ' onclick="v16Search(\'' + l.id + '\')"') + '>'
+      + '<div class="ic">' + l.icon + '</div><b>' + l.name + '</b><span>' + (searched ? '已搜过 ✓' : l.desc) + '</span></div>';
+  });
+  html += '</div><div class="script-note">已搜 ' + done + '/4 个地方 · 点击还没搜过的房间</div>';
+  if (done >= 4) html += '<button class="script-btn primary" onclick="v16AfterSearch()">▶ 看完了，停电了</button>';
+  html += '<button class="script-btn ghost" onclick="v16OpenClues()">📁 查看已找到的线索（' + (S.clues || []).length + '）</button>';
+  return html;
+}
+function v16Search(loc) {
+  var S = v16Get(); if (!S || S.searched[loc]) return;
+  var L = null; V16_SCRIPT.locations.forEach(function (x) { if (x.id === loc) L = x; });
+  if (!L) return;
+  S.searched[loc] = true; S.searchCount = (S.searchCount || 0) + 1;
+  v16LocClues(loc).forEach(function (id) { if (S.clues.indexOf(id) < 0) S.clues.push(id); });
+  v16Save(S); v16Render();
+  openModal('<h3>' + L.icon + ' ' + L.name + ' · 找到 3 条线索</h3>'
+    + '<div class="script-clue-list">' + v16LocClues(loc).map(v16ClueCard).join('') + '</div>'
+    + '<div class="wheel-btns"><button class="wheel-btn spin" onclick="v16AfterSearch()">' + (S.searchCount >= 4 ? '✅ 看完了，停电了' : '✅ 看完了，继续搜') + '</button></div>');
+}
+function v16AfterSearch() {
+  var S = v16Get(); if (!S) return;
+  try { closeModal(); } catch (e) {}
+  if (S.searchCount >= 4) v16RunTasks([3], 'act2');
+  else v16Render();
+}
+
+/* ===== 戏中任务 ===== */
+function v16DrawTask(baseLv) {
+  var S = v16Get();
+  var pool = (GAMEDATA.truths || []).concat(GAMEDATA.dare || []);
+  if (S && S.scale === 'hot' && SET.limit && S.act >= 2) {
+    if (typeof V14_TRUTHS !== 'undefined') pool = pool.concat(V14_TRUTHS, V14_DARE);
+    if (typeof V12_SPICY !== 'undefined') pool = pool.concat(V12_SPICY.truths, V12_SPICY.dare);
+    if (SET.toys && typeof V14_TOYS !== 'undefined') pool = pool.concat(V14_TOYS);
+    if (SET.bond && typeof V14_BOND !== 'undefined') pool = pool.concat(V14_BOND);
+    if (SET.show && typeof V14_SHOW !== 'undefined') pool = pool.concat(V14_SHOW);
+  }
+  var target = baseLv + (S && S.scale === 'hot' ? 1 : 0);
+  var cand = pool.filter(function (x) { var m = v12TaskMeta(x); return m.lv >= target - 1 && m.lv <= target + 1; });
+  if (cand.length < 8) cand = pool;
+  return cand[Math.floor(Math.random() * cand.length)];
+}
+function v16StartTask(lv, nextBeat) {
+  var S = v16Get(); if (!S) return;
+  S.task = { text: v16DrawTask(lv), lv: lv }; S.taskFinal = nextBeat || 'search';
+  S.beat = 'task'; v16Save(S); v16Render();
+}
+function v16RunTasks(lvs, finalBeat) {
+  var S = v16Get(); if (!S) return;
+  S.taskQueue = (lvs || []).slice(); S.taskFinal = finalBeat || 'search';
+  v16Save(S); v16NextTask();
+}
+function v16NextTask() {
+  var S = v16Get(); if (!S) return;
+  if (!S.taskQueue || !S.taskQueue.length) {
+    var b = S.taskFinal || 'search';
+    S.task = null; S.beat = b;
+    if (b === 'search') S.act = 1;
+    else if (b === 'act2') S.act = 2;
+    else if (b === 'choice') S.act = 2;
+    else if (b === 'act3') S.act = 3;
+    else if (b === 'secret') S.act = 3;
+    v16Save(S); v16Render(); return;
+  }
+  var lv = S.taskQueue.shift();
+  S.task = { text: v16DrawTask(lv), lv: lv }; S.beat = 'task';
+  v16Save(S); v16Render();
+}
+function v16StageTask(S) {
+  if (!S.task) { v16NextTask(); return '<div class="script-card">正在准备任务…</div>'; }
+  return '<div class="script-card"><div class="script-kicker">戏中任务 · ' + v16ActTitle(S.act) + '</div>'
+    + '<div class="script-task">' + S.task.text + '</div>'
+    + v12TaskLvHtml(S.task.text)
+    + '<p class="script-note">完成 +信任；跳过不扣币，只少一点信任。跳过不影响剧情。</p>'
+    + '<div class="script-actions" style="display:block">'
+    + '<button class="script-btn primary" onclick="v16TaskDone()">✅ 完成</button>'
+    + '<button class="script-btn ghost" onclick="v16TaskSkip()">⏭ 跳过</button></div></div>';
+}
+function v16TaskDone() {
+  var S = v16Get(), T = S && S.task; if (!S || !T) return;
+  try { taskDone(); } catch (e) {}
+  try { v12DualFromTask(v12TaskMeta(T.text).type); } catch (e) {}
+  S.trust = v16Clamp(S.trust + 3); S.tasksDone = (S.tasksDone || 0) + 1; S.task = null;
+  v16Save(S); v16NextTask();
+}
+function v16TaskSkip() {
+  var S = v16Get(); if (!S || !S.task) return;
+  S.trust = v16Clamp(S.trust - 2); S.tasksSkip = (S.tasksSkip || 0) + 1; S.task = null;
+  v16Save(S); v16NextTask(); toast('已跳过：信任 -2');
+}
+
+/* ===== 第三幕：停电 / 选择 ===== */
+function v16StageAct2(S) {
+  var qh = !!S.questions.him, qe = !!S.questions.her;
+  return '<div class="script-card"><div class="script-kicker">第三幕 · 停电</div><h2>黑暗里</h2><p>' + v16Nl(V16_SCRIPT.acts[2].narration) + '</p></div>'
+    + '<div class="script-card"><div class="script-kicker">只给你看的问题</div>'
+    + '<p class="script-small">每个人拿一个问题，问出口，然后听对方回答。不用在 App 里输入。</p>'
+    + '<div class="script-grid2">'
+    + '<div class="script-role' + (qh ? ' done' : '') + '" onclick="v16AskQuestion(\'him\')"><div class="ic">❓</div><b>' + v16RoleName('him') + '</b><span>' + (qh ? '已问过' : '查看问题') + '</span></div>'
+    + '<div class="script-role' + (qe ? ' done' : '') + '" onclick="v16AskQuestion(\'her\')"><div class="ic">❓</div><b>' + v16RoleName('her') + '</b><span>' + (qe ? '已问过' : '查看问题') + '</span></div>'
+    + '</div>'
+    + '<button class="script-btn primary" onclick="v16StartTask(3,\'choice\')">🌑 关灯，继续</button></div>';
+}
+function v16AskQuestion(who) {
+  var S = v16Get(); if (!S) return;
+  var q = V16_SCRIPT.acts[2].questions[who];
+  var html = '<div class="script-role-book"><div class="script-kicker">只给你看</div><h2>❓ 问TA一句</h2>'
+    + '<div class="script-sec secret"><p>' + q + '</p></div>'
+    + '<p class="script-small">问出口，听完回答就好。不要在 App 里记录答案。</p></div>';
+  v16Priv(v16RoleName(who) + '（' + v16Role(who).name + '）', '把手机交给TA，问完再拿回来。', html, function () {
+    var N = v16Get(); if (!N) return;
+    N.questions[who] = true; v16Save(N); v16Render();
+  });
+}
+function v16StageChoice(S) {
+  var C = V16_SCRIPT.choices.peek;
+  var html = '<div class="script-card"><div class="script-kicker">关键选择</div><h2>信角</h2><p>' + C.prompt + '</p>'
+    + '<div class="script-choices">';
+  C.options.forEach(function (o) {
+    html += '<button class="script-choice" onclick="v16PickPeek(\'' + o.id + '\')"><b>' + o.label + '</b><span>' + o.sub + '</span></button>';
+  });
+  html += '</div></div>';
+  return html;
+}
+function v16PickPeek(id) {
+  var S = v16Get(); if (!S) return;
+  var C = V16_SCRIPT.choices.peek, o = null;
+  C.options.forEach(function (x) { if (x.id === id) o = x; });
+  if (!o) return;
+  S.choices.peek = id; S.trust = v16Clamp(S.trust + (o.trust || 0));
+  S.beat = 'choiceResult'; v16Save(S); v16Render();
+}
+function v16StageChoiceResult(S) {
+  var C = V16_SCRIPT.choices.peek, o = null;
+  C.options.forEach(function (x) { if (x.id === S.choices.peek) o = x; });
+  if (!o) o = C.options[0];
+  var delta = o.trust > 0 ? '+' + o.trust : (o.trust < 0 ? String(o.trust) : '0');
+  return '<div class="script-card"><div class="script-kicker">你的选择</div><h2>' + o.label + '</h2>'
+    + '<p>' + o.result + '</p><div class="script-note">信任 ' + delta + ' · 当前 ' + v16Clamp(S.trust) + '</div>'
+    + '<button class="script-btn primary" onclick="v16RunTasks([4,4],\'act3\')">▶ 继续</button></div>';
+}
+
+/* ===== 第四幕：真相 ===== */
+function v16StageAct3(S) {
+  return '<div class="script-card"><div class="script-kicker">第四幕 · 天亮</div><h2>雨停了</h2><p>' + v16Nl(V16_SCRIPT.acts[3].narration) + '</p>'
+    + '<button class="script-btn primary" onclick="v16SetBeat(\'truth\')">▶ 把线索拼起来</button></div>';
+}
+function v16StageTruth(S) {
+  var html = '<div class="script-card"><div class="script-kicker">真相</div><h2>那封信去了哪里</h2>';
+  V16_SCRIPT.truth.forEach(function (t) {
+    html += '<div class="script-truth"><div class="ic">' + t.icon + '</div><div><b>' + t.title + '</b><p>' + t.text + '</p></div></div>';
+  });
+  html += '<button class="script-btn primary" onclick="v16RunTasks([4],\'secret\')">▶ 还有最后一件事</button></div>';
+  return html;
+}
+function v16StageSecret(S) {
+  var h = S.secrets.him, e = S.secrets.her;
+  function row(who, val) {
+    var r = v16Role(who);
+    var label = val === null || val === undefined ? '还没选择' : (val ? '已说出' : '先保留');
+    return '<div class="script-role' + (val !== null && val !== undefined ? ' done' : '') + '" onclick="v16AskSecret(\'' + who + '\')"><div class="ic">' + r.icon + '</div><b>' + r.name + '</b><span>' + label + '</span></div>';
+  }
+  var html = '<div class="script-card"><div class="script-kicker">最后的选择</div><h2>要不要说出你的秘密</h2>'
+    + '<p class="script-small">两个人分开选。说出秘密会 +10 信任，也会改变结局。</p>'
+    + '<div class="script-grid2">' + row('him', h) + row('her', e) + '</div>';
+  if (h !== null && h !== undefined && e !== null && e !== undefined) {
+    html += '<button class="script-btn primary" onclick="v16SetBeat(\'final\')">▶ 进入最后的选择</button>';
+  } else {
+    html += '<div class="script-note">两个人都选完后继续。</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function v16AskSecret(who) {
+  var S = v16Get(); if (!S) return;
+  if (S.secrets[who] !== null && S.secrets[who] !== undefined) { toast('已经选过了'); return; }
+  var r = v16Role(who);
+  var html = '<div class="script-role-book"><div class="script-kicker">你的秘密</div><h2>' + r.icon + ' ' + r.name + '</h2>'
+    + '<div class="script-sec secret"><p>' + r.secret + '</p></div>'
+    + '<p class="script-small">现在说出来，还是先留在心里？</p>'
+    + '<div class="script-actions" style="display:block">'
+    + '<button class="script-btn primary" onclick="v16SetSecret(\'' + who + '\',true)">🗣 说出来（信任 +10）</button>'
+    + '<button class="script-btn ghost" onclick="v16SetSecret(\'' + who + '\',false)">🤫 先留在心里</button></div></div>';
+  v16Priv(v16RoleName(who) + '（' + r.name + '）', '这个选择只给你看。', html, null, true);
+}
+function v16SetSecret(who, val) {
+  var S = v16Get(); if (!S) return;
+  if (S.secrets[who] !== null && S.secrets[who] !== undefined) { v16ClosePriv(); return; }
+  S.secrets[who] = !!val;
+  if (val) S.trust = v16Clamp(S.trust + 10);
+  v16Save(S); v16ClosePriv(); v16Render();
+  toast(val ? '🗣 秘密说出口了，信任 +10' : '🤫 秘密先留在心里');
+}
+function v16StageFinal(S) {
+  var C = V16_SCRIPT.choices.final;
+  var html = '<div class="script-card"><div class="script-kicker">最后的选择</div><h2>第七封信</h2><p>' + C.prompt + '</p>'
+    + '<div class="script-choices">';
+  C.options.forEach(function (o) {
+    html += '<button class="script-choice" onclick="v16Final(\'' + o.id + '\')"><b>' + o.label + '</b><span>' + o.sub + '</span></button>';
+  });
+  html += '</div></div>';
+  return html;
+}
+function v16EndingKey(choice, both, trust) {
+  if (choice === 'rewrite' && trust >= 50) return 'rewrite';
+  if (choice === 'say' && both && trust >= 60) return 'say';
+  return 'leave';
+}
+function v16Final(id) {
+  var S = v16Get(); if (!S) return;
+  var both = !!(S.secrets.him && S.secrets.her);
+  S.choices.final = id; S.ending = v16EndingKey(id, both, S.trust);
+  S.fin = true; S.beat = 'ending'; v16Save(S); v16Render();
+  try { logEvent('🕵️ 剧本之夜 · ' + V16_SCRIPT.endings[S.ending].name); } catch (e) {}
+  try { v12SyncHome(); } catch (e) {}
+  try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 55); } catch (e) {}
+}
+function v16StageEnding(S) {
+  var E = V16_SCRIPT.endings[S.ending] || V16_SCRIPT.endings.leave;
+  var peek = null; V16_SCRIPT.choices.peek.options.forEach(function (o) { if (o.id === S.choices.peek) peek = o; });
+  var finalO = null; V16_SCRIPT.choices.final.options.forEach(function (o) { if (o.id === S.choices.final) finalO = o; });
+  var secH = S.secrets.him ? '说出' : '保留';
+  var secE = S.secrets.her ? '说出' : '保留';
+  var finalLabel = finalO ? finalO.label : '—';
+  if (S.choices.final === 'say' && S.ending === 'leave') finalLabel = '想说开，但还有话没说出口';
+  if (S.choices.final === 'rewrite' && S.ending === 'leave') finalLabel = '想重写，但还没准备好';
+  var html = '<div class="script-ending"><div class="script-end-icon">' + E.icon + '</div>'
+    + '<div class="script-kicker">结局 · ' + E.name + '</div>'
+    + '<div class="script-end-tag">' + E.tag + '</div>';
+  E.text.forEach(function (p) { html += '<p>' + p + '</p>'; });
+  html += '<div class="script-quote">' + E.quote + '</div>'
+    + '<div class="script-small" style="margin-top:6px">剧本结束，角色留在故事里。如果刚才有哪句话让你想到自己，可以现在告诉对方。</div>'
+    + '<div class="script-stats">🤝 信任 ' + v16Clamp(S.trust) + ' · 🔎 线索 ' + (S.clues || []).length + '/12 · 💜 任务 ' + (S.tasksDone || 0) + ' 完成 / ' + (S.tasksSkip || 0) + ' 跳过</div>'
+    + '<div class="script-recap"><b>本场复盘</b><div>关键选择：' + (peek ? peek.label : '—') + '</div><div>秘密：' + secH + ' / ' + secE + '</div><div>最后选择：' + finalLabel + '</div></div>'
+    + '<div class="script-actions" style="display:block">'
+    + '<button class="script-btn primary" onclick="nightCeremony()">🌙 进入夜终仪式</button>'
+    + '<button class="script-btn ghost" onclick="v16RestartAsk()">🔄 换一种选择重玩</button>'
+    + '<button class="script-btn ghost" onclick="v16Leave()">🏠 回大厅</button></div></div>';
+  return html;
+}
 
 </script>
 <!-- V4.4 居中弹出式骰子层: 摇时出现, 停稳显示点数后消失 -->
