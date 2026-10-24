@@ -851,6 +851,7 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 .script-recap{text-align:left;padding:11px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);font-size:12px;line-height:1.8;color:#c9c2dd;margin:8px 0}
 .script-recap b{display:block;color:#ffd166;margin-bottom:4px}
 .script-foot{text-align:center;font-size:11px;color:#7f7699;margin-top:16px;line-height:1.7}
+.script-link{color:#ff9dce;text-decoration:underline;cursor:pointer}
 .script-privacy{position:fixed;inset:0;z-index:10000;background:radial-gradient(circle at 50% 20%,rgba(90,30,100,.7),rgba(8,5,16,.98) 70%);display:none;align-items:center;justify-content:center;padding:22px}
 .script-privacy.show{display:flex}
 .script-priv-box{width:100%;max-width:420px;max-height:88vh;overflow:auto;padding:22px;border-radius:18px;background:rgba(25,18,38,.98);border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 70px rgba(0,0,0,.6)}
@@ -860,6 +861,16 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
 .script-priv-hand{font-size:26px;font-weight:800;text-align:center;color:#ffd166;margin:8px 0 4px}
 .script-priv-sub{font-size:12px;line-height:1.8;color:#b9b0d0;text-align:center;margin-bottom:16px}
 .script-priv-box .script-btn{margin-top:12px}
+.script-shelf{display:flex;flex-direction:column;gap:9px;margin:10px 0}
+.script-book-card{padding:11px 12px;border-radius:13px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1)}
+.script-book-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.script-book-head b{font-size:15px;color:#fff}
+.script-book-badge{font-size:10px;color:#6fe3a1;border:1px solid rgba(110,227,161,.35);border-radius:99px;padding:2px 6px;white-space:nowrap}
+.script-book-sub{font-size:11px;color:#a79cc2;line-height:1.6;margin:3px 0 8px}
+.script-book-actions{display:flex;gap:8px}
+.script-book-actions button{flex:1;padding:8px 4px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.script-book-actions button:first-child{background:rgba(255,45,149,.16);border-color:rgba(255,45,149,.35)}
+.script-book-actions button:active{transform:scale(.98)}
 @media(max-width:360px){.script-hud span{font-size:10px;padding:6px 1px}.script-role,.script-loc{min-height:96px}.script-card{padding:12px}}
 
 </style>
@@ -889,7 +900,7 @@ body.light .hub-tab,body.sketch .hub-tab{background:rgba(255,255,255,.65)}
     <div class="v12-tile" onclick="v15Intro()"><div class="ic">🗺️</div><div class="nm">今夜地图</div><div class="ds">18 节点 · 自由选路</div><div class="tag">NEW</div></div>
     <div class="v12-tile" onclick="startGame('night')"><div class="ic">🕯️</div><div class="nm">主题之夜</div><div class="ds">四幕剧情，一步步入戏</div></div>
     <div class="v12-tile" onclick="startGame('flight')"><div class="ic">✈️</div><div class="nm">飞行棋</div><div class="ds">四种模式，骰子决定命运</div></div>
-    <div class="v12-tile" onclick="v16Intro()"><div class="ic">🕵️</div><div class="nm" id="v16ScriptNm">剧本之夜</div><div class="ds" id="v16ScriptDs">情感悬疑 · 4幕约45分钟</div><div class="tag" id="v16ScriptTag">NEW</div></div>
+    <div class="v12-tile" onclick="v16Intro()"><div class="ic">🕵️</div><div class="nm" id="v16ScriptNm">剧本之夜</div><div class="ds" id="v16ScriptDs">3 本可选 · 每本约45分钟</div><div class="tag" id="v16ScriptTag">3本</div></div>
   </div>
 </div>
 <div class="top-bar" id="setBar"></div>
@@ -5882,12 +5893,13 @@ function v12SyncHome() {
         if (_tg) _tg.textContent = '已通关';
       } else if (_sc && !_sc.fin) {
         _nm.textContent = '继续剧本';
-        _ds.textContent = '《失踪的第七封信》· 第' + Math.min(4, (_sc.act || 0) + 1) + '幕';
+        var _bt = V16_SCRIPTS[_sc.id] ? V16_SCRIPTS[_sc.id].title : '剧本之夜';
+        _ds.textContent = '《' + _bt + '》· 第' + Math.min(4, (_sc.act || 0) + 1) + '幕';
         if (_tg) _tg.textContent = '4幕';
       } else {
         _nm.textContent = '剧本之夜';
-        _ds.textContent = '情感悬疑 · 4幕约45分钟';
-        if (_tg) _tg.textContent = 'NEW';
+        _ds.textContent = '3 本可选 · 每本约45分钟';
+        if (_tg) _tg.textContent = '3本';
       }
     }
   }catch(e){}
@@ -7798,126 +7810,310 @@ try {
 
 
 /* V16 script data */
-/* ===== V16 剧本之夜 · 数据 ===== */
-var V16_SCRIPT = {
-  id: 'letter7',
-  title: '失踪的第七封信',
-  sub: '海风、旧照片，和一封没有寄出的信',
-  minutes: 45,
-  roles: {
-    him: {
-      key: 'him', icon: '🧥', name: '程野', age: 32, job: '建筑师',
-      public: '你们结婚三年。你话不多，习惯把事做完再说；这次旅行是你订的。',
-      secret: '三年前，你拿到外地事务所的 offer，却偷偷拒了，留在林晚的城市。你从没告诉她。',
-      goal: '今晚把那句迟到三年的话说完，再求一次婚。',
-      note: '你提前三天订了 201 房。口袋里有一张戒指收据。你不知道林晚也有一封没寄出的信。'
-    },
-    her: {
-      key: 'her', icon: '📷', name: '林晚', age: 30, job: '摄影师',
-      public: '你是自由摄影师，最近接了一个外地驻留计划，犹豫要不要去。',
-      secret: '三年前你以为程野为你放弃了外地机会，于是也放弃了自己的驻留名额。你一直以为他不知道。',
-      goal: '把写了很久的第七封信交给他，问他愿不愿意一起去外地。',
-      note: '你的相机里有一卷没洗的底片。驻留计划的回复截止今晚 23:59。'
-    }
-  },
-  locations: [
-    { id: 'living', name: '客厅', icon: '🛋️', desc: '沙发、茶几、留言本' },
-    { id: 'bedroom', name: '卧室', icon: '🛏️', desc: '床、枕头、行李箱' },
-    { id: 'bath', name: '浴室', icon: '🛁', desc: '镜柜、毛巾、窗台' },
-    { id: 'balcony', name: '阳台', icon: '🌿', desc: '栏杆、晾衣绳、海风' }
-  ],
-  clues: {
-    c1: { title: '空信封', p: null, loc: 'living', text: '桌上只剩一个空信封，收件人写着「程野 & 林晚」，邮戳是三年前的今天。' },
-    c2: { title: '两支笔', p: null, loc: 'living', text: '信封旁并排放着两支笔：一支黑色钢笔，一支绿色铅笔。笔帽都没盖。' },
-    c3: { title: '203 的钥匙', p: null, loc: 'bath', text: '前台抽屉里多出一把 203 的钥匙，房号被划掉又描了一遍。' },
-    c4: { title: '旧照片', p: null, loc: 'bath', text: '一张旧照片：年轻女人站在同一片海边，背面写着「阿岚，1998」。' },
-    c5: { title: '留言本', p: null, loc: 'living', text: '留言本上有一行被撕掉一半的字，只剩「如果那年我走了」。' },
-    c6: { title: '三年前的天气', p: null, loc: 'bath', text: '三年前今天的天气预报：台风橙色预警，去外地的最后一班车停运。' },
-    c7: { title: '戒指收据', p: 'him', loc: 'bedroom', text: '一张戒指收据，日期是今天，尺寸是林晚的。原来他本来打算今晚再求一次婚。' },
-    c8: { title: '驻留计划邮件', p: 'her', loc: 'balcony', text: '手机里的驻留计划邮件：外地六个月，回复截止今晚 23:59。' },
-    c9: { title: '撕掉的一页', p: null, loc: 'bedroom', text: '信封里有一页被撕掉的信，只剩半句：「我其实……」' },
-    c10: { title: '203 房里的信', p: null, loc: 'balcony', text: '203 房里的信，收件人不是你们，是「阿岚」。落款是周叔，日期是昨天。' },
-    c11: { title: '未使用的车票', p: 'him', loc: 'balcony', text: '一张三年前的车票，去外地，未使用，盖着退票章。' },
-    c12: { title: '没洗的底片', p: 'her', loc: 'bedroom', text: '相机里有一卷没洗的底片，最后一张是程野在三年前的车站睡着了。' }
-  },
-  acts: [
-    {
-      title: '第一幕 · 入住', time: '8–10 分钟',
-      narration: '台风刚过，海边民宿有一股潮湿的木头味。周叔把钥匙递给程野：「201，你们三年前也住这间。」\n房门推开，桌上放着一个空信封。收件人写着你们的名字，邮戳是三年前的今天。\n林晚去开窗，程野把行李箱放在床边。谁都没有先说话。'
-    },
-    {
-      title: '第二幕 · 搜证', time: '12–15 分钟',
-      narration: '雨又下起来，敲在玻璃上。你们决定找一找，那封信是不是被放错了房间。\n客厅、卧室、浴室、阳台——每找到一条线索，就离三年前那晚更近一点。'
-    },
-    {
-      title: '第三幕 · 停电', time: '10–12 分钟',
-      narration: '灯突然灭了。楼下传来周叔的声音：「保险丝烧了，别急——」\n黑暗把房间压得很小。你们只能听见彼此的呼吸，和雨。',
-      questions: {
-        him: '问她：三年前台风那晚，你有没有后悔留在这里？',
-        her: '问他：如果我现在要去外地六个月，你会不会跟我走？'
+/* ===== V16 剧本之夜 · 三本剧本数据 ===== */
+var V16_SCRIPTS = {
+  letter7: {
+    id: 'letter7', title: '失踪的第七封信', sub: '海风、旧照片，和一封没有寄出的信', minutes: 45, truthTitle: '那封信去了哪里',
+    roles: {
+      him: {
+        key: 'him', icon: '🧥', name: '程野', age: 32, job: '建筑师',
+        public: '你们结婚三年。你话不多，习惯把事做完再说；这次旅行是你订的。',
+        secret: '三年前，你拿到外地事务所的 offer，却偷偷拒了，留在林晚的城市。你从没告诉她。',
+        goal: '今晚把那句迟到三年的话说完，再求一次婚。',
+        note: '你提前三天订了 201 房。口袋里有一张戒指收据。你不知道林晚也有一封没寄出的信。'
+      },
+      her: {
+        key: 'her', icon: '📷', name: '林晚', age: 30, job: '摄影师',
+        public: '你是自由摄影师，最近接了一个外地驻留计划，犹豫要不要去。',
+        secret: '三年前你以为程野为你放弃了外地机会，于是也放弃了自己的驻留名额。你一直以为他不知道。',
+        goal: '把写了很久的第七封信交给他，问他愿不愿意一起去外地。',
+        note: '你的相机里有一卷没洗的底片。驻留计划的回复截止今晚 23:59。'
       }
     },
-    {
-      title: '第四幕 · 天亮', time: '8–10 分钟',
-      narration: '天快亮的时候，雨停了。周叔上楼来道歉，手里拿着 203 的钥匙。\n他说，那间房是给阿岚留的。照片、信、三年前的台风，全都有了答案。\n现在轮到你们，决定要不要把最后一句话说完。'
-    }
-  ],
-  truth: [
-    { icon: '✉️', title: '203 的信', text: '收件人是阿岚，落款是周叔。那不是给你们的信，是周叔写给亡妻的第七封信。' },
-    { icon: '📷', title: '旧照片', text: '照片里的女人是年轻时的阿岚。周叔每年都会在海边给她拍一张照。' },
-    { icon: '🎫', title: '两张票根', text: '程野的退票，林晚的驻留邮件。三年前，两个人都为对方放弃了一个机会，却都以为对方不知道。' },
-    { icon: '💌', title: '第七封信', text: '林晚写了很久，没寄。程野也写了一封，藏在枕头下。空信封不是有人偷走了信，是两个人都不敢先递出去。' }
-  ],
-  choices: {
-    peek: {
-      prompt: '你看到对方包里露出那封没寄出的信的一角。',
-      options: [
-        { id: 'peek', label: '拆开看', sub: '你会知道她没说出口的半句话，但信任 -10。', trust: -10, result: '信纸上只有一句：「我其实不想走。」你把信折回去，假装没看见。' },
-        { id: 'respect', label: '放回去，等TA自己说', sub: '信任 +6。', trust: 6, result: '你把信角塞回包里，拉好拉链。有些话，应该由她自己递给你。' },
-        { id: 'ask', label: '直接问', sub: '信任 +8。', trust: 8, result: '你问：「那封信，是写给我的吗？」她愣了一下，没有否认。' }
-      ]
+    locations: [
+      { id: 'living', name: '客厅', icon: '🛋️', desc: '沙发、茶几、留言本' },
+      { id: 'bedroom', name: '卧室', icon: '🛏️', desc: '床、枕头、行李箱' },
+      { id: 'bath', name: '浴室', icon: '🛁', desc: '镜柜、毛巾、窗台' },
+      { id: 'balcony', name: '阳台', icon: '🌿', desc: '栏杆、晾衣绳、海风' }
+    ],
+    clues: {
+      c1: { title: '空信封', p: null, loc: 'living', text: '桌上只剩一个空信封，收件人写着「程野 & 林晚」，邮戳是三年前的今天。' },
+      c2: { title: '两支笔', p: null, loc: 'living', text: '信封旁并排放着两支笔：一支黑色钢笔，一支绿色铅笔。笔帽都没盖。' },
+      c3: { title: '203 的钥匙', p: null, loc: 'bath', text: '前台抽屉里多出一把 203 的钥匙，房号被划掉又描了一遍。' },
+      c4: { title: '旧照片', p: null, loc: 'bath', text: '一张旧照片：年轻女人站在同一片海边，背面写着「阿岚，1998」。' },
+      c5: { title: '留言本', p: null, loc: 'living', text: '留言本上有一行被撕掉一半的字，只剩「如果那年我走了」。' },
+      c6: { title: '三年前的天气', p: null, loc: 'bath', text: '三年前今天的天气预报：台风橙色预警，去外地的最后一班车停运。' },
+      c7: { title: '戒指收据', p: 'him', loc: 'bedroom', text: '一张戒指收据，日期是今天，尺寸是林晚的。原来他本来打算今晚再求一次婚。' },
+      c8: { title: '驻留计划邮件', p: 'her', loc: 'balcony', text: '手机里的驻留计划邮件：外地六个月，回复截止今晚 23:59。' },
+      c9: { title: '撕掉的一页', p: null, loc: 'bedroom', text: '信封里有一页被撕掉的信，只剩半句：「我其实……」' },
+      c10: { title: '203 房里的信', p: null, loc: 'balcony', text: '203 房里的信，收件人不是你们，是「阿岚」。落款是周叔，日期是昨天。' },
+      c11: { title: '未使用的车票', p: 'him', loc: 'balcony', text: '一张三年前的车票，去外地，未使用，盖着退票章。' },
+      c12: { title: '没洗的底片', p: 'her', loc: 'bedroom', text: '相机里有一卷没洗的底片，最后一张是程野在三年前的车站睡着了。' }
     },
-    final: {
-      prompt: '天亮了。两封信都在桌上，第七封还没有写完。',
-      options: [
-        { id: 'say', label: '把两封信读出来', sub: '两个人都说出秘密，且信任 ≥60，才会走向「说开」。' },
-        { id: 'leave', label: '把信放回信封，等以后', sub: '留白结局。' },
-        { id: 'rewrite', label: '拿一张新纸，现场写第七封', sub: '信任 ≥50 时走向「重写」。' }
-      ]
+    acts: [
+      { title: '第一幕 · 入住', h: '201 房', time: '8–10 分钟', narration: '台风刚过，海边民宿有一股潮湿的木头味。周叔把钥匙递给程野：「201，你们三年前也住这间。」\n房门推开，桌上放着一个空信封。收件人写着你们的名字，邮戳是三年前的今天。\n林晚去开窗，程野把行李箱放在床边。谁都没有先说话。' },
+      { title: '第二幕 · 搜证', time: '12–15 分钟', narration: '雨又下起来，敲在玻璃上。你们决定找一找，那封信是不是被放错了房间。\n客厅、卧室、浴室、阳台——每找到一条线索，就离三年前那晚更近一点。' },
+      { title: '第三幕 · 停电', h: '黑暗里', time: '10–12 分钟', narration: '灯突然灭了。楼下传来周叔的声音：「保险丝烧了，别急——」\n黑暗把房间压得很小。你们只能听见彼此的呼吸，和雨。', questions: {
+        him: '问她：三年前台风那晚，你有没有后悔留在这里？',
+        her: '问他：如果我现在要去外地六个月，你会不会跟我走？'
+      }},
+      { title: '第四幕 · 天亮', h: '雨停了', time: '8–10 分钟', narration: '天快亮的时候，雨停了。周叔上楼来道歉，手里拿着 203 的钥匙。\n他说，那间房是给阿岚留的。照片、信、三年前的台风，全都有了答案。\n现在轮到你们，决定要不要把最后一句话说完。' }
+    ],
+    truth: [
+      { icon: '✉️', title: '203 的信', text: '收件人是阿岚，落款是周叔。那不是给你们的信，是周叔写给亡妻的第七封信。' },
+      { icon: '📷', title: '旧照片', text: '照片里的女人是年轻时的阿岚。周叔每年都会在海边给她拍一张照。' },
+      { icon: '🎫', title: '两张票根', text: '程野的退票，林晚的驻留邮件。三年前，两个人都为对方放弃了一个机会，却都以为对方不知道。' },
+      { icon: '💌', title: '第七封信', text: '林晚写了很久，没寄。程野也写了一封，藏在枕头下。空信封不是有人偷走了信，是两个人都不敢先递出去。' }
+    ],
+    choices: {
+      peek: {
+        title: '信角',
+        prompt: '你看到对方包里露出那封没寄出的信的一角。',
+        options: [
+          { id: 'peek', label: '拆开看', sub: '你会知道她没说出口的半句话，但信任 -10。', trust: -10, result: '信纸上只有一句：「我其实不想走。」你把信折回去，假装没看见。' },
+          { id: 'respect', label: '放回去，等TA自己说', sub: '信任 +6。', trust: 6, result: '你把信角塞回包里，拉好拉链。有些话，应该由她自己递给你。' },
+          { id: 'ask', label: '直接问', sub: '信任 +8。', trust: 8, result: '你问：「那封信，是写给我的吗？」她愣了一下，没有否认。' }
+        ]
+      },
+      final: {
+        title: '第七封信',
+        prompt: '天亮了。两封信都在桌上，第七封还没有写完。',
+        options: [
+          { id: 'say', label: '把两封信读出来', sub: '两个人都说出秘密，且信任 ≥60，才会走向「说开」。' },
+          { id: 'leave', label: '把信放回信封，等以后', sub: '留白结局。' },
+          { id: 'rewrite', label: '拿一张新纸，现场写第七封', sub: '信任 ≥50 时走向「重写」。' }
+        ]
+      }
+    },
+    endings: {
+      say: {
+        icon: '🌙', name: '说开', tag: '你们把最后一句话留在了天亮之前',
+        text: ['程野先读。他的声音很低，读到「我其实不想走」的时候停了一下。', '林晚没有抢着解释。她把自己的信推过去，说：「那我们一起走。」', '第七封信最后没有寄出去。它被夹进了相册，和那张旧照片放在一起。'],
+        quote: '有些秘密不是为了瞒住对方，是怕对方为自己留下。'
+      },
+      leave: {
+        icon: '⚖️', name: '留白', tag: '有些话还来得及，只是不是今晚',
+        text: ['你们把两封信重新装回信封，没有拆开。', '天亮之后，谁都没有提 203 房。周叔送你们到门口，说下次再来。', '车开上海边公路的时候，林晚把手放在程野手背上。那封信还在包里，像一颗没有拆开的糖。'],
+        quote: '留白不是结束，是把最后一句话留给下一次。'
+      },
+      rewrite: {
+        icon: '🔥', name: '重写', tag: '第七封信有了新的开头',
+        text: ['程野从抽屉里翻出一张干净的纸，林晚把笔递给他。', '这一次，两个人一起写。写到「明年」的时候，程野停笔，问：「你想写几个月？」', '信没有装进信封。它被贴在房间的留言板上，落款是两个人的名字。'],
+        quote: '过去那封信没有寄出去，但今晚这一封，不用寄。'
+      }
     }
   },
-  endings: {
-    say: {
-      icon: '🌙', name: '说开', tag: '你们把最后一句话留在了天亮之前',
-      text: [
-        '程野先读。他的声音很低，读到「我其实不想走」的时候停了一下。',
-        '林晚没有抢着解释。她把自己的信推过去，说：「那我们一起走。」',
-        '第七封信最后没有寄出去。它被夹进了相册，和那张旧照片放在一起。'
-      ],
-      quote: '有些秘密不是为了瞒住对方，是怕对方为自己留下。'
+
+  lasttrain: {
+    id: 'lasttrain', title: '凌晨两点的末班车', sub: '城市睡了，你们还没到站', minutes: 45, truthTitle: '谁在等谁',
+    roles: {
+      him: {
+        key: 'him', icon: '🎙️', name: '周屿', age: 33, job: '深夜电台主播',
+        public: '你和许棠在一起七年，最近一年分居两城。你每周五坐末班车去看她。',
+        secret: '你买了戒指，准备在终点站求婚；但三年前她说过「不结婚也可以」，你怕她不想。',
+        goal: '今晚问清楚：她到底想不想一起到站。',
+        note: '你的旧手机三年前丢在这条线上；里面有一段没听完的语音。'
+      },
+      her: {
+        key: 'her', icon: '🩰', name: '许棠', age: 31, job: '舞者 / 编舞',
+        public: '你和周屿在一起七年，最近一年他在另一座城市。你每周五等他坐末班车。',
+        secret: '你看中了一套房子，准备说「我们搬一起住吧」；但你怕他还没准备好定下来。',
+        goal: '今晚把那句「别再两头跑了」说出口。',
+        note: '三年前你在末班车上给他留过一条语音；他一直没有回。'
+      }
     },
-    leave: {
-      icon: '⚖️', name: '留白', tag: '有些话还来得及，只是不是今晚',
-      text: [
-        '你们把两封信重新装回信封，没有拆开。',
-        '天亮之后，谁都没有提 203 房。周叔送你们到门口，说下次再来。',
-        '车开上海边公路的时候，林晚把手放在程野手背上。那封信还在包里，像一颗没有拆开的糖。'
-      ],
-      quote: '留白不是结束，是把最后一句话留给下一次。'
+    locations: [
+      { id: 'car', name: '车厢', icon: '🚇', desc: '座椅下、扶手、车窗' },
+      { id: 'lost', name: '失物招领处', icon: '📦', desc: '纸箱、登记簿、旧物' },
+      { id: 'store', name: '站台便利店', icon: '🏪', desc: '关东煮、收银台、留言板' },
+      { id: 'bench', name: '站台长椅', icon: '🪑', desc: '长椅、售货机、末班车灯箱' }
+    ],
+    clues: {
+      t1: { title: '旧手机', p: null, loc: 'car', text: '座椅下有一部旧手机，屏幕裂了，锁屏是你们的合照。' },
+      t2: { title: '失物招领簿', p: null, loc: 'lost', text: '登记簿上写着：「旧手机，三年前 02:00 拾获，备注：有一段没听完的语音。」' },
+      t3: { title: '戒指收据', p: 'him', loc: 'bench', text: '一张戒指收据，尺寸是许棠的，日期是今天。' },
+      t4: { title: '租房链接', p: 'her', loc: 'store', text: '手机里的租房链接：两居室，离他的电台步行十分钟，备注「离他近一点」。' },
+      t5: { title: '三年前的末班车票', p: null, loc: 'car', text: '一张三年前的末班车票，起点是她所在的城市，终点是他要去的城市，未使用。' },
+      t6: { title: '电台节目稿', p: null, loc: 'bench', text: '他今晚的节目稿，最后一行写着：「如果你在听，终点站见。」' },
+      t7: { title: '舞团巡演海报', p: null, loc: 'store', text: '她三年前的舞团巡演海报，名字被划掉，旁边写着「不去了」。' },
+      t8: { title: '三次登记', p: null, loc: 'lost', text: '同一部旧手机在失物招领簿上被登记了三次，最后一次写着「无人认领」。' },
+      t9: { title: '便利店留言板', p: null, loc: 'store', text: '留言板上，三年前有人写：「如果末班车晚点，我就留下。」' },
+      t10: { title: '一枚游戏币', p: null, loc: 'car', text: '自动售货机里掉出一枚游戏币，和旧手机的挂绳系在一起。' },
+      t11: { title: '未听完的语音', p: 'him', loc: 'lost', text: '语音转文字：「如果你今晚在终点站等我，我就嫁给你。」发送时间：三年前 02:00。' },
+      t12: { title: '新家钥匙', p: 'her', loc: 'bench', text: '一把新钥匙，挂着「家」字。租房链接显示：离他的电台步行十分钟。' }
     },
-    rewrite: {
-      icon: '🔥', name: '重写', tag: '第七封信有了新的开头',
-      text: [
-        '程野从抽屉里翻出一张干净的纸，林晚把笔递给他。',
-        '这一次，两个人一起写。写到「明年」的时候，程野停笔，问：「你想写几个月？」',
-        '信没有装进信封。它被贴在房间的留言板上，落款是两个人的名字。'
-      ],
-      quote: '过去那封信没有寄出去，但今晚这一封，不用寄。'
+    acts: [
+      { title: '第一幕 · 末班车', h: '末班站台', time: '8–10 分钟', narration: '凌晨 1:58，站台只剩你们。她从另一头走来，手里拎着两杯便利店咖啡。\n广播说末班车晚点三分钟。你在长椅下看到一部旧手机，屏幕亮了一下。' },
+      { title: '第二幕 · 失物招领', time: '12–15 分钟', narration: '车到终点，你们没下车。车厢空了。\n你们决定在终点站找一找，那部旧手机是谁的。' },
+      { title: '第三幕 · 两点整', h: '广播停了', time: '10–12 分钟', narration: '车站灯灭了一半，广播只剩电流声。你们被困在站台。\n旧手机里有一段三年前的语音，还没播完。', questions: {
+        him: '问她：如果今晚末班车不停，你会不会跟我走？',
+        her: '问他：这七年，你有没有哪一次真的想下车？'
+      }},
+      { title: '第四幕 · 终点站', h: '广播报站', time: '8–10 分钟', narration: '灯重新亮起。旧手机、车票、戒指、钥匙，全都在长椅上。\n广播报出终点站名。' }
+    ],
+    truth: [
+      { icon: '📱', title: '旧手机', text: '三年前他丢在这条线上，锁屏是你们的合照。' },
+      { icon: '🎧', title: '未听完的语音', text: '三年前 2:00，她留言：「如果你今晚在终点站等我，我就嫁给你。」' },
+      { icon: '🎫', title: '两张票', text: '他买了去她城市的票；她买了去他城市的票。两个人都没上车。' },
+      { icon: '💍', title: '戒指和钥匙', text: '他买了戒指；她租了离他电台十分钟的房子。两个人都在等对方先开口。' }
+    ],
+    choices: {
+      peek: {
+        title: '旧手机',
+        prompt: '旧手机突然震动，屏幕上跳出三年前的语音条。',
+        options: [
+          { id: 'play', label: '点开语音', sub: '你会听到她的答案，也会知道自己错过了什么。', trust: -4, result: '语音只有 12 秒。她的声音很轻：「如果你今晚在终点站等我，我就嫁给你。」' },
+          { id: 'share', label: '把手机递给她，一起听', sub: '信任 +8。', trust: 8, result: '她把耳机分你一只。两个人在空站台听完 12 秒，谁都没有先说话。' },
+          { id: 'pocket', label: '先收起来，等她自己说', sub: '信任 +2。', trust: 2, result: '你把手机放进口袋。她看了你一眼，什么也没问。' }
+        ]
+      },
+      final: {
+        title: '终点站',
+        prompt: '广播说：终点站到了。你们还坐在长椅上，谁都没有站起来。',
+        options: [
+          { id: 'say', label: '一起下车，把语音听完', sub: '两个人都说出秘密，且信任 ≥60，才会走向「终点站」。' },
+          { id: 'leave', label: '各自换乘，明天再说', sub: '换乘结局。' },
+          { id: 'rewrite', label: '坐过站，直接去对方城市', sub: '信任 ≥50 时走向「坐过站」。' }
+        ]
+      }
+    },
+    endings: {
+      say: {
+        icon: '🌙', name: '终点站', tag: '这一次，你们一起下车',
+        text: ['周屿先站起来，把手伸给她。她握住，两个人一起走出车厢。', '站台的灯把影子拉得很长。他把戒指盒放在她手心，说：「这次不是问你要不要结婚，是问你愿不愿意跟我一起到站。」', '她把新钥匙挂到他钥匙扣上：「房子离你电台十分钟。以后别再坐末班车了。」'],
+        quote: '有些语音迟到三年，但终点站还在。'
+      },
+      leave: {
+        icon: '⚖️', name: '换乘', tag: '不是每班车都要今晚赶上',
+        text: ['你们在换乘通道分开。她往左，他往右，谁都没有回头。', '手机在口袋里又震了一下。他拿出来，看到她已经把那段语音转发给他，附了一句：「这次记得听。」', '下一班车进站，风把她的裙角吹起来。你们都知道，明天还会再见。'],
+        quote: '换乘不是错过，是给彼此留一条回来的路。'
+      },
+      rewrite: {
+        icon: '🔥', name: '坐过站', tag: '你们坐过了终点，也坐过了犹豫',
+        text: ['广播报出终点站的时候，你们同时站起来，又同时坐回去。', '「坐过站吧。」他说。她笑出声：「明天不上班？」「不上了。」', '你们真的坐过了终点。列车驶向下一座城市，窗外全是没关的灯。'],
+        quote: '偶尔坐过站，才知道身边这个人比目的地重要。'
+      }
+    }
+  },
+
+  sunday: {
+    id: 'sunday', title: '被偷走的周日', sub: '蛋糕少了一块，日历少了一页', minutes: 40, truthTitle: '周日去哪了',
+    roles: {
+      him: {
+        key: 'him', icon: '🎮', name: '陆呈', age: 30, job: '游戏策划',
+        public: '你连续加班两周，这个周日终于空出来。你什么都没跟沈知说。',
+        secret: '你偷偷推掉了周日的加班，订了郊外露营，想让她好好睡一觉再出发。',
+        goal: '今天别谈工作，带她出门。',
+        note: '你把露营订单藏在冰箱最上层；蛋糕是昨晚买的。'
+      },
+      her: {
+        key: 'her', icon: '🎨', name: '沈知', age: 29, job: '插画师',
+        public: '你赶完一个大稿，周日只想在家躺平。你也没跟陆呈说。',
+        secret: '你偷偷订了两人陶艺课，想让他休息一天；但你怕他觉得无聊。',
+        goal: '今天不出门也行，只要两个人一起。',
+        note: '陶艺课确认短信在手机里；你撕了日历，是想把今天藏起来。'
+      }
+    },
+    locations: [
+      { id: 'kitchen', name: '厨房', icon: '🍳', desc: '冰箱、蛋糕盒、日历' },
+      { id: 'living', name: '客厅', icon: '🛋️', desc: '沙发、共享日历、外卖袋' },
+      { id: 'bedroom', name: '卧室', icon: '🛏️', desc: '衣柜、手机、画稿' },
+      { id: 'entry', name: '门口', icon: '🚪', desc: '玄关、便签、露营装备' }
+    ],
+    clues: {
+      s1: { title: '撕掉的日历页', p: null, loc: 'kitchen', text: '冰箱上的日历被撕掉一页，背面写着「别加班」。' },
+      s2: { title: '蛋糕盒', p: null, loc: 'kitchen', text: '蛋糕少了一块，叉子上有一撮猫毛。' },
+      s3: { title: '露营订单', p: 'him', loc: 'kitchen', text: '冰箱最上层藏着一张郊外露营双人套餐订单，今天 15:00 出发。' },
+      s4: { title: '陶艺课确认', p: 'her', loc: 'bedroom', text: '手机里的陶艺课确认短信：今天 14:00，两人，已付款。' },
+      s5: { title: '猫爪印', p: null, loc: 'living', text: '从厨房一路到门口的猫爪印，爪尖沾着奶油。' },
+      s6: { title: '共享日历', p: null, loc: 'living', text: '两人的共享日历被误删了周日，操作人显示「陆呈」。' },
+      s7: { title: '外卖小票', p: null, loc: 'living', text: '凌晨 2 点的炸鸡小票，备注：「加班别饿着。」' },
+      s8: { title: '邻居便签', p: null, loc: 'entry', text: '门口便签：「猫又跑你们家了，帮我留门。—— 302」' },
+      s9: { title: '露营装备', p: null, loc: 'entry', text: '玄关的帐篷和睡袋已经打包好，背包上贴着「周日别叫我」的贴纸。' },
+      s10: { title: '陶艺围裙', p: null, loc: 'bedroom', text: '衣柜里两件新围裙，吊牌没剪，一大一小。' },
+      s11: { title: '手机备忘录', p: 'him', loc: 'entry', text: '备忘录：「周日计划：14:00 陶艺？还是露营？先别告诉她。」' },
+      s12: { title: '草稿纸', p: 'her', loc: 'bedroom', text: '草稿纸上画着一家三口和一只猫，旁边写着「今天不出门」。' }
+    },
+    acts: [
+      { title: '第一幕 · 周日早上', h: '日历少了一页', time: '8–10 分钟', narration: '闹钟没响。你醒来的时候，阳光已经晒到床尾。\n冰箱上的日历少了一页，昨晚的蛋糕少了一块。沈知站在厨房门口，陆呈从玄关探出头。\n「你吃的？」「不是你吗？」' },
+      { title: '第二幕 · 家里搜证', time: '10–12 分钟', narration: '周日不可能凭空消失。你们决定把家里翻一遍。\n厨房、客厅、卧室、门口——猫毛、订单、围裙，越找越不像普通的周日。' },
+      { title: '第三幕 · 门铃响了', h: '302 的猫', time: '8–10 分钟', narration: '门铃响了。302 的邻居抱着猫站在门口，外卖员拎着一袋凌晨的炸鸡。\n猫嘴里叼着被撕掉的日历页，尾巴一甩，溜进了卧室。', questions: {
+        him: '问她：如果今天什么都不做，你会不会觉得浪费？',
+        her: '问他：你最近一次真正休息，是什么时候？'
+      }},
+      { title: '第四幕 · 晚上', h: '天黑了', time: '8–10 分钟', narration: '天黑了。露营订单和陶艺课都还在手机里，猫在窗台上打哈欠。\n这个周日没有丢，只是被两个人各自藏了一半。' }
+    ],
+    truth: [
+      { icon: '🐱', title: '猫', text: '邻居的猫从阳台进来，撕了日历、吃了蛋糕，还把爪印留了一路。' },
+      { icon: '⛺', title: '两个惊喜', text: '他订了露营，她订了陶艺课，都定在下午。两个人都想给对方一个不用加班的周日。' },
+      { icon: '📅', title: '共享日历', text: '他误删周日，想「给她一个没有安排的早晨」；她撕了日历，想「把今天藏起来」。' },
+      { icon: '🖍️', title: '草稿纸', text: '她画的全家福；他想说的「以后每个周日都这样」。' }
+    ],
+    choices: {
+      peek: {
+        title: '猫嘴里',
+        prompt: '邻居的猫蹲在门口，嘴里叼着被撕掉的日历页。',
+        options: [
+          { id: 'chase', label: '先追猫', sub: '信任 +6。', trust: 6, result: '猫蹿进邻居家，邻居笑：「它常来你们家，叼过好几次纸。」日历页被追回来了，上面写着「别加班」。' },
+          { id: 'phone', label: '先看对方手机', sub: '你会提前知道惊喜，但信任 -8。', trust: -8, result: '你看到陶艺课和露营订单，两个人都愣住了。惊喜被拆穿，但至少不用再猜。' },
+          { id: 'cake', label: '先把蛋糕吃完', sub: '信任 +4。', trust: 4, result: '两个人坐在地上把剩下的蛋糕分完。猫自己回来了，蹲在空盘子旁边看你们。' }
+        ]
+      },
+      final: {
+        title: '这个周日',
+        prompt: '下午两点了。露营订单和陶艺课都还在手机里。猫在窗台上打哈欠。',
+        options: [
+          { id: 'say', label: '把两个惊喜都说出来，重新排一天', sub: '两个人都说出秘密，且信任 ≥60，才会走向「找回周日」。' },
+          { id: 'leave', label: '算了，今天就在家躺着', sub: '改天再约结局。' },
+          { id: 'rewrite', label: '现在出门，两个都迟到', sub: '信任 ≥50 时走向「把今天过成周日」。' }
+        ]
+      }
+    },
+    endings: {
+      say: {
+        icon: '🌙', name: '找回周日', tag: '这个周日没有丢，只是换了个过法',
+        text: ['你们把露营帐篷支在客厅，陶艺课改到晚上。猫钻进帐篷，占了一个角落。', '陆呈把睡袋铺好，沈知把两件围裙挂在帐篷门口。谁都没有提加班。', '天黑的时候，你们真的在客厅露营了一次。猫睡在中间，呼噜声像一台小发电机。'],
+        quote: '周日不是用来完成计划的，是用来和谁一起浪费的。'
+      },
+      leave: {
+        icon: '⚖️', name: '改天再约', tag: '今天先休息，改天再出门',
+        text: ['你们把帐篷收回去，把围裙挂回衣柜。蛋糕吃完，猫睡着，两个人也睡着了。', '醒来的时候天已经黑了。陆呈说：「下周？」沈知说：「下周。」', '这个周日没有丢，只是慢了一点。'],
+        quote: '改天不是敷衍，是把今天先留给彼此。'
+      },
+      rewrite: {
+        icon: '🔥', name: '把今天过成周日', tag: '两个都迟到，但两个都去了',
+        text: ['你们同时出门。一个背着帐篷，一个拎着围裙，在楼下拦了同一辆出租车。', '陶艺课迟到了二十分钟，露营也错过了日落。但你们在陶艺教室的院子里支起了帐篷。', '老师看了一会儿，说：「你们这个周日，过得挺忙。」'],
+        quote: '计划撞车的时候，就把两辆车都开出去。'
+      }
     }
   }
 };
 
-/* ===== V16 状态 ===== */
+var V16_SCRIPT = V16_SCRIPTS.letter7;
+
+function v16Use(id) {
+  V16_SCRIPT = V16_SCRIPTS[id] || V16_SCRIPTS.letter7;
+  return V16_SCRIPT;
+}
+function v16DoneGet() {
+  try { var a = JSON.parse(localStorage.getItem('couple-scriptdone') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
+function v16DoneAdd(id) {
+  try {
+    var a = v16DoneGet();
+    if (a.indexOf(id) < 0) { a.push(id); localStorage.setItem('couple-scriptdone', JSON.stringify(a)); }
+  } catch (e) {}
+}
+function v16BookList() {
+  var done = v16DoneGet();
+  return Object.keys(V16_SCRIPTS).map(function (id) {
+    var B = V16_SCRIPTS[id];
+    return { id: id, title: B.title, sub: B.sub, minutes: B.minutes, done: done.indexOf(id) >= 0 };
+  });
+}
+
+/* V16 script core */
+/* ===== V16 状态 / 入口 ===== */
 function v16Default() {
   return {
     d: v11Today(), id: 'letter7', scale: 'soft', act: 0, beat: 'role',
@@ -7932,6 +8128,7 @@ function v16Norm(S) {
   var D = v16Default();
   if (!S || typeof S !== 'object') return D;
   Object.keys(D).forEach(function (k) { if (S[k] === undefined) S[k] = D[k]; });
+  if (!V16_SCRIPTS[S.id]) S.id = 'letter7';
   if (!S.secrets || typeof S.secrets !== 'object') S.secrets = { him: null, her: null };
   if (!S.roleRead || typeof S.roleRead !== 'object') S.roleRead = {};
   if (!S.questions || typeof S.questions !== 'object') S.questions = {};
@@ -7947,7 +8144,8 @@ function v16Get() {
   try {
     var S = JSON.parse(localStorage.getItem('couple-script') || 'null');
     if (!S || S.d !== v11Today()) return null;
-    return v16Norm(S);
+    S = v16Norm(S); v16Use(S.id);
+    return S;
   } catch (e) { return null; }
 }
 function v16Save(S) { try { localStorage.setItem('couple-script', JSON.stringify(S)); } catch (e) {} }
@@ -7960,50 +8158,77 @@ function v16LocClues(loc) {
 }
 function v16ActTitle(n) { return (V16_SCRIPT.acts[n] || V16_SCRIPT.acts[0]).title; }
 
-/* ===== 入口 / 开局 ===== */
+/* ===== 入口：三本任选 ===== */
 function v16Intro() {
   if (v16Active()) { v16Show(); return; }
-  var done = false; try { var S = v16Get(); done = !!(S && S.fin); } catch (e) {}
+  v16BookShelf();
+}
+function v16BookShelf() {
+  var list = v16BookList();
+  var cards = list.map(function (b) {
+    return '<div class="script-book-card">'
+      + '<div class="script-book-head"><b>《' + b.title + '》</b>' + (b.done ? '<span class="script-book-badge">已通关</span>' : '') + '</div>'
+      + '<div class="script-book-sub">' + b.sub + ' · 约 ' + b.minutes + ' 分钟</div>'
+      + '<div class="script-book-actions">'
+      + '<button onclick="v16ChooseScale(\'' + b.id + '\',\'soft\')">🌙 氛围版</button>'
+      + '<button onclick="v16ChooseScale(\'' + b.id + '\',\'hot\')">🔥 热辣版</button>'
+      + '</div></div>';
+  }).join('');
+  var last = v16Get();
+  var lastHtml = '';
+  if (last && last.fin && V16_SCRIPTS[last.id]) {
+    lastHtml = '<button class="wheel-btn back" onclick="v16ShowEnding()">📖 重看上次结局（' + V16_SCRIPTS[last.id].title + '）</button>';
+  }
   openModal('<h3>🕵️ 剧本之夜</h3>'
-    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.85">'
-    + '<b>《失踪的第七封信》</b><br>'
-    + '4 幕 · 约 45 分钟 · 双人情感悬疑<br>'
-    + '你们是结婚三年的夫妻，回到第一次旅行的海边民宿。一封写给你们的信不见了，桌上只剩一个空信封。'
-    + '<br><span style="font-size:12px;color:#ffd166">所有角色和秘密都是虚构的，不翻真实旧账；任何一方说停就停。</span>'
-    + '<br><span style="font-size:12px;color:#aaa">' + (done ? '今晚已通关，可再走一次。' : '读完角色本、搜证、做选择，最后会走向 3 种结局之一。') + '</span></div>'
-    + '<div class="wheel-btns" style="display:block">'
-    + (done ? '<button class="wheel-btn back" onclick="v16ShowEnding()">📖 重看结局</button>' : '')
-    + '<button class="wheel-btn spin" onclick="v16ChooseScale(\'soft\')">🌙 氛围版 · 开始</button>'
-    + '<button class="wheel-btn back" onclick="v16ChooseScale(\'hot\')">🔥 热辣版 · 开始</button>'
-    + '<button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
+    + '<div class="m-item" style="font-size:12px;line-height:1.8;color:#b9b0d0;flex-direction:column;align-items:flex-start">三本任选，每本 4 幕、约 40–45 分钟。<br>所有角色和秘密都是虚构的，不翻真实旧账；任何一方说停就停。</div>'
+    + '<div class="script-shelf">' + cards + '</div>'
+    + '<div class="wheel-btns" style="display:block">' + lastHtml + '<button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
 }
-function v16ShowEnding() {
-  try { closeModal(); } catch (e) {}
+function v16SwitchBook() {
+  if (!v16Active()) { v16BookShelf(); return; }
   var S = v16Get();
-  if (!S || !S.fin) { v16Intro(); return; }
-  if (S.ending) { S.beat = 'ending'; v16Save(S); }
-  window._v16Script = true; v16EnsurePage(); showPage('scriptPage'); v16Render();
+  var title = S && V16_SCRIPTS[S.id] ? V16_SCRIPTS[S.id].title : (S ? V16_SCRIPT.title : '本场');
+  openModal('<h3>📚 换一本？</h3><div class="m-item" style="font-size:14px;line-height:1.9">《' + title + '》还没走完。<br>换一本会清空本场进度，已通关记录会保留。</div>'
+    + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v16DropBook()">换一本</button>'
+    + '<button class="wheel-btn back" onclick="closeModal()">继续本场</button></div>');
 }
-function v16ChooseScale(scale) {
+function v16DropBook() {
+  try { localStorage.removeItem('couple-script'); } catch (e) {}
+  try { closeModal(); } catch (e) {}
+  v16BookShelf();
+}
+function v16ChooseScale(id, scale) {
+  if (scale === undefined || scale === null) {
+    if (id === 'soft' || id === 'hot') { scale = id; id = 'letter7'; }
+    else { scale = 'soft'; }
+  }
+  if (!V16_SCRIPTS[id]) id = 'letter7';
+  window._v16Pick = id;
   if (scale === 'hot' && SET.limit) {
+    var B = V16_SCRIPTS[id];
     openModal('<h3>🛑 热辣版底线清单</h3>'
       + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.95">'
+      + '<b>《' + B.title + '》</b><br>'
       + '· 任何一方说停就停，不需要理由<br>'
       + '· 不拍、不录、不传播<br>'
       + '· 束缚和玩具随时可以解开，先约定安全词<br>'
       + '· 只在私密、可控的空间，不打扰邻居<br>'
       + '· 不窒息、不见血、不留下伤害'
       + '<br><span style="font-size:12px;color:#aaa">剧本里的秘密都是虚构角色；热辣版只会抽更高强度的现有任务，跳过不影响剧情。</span></div>'
-      + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();v16New(\'hot\')">✅ 我们确认，开始</button>'
-      + '<button class="wheel-btn back" onclick="closeModal();v16New(\'soft\')">🌙 换成氛围版</button></div>');
+      + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="closeModal();v16New(\'hot\',\'' + id + '\')">✅ 我们确认，开始</button>'
+      + '<button class="wheel-btn back" onclick="closeModal();v16New(\'soft\',\'' + id + '\')">🌙 换成氛围版</button></div>');
     return;
   }
-  v16New(scale);
+  v16New(scale, id);
 }
-function v16New(scale) {
+function v16New(scale, id) {
   try { closeModal(); } catch (e) {}
   if (scale !== 'hot') scale = 'soft';
-  var S = v16Default(); S.scale = scale; v16Save(S);
+  if (!V16_SCRIPTS[id]) {
+    id = (window._v16Pick && V16_SCRIPTS[window._v16Pick]) ? window._v16Pick : 'letter7';
+  }
+  v16Use(id);
+  var S = v16Default(); S.id = id; S.scale = scale; v16Save(S);
   try { if (!nightStarted()) nightSave({ d: v11Today() }); } catch (e) {}
   try { var ST = storyGet(); ST.on = false; ST.run = false; storySave(ST); } catch (e) {}
   try { v12ChainReset(); } catch (e) {}
@@ -8020,10 +8245,19 @@ function v16EnsurePage() {
 function v16Show() {
   var S = v16Get();
   if (!S) { v16Intro(); return; }
+  v16Use(S.id);
   window._v16Script = true;
   v16EnsurePage();
   showPage('scriptPage');
   v16Render();
+}
+function v16ShowEnding() {
+  try { closeModal(); } catch (e) {}
+  var S = v16Get();
+  if (!S || !S.fin) { v16Intro(); return; }
+  v16Use(S.id);
+  if (S.ending) { S.beat = 'ending'; v16Save(S); }
+  window._v16Script = true; v16EnsurePage(); showPage('scriptPage'); v16Render();
 }
 function v16Leave() {
   try { closeModal(); } catch (e) {}
@@ -8032,14 +8266,14 @@ function v16Leave() {
 }
 function v16RestartAsk() {
   var S = v16Get(); if (!S) { v16Intro(); return; }
-  openModal('<h3>↻ 重新开始本场？</h3><div class="m-item" style="font-size:14px;line-height:1.8">当前进度会清空，从第一幕重新开始。</div>'
+  openModal('<h3>↻ 重新开始本场？</h3><div class="m-item" style="font-size:14px;line-height:1.8">《' + V16_SCRIPT.title + '》当前进度会清空，从第一幕重新开始。</div>'
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v16RestartNow()">重新开始</button>'
     + '<button class="wheel-btn back" onclick="closeModal()">继续本场</button></div>');
 }
 function v16RestartNow() {
-  var S = v16Get(); var scale = S ? S.scale : 'soft';
+  var S = v16Get(); var scale = S ? S.scale : 'soft'; var id = S ? S.id : 'letter7';
   try { closeModal(); } catch (e) {}
-  v16New(scale);
+  v16New(scale, id);
 }
 
 /* V16 script engine */
@@ -8082,7 +8316,7 @@ function v16Render() {
     + '<span onclick="v16RestartAsk()">↻ 重开</span>'
     + '</div>'
     + stage
-    + '<div class="script-foot">🛑 任何一方说停就停 · 剧本里的秘密都是虚构角色</div>'
+    + '<div class="script-foot">🛑 任何一方说停就停 · 剧本里的秘密都是虚构角色 · <span class="script-link" onclick="v16SwitchBook()">📚 换一本</span></div>'
     + '</div>';
 }
 
@@ -8119,7 +8353,7 @@ function v16PrivDone() {
 /* ===== 第一幕：角色本 ===== */
 function v16StageRole(S) {
   var rH = !!S.roleRead.him, rE = !!S.roleRead.her;
-  var html = '<div class="script-card"><div class="script-kicker">第一幕 · 入住</div><h2>201 房</h2><p>' + v16Nl(V16_SCRIPT.acts[0].narration) + '</p></div>';
+  var html = '<div class="script-card"><div class="script-kicker">' + V16_SCRIPT.acts[0].title + '</div><h2>' + (V16_SCRIPT.acts[0].h || V16_SCRIPT.acts[0].title) + '</h2><p>' + v16Nl(V16_SCRIPT.acts[0].narration) + '</p></div>';
   html += '<div class="script-card"><div class="script-kicker">角色本</div><p class="script-small">两个人分开读。把手机递给对方，看完再换人。</p>'
     + '<div class="script-grid2">'
     + v16RoleBtn('him', rH)
@@ -8205,7 +8439,7 @@ function v16KeepClue(id) {
 /* ===== 第二幕：搜证 ===== */
 function v16StageSearch(S) {
   var done = S.searchCount || 0;
-  var html = '<div class="script-card"><div class="script-kicker">第二幕 · 搜证</div><h2>四个地方</h2><p>' + v16Nl(V16_SCRIPT.acts[1].narration) + '</p></div>';
+  var html = '<div class="script-card"><div class="script-kicker">' + V16_SCRIPT.acts[1].title + '</div><h2>四个地方</h2><p>' + v16Nl(V16_SCRIPT.acts[1].narration) + '</p></div>';
   html += '<div class="script-loc-grid">';
   V16_SCRIPT.locations.forEach(function (l) {
     var searched = !!S.searched[l.id];
@@ -8303,7 +8537,7 @@ function v16TaskSkip() {
 /* ===== 第三幕：停电 / 选择 ===== */
 function v16StageAct2(S) {
   var qh = !!S.questions.him, qe = !!S.questions.her;
-  return '<div class="script-card"><div class="script-kicker">第三幕 · 停电</div><h2>黑暗里</h2><p>' + v16Nl(V16_SCRIPT.acts[2].narration) + '</p></div>'
+  return '<div class="script-card"><div class="script-kicker">' + V16_SCRIPT.acts[2].title + '</div><h2>' + (V16_SCRIPT.acts[2].h || V16_SCRIPT.acts[2].title) + '</h2><p>' + v16Nl(V16_SCRIPT.acts[2].narration) + '</p></div>'
     + '<div class="script-card"><div class="script-kicker">只给你看的问题</div>'
     + '<p class="script-small">每个人拿一个问题，问出口，然后听对方回答。不用在 App 里输入。</p>'
     + '<div class="script-grid2">'
@@ -8325,7 +8559,7 @@ function v16AskQuestion(who) {
 }
 function v16StageChoice(S) {
   var C = V16_SCRIPT.choices.peek;
-  var html = '<div class="script-card"><div class="script-kicker">关键选择</div><h2>信角</h2><p>' + C.prompt + '</p>'
+  var html = '<div class="script-card"><div class="script-kicker">关键选择</div><h2>' + (C.title || '关键选择') + '</h2><p>' + C.prompt + '</p>'
     + '<div class="script-choices">';
   C.options.forEach(function (o) {
     html += '<button class="script-choice" onclick="v16PickPeek(\'' + o.id + '\')"><b>' + o.label + '</b><span>' + o.sub + '</span></button>';
@@ -8353,11 +8587,11 @@ function v16StageChoiceResult(S) {
 
 /* ===== 第四幕：真相 ===== */
 function v16StageAct3(S) {
-  return '<div class="script-card"><div class="script-kicker">第四幕 · 天亮</div><h2>雨停了</h2><p>' + v16Nl(V16_SCRIPT.acts[3].narration) + '</p>'
+  return '<div class="script-card"><div class="script-kicker">' + V16_SCRIPT.acts[3].title + '</div><h2>' + (V16_SCRIPT.acts[3].h || V16_SCRIPT.acts[3].title) + '</h2><p>' + v16Nl(V16_SCRIPT.acts[3].narration) + '</p>'
     + '<button class="script-btn primary" onclick="v16SetBeat(\'truth\')">▶ 把线索拼起来</button></div>';
 }
 function v16StageTruth(S) {
-  var html = '<div class="script-card"><div class="script-kicker">真相</div><h2>那封信去了哪里</h2>';
+  var html = '<div class="script-card"><div class="script-kicker">真相</div><h2>' + (V16_SCRIPT.truthTitle || '真相') + '</h2>';
   V16_SCRIPT.truth.forEach(function (t) {
     html += '<div class="script-truth"><div class="ic">' + t.icon + '</div><div><b>' + t.title + '</b><p>' + t.text + '</p></div></div>';
   });
@@ -8404,7 +8638,7 @@ function v16SetSecret(who, val) {
 }
 function v16StageFinal(S) {
   var C = V16_SCRIPT.choices.final;
-  var html = '<div class="script-card"><div class="script-kicker">最后的选择</div><h2>第七封信</h2><p>' + C.prompt + '</p>'
+  var html = '<div class="script-card"><div class="script-kicker">最后的选择</div><h2>' + (C.title || '最后的选择') + '</h2><p>' + C.prompt + '</p>'
     + '<div class="script-choices">';
   C.options.forEach(function (o) {
     html += '<button class="script-choice" onclick="v16Final(\'' + o.id + '\')"><b>' + o.label + '</b><span>' + o.sub + '</span></button>';
@@ -8422,7 +8656,8 @@ function v16Final(id) {
   var both = !!(S.secrets.him && S.secrets.her);
   S.choices.final = id; S.ending = v16EndingKey(id, both, S.trust);
   S.fin = true; S.beat = 'ending'; v16Save(S); v16Render();
-  try { logEvent('🕵️ 剧本之夜 · ' + V16_SCRIPT.endings[S.ending].name); } catch (e) {}
+  try { v16DoneAdd(S.id); } catch (e) {}
+  try { logEvent('🕵️ 剧本之夜《' + V16_SCRIPT.title + '》· ' + V16_SCRIPT.endings[S.ending].name); } catch (e) {}
   try { v12SyncHome(); } catch (e) {}
   try { v12Fx.burst(innerWidth / 2, innerHeight * 0.4, 55); } catch (e) {}
 }
