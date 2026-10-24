@@ -2216,8 +2216,8 @@ function goHome(){
 function renderHome(){
   heatCheck(); /* V9: 一晚制升温线, 每早自动归零 */
   incognitoSweep(); /* V9: 无痕模式 */
-  if(!nightStarted()){setTimeout(function(){try{if(nightStarted())return;var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showNightIntro();}catch(e){}},400);} /* V9: 开场三步(有弹窗时不打扰) */
-  if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(function(){try{var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showOnboard();}catch(e){}},600);} /* V2: 首次打开新手引导(有弹窗时不打扰) */
+  if(!nightStarted()){setTimeout(function(){try{if(nightStarted())return;if(typeof v15RunActive==='function'&&v15RunActive())return;var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showNightIntro();}catch(e){}},400);} /* V9: 开场三步(有弹窗时不打扰) */
+  if(!(function(){try{return localStorage.getItem('couple-onboarded')}catch(e){return '1'}})()){setTimeout(function(){try{if(typeof v15RunActive==='function'&&v15RunActive())return;var _m=document.getElementById('modalMask');if(_m&&_m.classList.contains('show'))return;showOnboard();}catch(e){}},600);} /* V2: 首次打开新手引导(有弹窗时不打扰) */
   var last=(function(){try{return localStorage.getItem('couple-last')}catch(e){return null}})();
   var h='';GAMES.forEach(function(g){
     if(g.hidden)return;
@@ -5793,7 +5793,7 @@ function v12SyncHome() {
   var sub = document.getElementById('v12Sub');
   if (sub) {
     var _run = null; try { _run = v15Get(); } catch (e) {}
-    if (_run && !_run.finished) sub.textContent = '🗺️ 今夜地图 · ' + V15_CH[_run.ch].name + ' · 下一层 第' + Math.min(6, _run.layer + 1) + '层';
+    if (_run && !_run.finished && _run.ch >= 0 && _run.ch < 3) sub.textContent = '🗺️ 今夜地图 · ' + V15_CH[_run.ch].name + ' · 下一层 第' + Math.min(6, _run.layer + 1) + '层';
     else sub.textContent = v12NightOn() ? ('今晚进行中 · ' + heatStageName() + ' · 已完成 ' + v12PartyTasks() + ' 条任务') : '今晚还没开局 · 温度从零开始';
   }
   try{
@@ -7225,7 +7225,7 @@ var V15_THEMES = {
   hotel: { icon: '🏨', name: '酒店之夜', desc: '商店 9 折 · Boss 奖励 +10%', shop: 0.9, boss: 1.1 },
   home: { icon: '🏠', name: '居家之夜', desc: '篝火额外 +1 精力', rest: 3 },
   rain: { icon: '🌧️', name: '雨夜', desc: '事件更多 · 自动雨声', event: 1 },
-  anni: { icon: '🎉', name: '纪念日', desc: '所有奖励 +20%', reward: 1.2 }
+  anni: { icon: '🎉', name: '纪念日', desc: '地图奖励 +20%', reward: 1.2 }
 };
 var V15_CH = [
   { name: '第一章 · 试探', sub: '把灯调暗一点', goal: 4, pools: ['truth', 'dice', 'choice', 'rps', 'bomb', 'grid'], weights: { task: 5, event: 2, shop: 1.5, rest: 1.5 } },
@@ -7312,6 +7312,7 @@ function v15NewRun() {
   v15Save(S);
   try { var E = energyGet(); E.v = Math.max(E.v, 8); energySave(E); } catch (e) {}
   coinAdd(Math.round(20 * v15Mult(S)));
+  try { if (!nightStarted()) nightSave({ d: v11Today() }); } catch (e) {}
   try { v12IdOnGameStart(); } catch (e) {}
   if (theme === 'rain' && (!SET.ambient || SET.ambient === 'off') && !SET.quiet) {
     try { setOpt('ambient', 'rain'); ambApply(); } catch (e) {}
@@ -7510,9 +7511,10 @@ function v15RollDuel() {
   } catch (e) {}
   setTimeout(function () {
     var msg = document.getElementById('v15DuelMsg');
+    if (!msg) return;
     var win = a > b ? HE.him : (b > a ? HE.her : '平局');
     if (a !== b) { coinAdd(5); try { energyAdd(1); } catch (e) {} }
-    if (msg) msg.innerHTML = HE.him + ' ' + a + ' 点 · ' + HE.her + ' ' + b + ' 点<br>' + (a === b ? '平局，不计胜负' : '🏆 ' + win + ' 赢 +5 币 +1 精力');
+    msg.innerHTML = HE.him + ' ' + a + ' 点 · ' + HE.her + ' ' + b + ' 点<br>' + (a === b ? '平局，不计胜负' : '🏆 ' + win + ' 赢 +5 币 +1 精力');
     try { sndDing(); vibrate([30, 20, 40]); } catch (e) {}
     var box = document.querySelector('#modalBox .wheel-btns');
     if (box) box.insertAdjacentHTML('afterbegin', '<button class="wheel-btn spin" onclick="closeModal();v15AfterNode(window._v15Node,\'对决结束\')">✅ 继续</button>');
@@ -7544,6 +7546,7 @@ function v15ShopBuy(k) {
     toast('🎴 获得道具卡 +1');
   } else if (k === 'energy') { energyAdd(2); toast('⚡ 精力 +2'); }
   else { S.intel = 1; v15Save(S); toast('🔍 情报：下一层已可见'); }
+  try { v15Render(); } catch (e) {}
   v15ShopRender();
 }
 /* --- 事件 --- */
@@ -7559,7 +7562,8 @@ var V15_EVENTS = [
 ];
 function v15EventNode(n) {
   window._v15Node = n;
-  var e = V15_EVENTS[Math.floor(Math.random() * V15_EVENTS.length)];
+  var pool = V15_EVENTS.filter(function (e) { return e.fx !== 'drink' || SET.drink; });
+  var e = pool[Math.floor(Math.random() * pool.length)] || V15_EVENTS[0];
   try {
     if (e.fx === 'coins') coinAdd(e.n);
     else if (e.fx === 'energy') energyAdd(e.n);
