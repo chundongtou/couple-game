@@ -7247,6 +7247,16 @@ function v15Get() {
 function v15Save(S) { try { localStorage.setItem('couple-run', JSON.stringify(S)); } catch (e) {} }
 function v15RunActive() { var S = v15Get(); return !!(S && !S.finished && S.ch >= 0 && S.map && S.map.length === 3 && S.map[S.ch]); }
 function v15Theme(S) { return V15_THEMES[S.theme] || V15_THEMES.rain; }
+function v15NightTheme() {
+  try {
+    var T = JSON.parse(localStorage.getItem('couple-nighttheme') || '{}');
+    if (T.d === v11Today() && V15_THEMES[T.theme]) return T.theme;
+    var ks = Object.keys(V15_THEMES);
+    var th = ks[Math.floor(Math.random() * ks.length)];
+    localStorage.setItem('couple-nighttheme', JSON.stringify({ d: v11Today(), theme: th }));
+    return th;
+  } catch (e) { return 'rain'; }
+}
 function v15Mult(S) { var t = v15Theme(S); return t.reward || 1; }
 function v15GenMap(theme) {
   var map = [];
@@ -7285,7 +7295,7 @@ function v15EnsurePage() {
 function v15Intro() {
   if (v15RunActive()) { v15Show(); return; }
   openModal('<h3>🗺️ 今夜地图</h3>'
-    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">3 章 × 6 节点（共 18 节点），每层自由选相邻节点。<br>任务 / 对决 / 商店 / 事件 / 篝火 / 精英 / Boss，资源和仪式都接入。<br><span style="font-size:12px;color:#aaa">题库完全复用，随时可回大厅玩自由模式。</span></div>'
+    + '<div class="m-item" style="flex-direction:column;align-items:flex-start;line-height:1.9">3 章 × 6 节点（共 18 节点），每层自由选相邻节点。<br>任务 / 对决 / 商店 / 事件 / 篝火 / 精英 / Boss，资源和仪式都接入。<br><span style="font-size:12px;color:#ffd166">每晚随机主题：🏨酒店 / 🏠居家 / 🌧️雨夜 / 🎉纪念日</span><br><span style="font-size:12px;color:#aaa">题库完全复用，随时可回大厅玩自由模式。</span></div>'
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15StartFlow()">▶ 生成今晚地图</button><button class="wheel-btn back" onclick="closeModal()">稍后</button></div>');
 }
 function v15StartFlow() {
@@ -7303,8 +7313,7 @@ function v15StartFlow() {
 }
 function v15NewRun() {
   try { closeModal(); } catch (e) {}
-  var themes = Object.keys(V15_THEMES);
-  var theme = themes[Math.floor(Math.random() * themes.length)];
+  var theme = v15NightTheme();
   var S = {
     d: v11Today(), theme: theme, ch: 0, layer: 1, done: 0, skips: 0,
     path: ['0-0-0'], map: v15GenMap(theme), finished: false, intel: 0, startAt: Date.now()
@@ -7314,6 +7323,7 @@ function v15NewRun() {
   coinAdd(Math.round(20 * v15Mult(S)));
   try { if (!nightStarted()) nightSave({ d: v11Today() }); } catch (e) {}
   try { v12IdOnGameStart(); } catch (e) {}
+  try { v12ChainReset(); } catch (e) {}
   if (theme === 'rain' && (!SET.ambient || SET.ambient === 'off') && !SET.quiet) {
     try { setOpt('ambient', 'rain'); ambApply(); } catch (e) {}
   }
@@ -7368,7 +7378,8 @@ function v15Render() {
   }
   h += '</div><div class="run-tip">' + (S.layer > 5 ? '章节已完成' : '点击发光的节点，选择今晚的下一步') + '</div>';
   if (S.skips > 0) h += '<div class="run-warn">连续跳过 ' + S.skips + '/3 次会触发强制休息</div>';
-  h += '<div class="run-tip" style="margin-top:16px;text-decoration:underline" onclick="v15FreeMode()">🎲 不想走地图？回大厅玩自由模式</div>';
+  h += '<div class="run-tip" style="margin-top:10px;color:#9a8fb5">🛑 任何一方说停就停 · 安全词优先</div>';
+  h += '<div class="run-tip" style="margin-top:10px;text-decoration:underline" onclick="v15FreeMode()">🎲 不想走地图？回大厅玩自由模式</div>';
   h += '</div>';
   body.innerHTML = h;
   var t = document.getElementById('runTitle'); if (t) t.textContent = '🗺️ 今夜地图';
@@ -7606,13 +7617,12 @@ function v15BossNode(n) {
 function v15BossRound() {
   var B = window._v15Boss, S = v15Get(); if (!B || !S) return;
   if (B.done >= 2) { v15BossPass(); return; }
-  var who = B.done === 0 ? HE.him : HE.her;
   var A = V15_CH[S.ch];
   var met = (S.done || 0) >= A.goal;
   var t = v15DrawAt(S.ch, B.lv);
   window._v15BossTask = t;
   openModal('<h3>👑 Boss · 第 ' + (B.done + 1) + '/2 条</h3>'
-    + '<div class="m-item" style="text-align:center;font-size:13px">' + who + ' 的任务，两条都完成才算通过<br><span style="font-size:11px;color:' + (met ? '#6fe3a1' : '#ffb4b4') + '">本章任务 ' + (S.done || 0) + '/' + A.goal + (met ? ' · 已达标' : ' · 未达标：Boss 强度 +1，章节奖励少 10') + '</span></div>'
+    + '<div class="m-item" style="text-align:center;font-size:13px">第 ' + (B.done + 1) + ' 条 · 按题面执行，两条都完成才算通过<br><span style="font-size:11px;color:' + (met ? '#6fe3a1' : '#ffb4b4') + '">本章任务 ' + (S.done || 0) + '/' + A.goal + (met ? ' · 已达标' : ' · 未达标：Boss 强度 +1，章节奖励少 10') + '</span></div>'
     + '<div class="m-item task-card" style="font-size:16px;line-height:1.8">' + t + '</div>'
     + v12TaskLvHtml(t)
     + '<div class="wheel-btns" style="display:block"><button class="wheel-btn spin" onclick="v15BossDone()">✅ 完成</button>'
