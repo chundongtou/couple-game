@@ -1,0 +1,9 @@
+# 构建产物 / 测试产物
+dist/
+reports/
+__pycache__/
+*.pyc
+tools/_pwtest.py
+
+# QA / 协作者的临时目录
+qa/_*/
