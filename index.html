@@ -2097,7 +2097,7 @@ function showPartyReport(){
     +'<div class="m-item" style="text-align:center">🍷 喝酒<br><b style="color:#ffd700">'+drinks+'</b></div>'
     +'<div class="m-item" style="text-align:center">💋 亲吻<br><b style="color:#ffd700">'+kisses+'</b></div>'
     +'<div class="m-item" style="text-align:center">😈 受罚<br><b style="color:#ffd700">'+punished+'</b></div>'
-    +'<div class="m-item" style="text-align:center">🏆 最忙游戏<br><b style="color:#ffd700;font-size:12px">'+(Object.keys(by).length?GAMES.find(function(x){return x.id===Object.keys(by).sort(function(a,b){return by[b]-by[a];})[0]})?.name:'—')+'</b></div>'
+    +'<div class="m-item" style="text-align:center">🏆 最忙游戏<br><b style="color:#ffd700;font-size:12px">'+(Object.keys(by).length?(function(){var _t=Object.keys(by).sort(function(a,b){return by[b]-by[a];})[0];var _g=GAMES.find(function(x){return x.id===_t;});return _g?_g.name:'—';})():'—')+'</b></div>'
     +'</div>'
     +(rows?'<div style="font-size:13px;color:#aaa;margin:4px 0">各游戏出场次数</div>'+rows:'<div class="m-item" style="text-align:center;color:#aaa">今晚还没开玩，快去大厅选一个吧~</div>')
     +'<div class="m-item" style="text-align:center;font-size:12px;color:#9a93b5;margin-top:8px">'+(function(){try{var T2=JSON.parse(localStorage.getItem('couple-total')||'{}');return '📈 历史累计：开局 '+((T2.games||0)+(games||0))+' 次 · 任务 '+((T2.tasks||0)+(tasks||0))+' 次 · 喝酒 '+((T2.drinks||0)+(drinks||0))+' 次 · 亲吻 '+((T2.kisses||0)+(kisses||0))+' 次';}catch(e){return '';}})()+'</div>'
@@ -10748,6 +10748,80 @@ function v16StageEnding(S) {
     registerSW();     // 内部会等 load 后再真正注册
   }
 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+/* ===== V17 FEATURE: 40-shellfix.js (3551 bytes) ===== */
+/* ============================================================================
+ * V17 · 壳层小修（Lead 收尾）
+ *
+ * 只做两件事，不改任何玩法逻辑：
+ *  1. 修复 V16 存量 UI bug：「📜 本局记录」和「🔊 重听」两个浮标是 #ctrlBar 的
+ *     *兄弟节点*，却用 position:absolute + top:-26/-52 定位。它们没有定位父级，
+ *     结果被定位到初始包含块 → 实际跑到视口外，iPhone/Playwright 都点不到。
+ *     修法：运行时把它们移进 #ctrlBar（fixed），让原有 top:-26/-52 重新相对底栏生效。
+ *  2. PWA「📲 装到桌面」胶囊默认追加在 22 项横滑设置条的最右端，很难被发现；
+ *     这里把它挪到设置条最前（仍然可横向滑动，不改变任何其他胶囊）。
+ *
+ * 说明：V16 主脚本唯一一处可选链 ?.（iOS < 13.4 会整页白屏）已在 index.html
+ * 主脚本里直接改成 ES5 写法，不在此文件内处理。
+ * ========================================================================== */
+(function () {
+  'use strict';
+
+  function injectCss() {
+    if (document.getElementById('v17ShellFixStyle')) return;
+    var css = [
+      /* 移进底栏后，原来的 top:-26 / -52 就相对底栏了；这里只补一点点击热区和层级 */
+      '.ctrl-bar .ctrl-log-toggle{right:10px;top:-28px;z-index:121;min-height:26px;line-height:1.2;}',
+      '.ctrl-bar .ctrl-voice-toggle{right:10px;top:-56px;z-index:121;min-height:26px;line-height:1.2;}',
+      'body.light .ctrl-bar .ctrl-log-toggle,body.light .ctrl-bar .ctrl-voice-toggle{background:rgba(255,248,252,.95);}',
+      /* 设置条里被挪到首位的安装胶囊：留一点视觉权重 */
+      '#setBar .tb-item[data-t="pwa-install-pill"]{flex:0 0 auto;}'
+    ].join('');
+    var style = document.createElement('style');
+    style.id = 'v17ShellFixStyle';
+    style.appendChild(document.createTextNode(css));
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function moveTogglesIntoCtrlBar() {
+    var bar = document.getElementById('ctrlBar');
+    if (!bar) return;
+    var log = document.querySelector('.ctrl-log-toggle');
+    if (log && !bar.contains(log)) bar.appendChild(log);
+    var voice = document.getElementById('ctrlVoiceBtn');
+    if (voice && !bar.contains(voice)) bar.appendChild(voice);
+  }
+
+  function installPillFirst() {
+    var bar = document.getElementById('setBar');
+    if (!bar) return;
+    var pill = bar.querySelector('[data-t="pwa-install-pill"]');
+    if (pill && bar.firstElementChild !== pill) bar.insertBefore(pill, bar.firstChild);
+  }
+
+  /* renderSettings 每次重渲染都会重建 #setBar（并可能把胶囊追加到末尾）→ 渲染后再挪一次。
+     本文件在 30-pwa.js 之后加载，因此这里的包装在调用链最外层，执行时机最晚。 */
+  if (typeof window.renderSettings === 'function' && !window.renderSettings.__v17ShellFix) {
+    var orig = window.renderSettings;
+    var wrapped = function () {
+      var ret = orig.apply(this, arguments);
+      try { installPillFirst(); } catch (e) {}
+      return ret;
+    };
+    wrapped.__v17ShellFix = true;
+    window.renderSettings = wrapped;
+  }
+
+  function init() {
+    try { injectCss(); } catch (e) {}
+    try { moveTogglesIntoCtrlBar(); } catch (e) {}
+    try { installPillFirst(); } catch (e) {}
+  }
+
+  window.v17ShellFix = init;   // 排障/测试入口（幂等）
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
