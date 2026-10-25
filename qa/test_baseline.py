@@ -1209,12 +1209,14 @@ def aggregate_console(res):
     return agg
 
 
-def build_meta(res, port):
+def build_meta(res, port, distdir=None):
+    distdir = pathlib.Path(distdir) if distdir else H.DIST
     meta = {
         "title": "V16 基线审计原始数据（D1）",
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "branch": None,
         "head": None,
+        "dist_dir": str(distdir),
         "dist_index_size": None,
         "dist_index_mtime": None,
         "port": port,
@@ -1226,9 +1228,12 @@ def build_meta(res, port):
                                         capture_output=True, text=True, timeout=10).stdout.strip()
         meta["head"] = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
                                       capture_output=True, text=True, timeout=10).stdout.strip()
+        meta["v16_baseline_commit"] = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--short", "d1460e9"],
+            capture_output=True, text=True, timeout=10).stdout.strip()
     except Exception as e:
         meta["git_error"] = str(e)
-    d = H.DIST / "index.html"
+    d = distdir / "index.html"
     if d.exists():
         meta["dist_index_size"] = d.stat().st_size
         meta["dist_index_mtime"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(d.stat().st_mtime))
@@ -1244,9 +1249,12 @@ def build_meta(res, port):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8801)
+    ap.add_argument("--dist", default=None, help="要审计的静态目录（默认 dist/；基线请用 qa/_baseline_dist）")
     ap.add_argument("--only", default="", help="s1,s2,... 只跑部分分组")
     args = ap.parse_args()
     only = {x.strip().lower() for x in args.only.split(",") if x.strip()}
+    distdir = pathlib.Path(args.dist).resolve() if args.dist else H.DIST
+    print("[D1] 审计目录: %s" % distdir)
 
     from playwright.sync_api import sync_playwright
 
@@ -1258,7 +1266,7 @@ def main():
         ("s7", s7_first_run),
     ]
     port = args.port
-    with H.serve(port=port) as base:
+    with H.serve(directory=distdir, port=port) as base:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             for gid, fn in groups:
@@ -1274,7 +1282,7 @@ def main():
                             "python qa/test_baseline.py --only %s" % gid, sid=gid.upper())
             browser.close()
 
-    res["meta"] = build_meta(res, port)
+    res["meta"] = build_meta(res, port, distdir)
     res["checks"] = R.checks
     res["issues"] = R.issues
     res["observations"] = R.observations
