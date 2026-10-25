@@ -19,7 +19,9 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 INDEX = ROOT / "index.html"
-FEAT = ROOT / "v17" / "features"
+# V17 功能片段（始终全部注入）+ V18 体验补丁片段（可用 --only 只注入自己那份做自测）
+FEAT_V17 = ROOT / "v17" / "features"
+FEAT_V18 = ROOT / "v18" / "features"
 START_MARK = "/* V17_INJECT_START */"
 END_MARK = "/* V17_INJECT_END */"
 STATIC_ASSETS = ["manifest.webmanifest", "sw.js"]
@@ -38,9 +40,14 @@ def write_text(path, text):
 
 
 def collect_features(only):
-    files = sorted(FEAT.glob("*.js"))
+    """V17 片段始终全部包含；--only 只过滤 V18 片段（各协作者自测时互不干扰）。"""
+    files = []
+    if FEAT_V17.is_dir():
+        files.extend(sorted(FEAT_V17.glob("*.js")))
+    v18 = sorted(FEAT_V18.glob("*.js")) if FEAT_V18.is_dir() else []
     if only:
-        files = [f for f in files if any(f.name.startswith(p) or p in f.name for p in only)]
+        v18 = [f for f in v18 if any(f.name.startswith(p) or p in f.name for p in only)]
+    files.extend(v18)
     return files
 
 
@@ -125,7 +132,7 @@ def copy_assets(outdir):
 
 def main():
     ap = argparse.ArgumentParser(description="V17 构建")
-    ap.add_argument("--only", nargs="*", default=None, help="只包含文件名匹配这些前缀的 feature，例如 --only 10-moqi")
+    ap.add_argument("--only", nargs="*", default=None, help="只包含匹配的 V18 片段（V17 片段始终包含），例如 --only 50-motion")
     ap.add_argument("--out", default="dist", help="输出目录（默认 dist/）")
     ap.add_argument("--inplace", action="store_true", help="写回根 index.html（仅 Lead 集成时用）")
     args = ap.parse_args()

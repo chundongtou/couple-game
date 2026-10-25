@@ -1,4 +1,5 @@
-/* 情侣升温游戏 · V17 Service Worker（纯静态文件，无构建）
+/* 情侣升温游戏 · V18 Service Worker（纯静态文件，无构建）
+ * V18 说明：缓存版本升到 v18-1；以后改 index/图标/sw 策略时记得 bump CACHE。
  *
  * 策略：
  *  - install：预缓存应用外壳（逐个 allSettled，单个失败不阻塞安装），skipWaiting 立刻待命；
@@ -9,7 +10,7 @@
  *      · 其它静态资源走 cache-first，未命中时联网并后台回填缓存。
  * 站内没有运行时接口请求，所以这里不需要任何网络数据同步逻辑。
  */
-var CACHE = 'couple-game-v17-1';
+var CACHE = 'couple-game-v18-1';
 
 /* 预缓存清单（相对路径：dev 服务根目录 = 构建产物目录，GitHub Pages 子目录也能用） */
 var PRECACHE = [
