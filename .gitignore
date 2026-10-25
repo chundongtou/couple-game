@@ -3,5 +3,7 @@ dist/
 reports/
 __pycache__/
 *.pyc
-qa/_tmp_*/
 tools/_pwtest.py
+
+# QA / 协作者的临时目录
+qa/_*/
