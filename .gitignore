@@ -1,0 +1,7 @@
+# 构建产物 / 测试产物
+dist/
+reports/
+__pycache__/
+*.pyc
+qa/_tmp_*/
+tools/_pwtest.py
