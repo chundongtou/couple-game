@@ -40,6 +40,11 @@
     if (voice && !bar.contains(voice)) bar.appendChild(voice);
   }
 
+  /* 幂等：安装胶囊永远保持为 #setBar 第一个子节点。
+     注意：不能依赖「包装 renderSettings 的先后顺序」——30-pwa.js 在 DOMContentLoaded 里
+     才包装，若本文件在解析期就包装，会变成内层、在 pill 生成前空跑。所以：
+       a) 包装动作也放进 init()（DOMContentLoaded，晚于 30-pwa 的 listener → 成为最外层）；
+       b) 再用 MutationObserver 兜底，无论谁重建 #setBar，只要 pill 出现就置顶。 */
   function installPillFirst() {
     var bar = document.getElementById('setBar');
     if (!bar) return;
@@ -47,9 +52,19 @@
     if (pill && bar.firstElementChild !== pill) bar.insertBefore(pill, bar.firstChild);
   }
 
-  /* renderSettings 每次重渲染都会重建 #setBar（并可能把胶囊追加到末尾）→ 渲染后再挪一次。
-     本文件在 30-pwa.js 之后加载，因此这里的包装在调用链最外层，执行时机最晚。 */
-  if (typeof window.renderSettings === 'function' && !window.renderSettings.__v17ShellFix) {
+  function watchSetBar() {
+    if (window.__v17ShellFixObserver) return;
+    var bar = document.getElementById('setBar');
+    if (!bar || typeof MutationObserver === 'undefined') return;
+    var mo = new MutationObserver(function () {
+      installPillFirst();
+    });
+    mo.observe(bar, { childList: true });
+    window.__v17ShellFixObserver = mo;
+  }
+
+  function wrapRenderSettings() {
+    if (typeof window.renderSettings !== 'function' || window.renderSettings.__v17ShellFix) return;
     var orig = window.renderSettings;
     var wrapped = function () {
       var ret = orig.apply(this, arguments);
@@ -63,7 +78,11 @@
   function init() {
     try { injectCss(); } catch (e) {}
     try { moveTogglesIntoCtrlBar(); } catch (e) {}
-    try { installPillFirst(); } catch (e) {}
+    try {
+      wrapRenderSettings();      // 此时 30-pwa 已包装过 → 这里成为最外层
+      installPillFirst();
+      watchSetBar();             // 兜底：任何重建都能瞬间置顶
+    } catch (e) {}
   }
 
   window.v17ShellFix = init;   // 排障/测试入口（幂等）
