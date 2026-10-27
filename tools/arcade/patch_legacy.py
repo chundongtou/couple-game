@@ -270,6 +270,56 @@ JS = """
     }
     v3FlightSetupDecorate();
   }
+  function v3WheelInit(kind, items, colors){
+    var map = kind === 'truth'
+      ? { wheel: 'truthCanvas', disc: 'truthDisc', labels: 'truthLabels', angle: '_truthAngle' }
+      : { wheel: 'dareCanvas', disc: 'dareDisc', labels: 'dareLabels', angle: '_dareAngle' };
+    var wheel = document.getElementById(map.wheel);
+    var disc = document.getElementById(map.disc);
+    var labels = document.getElementById(map.labels);
+    if (!wheel || !disc || !labels) return;
+    var wrap = wheel.parentNode;
+    if (wrap && wrap.classList) wrap.classList.add('v3-wheel-wrap');
+    var n = items.length || 1;
+    var seg = 360 / n;
+    var stops = [];
+    for (var i = 0; i < n; i++) {
+      var c = colors[i % colors.length];
+      stops.push(c + ' ' + (i * 100 / n).toFixed(4) + '% ' + ((i + 1) * 100 / n).toFixed(4) + '%');
+    }
+    disc.style.background = 'conic-gradient(from -90deg,' + stops.join(',') + ')';
+    labels.innerHTML = '';
+    items.forEach(function(txt, idx){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'v3-wheel-label';
+      b.style.setProperty('--a', ((idx + 0.5) * seg) + 'deg');
+      b.setAttribute('data-i', idx);
+      b.setAttribute('aria-label', '选择：' + txt);
+      b.title = txt;
+      var span = document.createElement('span');
+      span.textContent = txt.length > 7 ? txt.slice(0, 6) + '…' : txt;
+      b.appendChild(span);
+      b.addEventListener('click', function(e){ e.stopPropagation(); v3WheelPick(kind, idx); });
+      labels.appendChild(b);
+    });
+    var ang = window[map.angle] || 0;
+    wheel.style.transform = 'rotate(' + ang + 'deg)';
+    wheel.style.setProperty('--rot', (ang % 360) + 'deg');
+  }
+  function v3WheelPick(kind, idx){
+    if (kind === 'truth') {
+      if (window._truthSpinning) return;
+      window.__v3Pick = { canvasId: 'truthCanvas', idx: idx };
+      try { spinTruthWheel(); } catch (e) { window.__v3Pick = null; }
+    } else {
+      if (window._dareSpinning) return;
+      window.__v3Pick = { canvasId: 'dareCanvas', idx: idx };
+      try { spinDareWheel(); } catch (e) { window.__v3Pick = null; }
+    }
+  }
+  window.v3WheelInit = v3WheelInit;
+  window.v3WheelPick = v3WheelPick;
   function wrapHome(){
     if (wrapped) return;
     wrapped = true;
@@ -339,6 +389,35 @@ def patch(html):
         "p.color=['#4fd6c8','#ff5f9e','#f3c879','#9a7cff'][i];",
     )
     html = html.replace("ctx.fillStyle=i%2===0?'#ffd700':'#ff6b9d';", "ctx.fillStyle=i%2===0?'#f3c879':'#ff5f9e';")
+    # 1.6) 真心话/大冒险：canvas 转盘换成 DOM 转盘（文字水平、扇区可点）
+    html = html.replace(
+        "+'<canvas id=\"truthCanvas\" width=\"1200\" height=\"1200\"></canvas>'",
+        "+'<div id=\"truthCanvas\" class=\"v3-wheel\" style=\"--rot:0deg\"><div class=\"v3-wheel-disc\" id=\"truthDisc\"></div><div class=\"v3-wheel-labels\" id=\"truthLabels\"></div></div>'",
+    )
+    html = html.replace(
+        "+'<canvas id=\"dareCanvas\" width=\"1200\" height=\"1200\"></canvas>'",
+        "+'<div id=\"dareCanvas\" class=\"v3-wheel\" style=\"--rot:0deg\"><div class=\"v3-wheel-disc\" id=\"dareDisc\"></div><div class=\"v3-wheel-labels\" id=\"dareLabels\"></div></div>'",
+    )
+    html = html.replace(
+        "setTimeout(function(){var cv=document.getElementById('truthCanvas');if(cv)drawWheel(cv,items,colors)},50);",
+        "setTimeout(function(){v3WheelInit('truth',items,colors)},30);",
+    )
+    html = html.replace(
+        "setTimeout(function(){var cv=document.getElementById('dareCanvas');if(cv)drawWheel(cv,items,colors)},50);",
+        "setTimeout(function(){v3WheelInit('dare',items,colors)},30);",
+    )
+    html = html.replace(
+        "function drawWheel(canvas,items,colors){\n  var ctx=canvas.getContext('2d');",
+        "function drawWheel(canvas,items,colors){\n  if(!canvas||typeof canvas.getContext!=='function')return;\n  var ctx=canvas.getContext('2d');",
+    )
+    html = html.replace(
+        "  var angle=1080+Math.random()*720;\n  window[angleKey]+=angle;",
+        "  var pick=window.__v3Pick;\n  var pickIdx=null;\n  if(pick&&pick.canvasId===canvasId){pickIdx=pick.idx;window.__v3Pick=null;}\n  var angle;\n  if(pickIdx!=null){\n    var seg0=360/items.length;\n    var desired=((360-((pickIdx+0.5)*seg0))%360+360)%360;\n    var cur=((window[angleKey]%360)+360)%360;\n    angle=1080+((desired-cur+360)%360);\n  }else{\n    angle=1080+Math.random()*720;\n  }\n  window[angleKey]+=angle;",
+    )
+    html = html.replace(
+        "    var finalAngle=window[angleKey]%360;\n    var idx=Math.floor(((360-finalAngle)%360)/seg)%n;\n    sndDing();",
+        "    var finalAngle=window[angleKey]%360;\n    var idx=Math.floor(((360-finalAngle)%360)/seg)%n;\n    try{if(cv&&cv.classList&&cv.classList.contains('v3-wheel'))cv.style.setProperty('--rot',(window[angleKey]%360)+'deg');}catch(e){}\n    sndDing();",
+    )
     # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
     for pattern in [
         r'\n<link rel="manifest"[^>]*>',
@@ -371,6 +450,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 

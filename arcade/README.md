@@ -10,7 +10,7 @@
   - **已换新版皮肤**：`arcade/skin.css`（暗夜玻璃/金玫瑰配色）在旧版 CSS 最后注入，只改视觉不改布局与逻辑
   - 转盘/玩家颜色常量同步换成夜航调色；旧版顶部三条 HUD 隐藏
   - **工具条收纳**：底部只留「完成 / 重抽 / 跳过 / 更多」；道具、撤销、重置、大厅、缓一缓进「更多」底部抽屉
-  - **转盘结果卡**：新版大标题 + 标签 chips（类型 / 星级 / 执行人），按钮改成卡片动作 chips
+  - **转盘**：canvas 换成 DOM/CSS 转盘（文字水平、扇区可点、点哪转哪、GO 随机），结果卡为新版大标题 + 标签 chips
   - **飞行棋**：双道/环岛都换成卡片式棋盘，格子改轻量玻璃色块，类型色只做淡染
   - **飞行棋开局**：长表单收成「基础 / 节奏与强度 / 边界」三组折叠，底部固定大「开局！」；设置页隐藏底部工具条
   - **本局记录 / 已答回顾**：本局记录进入「更多」抽屉，用新版底部 sheet 展示；已答回顾改成新版底部面板
@@ -34,4 +34,5 @@ python tools/arcade/patch_legacy.py
 - https://chundongtou.github.io/couple-game/arcade/?game=truth
 - https://chundongtou.github.io/couple-game/arcade/?game=dare
 - https://chundongtou.github.io/couple-game/arcade/?game=flight
+
 
