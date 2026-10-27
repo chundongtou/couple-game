@@ -10749,6 +10749,140 @@ html.arcade-embed .toast{top:12px !important}
 .v12-hud{display:none !important}
 html.arcade-embed .ctrl-log-toggle{display:none !important}
 
+
+/* ================= 第三步：底部工具条收纳 ================= */
+.ctrl-bar{
+  padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px)) !important;
+  background:linear-gradient(180deg,rgba(9,5,18,.86),rgba(9,5,18,.97)) !important;
+  border-top:1px solid var(--sk-line) !important;
+}
+.ctrl-btns{display:flex !important;gap:8px !important;align-items:stretch !important;flex-wrap:nowrap !important}
+.ctrl-bar .ctrl-btn{
+  flex:1 1 0 !important;max-width:none !important;min-height:50px !important;
+  border-radius:14px !important;font-size:12.5px !important;padding:0 6px !important;
+  background:var(--sk-glass) !important;border:1px solid var(--sk-line) !important;color:var(--sk-dim) !important;
+}
+.ctrl-bar .ctrl-btn.v3-primary{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  border:0 !important;color:#2a1206 !important;font-weight:800 !important;
+  box-shadow:0 8px 22px rgba(243,200,121,.18) !important;
+}
+.ctrl-bar .ctrl-btn.v3-more{
+  flex:0 0 66px !important;max-width:66px !important;color:var(--sk-gold) !important;
+  border-color:rgba(243,200,121,.28) !important;font-weight:800 !important;letter-spacing:.02em !important;
+}
+.ctrl-bar .ctrl-items{display:none !important}
+
+.v3-sheet-mask{position:fixed;inset:0;z-index:300;background:rgba(5,3,12,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center}
+.v3-sheet-mask.on{display:flex}
+.v3-sheet{
+  width:100%;max-width:560px;border-radius:26px 26px 0 0;border:1px solid var(--sk-line2);border-bottom:0;
+  background:linear-gradient(180deg,#191029,#0d0719);padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -24px 60px rgba(0,0,0,.5);animation:v3SheetUp .26s var(--sk-ease,cubic-bezier(.22,1,.36,1)) both;
+}
+@keyframes v3SheetUp{from{transform:translateY(28px);opacity:.6}to{transform:none;opacity:1}}
+.v3-sheet-grip{width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);margin:2px auto 14px}
+.v3-sheet-title{font-size:10.5px;letter-spacing:.26em;color:var(--sk-dim2);font-weight:800;margin-bottom:12px}
+.v3-sheet-items .ctrl-items{display:flex !important;flex-wrap:wrap;gap:7px;margin:0 0 16px !important;justify-content:flex-start !important}
+.v3-sheet-items .ctrl-item{
+  min-height:36px;display:inline-flex;align-items:center;gap:4px;padding:0 11px !important;
+  border-radius:999px !important;font-size:11px !important;color:var(--sk-gold) !important;
+  background:rgba(243,200,121,.07) !important;border:1px solid rgba(243,200,121,.22) !important;
+}
+.v3-sheet-items .ctrl-item.drink{color:var(--sk-teal) !important;background:rgba(79,214,200,.08) !important;border-color:rgba(79,214,200,.3) !important}
+.v3-sheet-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.v3-sheet-grid .ctrl-btn{
+  width:100% !important;max-width:none !important;min-height:50px !important;flex:none !important;
+  border-radius:14px !important;background:var(--sk-glass) !important;border:1px solid var(--sk-line) !important;
+  color:var(--sk-dim) !important;font-size:13px !important;
+}
+.v3-sheet-close{
+  width:100%;min-height:48px;margin-top:12px;border-radius:14px;border:1px solid var(--sk-line);
+  background:transparent;color:var(--sk-dim2);font-size:12.5px;font-weight:700;letter-spacing:.08em;
+}
+
+/* ================= 第二步：转盘结果变成新版卡片 ================= */
+.wheel-result{
+  position:relative !important;text-align:left !important;padding:22px 18px 16px !important;
+  border-radius:24px !important;margin-top:18px !important;
+}
+.wheel-result::before{
+  content:"CARD · 今晚的一张";display:block;font-size:9.5px;letter-spacing:.28em;
+  color:var(--sk-dim2);font-weight:800;margin-bottom:10px;
+}
+.wheel-result .pop-in{display:flex;flex-direction:column;gap:10px}
+.wheel-result .text{
+  font-size:21px !important;line-height:1.62 !important;font-weight:800 !important;
+  letter-spacing:.01em !important;color:var(--sk-ink) !important;
+}
+.wheel-result .star{
+  display:inline-flex;align-items:center;width:fit-content;padding:5px 11px;border-radius:999px;
+  background:rgba(243,200,121,.10) !important;border:1px solid rgba(243,200,121,.30) !important;
+  color:var(--sk-gold) !important;font-size:10.5px !important;letter-spacing:.08em;margin:0 !important;
+}
+.wheel-result .player-tag{
+  display:inline-flex;align-items:center;width:fit-content;padding:5px 11px;border-radius:999px;
+  background:rgba(154,124,255,.16) !important;border:1px solid rgba(154,124,255,.32) !important;
+  color:#e9def8 !important;font-size:10.5px !important;margin:0 !important;
+}
+.wheel-result .wheel-btns{
+  margin-top:16px !important;display:flex !important;gap:8px !important;flex-wrap:wrap !important;justify-content:flex-start !important;
+}
+.wheel-result .wheel-btn{
+  flex:1 1 auto;min-width:0 !important;min-height:42px !important;padding:0 12px !important;
+  font-size:12px !important;border-radius:12px !important;
+}
+.wheel-result .wheel-btn.spin{flex:1.2 1 auto}
+
+/* ================= 第三步：飞行棋卡片式棋盘 ================= */
+.fl-players{gap:7px !important;margin:10px 0 12px !important}
+.fl-p{font-size:11px !important;padding:7px 12px !important;min-height:34px;display:inline-flex;align-items:center;gap:4px}
+.fl-lane{
+  margin:12px 0 !important;padding:11px 11px 13px !important;border-radius:20px !important;
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02)) !important;
+  border:1px solid var(--sk-line) !important;
+}
+.fl-lane-label{font-size:10.5px !important;letter-spacing:.22em !important;color:var(--sk-gold) !important;margin-bottom:9px !important;font-weight:800}
+.fl-cells{gap:6px !important}
+.fl-cell{
+  min-width:34px !important;height:36px !important;border-radius:10px !important;
+  background:rgba(255,255,255,.045) !important;border:1px solid rgba(255,255,255,.07) !important;
+  color:var(--sk-dim) !important;font-size:15px !important;
+}
+.fl-cell.t-truth{background:rgba(154,124,255,.16) !important;border-color:rgba(154,124,255,.26) !important}
+.fl-cell.t-dare{background:rgba(255,95,158,.16) !important;border-color:rgba(255,95,158,.28) !important}
+.fl-cell.t-drink{background:rgba(243,200,121,.16) !important;border-color:rgba(243,200,121,.28) !important}
+.fl-cell.t-safe{background:rgba(79,214,200,.14) !important;border-color:rgba(79,214,200,.26) !important}
+.fl-cell.t-spicy{background:rgba(255,95,158,.22) !important;border-color:rgba(255,95,158,.34) !important}
+.fl-cell.t-duo{background:rgba(255,95,158,.18) !important;border-color:rgba(255,95,158,.3) !important}
+.fl-cell.t-duel{background:rgba(243,200,121,.20) !important;border-color:rgba(243,200,121,.32) !important}
+.fl-cell.t-event{background:rgba(79,214,200,.16) !important;border-color:rgba(79,214,200,.28) !important}
+.fl-cell.t-prison{background:rgba(255,255,255,.05) !important;border-color:rgba(255,255,255,.1) !important}
+.fl-cell.t-ktv{background:rgba(79,214,200,.15) !important;border-color:rgba(79,214,200,.26) !important}
+.fl-cell.t-item{background:rgba(154,124,255,.15) !important;border-color:rgba(154,124,255,.26) !important}
+.fl-cell.start,.fl-cell.t-cross{background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;border-color:transparent !important;color:#2a1206 !important;font-weight:800 !important}
+.fl-ring{
+  max-width:390px !important;padding:11px !important;border-radius:22px !important;
+  background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02)) !important;
+  border:1px solid var(--sk-line) !important;gap:5px !important;
+}
+.fl-ring .fl-cell{height:34px !important;min-width:0 !important}
+.fl-ring-mid{border-radius:16px !important}
+.fl-task{border-radius:20px !important;padding:15px !important}
+.fl-turn-banner{margin:12px 0 8px !important;padding:11px 14px !important;border-radius:16px !important;font-size:15px !important}
+.fl-dice{font-size:60px !important;color:var(--sk-ink) !important}
+.fl-btns{gap:8px !important}
+
+/* 结果卡：标签 chips 横排 */
+.wheel-result .pop-in{display:flex !important;flex-direction:row !important;flex-wrap:wrap !important;gap:8px !important;align-items:center}
+.wheel-result .pop-in .text{flex:0 0 100% !important}
+.wheel-result .task-lv{
+  display:inline-flex !important;align-items:center;gap:6px;width:fit-content !important;
+  padding:5px 11px !important;border-radius:999px !important;margin:0 !important;
+  background:rgba(255,255,255,.05) !important;border:1px solid var(--sk-line) !important;
+  color:var(--sk-gold) !important;font-size:10.5px !important;letter-spacing:.1em !important;text-align:left !important;
+}
+.wheel-result .task-lv span{color:var(--sk-dim2) !important;font-size:10px !important;margin-left:2px !important}
 </style>
 <style id="arcade-css">
 /* ===== 经典游戏厅（包装层，不影响旧版内部样式） ===== */
@@ -10832,6 +10966,7 @@ html.arcade-embed .header { display: none !important; }
   if (EMBED) { try { document.documentElement.classList.add('arcade-embed'); } catch (e) {} }
   function show(){
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
+    try { if (window.__v3CloseSheet) window.__v3CloseSheet(); } catch (e) {}
     overlay.classList.add('on');
     document.body.classList.add('arcade-home');
     document.title = '经典游戏厅 · 升温夜航';
@@ -10844,8 +10979,50 @@ html.arcade-embed .header { display: none !important; }
   function start(game){
     hide();
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
+    try { if (window.__v3CloseSheet) window.__v3CloseSheet(); } catch (e) {}
     try { startGame(game); } catch (e) { if (!EMBED) show(); }
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  function v3CtrlInit(){
+    if (document.getElementById('v3CtrlSheet')) return;
+    var bar = document.querySelector('.ctrl-btns');
+    if (!bar) return;
+    var sheet = document.createElement('div');
+    sheet.id = 'v3CtrlSheet';
+    sheet.className = 'v3-sheet-mask';
+    sheet.setAttribute('data-test', 'v3-ctrl-sheet');
+    sheet.innerHTML = '<div class="v3-sheet" role="dialog" aria-label="工具">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">工具 · 本局</div>'
+      + '<div class="v3-sheet-items" id="v3SheetItems"></div>'
+      + '<div class="v3-sheet-grid" id="v3SheetActions"></div>'
+      + '<button type="button" class="v3-sheet-close">收起</button>'
+      + '</div>';
+    document.body.appendChild(sheet);
+    var items = document.getElementById('ctrlItems');
+    if (items) sheet.querySelector('#v3SheetItems').appendChild(items);
+    var actions = sheet.querySelector('#v3SheetActions');
+    Array.prototype.slice.call(bar.querySelectorAll('.ctrl-btn')).forEach(function(b){
+      var id = b.id || '';
+      var oc = b.getAttribute('onclick') || '';
+      if (id === 'ctrlRelax' || /panelUndo|panelReset|panelHome/.test(oc)) actions.appendChild(b);
+    });
+    var more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'ctrl-btn v3-more';
+    more.setAttribute('data-test', 'v3-more');
+    more.innerHTML = '⋯ 更多';
+    more.addEventListener('click', function(){ sheet.classList.add('on'); });
+    bar.appendChild(more);
+    Array.prototype.forEach.call(bar.querySelectorAll('.ctrl-btn'), function(b){
+      if (/v12PanelDone/.test(b.getAttribute('onclick') || '')) b.classList.add('v3-primary');
+    });
+    function close(){ sheet.classList.remove('on'); }
+    sheet.addEventListener('click', function(e){ if (e.target === sheet) close(); });
+    sheet.querySelector('.v3-sheet-close').addEventListener('click', close);
+    actions.addEventListener('click', function(){ setTimeout(close, 120); });
+    sheet.querySelector('#v3SheetItems').addEventListener('click', function(){ setTimeout(close, 120); });
+    window.__v3CloseSheet = close;
   }
   function wrapHome(){
     if (wrapped) return;
@@ -10871,8 +11048,8 @@ html.arcade-embed .header { display: none !important; }
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 280); });
-  } else { setTimeout(boot, 280); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); });
+  } else { try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); }
 })();
 </script>
 </body>

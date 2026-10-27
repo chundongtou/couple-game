@@ -105,6 +105,7 @@ JS = """
   if (EMBED) { try { document.documentElement.classList.add('arcade-embed'); } catch (e) {} }
   function show(){
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
+    try { if (window.__v3CloseSheet) window.__v3CloseSheet(); } catch (e) {}
     overlay.classList.add('on');
     document.body.classList.add('arcade-home');
     document.title = '经典游戏厅 · 升温夜航';
@@ -117,8 +118,50 @@ JS = """
   function start(game){
     hide();
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
+    try { if (window.__v3CloseSheet) window.__v3CloseSheet(); } catch (e) {}
     try { startGame(game); } catch (e) { if (!EMBED) show(); }
     try { window.scrollTo(0, 0); } catch (e) {}
+  }
+  function v3CtrlInit(){
+    if (document.getElementById('v3CtrlSheet')) return;
+    var bar = document.querySelector('.ctrl-btns');
+    if (!bar) return;
+    var sheet = document.createElement('div');
+    sheet.id = 'v3CtrlSheet';
+    sheet.className = 'v3-sheet-mask';
+    sheet.setAttribute('data-test', 'v3-ctrl-sheet');
+    sheet.innerHTML = '<div class="v3-sheet" role="dialog" aria-label="工具">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">工具 · 本局</div>'
+      + '<div class="v3-sheet-items" id="v3SheetItems"></div>'
+      + '<div class="v3-sheet-grid" id="v3SheetActions"></div>'
+      + '<button type="button" class="v3-sheet-close">收起</button>'
+      + '</div>';
+    document.body.appendChild(sheet);
+    var items = document.getElementById('ctrlItems');
+    if (items) sheet.querySelector('#v3SheetItems').appendChild(items);
+    var actions = sheet.querySelector('#v3SheetActions');
+    Array.prototype.slice.call(bar.querySelectorAll('.ctrl-btn')).forEach(function(b){
+      var id = b.id || '';
+      var oc = b.getAttribute('onclick') || '';
+      if (id === 'ctrlRelax' || /panelUndo|panelReset|panelHome/.test(oc)) actions.appendChild(b);
+    });
+    var more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'ctrl-btn v3-more';
+    more.setAttribute('data-test', 'v3-more');
+    more.innerHTML = '⋯ 更多';
+    more.addEventListener('click', function(){ sheet.classList.add('on'); });
+    bar.appendChild(more);
+    Array.prototype.forEach.call(bar.querySelectorAll('.ctrl-btn'), function(b){
+      if (/v12PanelDone/.test(b.getAttribute('onclick') || '')) b.classList.add('v3-primary');
+    });
+    function close(){ sheet.classList.remove('on'); }
+    sheet.addEventListener('click', function(e){ if (e.target === sheet) close(); });
+    sheet.querySelector('.v3-sheet-close').addEventListener('click', close);
+    actions.addEventListener('click', function(){ setTimeout(close, 120); });
+    sheet.querySelector('#v3SheetItems').addEventListener('click', function(){ setTimeout(close, 120); });
+    window.__v3CloseSheet = close;
   }
   function wrapHome(){
     if (wrapped) return;
@@ -144,8 +187,8 @@ JS = """
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 280); });
-  } else { setTimeout(boot, 280); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); });
+  } else { try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); }
 })();
 """
 
