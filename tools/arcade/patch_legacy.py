@@ -163,6 +163,81 @@ JS = """
     sheet.querySelector('#v3SheetItems').addEventListener('click', function(){ setTimeout(close, 120); });
     window.__v3CloseSheet = close;
   }
+  function v3FlightSetupDecorate(){
+    var content = document.getElementById('gContent');
+    if (!content) return;
+    var wrap = content.querySelector('.bomb-wrap');
+    var h2 = wrap ? wrap.querySelector('h2') : null;
+    var isFlight = !!(wrap && h2 && String(h2.textContent || '').indexOf('飞行棋') >= 0);
+    document.body.classList.toggle('v3-flight-setup', isFlight);
+    if (!isFlight || wrap.getAttribute('data-v3-set') === '1') return;
+    wrap.setAttribute('data-v3-set', '1');
+    var nodes = Array.prototype.slice.call(wrap.children).filter(function(n){ return n !== h2; });
+    var buckets = { basic: [], rhythm: [], boundary: [] };
+    var footer = [];
+    var current = null;
+    nodes.forEach(function(el){
+      var t = String(el.textContent || '').trim();
+      if (el.classList && el.classList.contains('wheel-btns')) { footer.push(el); return; }
+      if (/酒量额度/.test(t)) { footer.push(el); return; }
+      if (el.tagName === 'P') {
+        if (/^①|^②|^③/.test(t)) current = 'basic';
+        else if (/^④|^⑤|^⑦|^⑧/.test(t)) current = 'rhythm';
+        else if (/^⑥/.test(t)) current = 'boundary';
+      }
+      if (current) buckets[current].push(el); else footer.push(el);
+    });
+    var meta = {
+      basic: ['基础', '人数 · 比例 · 玩法'],
+      rhythm: ['节奏与强度', '难度 · 快局 · 沙漏 · 圈数'],
+      boundary: ['边界', '脱衣模式 · 酒量额度']
+    };
+    var state = window.__v3SetState || (window.__v3SetState = { basic: true, rhythm: false, boundary: false });
+    var frag = document.createDocumentFragment();
+    Object.keys(buckets).forEach(function(key){
+      if (!buckets[key].length) return;
+      var sec = document.createElement('section');
+      sec.className = 'v3-set-group' + (state[key] ? '' : ' collapsed');
+      sec.setAttribute('data-group', key);
+      var head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'v3-set-head';
+      head.setAttribute('aria-expanded', state[key] ? 'true' : 'false');
+      head.innerHTML = '<span class="v3-set-name">' + meta[key][0] + '</span>'
+        + '<span class="v3-set-sub">' + meta[key][1] + '</span>'
+        + '<i class="v3-set-arrow" aria-hidden="true">⌄</i>';
+      var body = document.createElement('div');
+      body.className = 'v3-set-body';
+      buckets[key].forEach(function(n){ body.appendChild(n); });
+      head.addEventListener('click', function(){
+        state[key] = !state[key];
+        sec.classList.toggle('collapsed', !state[key]);
+        head.setAttribute('aria-expanded', state[key] ? 'true' : 'false');
+      });
+      sec.appendChild(head);
+      sec.appendChild(body);
+      frag.appendChild(sec);
+    });
+    if (footer.length) {
+      var foot = document.createElement('div');
+      foot.className = 'v3-set-footer';
+      footer.forEach(function(n){ foot.appendChild(n); });
+      frag.appendChild(foot);
+    }
+    h2.parentNode.insertBefore(frag, h2.nextSibling);
+    var start = wrap.querySelector('.wheel-btns .wheel-btn.spin');
+    if (start) start.classList.add('v3-start-btn');
+  }
+  function v3FlightSetupInit(){
+    var content = document.getElementById('gContent');
+    if (!content || content._v3Obs) return;
+    content._v3Obs = true;
+    if (window.MutationObserver) {
+      new MutationObserver(function(){ setTimeout(v3FlightSetupDecorate, 0); })
+        .observe(content, { childList: true });
+    }
+    v3FlightSetupDecorate();
+  }
   function wrapHome(){
     if (wrapped) return;
     wrapped = true;
@@ -187,8 +262,8 @@ JS = """
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); });
-  } else { try { v3CtrlInit(); } catch (e) {} setTimeout(boot, 280); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); });
+  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); }
 })();
 """
 
@@ -264,5 +339,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 

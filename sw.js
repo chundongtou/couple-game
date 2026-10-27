@@ -9,10 +9,10 @@
  *      · 其它静态资源走 cache-first，未命中时联网并后台回填。
  *  - 首页与 /arcade/ 各自缓存、各自回退，互不覆盖。
  *
- * 发版注意：改了 app/ 或静态资源后，把 CACHE 版本号 +1（v4 → v5），
+ * 发版注意：改了 app/ 或静态资源后，把 CACHE 版本号 +1（v5 → v6），
  * 老用户下次打开会拿到新 SW 并提示「新版本已就绪」。
  */
-var CACHE = 'couple-voyage-v4';
+var CACHE = 'couple-voyage-v5';
 
 /* 预缓存清单：相对路径，dev 服务根目录 = 构建产物目录，GitHub Pages 子路径同样可用 */
 var PRECACHE = [
@@ -163,5 +163,6 @@ function cacheFirst(req) {
     });
   });
 }
+
 
 
