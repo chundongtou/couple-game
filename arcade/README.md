@@ -13,6 +13,7 @@
   - **转盘结果卡**：新版大标题 + 标签 chips（类型 / 星级 / 执行人），按钮改成卡片动作 chips
   - **飞行棋**：双道/环岛都换成卡片式棋盘，格子改轻量玻璃色块，类型色只做淡染
   - **飞行棋开局**：长表单收成「基础 / 节奏与强度 / 边界」三组折叠，底部固定大「开局！」；设置页隐藏底部工具条
+  - **本局记录 / 已答回顾**：本局记录进入「更多」抽屉，用新版底部 sheet 展示；已答回顾改成新版底部面板
   - 去掉旧版 PWA 注册与 manifest 引用（避免 `/arcade/` 下 404）
   - 预置 `couple-onboarded` / `couple-night` 跳过开场弹窗
   - 注入「经典游戏厅」首页与返回钩子（旧版返回/大厅按钮回到游戏厅）
@@ -33,3 +34,4 @@ python tools/arcade/patch_legacy.py
 - https://chundongtou.github.io/couple-game/arcade/?game=truth
 - https://chundongtou.github.io/couple-game/arcade/?game=dare
 - https://chundongtou.github.io/couple-game/arcade/?game=flight
+

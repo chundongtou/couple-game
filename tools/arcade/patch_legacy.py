@@ -153,6 +153,13 @@ JS = """
     more.innerHTML = '⋯ 更多';
     more.addEventListener('click', function(){ sheet.classList.add('on'); });
     bar.appendChild(more);
+    var logBtn = document.createElement('button');
+    logBtn.type = 'button';
+    logBtn.className = 'ctrl-btn';
+    logBtn.setAttribute('data-test', 'v3-log');
+    logBtn.innerHTML = '📜 本局记录';
+    logBtn.addEventListener('click', function(){ close(); setTimeout(v3LogOpen, 150); });
+    actions.appendChild(logBtn);
     Array.prototype.forEach.call(bar.querySelectorAll('.ctrl-btn'), function(b){
       if (/v12PanelDone/.test(b.getAttribute('onclick') || '')) b.classList.add('v3-primary');
     });
@@ -162,6 +169,31 @@ JS = """
     actions.addEventListener('click', function(){ setTimeout(close, 120); });
     sheet.querySelector('#v3SheetItems').addEventListener('click', function(){ setTimeout(close, 120); });
     window.__v3CloseSheet = close;
+  }
+  function v3LogOpen(){
+    var mask = document.getElementById('v3LogSheet');
+    if (!mask) {
+      mask = document.createElement('div');
+      mask.id = 'v3LogSheet';
+      mask.className = 'v3-sheet-mask';
+      mask.setAttribute('data-test', 'v3-log-sheet');
+      mask.innerHTML = '<div class="v3-sheet v3-log-sheet">'
+        + '<div class="v3-sheet-grip"></div>'
+        + '<div class="v3-sheet-title">本局记录 · 今晚</div>'
+        + '<div class="v3-log-list" id="v3LogList"></div>'
+        + '<button type="button" class="v3-sheet-close">收起</button>'
+        + '</div>';
+      document.body.appendChild(mask);
+      function closeLog(){ mask.classList.remove('on'); }
+      mask.addEventListener('click', function(e){ if (e.target === mask) closeLog(); });
+      mask.querySelector('.v3-sheet-close').addEventListener('click', closeLog);
+      window.__v3CloseLog = closeLog;
+    }
+    var src = document.getElementById('logDrawer');
+    var list = mask.querySelector('#v3LogList');
+    var html = src ? String(src.innerHTML || '').trim() : '';
+    list.innerHTML = html || '<div class="log-empty">本局还没有记录</div>';
+    mask.classList.add('on');
   }
   function v3FlightSetupDecorate(){
     var content = document.getElementById('gContent');

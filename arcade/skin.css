@@ -409,3 +409,29 @@ body.v3-flight-setup .safe-tip{margin-top:14px !important}
 }
 .v3-set-footer .wheel-btns{margin:0 !important;display:block !important}
 .v3-start-btn{width:100% !important;min-height:56px !important;font-size:16px !important;border-radius:16px !important;letter-spacing:.08em}
+
+/* ================= 本局记录 / 已答回顾 ================= */
+.ctrl-log-toggle{display:none !important}
+.v3-log-sheet .v3-log-list{max-height:56vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:4px}
+.v3-log-list .log-entry{
+  display:flex;gap:9px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);
+  color:var(--sk-dim) !important;font-size:12px !important;line-height:1.6;
+}
+.v3-log-list .log-entry span{color:var(--sk-gold) !important;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.v3-log-list .log-empty{padding:26px 0;text-align:center;color:var(--sk-dim2) !important;font-size:12px}
+.log-panel{
+  position:fixed !important;left:50% !important;top:auto !important;bottom:calc(14px + env(safe-area-inset-bottom,0px)) !important;
+  transform:translateX(-50%) !important;width:calc(100% - 28px) !important;max-width:520px !important;
+  max-height:72vh !important;overflow-y:auto !important;z-index:300 !important;
+  background:linear-gradient(180deg,#191029,#0d0719) !important;border:1px solid var(--sk-line2) !important;
+  border-radius:24px !important;padding:20px !important;box-shadow:0 -20px 60px rgba(0,0,0,.55) !important;
+}
+.log-panel h3{color:var(--sk-gold) !important;font-size:15px !important;letter-spacing:.04em !important;margin-bottom:10px !important}
+.log-panel .log-item{
+  font-size:12.5px !important;color:var(--sk-dim) !important;line-height:1.7 !important;
+  padding:8px 0 !important;margin:0 !important;border-bottom:1px solid rgba(255,255,255,.06) !important;
+}
+.log-panel .log-close{
+  width:100% !important;margin-top:14px !important;min-height:48px !important;border-radius:14px !important;
+  background:var(--sk-glass) !important;border:1px solid var(--sk-line) !important;color:var(--sk-dim) !important;
+}
