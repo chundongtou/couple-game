@@ -10541,6 +10541,7 @@ body.arcade-home { overflow: hidden !important; }
 .arcade-card .go{color:#f3c879;font-size:18px;flex:0 0 auto;opacity:.8;}
 .arcade-foot{margin-top:auto;padding-top:34px;display:flex;flex-direction:column;gap:12px;align-items:flex-start;}
 .arcade-link{display:inline-flex;align-items:center;min-height:44px;padding:0 4px;color:#f3c879;text-decoration:none;font-size:13px;font-weight:700;letter-spacing:.04em;}
+.arcade-new{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:6px;background:linear-gradient(135deg,#ff5f9e,#9a7cff);color:#fff;font-size:8.5px;letter-spacing:.12em;vertical-align:2px;}
 .arcade-note{font-size:10.5px;line-height:1.8;color:#6f6689;letter-spacing:.04em;}
 @media (max-width:340px){.arcade-card{min-height:84px;padding:14px}.arcade-title{font-size:31px}}
 </style>
@@ -10551,6 +10552,11 @@ body.arcade-home { overflow: hidden !important; }
     <h1 class="arcade-title">今晚，先玩哪一盘？</h1>
     <p class="arcade-sub">真心话、大冒险、飞行棋，独立在这个窗口里。<br>新版「升温夜航」的进度和数据，不会受影响。</p>
     <div class="arcade-grid">
+      <a class="arcade-card" href="thermometer.html" aria-label="打开温度计" style="text-decoration:none">
+        <span class="ic" aria-hidden="true">🌡️</span>
+        <span class="tx"><b>温度计 <span class="arcade-new">NEW</span></b><span>12 格慢慢升温：掷骰子前进，完成落点的那一格，随时可停</span></span>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
       <button class="arcade-card" type="button" data-game="truth" aria-label="打开真心话转盘">
         <span class="ic" aria-hidden="true">🎡</span>
         <span class="tx"><b>真心话转盘</b><span>转盘决定谁来回答，答不上来就领一条惩罚</span></span>
