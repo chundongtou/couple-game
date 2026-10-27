@@ -80,6 +80,15 @@
 手机浏览器打开后建议「添加到主屏幕」：全屏、离线可玩。
 > 微信/QQ 内置浏览器可能限制安装，建议用 Safari / Chrome 打开。
 
+### 🎪 经典游戏厅（独立窗口）
+
+只想直接玩经典三款？打开 **https://chundongtou.github.io/couple-game/arcade/**：
+真心话转盘 / 大冒险转盘 / 飞行棋。它与新版互不影响（独立页面、独立 `couple-*` 数据键），也可以直接分享单个玩法：
+
+- 真心话转盘：`/arcade/?game=truth`
+- 大冒险转盘：`/arcade/?game=dare`
+- 飞行棋：`/arcade/?game=flight`
+
 ## 开发
 
 ```bash
