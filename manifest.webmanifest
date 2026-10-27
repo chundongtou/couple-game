@@ -1,14 +1,14 @@
 {
-  "name": "情侣升温游戏 · 今晚升温",
-  "short_name": "情侣升温",
+  "name": "升温夜航 · 情侣升温游戏",
+  "short_name": "升温夜航",
   "lang": "zh-CN",
+  "description": "一款双人叙事卡牌游戏：一台手机，三幕夜航，六种结局。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b0617",
-  "theme_color": "#6c2bd9",
-  "description": "24+ 款情侣面对面互动小游戏 · 一台手机就够",
+  "background_color": "#070411",
+  "theme_color": "#0a0616",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -27,6 +27,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
