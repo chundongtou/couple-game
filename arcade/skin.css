@@ -1,0 +1,242 @@
+/* ===== 升温夜航 · 经典游戏厅皮肤（只改视觉，不改布局/逻辑） =====
+ * 在旧版 CSS 之后注入；所有覆盖只作用于颜色、背景、边框、圆角、字体与阴影。
+ */
+:root{
+  --sk-bg:#070411; --sk-bg2:#120a26; --sk-ink:#f7f1ff; --sk-dim:#b3a6c9; --sk-dim2:#7d7194;
+  --sk-gold:#f3c879; --sk-gold2:#d9a54b; --sk-rose:#ff5f9e; --sk-violet:#9a7cff; --sk-teal:#4fd6c8;
+  --sk-line:rgba(255,255,255,.10); --sk-line2:rgba(255,255,255,.18);
+  --sk-glass:rgba(255,255,255,.055); --sk-glass2:rgba(255,255,255,.085);
+  --sk-shadow:0 18px 50px rgba(0,0,0,.4);
+}
+html,body{
+  background:
+    radial-gradient(900px 520px at 82% -10%, rgba(154,124,255,.26), transparent 62%),
+    radial-gradient(760px 480px at 6% 108%, rgba(255,95,158,.18), transparent 60%),
+    linear-gradient(180deg,#0b0617,#070411 58%,#0a0614) !important;
+  color:var(--sk-ink) !important;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif !important;
+}
+body.light,body.sketch{background:#070411 !important;color:var(--sk-ink) !important}
+.page{background:transparent !important}
+h1,h2,h3,.modal h3{color:var(--sk-ink) !important;letter-spacing:.03em}
+p,.desc,.sub{color:var(--sk-dim) !important}
+
+/* 顶部（独立打开时可见；内嵌时已被隐藏） */
+.header{
+  background:linear-gradient(135deg,#171029,#0e0820) !important;
+  border-bottom:1px solid var(--sk-line) !important;
+  box-shadow:none !important;
+}
+.header h1{font-size:18px !important;font-weight:800 !important;letter-spacing:.14em !important;text-shadow:none !important}
+.header .sub{color:var(--sk-dim2) !important;letter-spacing:.14em !important}
+.back-btn{color:var(--sk-gold) !important;font-size:20px !important}
+
+/* 首页卡 / 九宫格 */
+.game-card,.v12-tile{
+  background:linear-gradient(155deg,rgba(255,255,255,.075),rgba(255,255,255,.025)) !important;
+  border:1px solid var(--sk-line) !important;
+  border-radius:20px !important;
+  box-shadow:none !important;
+}
+.game-card .name,.v12-tile .nm{color:var(--sk-ink) !important;font-weight:800 !important}
+.game-card .desc,.v12-tile .ds{color:var(--sk-dim) !important}
+.game-card .icon,.v12-tile .ic{filter:saturate(.9)}
+
+/* 通用小标签 / 选择按钮 */
+.mini-btn{
+  background:var(--sk-glass) !important;
+  border:1px solid var(--sk-line) !important;
+  color:var(--sk-dim) !important;
+  border-radius:999px !important;
+}
+.mini-btn.on,.mini-btn[style*="ff2d95"]{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  border-color:transparent !important;
+  color:#2a1206 !important;
+  font-weight:800 !important;
+  box-shadow:0 0 22px rgba(255,95,158,.28) !important;
+}
+.mini-btn.on *{color:#2a1206 !important}
+
+/* ---------- 转盘 ---------- */
+.wheel-result{
+  background:linear-gradient(165deg,rgba(255,255,255,.085),rgba(255,255,255,.03)) !important;
+  border:1px solid var(--sk-line2) !important;
+  border-radius:22px !important;
+  box-shadow:var(--sk-shadow) !important;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.wheel-result .text{color:var(--sk-ink) !important;font-size:17px !important;line-height:1.8 !important}
+.wheel-result .star{color:var(--sk-gold) !important}
+.wheel-result .player-tag{
+  background:rgba(154,124,255,.20) !important;
+  border:1px solid rgba(154,124,255,.35) !important;
+  color:#e9def8 !important;
+}
+.wheel-pointer{border-top-color:var(--sk-gold) !important;filter:drop-shadow(0 4px 10px rgba(243,200,121,.35)) !important}
+.wheel-go-btn{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  border:3px solid rgba(255,255,255,.72) !important;
+  color:#2a1206 !important;
+  box-shadow:0 0 26px rgba(255,95,158,.35),0 8px 24px rgba(0,0,0,.4) !important;
+  font-weight:900 !important;
+}
+.wheel-btn{border-radius:14px !important;min-height:44px !important}
+.wheel-btn.spin{background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;color:#2a1206 !important;font-weight:800 !important}
+.wheel-btn.next{background:linear-gradient(135deg,#4fd6c8,#9a7cff) !important;color:#08131a !important;font-weight:800 !important}
+.wheel-btn.back{background:var(--sk-glass) !important;border:1px solid var(--sk-line2) !important;color:var(--sk-dim) !important}
+
+/* ---------- 控制条 ---------- */
+.ctrl-bar{
+  background:rgba(9,5,18,.94) !important;
+  border-top:1px solid var(--sk-line) !important;
+  box-shadow:0 -14px 34px rgba(0,0,0,.35) !important;
+}
+.ctrl-btn{
+  background:var(--sk-glass) !important;
+  border:1px solid var(--sk-line) !important;
+  border-radius:14px !important;
+  color:var(--sk-dim) !important;
+}
+.ctrl-btn:active{background:var(--sk-glass2) !important}
+.ctrl-item{
+  color:var(--sk-gold) !important;
+  background:rgba(243,200,121,.08) !important;
+  border:1px solid rgba(243,200,121,.26) !important;
+}
+
+/* ---------- 弹层 / 提示 ---------- */
+.modal{
+  background:linear-gradient(180deg,#191029,#0d0719) !important;
+  border:1px solid var(--sk-line2) !important;
+  border-radius:24px !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.55) !important;
+}
+.modal-mask{background:rgba(5,3,12,.66) !important;backdrop-filter:blur(8px) !important}
+.modal h3{color:var(--sk-gold) !important}
+.modal .m-item{
+  background:rgba(255,255,255,.04) !important;
+  border:1px solid var(--sk-line) !important;
+  color:var(--sk-dim) !important;
+  border-radius:14px !important;
+}
+.modal .m-item b{color:var(--sk-gold) !important}
+.modal .m-tab{background:var(--sk-glass) !important;border:1px solid var(--sk-line) !important;color:var(--sk-dim) !important;border-radius:999px !important}
+.modal .m-tab.on{background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;color:#2a1206 !important;border-color:transparent !important}
+.modal .m-add input{background:rgba(255,255,255,.06) !important;border:1px solid var(--sk-line) !important;color:var(--sk-ink) !important;border-radius:12px !important}
+.toast{
+  background:rgba(26,14,40,.95) !important;
+  border:1px solid var(--sk-line2) !important;
+  color:var(--sk-ink) !important;
+  border-radius:999px !important;
+  box-shadow:0 12px 34px rgba(0,0,0,.45) !important;
+}
+input,select,textarea{
+  background:rgba(255,255,255,.06) !important;
+  border:1px solid var(--sk-line) !important;
+  color:var(--sk-ink) !important;
+  border-radius:12px !important;
+}
+input::placeholder,textarea::placeholder{color:#6b6184 !important}
+
+/* ---------- 飞行棋 ---------- */
+.fl-p{
+  background:var(--sk-glass) !important;
+  border:2px solid var(--sk-line2) !important;
+  color:var(--sk-dim) !important;
+  border-radius:999px !important;
+}
+.fl-p.cur{color:#fff !important;border-color:var(--sk-gold) !important;box-shadow:0 0 18px rgba(243,200,121,.35) !important}
+.fl-lane-label{color:var(--sk-gold) !important;letter-spacing:.12em !important}
+.fl-cell{
+  background:rgba(255,255,255,.055) !important;
+  border:1px solid var(--sk-line) !important;
+  color:var(--sk-dim) !important;
+  border-radius:10px !important;
+}
+.fl-cell.start,.fl-cell.t-cross{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  color:#2a1206 !important;
+  font-weight:800 !important;
+}
+.fl-cell.t-truth{background:linear-gradient(145deg,rgba(154,124,255,.42),rgba(80,56,140,.30)) !important}
+.fl-cell.t-dare{background:linear-gradient(145deg,rgba(255,95,158,.42),rgba(150,40,80,.30)) !important}
+.fl-cell.t-drink{background:linear-gradient(145deg,rgba(243,200,121,.42),rgba(150,110,40,.30)) !important}
+.fl-cell.t-safe{background:linear-gradient(145deg,rgba(79,214,200,.40),rgba(30,110,105,.28)) !important}
+.fl-cell.t-spicy{background:linear-gradient(145deg,rgba(255,95,158,.55),rgba(120,20,50,.40)) !important}
+.fl-cell.t-duo{background:linear-gradient(145deg,rgba(255,95,158,.42),rgba(154,124,255,.34)) !important}
+.fl-cell.t-duel{background:linear-gradient(145deg,rgba(243,200,121,.50),rgba(180,90,60,.34)) !important}
+.fl-cell.t-event{background:linear-gradient(145deg,rgba(79,214,200,.42),rgba(40,90,140,.30)) !important}
+.fl-cell.t-prison{background:rgba(120,120,140,.22) !important}
+.fl-cell.t-ktv{background:linear-gradient(145deg,rgba(79,214,200,.36),rgba(40,120,130,.28)) !important}
+.fl-cell.t-item{background:linear-gradient(145deg,rgba(154,124,255,.36),rgba(60,120,90,.26)) !important}
+.fl-ring-mid{
+  background:rgba(255,255,255,.03) !important;
+  border:1px dashed rgba(243,200,121,.42) !important;
+}
+.fl-ring-mid b{color:var(--sk-gold) !important}
+.fl-turn-banner{
+  border:1px solid rgba(243,200,121,.55) !important;
+  background:linear-gradient(90deg,rgba(243,200,121,.16),transparent) !important;
+  color:var(--sk-ink) !important;
+  border-radius:16px !important;
+}
+.fl-lane-active .fl-cells{
+  outline:2px solid rgba(243,200,121,.7) !important;
+  outline-offset:2px !important;
+  border-radius:12px !important;
+  box-shadow:0 0 18px rgba(243,200,121,.28) !important;
+}
+.fl-task{
+  background:linear-gradient(165deg,rgba(255,255,255,.08),rgba(255,255,255,.03)) !important;
+  border:1px solid rgba(255,95,158,.35) !important;
+  border-radius:18px !important;
+}
+.fl-task .who{color:var(--sk-gold) !important}
+.fl-ids{color:var(--sk-teal) !important}
+.fl-roll-btn{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  color:#2a1206 !important;
+  border:0 !important;
+  border-radius:14px !important;
+  font-weight:800 !important;
+}
+.dice-box{
+  background:linear-gradient(160deg,#251640,#140c26) !important;
+  border:1px solid rgba(255,255,255,.28) !important;
+  border-radius:24px !important;
+  color:#fff !important;
+}
+.dice-wrap h2,.bomb-wrap h2,.rps-wrap h2{color:var(--sk-ink) !important}
+.bomb-wrap p,.dice-wrap p,.rps-wrap p{color:var(--sk-dim) !important}
+
+/* 通用主按钮（旧版散落的提交按钮） */
+.bomb-submit,.dice-submit,.rps-submit,.fl-roll-btn,.fl-btns .wheel-btn.spin{
+  background:linear-gradient(135deg,#f3c879,#ff5f9e) !important;
+  color:#2a1206 !important;
+  border:0 !important;
+  border-radius:14px !important;
+  font-weight:800 !important;
+}
+
+/* Toast：旧版是大块居中黑条，改成顶部小胶囊，不再压住转盘结果 */
+.toast{
+  top:calc(116px + env(safe-area-inset-top,0px)) !important;
+  left:50% !important;
+  bottom:auto !important;
+  transform:translate(-50%,-8px) !important;
+  max-width:86vw !important;
+  padding:9px 15px !important;
+  font-size:12px !important;
+  line-height:1.5 !important;
+  text-align:center !important;
+  border-radius:999px !important;
+  white-space:normal !important;
+}
+.toast.show{transform:translate(-50%,0) !important}
+html.arcade-embed .toast{top:12px !important}
+
+/* 旧版顶部三条 HUD 会压住飞行棋玩家信息；新版不需要，隐藏 */
+.v12-hud{display:none !important}
+html.arcade-embed .ctrl-log-toggle{display:none !important}
+

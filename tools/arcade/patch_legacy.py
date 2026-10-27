@@ -171,6 +171,24 @@ def patch(html):
     end = html.find("/* ===== V17 FEATURE: 40-shellfix.js", start + 1)
     if start >= 0 and end > start:
         html = html[:start] + html[end:]
+    # 1.5) 转盘/玩家颜色换成新版夜航调色（只改视觉常量）
+    html = html.replace(
+        "var colors=['#6c2bd9','#7c3aed','#8b5cf6','#a855f7','#7c3aed','#8b5cf6','#6c2bd9','#a855f7'];",
+        "var colors=['#3b2a63','#4d2f6b','#6b3a70','#8a446e','#4d2f6b','#6b3a70','#3b2a63','#8a446e'];",
+    )
+    html = html.replace(
+        "var colors=['#ff6b6b','#ee5a24','#e74c3c','#ff4757','#ff6348','#e55039','#eb4d4b','#fc5c65'];",
+        "var colors=['#5a2434','#73303c','#8f3b44','#a8474c','#73303c','#8f3b44','#5a2434','#a8474c'];",
+    )
+    html = html.replace(
+        "window._rouColors=['#00cec9','#a855f7','#ff6b6b','#f39c12','#ff4757','#ff4757'];",
+        "window._rouColors=['#4fd6c8','#9a7cff','#ff5f9e','#f3c879','#ff5f9e','#ff5f9e'];",
+    )
+    html = html.replace(
+        "p.color=['#3498db','#e040fb','#2ecc71','#f39c12'][i];",
+        "p.color=['#4fd6c8','#ff5f9e','#f3c879','#9a7cff'][i];",
+    )
+    html = html.replace("ctx.fillStyle=i%2===0?'#ffd700':'#ff6b9d';", "ctx.fillStyle=i%2===0?'#f3c879':'#ff5f9e';")
     # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
     for pattern in [
         r'\n<link rel="manifest"[^>]*>',
@@ -183,8 +201,10 @@ def patch(html):
     html = html.replace("<title>情侣升温游戏</title>", "<title>经典游戏厅 · 升温夜航</title>")
     html = html.replace('<meta name="theme-color" content="#6c2bd9">', '<meta name="theme-color" content="#0a0616">')
     html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">' + SEED, 1)
-    # 4) 注入游戏厅层
-    inject = '<style id="arcade-css">' + CSS + "</style>\n" + HOME + "\n<script>" + JS + "</script>\n"
+    # 4) 注入新版皮肤 + 游戏厅层（skin 放在最后，确保覆盖旧版所有样式）
+    skin_path = ROOT / "arcade" / "skin.css"
+    skin = skin_path.read_text(encoding="utf-8") if skin_path.exists() else ""
+    inject = '<style id="arcade-skin">' + skin + "</style>\n" + '<style id="arcade-css">' + CSS + "</style>\n" + HOME + "\n<script>" + JS + "</script>\n"
     idx = html.rfind("</body>")
     if idx < 0:
         raise SystemExit("找不到 </body>")
