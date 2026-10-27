@@ -53,7 +53,13 @@
     }, t.dur);
   }
 
+  var userTapped = false;
+  try {
+    document.addEventListener("pointerdown", function () { userTapped = true; }, true);
+  } catch (e) {}
+
   function vibrate(pattern) {
+    if (!userTapped) return;   /* Chrome 会在无用户手势时拒绝 vibrate 并打 console error */
     var s = settings();
     if (s.haptics === false) return;
     try { if (navigator.vibrate) navigator.vibrate(pattern || 12); } catch (e) {}

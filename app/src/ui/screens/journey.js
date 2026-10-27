@@ -56,11 +56,11 @@
     "@keyframes jrRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }",
 
     /* ---------- 顶栏 ---------- */
-    ".jr-top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }",
+    ".jr-top { display: flex; align-items: center; justify-content: space-between; min-height: 48px; }",
     ".jr-actmark { display: flex; align-items: center; gap: 9px; min-width: 0; }",
     ".jr-actmark .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent, var(--gold)); box-shadow: 0 0 12px var(--accent, var(--gold)); flex: 0 0 auto; }",
     ".jr-actmark .k { font-size: 10.5px; letter-spacing: .30em; color: var(--dim2); font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
-    ".jr-menu { width: 44px; height: 44px; flex: 0 0 auto; }",
+    ".jr-menu { width: 48px; height: 48px; flex: 0 0 auto; }",
     ".jr-menu i { font-style: normal; font-size: 16px; letter-spacing: 0; }",
     /* 减少动效：不做位移/旋转，只留一次极短淡入（DESIGN §2） */
     "body.reduce .jr-rise, body.reduce .jr-pos { animation-name: jrFadeIn !important; animation-duration: .2s !important; animation-delay: 0ms !important; }",
@@ -191,7 +191,7 @@
     "  border-radius: 999px; background: linear-gradient(135deg, var(--gold), #ff9f6b); color: #2a0f1c; font-size: 11px; font-weight: 900; }",
     ".jr-reroll.empty { opacity: .58; }",
     ".jr-reroll.empty .n { background: rgba(255,255,255,.16); color: var(--dim); }",
-    ".jr-safety { min-height: 44px; padding: 4px 6px; font-size: 10.5px; color: var(--dim2); letter-spacing: .04em; text-align: right; line-height: 1.5; }",
+    ".jr-safety { min-height: 48px; padding: 6px 8px; font-size: 10.5px; color: var(--dim2); letter-spacing: .04em; text-align: right; line-height: 1.5; }",
     ".jr-safety b { color: #ffb3b8; font-weight: 700; }",
 
     /* ---------- 菜单 sheet ---------- */
