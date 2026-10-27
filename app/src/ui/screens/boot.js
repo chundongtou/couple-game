@@ -48,6 +48,7 @@
       '<button class="btn ' + (hasSession ? "soft" : "primary xl") + ' wide" id="btnNew" data-test="boot-new">' + (hasSession ? "开始新的一夜" : "开始今晚") + "</button>" +
       '<div class="boot-row">' +
       '<button class="btn ghost sm" id="btnMemory" data-test="boot-memory">回忆册</button>' +
+      '<button class="btn ghost sm" id="btnArcade" data-test="boot-arcade">游戏厅</button>' +
       '<button class="btn ghost sm" id="btnSettings" data-test="boot-settings">设置</button>' +
       "</div>" +
       '<div class="boot-foot">安全词随时可用 · 长按「停」即可温柔收尾<br>数据只保存在这台手机上</div>' +
@@ -89,6 +90,10 @@
     U.qs("#btnMemory", root).addEventListener("click", function () {
       App.Audio.play("tap");
       App.Router.go("memory");
+    });
+    U.qs("#btnArcade", root).addEventListener("click", function () {
+      App.Audio.play("tap");
+      App.Router.go("arcade");
     });
     U.qs("#btnSettings", root).addEventListener("click", function () {
       App.Audio.play("tap");

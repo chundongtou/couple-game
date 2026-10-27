@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """生成「经典游戏厅」：把 V17 旧版单文件包装成只装 3 个经典玩法的独立窗口。
 
 - 数据/代码来源：git 提交 98f56c4 的 index.html（旧版 V17 完整单文件）
@@ -24,6 +24,7 @@ SEED = (
 CSS = """
 /* ===== 经典游戏厅（包装层，不影响旧版内部样式） ===== */
 body.arcade-home { overflow: hidden !important; }
+html.arcade-embed .header { display: none !important; }
 #arcadeHome{position:fixed;inset:0;z-index:100000;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;
   background:
     radial-gradient(900px 520px at 82% -10%, rgba(154,124,255,.30), transparent 60%),
@@ -100,6 +101,8 @@ JS = """
 (function(){
   var overlay = document.getElementById('arcadeHome');
   var wrapped = false;
+  var EMBED = /[?&]embed=1/.test(location.search);
+  if (EMBED) { try { document.documentElement.classList.add('arcade-embed'); } catch (e) {} }
   function show(){
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
     overlay.classList.add('on');
@@ -114,12 +117,19 @@ JS = """
   function start(game){
     hide();
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
-    try { startGame(game); } catch (e) { show(); }
+    try { startGame(game); } catch (e) { if (!EMBED) show(); }
     try { window.scrollTo(0, 0); } catch (e) {}
   }
   function wrapHome(){
-    if (wrapped || typeof window.goHome !== 'function') return;
+    if (wrapped) return;
     wrapped = true;
+    if (EMBED) {
+      window.goHome = function(){
+        try { parent.postMessage({ type: 'arcade:back' }, '*'); } catch (e) {}
+      };
+      return;
+    }
+    if (typeof window.goHome !== 'function') { wrapped = false; return; }
     var orig = window.goHome;
     window.goHome = function(){ var r = orig.apply(this, arguments); show(); return r; };
   }
@@ -130,7 +140,8 @@ JS = """
   function boot(){
     wrapHome();
     var m = String(location.search || '').match(/[?&]game=(truth|dare|flight)/);
-    if (m) start(m[1]); else show();
+    if (m) start(m[1]);
+    else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 280); });
@@ -190,4 +201,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

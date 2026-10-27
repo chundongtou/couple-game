@@ -40,6 +40,7 @@ JS_MODULES = [
     "src/ui/screens/shop.js",
     "src/ui/screens/finale.js",
     "src/ui/screens/memory.js",
+    "src/ui/screens/arcade.js",
     "src/ui/screens/settings.js",
     "src/ui/pwa.js",
     "src/app.js",
@@ -160,3 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

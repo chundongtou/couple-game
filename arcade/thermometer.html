@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -23,6 +23,7 @@ body{
     linear-gradient(180deg,#0b0617,#070411 58%,#0a0614);
   min-height:100vh; overflow-x:hidden;
 }
+html.embed #startS .brand, html.embed #startS .start-foot .top-link, html.embed #endS a[data-back]{display:none!important}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background-image:radial-gradient(rgba(255,255,255,.18) .6px, transparent .7px);
   background-size:46px 46px;opacity:.18;mask-image:linear-gradient(180deg,#000,transparent 70%);
@@ -194,7 +195,7 @@ h1{margin:16px 0 0;font-size:clamp(32px,9.6vw,44px);line-height:1.12;letter-spac
       <button class="btn ghost hidden" id="btnResume">继续上次 · 第 <b id="resumeStep">1</b> 格</button>
     </div>
     <div class="start-foot">
-      <a class="top-link" href="./">← 回到游戏厅</a>
+      <a class="top-link" data-back href="./">← 回到游戏厅</a>
       <span class="foot-note" style="margin:0;text-align:right">成人向 · 双方自愿 · <b>安全词「停」</b></span>
     </div>
   </section>
@@ -254,7 +255,7 @@ h1{margin:16px 0 0;font-size:clamp(32px,9.6vw,44px);line-height:1.12;letter-spac
       </div>
       <div class="end-actions">
         <button class="btn primary" id="btnAgain">再升一次</button>
-        <a class="btn ghost" href="./">回到游戏厅</a>
+        <a class="btn ghost" data-back href="./">回到游戏厅</a>
       </div>
     </div>
   </section>
@@ -277,6 +278,12 @@ h1{margin:16px 0 0;font-size:clamp(32px,9.6vw,44px);line-height:1.12;letter-spac
 (function(){
   var KEY_S = 'thermo.session.v1';
   var KEY_H = 'thermo.history.v1';
+  var EMBED = /[?&]embed=1/.test(location.search);
+  if (EMBED) { try { document.documentElement.classList.add('embed'); } catch (e) {} }
+  function goBack(){
+    if (EMBED) { try { parent.postMessage({ type: 'arcade:back' }, '*'); } catch (e) {} }
+    else { location.href = './'; }
+  }
   var ZONES = [
     {to:4, name:'微温', color:'#4fd6c8'},
     {to:8, name:'升温', color:'#f3c879'},
@@ -548,7 +555,10 @@ h1{margin:16px 0 0;font-size:clamp(32px,9.6vw,44px);line-height:1.12;letter-spac
     show('startS'); render();
     $('btnResume').classList.add('hidden');
   });
-  $('btnBack').addEventListener('click', function(){ location.href = './'; });
+  $('btnBack').addEventListener('click', goBack);
+  Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); goBack(); });
+  });
   $('variant').addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('button[data-v]') : null;
     if (!b) return;
@@ -573,5 +583,6 @@ h1{margin:16px 0 0;font-size:clamp(32px,9.6vw,44px);line-height:1.12;letter-spac
 </script>
 </body>
 </html>
+
 
 
