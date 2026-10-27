@@ -1,0 +1,262 @@
+{
+ "GAMEDATA": {
+  "kind": "object",
+  "keys": 14
+ },
+ "FLIGHT_EVENTS": {
+  "kind": "array",
+  "n": 8
+ },
+ "HOTEL": {
+  "kind": "object",
+  "keys": 4
+ },
+ "BLIND_NIGHT": {
+  "kind": "array",
+  "n": 10
+ },
+ "TOUCH_PARTS": {
+  "kind": "array",
+  "n": 20
+ },
+ "TOUCH_ACTS": {
+  "kind": "array",
+  "n": 15
+ },
+ "TOUCH_DURS": {
+  "kind": "array",
+  "n": 8
+ },
+ "HEAT_TAG": {
+  "kind": "object",
+  "keys": 283
+ },
+ "RANK_POOL": {
+  "kind": "object",
+  "keys": 2
+ },
+ "DRUNK_TRUTHS": {
+  "kind": "array",
+  "n": 30
+ },
+ "FLIGHT_IDS_M": {
+  "kind": "array",
+  "n": 4
+ },
+ "FLIGHT_IDS_F": {
+  "kind": "array",
+  "n": 4
+ },
+ "CP": {
+  "kind": "object",
+  "keys": 2
+ },
+ "HE": {
+  "kind": "object",
+  "keys": 2
+ },
+ "DIFF_NAMES": {
+  "kind": "array",
+  "n": 4
+ },
+ "SET": {
+  "kind": "object",
+  "keys": 17
+ },
+ "KISS_POOL": {
+  "kind": "array",
+  "n": 10
+ },
+ "GENTLE_KW": {
+  "kind": "array",
+  "n": 49
+ },
+ "HOT_KW": {
+  "kind": "array",
+  "n": 26
+ },
+ "BLACK": {
+  "kind": "array",
+  "n": 0
+ },
+ "LOCAL_KW": {
+  "kind": "array",
+  "n": 21
+ },
+ "GAMES": {
+  "kind": "array",
+  "n": 30
+ },
+ "RULES": {
+  "kind": "object",
+  "keys": 26
+ },
+ "RULE_DIAG": {
+  "kind": "object",
+  "keys": 2
+ },
+ "HEATLINE": {
+  "kind": "array",
+  "n": 5
+ },
+ "EVO_ADDONS": {
+  "kind": "array",
+  "n": 5
+ },
+ "DIR_PHASES": {
+  "kind": "array",
+  "n": 4
+ },
+ "CONTRACT_CMDS": {
+  "kind": "array",
+  "n": 12
+ },
+ "ITEMS": {
+  "kind": "object",
+  "keys": 6
+ },
+ "UNLOCKED": {
+  "kind": "object",
+  "keys": 2
+ },
+ "RESET_MAP": {
+  "kind": "object",
+  "keys": 26
+ },
+ "FLIGHT_ICONS": {
+  "kind": "object",
+  "keys": 14
+ },
+ "PAIR_PARTS": {
+  "kind": "array",
+  "n": 60
+ },
+ "TRUTH_COLORS": {
+  "kind": "array",
+  "n": 8
+ },
+ "DARE_COLORS": {
+  "kind": "array",
+  "n": 8
+ },
+ "DRUNK_POOL": {
+  "kind": "object",
+  "keys": 2
+ },
+ "DRUNK_EGGS": {
+  "kind": "array",
+  "n": 10
+ },
+ "V11_WIND_DOWN": {
+  "kind": "array",
+  "n": 8
+ },
+ "V11_GENTLE_ALT": {
+  "kind": "array",
+  "n": 6
+ },
+ "V11_LVNAME": {
+  "kind": "array",
+  "n": 4
+ },
+ "V11_VOICE_SEL": {
+  "kind": "array",
+  "n": 7
+ },
+ "V11_CARD_DEFS": {
+  "kind": "object",
+  "keys": 6
+ },
+ "V11_ROLE_PAIRS": {
+  "kind": "array",
+  "n": 12
+ },
+ "V12_STORY": {
+  "kind": "array",
+  "n": 3
+ },
+ "V12_ACH": {
+  "kind": "object",
+  "keys": 9
+ },
+ "V12_HUB": {
+  "kind": "object",
+  "keys": 4
+ },
+ "V12_IDS": {
+  "kind": "object",
+  "keys": 8
+ },
+ "V12_IDS_M": {
+  "kind": "array",
+  "n": 4
+ },
+ "V12_IDS_F": {
+  "kind": "array",
+  "n": 4
+ },
+ "V12_SPICY": {
+  "kind": "object",
+  "keys": 3
+ },
+ "V14_TRUTHS": {
+  "kind": "array",
+  "n": 100
+ },
+ "V14_DARE": {
+  "kind": "array",
+  "n": 100
+ },
+ "V14_PUNISH": {
+  "kind": "array",
+  "n": 100
+ },
+ "V14_TOYS": {
+  "kind": "array",
+  "n": 30
+ },
+ "V14_BOND": {
+  "kind": "array",
+  "n": 30
+ },
+ "V14_SHOW": {
+  "kind": "array",
+  "n": 30
+ },
+ "V12_DICE_BASE": {
+  "kind": "object",
+  "keys": 6
+ },
+ "V15_THEMES": {
+  "kind": "object",
+  "keys": 4
+ },
+ "V15_CH": {
+  "kind": "array",
+  "n": 3
+ },
+ "V15_TYPES": {
+  "kind": "object",
+  "keys": 8
+ },
+ "V15_EVENTS": {
+  "kind": "array",
+  "n": 8
+ },
+ "V16_SCRIPTS": {
+  "kind": "object",
+  "keys": 3
+ },
+ "V16_SCRIPT": {
+  "kind": "object",
+  "keys": 12
+ },
+ "V17_MOQI_QS": {
+  "kind": "array",
+  "n": 50
+ },
+ "V17_MOQI_WORDS": {
+  "kind": "array",
+  "n": 110
+ }
+}

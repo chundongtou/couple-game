@@ -1,131 +1,156 @@
-# 💕 情侣升温游戏 Couple Game
+# 🌙 升温夜航 · Couple Voyage
 
-> 一款面向情侣/多人的面对面互动网页小游戏 —— **24 款游戏 + V17 默契/回忆扩展**，一台手机，拉近你们的距离。
+> 一款**双人轮流领航的叙事卡牌游戏**。一台手机，三幕夜航，六种结局。
+> 不是小游戏合集——是一个晚上只发生一次的完整旅程。
 
-![GitHub last commit](https://img.shields.io/github/last-commit/chundongtou/couple-game?style=for-the-badge&color=ff6b9d)
-![GitHub repo size](https://img.shields.io/github/repo-size/chundongtou/couple-game?style=for-the-badge&color=d6409f)
+![Static Site](https://img.shields.io/badge/纯前端-单文件无后端-blue?style=for-the-badge)
+![PWA](https://img.shields.io/badge/PWA-装到桌面·离线可玩-7c3aed?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Static Site](https://img.shields.io/badge/静态单文件-纯前端无后端-blue?style=for-the-badge)
-![PWA](https://img.shields.io/badge/PWA-可装到桌面·离线可玩-7c3aed?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.0.0-f3c879?style=for-the-badge)
 
-<p align="center">
-  <img src="https://github-readme-stats.vercel.app/api?username=chundongtou&show_icons=true&theme=radical&hide_title=true" />
-</p>
+## 这是什么
 
-## 🆕 V17 更新（2026.10）
+> 「今晚，你们登上一艘只在夜里出现的船。航线有三段：潮汐、暗涌、靠岸。
+> 每一张卡，都是海面递来的一句话。你可以回答，也可以跳过——船会记得你们怎么选择。」
 
-| 新功能 | 一句话 |
-|------|------|
-| 💞 **默契大考验** | 心有灵犀（50 题 / 5·8·10 题 / 两人交替猜心）+ 你说我猜（110 词 / 60·90·120 秒），算默契度与段位 |
-| 📖 **我们的回忆册** | 每晚战报自动留档：时间线、最高温度、累计任务、陪伴天数，还能给那晚写一句话 |
-| 💾 **数据备份** | 全部本机数据一键导出 JSON / 导入恢复，换手机、清缓存都不丢 |
-| 📲 **装到桌面 + 离线可玩** | 支持添加到主屏幕全屏打开；首次打开后断网也能玩；分享链接带预览卡片 |
+- 🎴 **1423 张卡**：真心话 / 大冒险 / 触碰 / 共鸣 / 深潜 / 惩罚（文本复用旧版题库，按新规则重排打星）
+- 🎭 **三幕结构**：潮汐（试探）→ 暗涌（升温）→ 靠岸（交融），每幕结束有事件、结算与星屑商店
+- 🎲 **每回合三选一**：领航员从 3 张手牌里挑 1 张递过去；完成 / 跳过 / 加码深潜
+- 💞 **三资源 + 星屑**：心动 ♥、张力 ✦、默契 ⌁，连击、换牌券、护身符、加码券
+- 🌅 **六种结局**：由你们这一晚的资源曲线与选择决定；结束生成可保存的海报
+- 📖 **回忆册**：每张船票留档（结局/资源/奖项），支持导出/导入全部数据
+- 📲 **PWA**：添加到主屏幕全屏玩，断网也能继续；数据只在本机
+- 🚩 **安全词常驻**：长按「停」1.5 秒立刻温柔收尾，不扣数据、不评判
 
-> 详细更新说明见 [V17-更新说明.md](V17-更新说明.md)。
+## 今晚怎么玩
 
-## 📸 界面预览
+1. **设置**：两个人的称呼 → 尺度（温柔 / 暧昧 / 热烈 / 不设限）与边界 → 航程长度（9 / 14 / 18 回合）
+2. **领航**：轮流当领航员，从 3 张手牌中选 1 张，完成它、跳过它，或完成后「加码深潜」
+3. **靠岸**：三幕后进入结局，生成海报、存进回忆册；明晚可以继续新的航程
+
+> 不用一次玩完：进度自动保存，首页「继续今晚」随时接上。
+
+## 玩法机制
+
+| 机制 | 规则 |
+|---|---|
+| 完成 | 按卡牌类型与星级获得资源；连击 +1 |
+| 跳过 | 连击归零、张力 -1（≥0），温柔值 +1；不会因此卡关 |
+| 加码 | 完成后抽一张 ★+1 深潜卡，收益 ×2；满星时需要「加码券」 |
+| 缓一缓 | 对当前卡降 1 星，每局 2 次 |
+| 连击 | 每 3 连额外星屑；每 5 连送 1 张随机券 |
+| 幕末 | 共鸣检定（达标得星屑/券）；未达标下一幕手牌会自动温柔一档 |
+| 商店 | 幕间用星屑买护身符 / 换牌券 / 加码券 / 心糖 |
+| 结局 | 安全词 → 温柔 → 默契 → 张力 → 心动 → 兜底，六种结局按优先级判定 |
+
+- **尺度**：`maxStar` 1–4 控制手牌星级上限；严格露骨词强制 ≥4 星，所以温柔档不会被重口卡砸场。
+- **边界**：可勾选标签（束缚/露出/道具/喝酒/蒙眼/角色）或自定义关键词加入黑名单；柔和模式限制 ★≤2。
+- **安全词**：任意页面（play 时在底部）长按「停」→ 立即进入「温柔收尾」结局，不扣数据。
+
+## 六种结局
+
+| 结局 | 触发方向 |
+|---|---|
+| 🌊 海面下的拥抱 | 使用了安全词（温柔收尾） |
+| 🌤 慢一点，也很靠近 | 温柔值 ≥3 且心动 ≥6 |
+| 🪢 同一个频率 | 默契 ≥12 且心动 ≥8 |
+| 🔥 不眠的暗涌 | 张力 ≥18 |
+| 🌅 天亮之前 | 心动 ≥14 |
+| 🌫 各自听见的海 | 以上都不满足 |
+
+## 截图
 
 <p>
-  <img src="docs/v17/home.jpg" width="195" alt="首页：六个入口">
-  <img src="docs/v17/moqi-guess.jpg" width="195" alt="你说我猜">
-  <img src="docs/v17/moqi-result.jpg" width="195" alt="默契度结算">
-  <img src="docs/v17/memory-timeline.jpg" width="195" alt="回忆册时间线">
+  <img src="docs/v3/setup.jpg" width="180" alt="设置：尺度与边界">
+  <img src="docs/v3/journey.jpg" width="180" alt="航程：三选一手牌">
+  <img src="docs/v3/play.jpg" width="180" alt="执行一张卡">
+  <img src="docs/v3/act.jpg" width="180" alt="幕末结算">
+</p>
+<p>
+  <img src="docs/v3/finale.jpg" width="180" alt="结局">
+  <img src="docs/v3/memory.jpg" width="180" alt="回忆册">
+  <img src="docs/v3/shop.jpg" width="180" alt="星屑商店">
+  <img src="docs/v3/safe.jpg" width="180" alt="安全词">
 </p>
 
-## 🎮 游戏一览（24 款 + V17 新增 1 款）
-
-| 类别 | 游戏 |
-|------|------|
-| 经典 6 款 | 💜真心话 · 🔥大冒险 · 💣数字炸弹 · 🎲骰子大冒险 · ✊石头剪刀布 · 🎡惩罚大转盘 |
-| 刺激 7 款 | 🔫极限轮盘 · ⛓️越拒绝越刺激 · 🔥同时开火 · 🧎国王小时 · 💥赌徒翻倍 · 🎯敏感点狙击 · 🪢蒙眼服从 |
-| 进阶 7 款 | 🎰命运二选一 · 🂡出牌对决 · 📦九宫格盲盒 · ⏱️烫手山芋 · 🏋️体力情话 · 🎭身份扮演 · 💰勇气竞拍 |
-| 飞行棋 | ✈️ 四玩法融合（对飞/环岛/双轨/旗舰），男女差异化内容，性别支线，事件卡，身份卡 |
-| 全新 3 款 | 💰真心话保险箱 · 👑五分钟国王 · 🎲盲盒骰子 |
-| V17 新增 | 💞 默契大考验（心有灵犀 / 你说我猜 · 测测你们多懂彼此） |
-| 夜间模式 | 🗺️ 今夜地图（3 章 18 节点随机地图）· 🕯️ 主题之夜（四幕剧情）· 🕵️ 剧本之夜（3 本情感悬疑剧本） |
-
-## ✨ 特色
-
-- 🌓 三主题（暗夜夜灯 / 浅色浪漫 / 手绘情书）+ 🎀 三场景皮肤（海滩 / 圣诞 / 露营）
-- 🎚️ 难度 4 档：纯爱温和 → 暧昧甜撩 → 热辣升温 → 极限刺激
-- 🎡 任务大转盘：真心话/大冒险选项卡随时切换，3D 真实旋转骰子
-- 📊 本晚战报 + 历史累计数据、任务分类徽章、❤ 任务收藏
-- 💞 默契大考验：50 道偏好题 + 110 个猜词，测测你们到底多懂彼此
-- 📖 回忆册 + 💾 一键备份：每个夜晚都能回看，换手机也不丢数据
-- 📲 PWA：装到桌面全屏体验、断网也能玩、分享链接带预览卡
-- 🛡️ 安全机制：酒量额度（男≤5杯/女≤3杯，超限自动转亲吻）、半杯特权、弃权卡、安全词
-- 📱 纯前端单文件，零后端零付费，全部数据存浏览器 localStorage
-- 📈 50 万局虚拟真人试玩验证：0 死锁、100% 完赛
-
-## 🚀 立即游玩
+## 立即游玩
 
 👉 **https://chundongtou.github.io/couple-game/**
 
-> 📲 想更像 App：用 Safari / Chrome 打开后「添加到主屏幕」，之后全屏无地址栏，断网也能玩。
-> 提示：用手机自带浏览器打开（部分社交 App 内置浏览器可能拦截安装）；更新后多刷新几次清缓存。
+手机浏览器打开后建议「添加到主屏幕」：全屏、离线可玩。
+> 微信/QQ 内置浏览器可能限制安装，建议用 Safari / Chrome 打开。
 
-## 🧰 技术栈
-
-- 原生 HTML + CSS + JavaScript 单文件（无框架依赖）
-- 自托管字体（Baloo 2 / Quicksand）、Radix Colors 设计系统、Rough.js 手绘风格
-- Mermaid 预渲染规则流程图、GitHub Actions 自动部署 Pages
-- PWA：Web App Manifest + Service Worker（导航 network-first，静态资源 cache-first）
-- 构建：`v17/features/*.js` 由 `tools/build.py` 拼进 `index.html` 注入区，线上仍是单文件
-
-## 🛠️ 本地开发 / 自测
+## 开发
 
 ```bash
-python tools/build.py              # 构建 dist/（= index.html + manifest/sw/icons）
-python tools/dev.py --port 8787    # 构建 + 本地预览（禁缓存；手机同 WiFi 可访问）
-python qa/harness.py --smoke       # Playwright 基线冒烟：29 个玩法逐个进入
+# 题库（从旧版 raw.json 重新生成 cards.js；改分类/打星后跑）
+python tools/rebuild/make_cards.py
+
+# 开发构建 + 本地预览（禁缓存）
+python tools/rebuild/build_app.py --out dist/rebuild
+python tools/rebuild/dev_app.py --port 8877 --out dist/rebuild --no-build
+
+# 生产构建（写 repo 根 index.html，单文件，含 manifest/sw/icons）
+python tools/rebuild/build_app.py --release
+
+# 引擎单测（Node）
+node qa/rebuild/engine.test.mjs
+
+# E2E（Playwright）
+python qa/rebuild/e2e.py --dist dist/rebuild
 ```
 
 目录：
 
 ```
-index.html            线上唯一入口（V17 功能已注入）
-v17/features/*.js     V17 功能源码（构建时注入，勿手改 index.html 注入区）
-tools/build.py        拼装构建（含 node --check 语法体检）
-tools/dev.py          本地预览服务
-tools/gen_icons.py    生成 PWA 图标 / 分享图（Pillow）
-manifest.webmanifest  PWA 清单
-sw.js                 Service Worker
-icons/                图标与分享卡
-qa/                   Playwright 冒烟 / 验收脚本
-docs/v17/             README 截图
+app/DESIGN.md            设计文档（世界观/规则/引擎 API/验收标准）
+app/index.template.html  单文件模板
+app/src/core/            util / bus / store / ui / motion / audio / safe
+app/src/engine/          纯逻辑引擎 + 数值（balance.js）+ API 文档
+app/src/content/         三幕文案 / 事件 / 结局 / 奖项
+app/src/data/cards.js    1423 张卡（由 tools/rebuild/make_cards.py 生成）
+app/src/ui/screens/      boot/setup/journey/play/event/act/shop/finale/memory/settings
+app/src/ui/pwa.js        Service Worker 注册 / 安装入口
+tools/rebuild/           构建、预览、题库生成脚本
+qa/rebuild/              引擎单测 + E2E 验收
+docs/REBUILD.md          构建/部署/改数值细节
 ```
 
-## 📋 更新日志
+### 改哪里
 
-### V17 · 默契与回忆（2026.10）
-- 💞 默契大考验：心有灵犀（50 题、5/8/10 题、交替先答/猜、段位结算）+ 你说我猜（110 词、60/90/120 秒、猜对/跳过/提前结束）；新增 `couple-moqi` 默契档案
-- 📖 回忆册：本晚战报自动入册（按天去重），时间线/统计/详情/一句话备注/删除
-- 💾 数据备份：全部 `couple-*` 数据一键导出 JSON、导入恢复（兼容旧版本数据）
-- 📲 PWA：可安装到桌面、离线可玩；补齐 theme-color / apple-touch-icon / og 分享卡
-- 🩹 顺手修：游戏页「📜 本局记录 / 🔊 重听」浮标跑到视口外点不到（V16 存量 bug）；移除 V16 唯一一处可选链（iOS < 13.4 白屏）；「📲 装到桌面」移到设置条首位
-- 🧰 新增构建与 QA 工具链（`tools/`、`qa/`、`v17/`）；独立 QA 147 项自动化验收全 PASS（[报告](docs/v17/QA-验收报告.md)）
+| 想改 | 位置 |
+|---|---|
+| 数值/阈值/商店价格/结局条件 | `app/src/engine/balance.js` |
+| 三幕文案 / 事件 / 结局 / 奖项 | `app/src/content/content.js` |
+| 题库分类/打星 | `tools/rebuild/make_cards.py` 后重新生成 |
+| 界面/交互 | 对应 `app/src/ui/screens/<screen>.js`（每屏自带 CSS） |
+| 设计令牌/公共组件 | `app/src/styles/base.css`、`app/src/core/ui.js` |
 
-### V16 · 剧本之夜（2026.10）
-- 🕵️ 情感悬疑剧本《失踪的第七封信》，之后扩充到 3 本；4 幕 12 线索 / 私密递手机 / 信任选择 / 3 结局
+> 构建顺序、PWA 缓存、部署与回滚见 [docs/REBUILD.md](docs/REBUILD.md)。
 
-### V15 · 今夜地图（2026.10）
-- 🗺️ 3 章 18 节点随机地图、7 类节点、主题与章节目标、Boss 合体与降档、3 结局、存档续玩
+## 重制说明（V3）
 
-### V11–V14 · 氛围与仪式（2026.10）
-- 🎴 道具卡 3.0 / 黑市 / 夜终仪式 / 战报海报 / 氛围音；❤ 关系双轨、今晚身份、秘密银行、任务链；极限内容包与露出包
+- **玩法、引擎、界面、动画全部重写**：从「29 个小游戏拼盘」改成「一局三幕的叙事卡牌」。
+- **只复用旧版题库文本**（`app/data/raw.json`，提取自旧版 V17），按新规则重新分类、打星、去重（1423 张）。
+- 旧版（V17/V18）代码仍在 git 历史与 `v17/ v18/` 目录中，未接入新构建；线上以本重制版为准。
+- 引擎与内容解耦：`App.Engine` 纯逻辑可单测（236 assertions），UI 只读状态、播放事件。
 
-### V12 · 霓虹夜店（2026.10）
-- 🎛️ 首页与游戏页换皮、四家族页签、剧情模式 3 章 12 幕、成就墙、全局完成按钮
+## 隐私
 
-[更早版本见 commit 记录](https://github.com/chundongtou/couple-game/commits/main)
+- 全部数据（设置、存档、回忆册）只存在浏览器 `localStorage`（键前缀 `couple2.`）。
+- 无账号、无后端、无统计上报；「清除所有数据」在设置里。
+- 回忆册支持导出 JSON 备份 / 导入恢复。
 
-## ⚠️ 温馨提示
+## 安全提示
 
-- 本游戏含成人向内容，请情侣双方**自愿参与**，任何一方可随时喊"安全词"终止
-- 喝酒玩法请**未成年人勿饮酒，适量为宜**
-- 请尊重伴侣边界，游戏目的是升温感情而不是勉强对方
-- 无痕模式下所有本机数据会在回大厅时清空；重要记录请先到「回忆册 → 数据备份」导出
+- 成人向内容，请双方**自愿参与**；任何一方随时可以使用安全词。
+- 喝酒玩法请适量，未成年人请勿饮酒。
+- 尊重彼此边界：设置里的尺度、黑名单、柔和模式都可以随时调整。
 
-## 📄 License
+## License
 
 MIT
+
+---
+
+<sub>V3.0.0 · 引擎 1.0.0 · 1423 cards · 3 acts · 6 endings</sub>

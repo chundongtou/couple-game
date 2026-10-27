@@ -5,5 +5,8 @@ __pycache__/
 *.pyc
 tools/_pwtest.py
 
-# QA / 协作者的临时目录
+# QA / 协作者的临时目录与临时脚本
 qa/_*/
+qa/_*
+qa/**/_tmp*/
+
