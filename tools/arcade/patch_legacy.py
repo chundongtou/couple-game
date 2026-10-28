@@ -106,6 +106,7 @@ JS = """
   function show(){
     try { if (typeof closeModal === 'function') closeModal(); } catch (e) {}
     try { if (window.__v3CloseSheet) window.__v3CloseSheet(); } catch (e) {}
+    try { document.body.classList.remove('v3-flight-play'); } catch (e) {}
     overlay.classList.add('on');
     document.body.classList.add('arcade-home');
     document.title = '经典游戏厅 · 升温夜航';
@@ -195,9 +196,50 @@ JS = """
     list.innerHTML = html || '<div class="log-empty">本局还没有记录</div>';
     mask.classList.add('on');
   }
+  function v3CustomSetupSection(){
+    var s = window._flSetup || (window._flSetup = {});
+    var sec = document.createElement('section');
+    sec.className = 'v3-set-group collapsed';
+    sec.setAttribute('data-group', 'custom');
+    var head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'v3-set-head';
+    head.setAttribute('aria-expanded', 'false');
+    head.innerHTML = '<span class="v3-set-name">自定义</span><span class="v3-set-sub">称呼 · 互写一格</span><i class="v3-set-arrow">⌄</i>';
+    var body = document.createElement('div');
+    body.className = 'v3-set-body';
+    body.innerHTML = '<p>称呼</p>'
+      + '<div class="v3-custom-row"><input data-cn="m" maxlength="6" placeholder="男方称呼"><input data-cn="f" maxlength="6" placeholder="女方称呼"></div>'
+      + '<p>互写一格（可选，会插入棋盘）</p>'
+      + '<textarea data-cc="0" maxlength="60" placeholder="你写给 TA 的一格任务"></textarea>'
+      + '<textarea data-cc="1" maxlength="60" placeholder="TA 写给你的一格任务"></textarea>';
+    var names = s.names || {};
+    var m = body.querySelector('[data-cn="m"]');
+    var f = body.querySelector('[data-cn="f"]');
+    if (m) m.value = names.m || '';
+    if (f) f.value = names.f || '';
+    var custom = s.custom || ['', ''];
+    var t0 = body.querySelector('[data-cc="0"]');
+    var t1 = body.querySelector('[data-cc="1"]');
+    if (t0) t0.value = custom[0] || '';
+    if (t1) t1.value = custom[1] || '';
+    function sync(){
+      s.names = { m: m ? m.value.trim().slice(0, 6) : '', f: f ? f.value.trim().slice(0, 6) : '' };
+      s.custom = [t0 ? t0.value.trim().slice(0, 60) : '', t1 ? t1.value.trim().slice(0, 60) : ''];
+    }
+    [m, f, t0, t1].forEach(function(el){ if (el) el.addEventListener('input', sync); });
+    head.addEventListener('click', function(){
+      var open = sec.classList.toggle('collapsed') === false;
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    sec.appendChild(head);
+    sec.appendChild(body);
+    return sec;
+  }
   function v3FlightSetupDecorate(){
     var content = document.getElementById('gContent');
     if (!content) return;
+    try { v3FlightBarSync(); } catch (e) {}
     var wrap = content.querySelector('.bomb-wrap');
     var h2 = wrap ? wrap.querySelector('h2') : null;
     var isFlight = !!(wrap && h2 && String(h2.textContent || '').indexOf('飞行棋') >= 0);
@@ -251,6 +293,7 @@ JS = """
       sec.appendChild(body);
       frag.appendChild(sec);
     });
+    try { frag.appendChild(v3CustomSetupSection()); } catch (e) {}
     if (footer.length) {
       var foot = document.createElement('div');
       foot.className = 'v3-set-footer';
@@ -325,6 +368,64 @@ JS = """
   /* ---------- 飞行棋：保存/继续、暂停/收起、心愿券 ---------- */
   var FL_SAVE = 'couple-flight-save-v1';
   function v3Pad2(n){ return n < 10 ? ('0' + n) : String(n); }
+  function v3ClampDiff(n){ return Math.max(1, Math.min(4, Number(n) || 1)); }
+  function v3StageDist(len, level){
+    var old = (typeof SET !== 'undefined' ? SET.diff : 3);
+    try { if (typeof SET !== 'undefined') SET.diff = v3ClampDiff(level); } catch (e) {}
+    var arr = flDist(len);
+    try { if (typeof SET !== 'undefined') SET.diff = old; } catch (e) {}
+    return arr;
+  }
+  function v3StagedLane(len, base){
+    var a = Math.max(1, Math.floor(len / 3));
+    var b = Math.max(a + 1, Math.floor(len * 2 / 3));
+    return v3StageDist(a, base)
+      .concat(v3StageDist(Math.max(1, b - a), base + 1))
+      .concat(v3StageDist(Math.max(1, len - b), base + 2));
+  }
+  function v3PlaceCustomCells(cells, mode){
+    var tasks = window._flCustom || [];
+    if (!tasks.length) return;
+    if (mode === 'A') {
+      if (cells[0] && tasks[0]) cells[0][Math.max(2, Math.floor(cells[0].length * 0.55))] = 'custom0';
+      if (cells[1] && tasks[1]) cells[1][Math.max(2, Math.floor(cells[1].length * 0.72))] = 'custom1';
+      return;
+    }
+    if (tasks[0]) cells[Math.max(2, Math.floor(cells.length * 0.38))] = 'custom0';
+    if (tasks[1]) cells[Math.max(3, Math.floor(cells.length * 0.7))] = 'custom1';
+  }
+  function v3RestageRing(level){
+    if (!(window._flMode === 'B' || window._flMode === 'D')) return;
+    if (!window._flCells || !window._flCells.length) return;
+    var len = window._flCells.length;
+    var arr = v3StageDist(len, level);
+    arr[0] = 'start';
+    if (window._flMode === 'D') {
+      arr[Math.floor(len / 4)] = 'cross';
+      arr[Math.floor(len * 3 / 4)] = 'cross';
+    }
+    v3PlaceCustomCells(arr, window._flMode);
+    window._flCells = arr;
+  }
+  function v3CatchUpBonus(p){
+    if (!p || !window._flP || !p.wind) return 0;
+    function prog(x){
+      if (window._flMode === 'A') return (window._flTPos && window._flTPos[x.team]) || 0;
+      if (window._flMode === 'B' || window._flMode === 'D') return (x.lap || 0) * (window._flCells ? window._flCells.length : 1) + (x.pos || 0);
+      return x.pos || 0;
+    }
+    var others = window._flP.filter(function(x){ return x.id !== p.id && !x.done; });
+    if (!others.length) return 0;
+    var best = Math.max.apply(null, others.map(prog));
+    if (prog(p) >= best) return 0;
+    p.wind = 0;
+    try { toast('🌬 风向：' + p.name + ' 落后，本回合 +1 点'); } catch (e) {}
+    return 1;
+  }
+  window.v3StagedLane = v3StagedLane;
+  window.v3PlaceCustomCells = v3PlaceCustomCells;
+  window.v3RestageRing = v3RestageRing;
+  window.v3CatchUpBonus = v3CatchUpBonus;
   function v3FlightSnapshot(){
     if (!window._flP || !window._flCells || window._flWin) return null;
     return {
@@ -444,6 +545,111 @@ JS = """
     }
     mask.classList.add('on');
   }
+  function v3Confirm(title, text, okLabel, cb){
+    var mask = document.createElement('div');
+    mask.className = 'v3-sheet-mask on';
+    mask.setAttribute('data-test', 'flight-confirm');
+    mask.innerHTML = '<div class="v3-sheet v3-confirm-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title"></div>'
+      + '<p class="v3-pause-text"></p>'
+      + '<div class="v3-pause-actions">'
+      + '<button type="button" class="v3-btn primary" data-ok></button>'
+      + '<button type="button" class="v3-btn ghost" data-cancel>先不了</button>'
+      + '</div></div>';
+    document.body.appendChild(mask);
+    mask.querySelector('.v3-sheet-title').textContent = title;
+    mask.querySelector('.v3-pause-text').textContent = text;
+    mask.querySelector('[data-ok]').textContent = okLabel;
+    function close(){ mask.remove(); }
+    mask.querySelector('[data-cancel]').addEventListener('click', close);
+    mask.querySelector('[data-ok]').addEventListener('click', function(){ close(); cb(); });
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+  }
+  function v3ConfirmReset(){
+    v3Confirm('重设本局？', '当前棋局会先保存，新的一局开始后会覆盖这份存档。', '重设', function(){
+      v3ClearFlight();
+      try { renderFlightSetup(document.getElementById('gContent')); } catch (e) {}
+    });
+  }
+  function v3ReadTask(){
+    var el = document.getElementById('flTask');
+    var txt = el ? String(el.innerText || '').replace(/\s+/g, ' ').trim() : '';
+    if (!txt) { try { toast('当前没有可朗读的任务'); } catch (e) {} return; }
+    try {
+      if (!window.speechSynthesis) { toast('这个浏览器不支持朗读'); return; }
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(txt.slice(0, 220));
+      u.lang = 'zh-CN';
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    } catch (e) { try { toast('朗读失败'); } catch (e2) {} }
+  }
+  function v3PrivacyToggle(){
+    var mask = document.getElementById('v3PrivacyMask');
+    if (!mask) {
+      mask = document.createElement('div');
+      mask.id = 'v3PrivacyMask';
+      mask.className = 'v3-privacy-mask';
+      mask.innerHTML = '<div class="v3-privacy-card"><b>已遮住</b><span>点一下恢复</span></div>';
+      mask.addEventListener('click', function(){ mask.classList.remove('on'); });
+      document.body.appendChild(mask);
+    }
+    mask.classList.add('on');
+  }
+  function v3FlightFocus(){
+    if (!window._flP) return;
+    var el = document.querySelector('.fl-piece.cur');
+    if (!el) return;
+    try {
+      var r = el.getBoundingClientRect();
+      if (r.top < 90 || r.bottom > innerHeight - 140) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    } catch (e) {}
+  }
+  function v3FlightBarSync(){
+    var content = document.getElementById('gContent');
+    var play = !!(content && content.querySelector('.fl-ring, .fl-lane'));
+    document.body.classList.toggle('v3-flight-play', play);
+    if (play) v3FlightFocus();
+  }
+  function v3FlightBarInit(){
+    if (document.getElementById('v3FlightBar')) return;
+    var bar = document.createElement('div');
+    bar.id = 'v3FlightBar';
+    bar.setAttribute('data-test', 'flight-bar');
+    var items = [
+      ['pause', '⏸', '暂停', function(){ v3PauseFlight(); }],
+      ['log', '📜', '记录', function(){ v3LogOpen(); }],
+      ['read', '🔊', '朗读', function(){ v3ReadTask(); }],
+      ['reset', '⚙️', '重设', function(){ v3ConfirmReset(); }],
+      ['home', '🏠', '大厅', function(){ try { goHome(); } catch (e) {} }],
+      ['privacy', '🙈', '遮一下', function(){ v3PrivacyToggle(); }]
+    ];
+    items.forEach(function(it){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'v3-fbar-btn';
+      b.setAttribute('data-act', it[0]);
+      b.innerHTML = '<span class="v3-fbar-ic">' + it[1] + '</span><span class="v3-fbar-tx">' + it[2] + '</span>';
+      b.addEventListener('click', it[3]);
+      bar.appendChild(b);
+    });
+    document.body.appendChild(bar);
+    document.addEventListener('click', function(e){
+      var cell = e.target && e.target.closest ? e.target.closest('.fl-cell') : null;
+      if (!cell) return;
+      var types = { 't-truth': '💜 真心话：落到这里要回答一个问题', 't-dare': '🔥 大冒险：落到这里要执行一个任务', 't-drink': '🍷 喝酒：落到这里要喝一口', 't-safe': '🛡 安全屋：平安无事', 't-spicy': '💣 刺激挑战：强度更高', 't-duo': '💑 双人互动：两个人一起', 't-duel': '⚔️ 对撞：抢格对决', 't-event': '🎁 事件：抽一个事件', 't-prison': '⛓️ 监狱：跳过一轮', 't-ktv': '🎤 KTV：唱一句放行', 't-item': '🎲 道具：拿一张道具', 't-cross': '💞 交汇：可能进支线' };
+      for (var k in types) {
+        if (cell.classList.contains(k)) { try { toast(types[k]); } catch (err) {} break; }
+      }
+    });
+    v3FlightBarSync();
+  }
+  window.v3ConfirmReset = v3ConfirmReset;
+  window.v3ReadTask = v3ReadTask;
+  window.v3PrivacyToggle = v3PrivacyToggle;
   function v3WishOpen(){
     var mask = document.getElementById('v3WishMask');
     if (mask) { mask.classList.add('on'); var ta0 = mask.querySelector('textarea'); if (ta0) setTimeout(function(){ ta0.focus(); }, 60); return; }
@@ -574,8 +780,8 @@ JS = """
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} boot(); });
-  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} boot(); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} try { v3FlightBarInit(); } catch (e) {} boot(); });
+  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} try { v3FlightBarInit(); } catch (e) {} boot(); }
 })();
 """
 
@@ -673,6 +879,55 @@ def patch(html):
         "+'<h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2>'",
         "+'<div class=\"v3-fl-head\"><h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2><button class=\"v3-fl-pause\" type=\"button\" onclick=\"v3PauseFlight()\">⏸ 暂停</button></div>'",
     )
+    # 飞行棋：三段式棋盘 / 自定义格 / 追赶 / 自定义称呼
+    html = html.replace(
+        "if(s.m===1&&s.f===1)players=[{name:HE.him,g:'M'},{name:HE.her,g:'F'}];",
+        "if(s.m===1&&s.f===1)players=[{name:(s.names&&s.names.m)||HE.him,g:'M'},{name:(s.names&&s.names.f)||HE.her,g:'F'}];",
+    )
+    html = html.replace(
+        "  window._flP=players;",
+        "  window._flP=players;\n  window._flCustom=(s.custom||[]).map(function(x){return String(x||'').trim();});",
+    )
+    html = html.replace(
+        "p.drink=0;p.drinkMax=p.g==='M'?5:3;p.pardon=1;p.half=p.g==='F'?1:0;",
+        "p.drink=0;p.drinkMax=p.g==='M'?5:3;p.pardon=1;p.half=p.g==='F'?1:0;p.wind=1;p.team=players.length===2?i:(i<2?0:1);",
+    )
+    html = html.replace(
+        "p.track='main';p.sidePos=-1;p.done=false;p.team=i<2?0:1;p.six=0;p.skip=false;p.lap=0;",
+        "p.track='main';p.sidePos=-1;p.done=false;p.six=0;p.skip=false;p.lap=0;",
+    )
+    html = html.replace(
+        "window._flCells=[flDist(ALEN),flDist(ALEN)];",
+        "window._flCells=[v3StagedLane(ALEN,SET.diff),v3StagedLane(ALEN,SET.diff)];",
+    )
+    html = html.replace(
+        "window._flCells[0][0]='start';window._flCells[1][0]='start';\n    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';",
+        "window._flCells[0][0]='start';window._flCells[1][0]='start';\n    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';\n    try{v3PlaceCustomCells(window._flCells,'A');}catch(e){}",
+    )
+    html = html.replace(
+        "window._flCells=ring;",
+        "window._flCells=ring;\n    try{v3PlaceCustomCells(window._flCells,'B');}catch(e){}",
+    )
+    html = html.replace(
+        "var main=flDist(14);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';\n    window._flCells=main;",
+        "var main=v3StagedLane(14,SET.diff);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';\n    try{v3PlaceCustomCells(main,'C');}catch(e){}\n    window._flCells=main;",
+    )
+    html = html.replace(
+        "  var v=Math.floor(Math.random()*6)+1;\n  flDiceRoll(v,function(){flMove(p,v);});",
+        "  var v=Math.floor(Math.random()*6)+1;\n  try{v=Math.min(6,v+v3CatchUpBonus(p));}catch(e){}\n  flDiceRoll(v,function(){flMove(p,v);});",
+    )
+    html = html.replace(
+        "p.lap++;",
+        "p.lap++; p.wind=1; try{v3RestageRing((SET.diff||3)+p.lap);}catch(e){}",
+    )
+    html = html.replace(
+        "function flIcon(t){return FLIGHT_ICONS[t]||'❓'}",
+        "function flIcon(t){if(String(t).indexOf('custom')===0)return '✍️';return FLIGHT_ICONS[t]||'❓'}",
+    )
+    html = html.replace(
+        "  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
+        "  }else if(String(t).indexOf('custom')===0){\n    var ci=Number(String(t).replace('custom',''))||0;\n    var ct=(window._flCustom&&window._flCustom[ci])||'一个没写完的任务';\n    flTaskShow('✍️ TA 写的格 · '+p.name+'：'+ct,['done','pardon']);\n  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
+    )
     # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
     for pattern in [
         r'\n<link rel="manifest"[^>]*>',
@@ -706,6 +961,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 

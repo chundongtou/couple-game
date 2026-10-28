@@ -526,3 +526,51 @@ body.v3-flight-setup .safe-tip{margin-top:14px !important}
   font-size:14px;line-height:1.7;outline:none;
 }
 .v3-wish-input:focus{border-color:rgba(243,200,121,.5)}
+
+/* ================= 飞行棋专用工具条 / 遮屏 / 自定义 ================= */
+#v3FlightBar{
+  position:fixed;left:0;right:0;bottom:0;z-index:240;display:none;
+  grid-template-columns:repeat(6,1fr);gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,rgba(9,5,18,.82),rgba(9,5,18,.98));
+  border-top:1px solid var(--sk-line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+body.v3-flight-play #v3FlightBar{display:grid}
+body.v3-flight-play .ctrl-bar{display:none !important}
+body.v3-flight-play #gContent{padding-bottom:88px}
+body.v3-flight-setup #v3FlightBar{display:none}
+.v3-fbar-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  min-height:54px;border-radius:12px;border:1px solid var(--sk-line);background:var(--sk-glass);
+  color:var(--sk-dim);font-size:10px;font-weight:700;letter-spacing:.04em;
+}
+.v3-fbar-btn:active{transform:scale(.96);background:var(--sk-glass2)}
+.v3-fbar-ic{font-size:17px;line-height:1}
+.v3-fbar-tx{font-size:9.5px;color:var(--sk-dim2)}
+.v3-fbar-btn[data-act="pause"]{color:var(--sk-gold);border-color:rgba(243,200,121,.3)}
+.v3-fbar-btn[data-act="pause"] .v3-fbar-tx{color:var(--sk-gold)}
+body.v3-flight-play .fl-btns .wheel-btn.back[onclick*="renderFlightSetup"]{display:none !important}
+
+.v3-privacy-mask{
+  position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;
+  background:rgba(7,4,17,.72);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+}
+.v3-privacy-mask.on{display:flex}
+.v3-privacy-card{
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 40px;border-radius:22px;
+  border:1px solid var(--sk-line2);background:rgba(20,12,36,.9);color:var(--sk-ink);
+}
+.v3-privacy-card b{font-size:18px;letter-spacing:.1em;color:var(--sk-gold)}
+.v3-privacy-card span{font-size:11.5px;color:var(--sk-dim)}
+
+.v3-set-group[data-group="custom"] .v3-set-body{padding-bottom:14px}
+.v3-custom-row{display:flex;gap:8px}
+.v3-custom-row input{flex:1;min-width:0}
+.v3-set-group[data-group="custom"] textarea{
+  width:100%;min-height:52px;margin-top:7px;border-radius:12px;padding:9px 11px;resize:none;
+  border:1px solid var(--sk-line);background:rgba(255,255,255,.05);color:var(--sk-ink);font-size:12px;line-height:1.6;
+}
+.v3-set-group[data-group="custom"] input{
+  height:42px;border-radius:12px;padding:0 11px;border:1px solid var(--sk-line);
+  background:rgba(255,255,255,.05);color:var(--sk-ink);font-size:13px;min-width:0;
+}
+.v3-confirm-sheet .v3-pause-actions{margin-top:6px}
