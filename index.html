@@ -8809,7 +8809,7 @@ window.CARDS = {
           '<span class="mem-date">' + U.escape(date) + "</span>" +
         "</div>" +
         '<div class="mem-r2">' + meta + "</div>" +
-        (awardText(it) ? '<div class="mem-awards">' + U.escape(awardText(it)) + "</div>" : "") +
+        (!flight && awardText(it) ? '<div class="mem-awards">' + U.escape(awardText(it)) + "</div>" : "") +
         '<div class="mem-note' + (note ? "" : " empty") + '">' + U.escape(note || "还没有备注，留给下次想起时再写") + "</div>" +
       "</button>" +
       '<button class="icon-btn mem-del" data-del="' + U.escape(it.id) + '" aria-label="删除这一晚">✕</button>' +

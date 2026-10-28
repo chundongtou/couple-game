@@ -205,7 +205,7 @@ JS = """
     if (isFlight) v3AddResumeCard(wrap, h2);
     if (!isFlight || wrap.getAttribute('data-v3-set') === '1') return;
     wrap.setAttribute('data-v3-set', '1');
-    var nodes = Array.prototype.slice.call(wrap.children).filter(function(n){ return n !== h2; });
+    var nodes = Array.prototype.slice.call(wrap.children).filter(function(n){ return n !== h2 && !(n.classList && n.classList.contains('v3-resume-flight')); });
     var buckets = { basic: [], rhythm: [], boundary: [] };
     var footer = [];
     var current = null;
