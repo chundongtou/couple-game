@@ -572,6 +572,126 @@ JS = """
       try { renderFlightSetup(document.getElementById('gContent')); } catch (e) {}
     });
   }
+  var VOICE_KEY = 'couple-flight-voice-v1';
+  var V3_VOICE_PRESETS = [
+    { id: 'gentle', icon: '🌸', name: '温柔', rate: 0.92, pitch: 1.06 },
+    { id: 'deep', icon: '🌙', name: '低沉', rate: 0.9, pitch: 0.82 },
+    { id: 'bright', icon: '✨', name: '俏皮', rate: 1.06, pitch: 1.18 },
+    { id: 'news', icon: '📻', name: '播报', rate: 1.0, pitch: 1.0 }
+  ];
+  function v3Voices(){
+    try {
+      var all = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      var zh = all.filter(function(v){ return /^zh/i.test(v.lang || ''); });
+      return { list: zh.length ? zh : all, zh: zh.length > 0 };
+    } catch (e) { return { list: [], zh: false }; }
+  }
+  function v3VoiceCfg(){
+    try {
+      var c = JSON.parse(localStorage.getItem(VOICE_KEY) || 'null');
+      if (c && typeof c === 'object') return { preset: c.preset || 'gentle', voiceURI: c.voiceURI || '', voiceName: c.voiceName || '' };
+    } catch (e) {}
+    return { preset: 'gentle', voiceURI: '', voiceName: '' };
+  }
+  function v3VoiceSave(cfg){
+    try { localStorage.setItem(VOICE_KEY, JSON.stringify(cfg)); } catch (e) {}
+  }
+  function v3VoicePreset(id){
+    for (var i = 0; i < V3_VOICE_PRESETS.length; i++) if (V3_VOICE_PRESETS[i].id === id) return V3_VOICE_PRESETS[i];
+    return V3_VOICE_PRESETS[0];
+  }
+  function v3Speak(text){
+    if (!text) return;
+    try {
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) { toast('这个浏览器不支持朗读'); return; }
+      var cfg = v3VoiceCfg(), preset = v3VoicePreset(cfg.preset);
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(String(text).slice(0, 220));
+      u.lang = 'zh-CN';
+      u.rate = preset.rate;
+      u.pitch = preset.pitch;
+      var vs = v3Voices().list;
+      for (var i = 0; i < vs.length; i++) {
+        if ((cfg.voiceURI && vs[i].voiceURI === cfg.voiceURI) || (cfg.voiceName && vs[i].name === cfg.voiceName)) { u.voice = vs[i]; break; }
+      }
+      window.speechSynthesis.speak(u);
+    } catch (e) { try { toast('朗读失败'); } catch (e2) {} }
+  }
+  function v3VoiceSheet(){
+    var old = document.getElementById('v3VoiceMask');
+    if (old) old.remove();
+    var mask = document.createElement('div');
+    mask.id = 'v3VoiceMask';
+    mask.className = 'v3-sheet-mask on';
+    mask.setAttribute('data-test', 'flight-voice-sheet');
+    mask.innerHTML = '<div class="v3-sheet v3-voice-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">朗读音色</div>'
+      + '<p class="v3-wish-sub">音色来自系统 TTS；预设会调整语速和音高。选了会自动记住。</p>'
+      + '<div class="v3-voice-presets" id="v3VoicePresets"></div>'
+      + '<div class="v3-voice-sub">系统音色</div>'
+      + '<div class="v3-voice-list" id="v3VoiceList"></div>'
+      + '<div class="v3-pause-actions" style="margin-top:14px">'
+      + '<button type="button" class="v3-btn primary" data-voice-test>试听</button>'
+      + '<button type="button" class="v3-btn ghost" data-voice-close>完成</button>'
+      + '</div></div>';
+    document.body.appendChild(mask);
+    var cfg = v3VoiceCfg();
+    var presetBox = mask.querySelector('#v3VoicePresets');
+    V3_VOICE_PRESETS.forEach(function(p){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'v3-voice-preset' + (cfg.preset === p.id ? ' on' : '');
+      b.setAttribute('data-preset', p.id);
+      b.innerHTML = '<i>' + p.icon + '</i><b>' + p.name + '</b><span>' + (p.rate === 1 ? '标准语速' : (p.rate < 1 ? '慢一点' : '快一点')) + '</span>';
+      b.addEventListener('click', function(){
+        cfg.preset = p.id;
+        v3VoiceSave(cfg);
+        Array.prototype.forEach.call(presetBox.querySelectorAll('.v3-voice-preset'), function(x){ x.classList.toggle('on', x === b); });
+        v3Speak('今晚，用这个声音读给你听。');
+      });
+      presetBox.appendChild(b);
+    });
+    function renderVoices(){
+      var box = mask.querySelector('#v3VoiceList');
+      if (!box) return;
+      var vs = v3Voices();
+      var list = vs.list || [];
+      box.innerHTML = '';
+      if (!list.length) {
+        box.innerHTML = '<div class="v3-voice-empty">系统暂时没有可用音色，先用上面的预设语速/音高。</div>';
+        return;
+      }
+      var auto = document.createElement('button');
+      auto.type = 'button';
+      auto.className = 'v3-voice-row' + (!cfg.voiceURI && !cfg.voiceName ? ' on' : '');
+      auto.innerHTML = '<b>自动</b><span>跟随系统默认</span>';
+      auto.addEventListener('click', function(){
+        cfg.voiceURI = ''; cfg.voiceName = ''; v3VoiceSave(cfg); renderVoices();
+      });
+      box.appendChild(auto);
+      list.slice(0, 12).forEach(function(v){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'v3-voice-row' + ((cfg.voiceURI === v.voiceURI || (!cfg.voiceURI && cfg.voiceName === v.name)) ? ' on' : '');
+        var nm = document.createElement('b'); nm.textContent = v.name || '未命名音色';
+        var sp = document.createElement('span'); sp.textContent = (v.lang || '') + (v.localService ? ' · 本机' : ' · 在线');
+        b.appendChild(nm); b.appendChild(sp);
+        b.addEventListener('click', function(){
+          cfg.voiceURI = v.voiceURI || ''; cfg.voiceName = v.name || '';
+          v3VoiceSave(cfg); renderVoices(); v3Speak('这个声音，可以吗？');
+        });
+        box.appendChild(b);
+      });
+    }
+    renderVoices();
+    setTimeout(renderVoices, 250);
+    mask.querySelector('[data-voice-test]').addEventListener('click', function(){
+      v3Speak('今晚的任务是：把手机放下，看着对方的眼睛十秒。');
+    });
+    mask.querySelector('[data-voice-close]').addEventListener('click', function(){ mask.remove(); });
+    mask.addEventListener('click', function(e){ if (e.target === mask) mask.remove(); });
+  }
   function v3ReadTask(){
     var el = document.getElementById('flTask');
     var txt = '';
@@ -585,14 +705,7 @@ JS = """
       }
     }
     if (!txt) { try { toast('当前没有可朗读的任务'); } catch (e) {} return; }
-    try {
-      if (!window.speechSynthesis) { toast('这个浏览器不支持朗读'); return; }
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(txt.slice(0, 220));
-      u.lang = 'zh-CN';
-      u.rate = 0.95;
-      window.speechSynthesis.speak(u);
-    } catch (e) { try { toast('朗读失败'); } catch (e2) {} }
+    v3Speak(txt.slice(0, 220));
   }
   function v3PrivacyToggle(){
     var mask = document.getElementById('v3PrivacyMask');
@@ -632,6 +745,7 @@ JS = """
       ['pause', '⏸', '暂停', function(){ v3PauseFlight(); }],
       ['log', '📜', '记录', function(){ v3LogOpen(); }],
       ['read', '🔊', '朗读', function(){ v3ReadTask(); }],
+      ['voice', '🎙', '音色', function(){ v3VoiceSheet(); }],
       ['reset', '⚙️', '重设', function(){ v3ConfirmReset(); }],
       ['home', '🏠', '大厅', function(){ try { goHome(); } catch (e) {} }],
       ['privacy', '🙈', '遮一下', function(){ v3PrivacyToggle(); }]
