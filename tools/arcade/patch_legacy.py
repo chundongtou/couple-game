@@ -1099,6 +1099,51 @@ JS = """
     mask.querySelector('[data-voice-close]').addEventListener('click', function(){ mask.remove(); });
     mask.addEventListener('click', function(e){ if (e.target === mask) mask.remove(); });
   }
+  function v3DiceRoll(v, cb){
+    var ov = document.getElementById('flDiceOverlay');
+    var wrap = document.getElementById('flDiceOverlayWrap');
+    var lbl = document.getElementById('flDiceOverlayLabel');
+    if (!ov || !wrap) { if (cb) cb(); return; }
+    var sess = window._flSess || 0;
+    var who = '';
+    try {
+      var st = window._flDuelState;
+      if (st) who = st.r1 === null ? st.p1.name : st.p2.name;
+      else { var p = window._flP[window._flOrder[window._flTurn]]; if (p) who = p.name; }
+    } catch (e) {}
+    var cube = null;
+    try { cube = v12DicePrepare(wrap); } catch (e) {}
+    ov.classList.add('show', 'v3-dice-live');
+    if (lbl) {
+      lbl.className = 'v3-dice-label rolling';
+      lbl.innerHTML = '<span class="v3-dice-kicker">摇骰中</span>' + (who ? '<span class="v3-dice-who">· ' + who + '</span>' : '');
+    }
+    try { sndSpin(); vibrate(8); } catch (e) {}
+    var done = false;
+    function finish(){
+      if (done) return;
+      done = true;
+      if (lbl) {
+        lbl.className = 'v3-dice-label landed';
+        lbl.innerHTML = '<span class="v3-dice-kicker">' + (who ? who + ' 摇出' : '摇出') + '</span><b class="v3-dice-num">' + v + '</b><span class="v3-dice-unit">点</span>';
+      }
+      try { sndDing(); vibrate([28, 18, 46]); } catch (e) {}
+      try { v12Fx.ripple(innerWidth / 2, innerHeight * 0.55); } catch (e) {}
+      var zoom = ov.querySelector('.fl-ov-zoom');
+      if (zoom) {
+        zoom.classList.add('landed');
+        setTimeout(function(){ try { zoom.classList.remove('landed'); } catch (e) {} }, 620);
+      }
+      setTimeout(function(){
+        ov.classList.remove('show', 'v3-dice-live');
+        if (window._flSess === sess && cb) cb();
+      }, 720);
+    }
+    try { v12DiceSpin(cube, v, { duration: 1150, onDone: finish }); }
+    catch (e) { finish(); }
+    setTimeout(function(){ if (!done) finish(); }, 2500);
+  }
+  window.v3DiceRoll = v3DiceRoll;
   function v3ReadTask(){
     var el = document.getElementById('flTask');
     var txt = '';
@@ -1458,7 +1503,27 @@ def patch(html):
         "  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
         "  }else if(t==='strip'){\n    if(!SET.strip){flTaskShow('🍒 脱衣格 · 需要先在「边界」里打开脱衣模式',['done']);}else{flStrip(p,'棋盘脱衣格');}\n  }else if(String(t).indexOf('diy')===0){\n    var dc=v3DIYInfo(t);\n    var dic={truth:'💜',dare:'🔥',touch:'💞',drink:'🍷',strip:'🍒',punish:'💣'}[dc.type]||'✨';\n    flTaskShow(dic+' DIY · '+p.name+'：'+dc.text,['done','pardon']);\n  }else if(String(t).indexOf('custom')===0){\n    var ci=Number(String(t).replace('custom',''))||0;\n    var ct=(window._flCustom&&window._flCustom[ci])||'一个没写完的任务';\n    flTaskShow('✍️ TA 写的格 · '+p.name+'：'+ct,['done','pardon']);\n  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
     )
-    # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
+    # 回合卡死修复：完成任务时强制清掉转盘/骰子遮罩和 _flRolled
+    html = html.replace(
+        "function flDiceRoll(v,cb){",
+        "function flDiceRoll(v,cb){\n  if(window.v3DiceRoll)return window.v3DiceRoll(v,cb);",
+    )
+    html = html.replace(
+        "function flTaskShow(content,btns){\n  snapShot();",
+        "function flTaskShow(content,btns){\n  try{flWheelClose();}catch(e){}\n  snapShot();",
+    )
+    html = html.replace(
+        "  if(window._flRolled)return;",
+        "  if(window._flRolled){\n    var _bw=document.getElementById('flWheelOverlay'),_bd=document.getElementById('flDiceOverlay'),_bt=document.getElementById('flTask');\n    var _busy=(_bw&&_bw.classList.contains('show'))||(_bd&&_bd.classList.contains('show'))||!!(_bt&&_bt.querySelector('.fl-task'));\n    if(_busy)return;\n    window._flRolled=false;\n  }",
+    )
+    html = html.replace(
+        "  flNextTurn();\n}\nfunction flSwapTask(){",
+        "  try{flWheelClose();}catch(e){}\n  try{if(document.getElementById('flDiceOverlay'))document.getElementById('flDiceOverlay').classList.remove('show');}catch(e){}\n  window._flRolled=false;window._flCur=null;\n  flNextTurn();\n}\nfunction flSwapTask(){",
+    )
+    html = html.replace(
+        "  window._flTurn=(window._flTurn+1)%order.length;\n  flRender();",
+        "  window._flTurn=(window._flTurn+1)%order.length;\n  window._flCur=null;\n  flRender();",
+    )
     for pattern in [
         r'\n<link rel="manifest"[^>]*>',
         r'\n<link rel="apple-touch-icon"[^>]*>',

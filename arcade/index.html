@@ -4191,6 +4191,7 @@ function flTurnMsg(){
     el.textContent=p.skip?('⛓️ '+p.name+' 本轮跳过（罚停）'):(p.track!=='main'?('🎯 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）在支线 · 点按钮自动前进1步'):('🎯 轮到 '+p.name+'（'+(p.g==='M'?'♂':'♀')+'）'+'摇骰子！'+prog));}
 }
 function flDiceRoll(v,cb){
+  if(window.v3DiceRoll)return window.v3DiceRoll(v,cb);
   try{v12FlStopTurnTimer();}catch(e){}
   /* V4.4: 居中弹出式3D骰子 — 摇时弹出, 停稳显示点数1秒, 淡出后结算 */
   var sess=window._flSess||0; /* 本次摇骰所属局, 防止重开后旧回调串场 */
@@ -4304,7 +4305,12 @@ function flRoll(){
   var p=window._flP[window._flOrder[window._flTurn]];
   if(!p){return;}
   if(p.skip){p.skip=false;flNextTurn();return;}
-  if(window._flRolled)return;
+  if(window._flRolled){
+    var _bw=document.getElementById('flWheelOverlay'),_bd=document.getElementById('flDiceOverlay'),_bt=document.getElementById('flTask');
+    var _busy=(_bw&&_bw.classList.contains('show'))||(_bd&&_bd.classList.contains('show'))||!!(_bt&&_bt.querySelector('.fl-task'));
+    if(_busy)return;
+    window._flRolled=false;
+  }
   if(p.track!=='main'){ /* 支线: 每回合自动走1步 */
     window._flRolled=true;
     flSideStep(p);
@@ -4875,6 +4881,7 @@ function flOwe(){
   flDoneTask();
 }
 function flTaskShow(content,btns){
+  try{flWheelClose();}catch(e){}
   snapShot();
   content=evolve(content); /* V8: 任务进化引擎 */
   content=contractMark(content); /* V8: 契约标记 */
@@ -4916,6 +4923,9 @@ function flDoneTask(){
       redraw:function(){return flDrawSpicy(p);}});
     return;
   }
+  try{flWheelClose();}catch(e){}
+  try{if(document.getElementById('flDiceOverlay'))document.getElementById('flDiceOverlay').classList.remove('show');}catch(e){}
+  window._flRolled=false;window._flCur=null;
   flNextTurn();
 }
 function flSwapTask(){
@@ -4968,6 +4978,7 @@ function flNextTurn(){
     return;
   }
   window._flTurn=(window._flTurn+1)%order.length;
+  window._flCur=null;
   flRender();
   try{v12FlStartTurnTimer();}catch(e){} try{v3SaveFlight();}catch(e){}
 }
@@ -11199,6 +11210,60 @@ body.v3-flight-play .fl-btns .wheel-btn.back[onclick*="renderFlightSetup"]{displ
   flex:0 0 auto;height:40px;padding:0 14px;border-radius:11px;border:1px solid var(--sk-line2);
   background:transparent;color:var(--sk-gold);font-size:11.5px;font-weight:700;
 }
+
+/* ================= V3 骰子：底部实体骰子卡 ================= */
+#flDiceOverlay{
+  display:none;position:fixed;inset:0;z-index:9999;
+  align-items:flex-end;justify-content:center;
+  padding:0 18px calc(92px + env(safe-area-inset-bottom,0px));
+  background:rgba(7,4,17,.38);
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+}
+#flDiceOverlay.show{display:flex}
+#flDiceOverlay .fl-ov-zoom{
+  margin:0 0 10px !important;padding:18px 30px 14px;border-radius:26px;
+  background:linear-gradient(160deg,rgba(32,20,54,.94),rgba(12,7,24,.97));
+  border:1px solid rgba(243,200,121,.28);
+  box-shadow:0 18px 50px rgba(0,0,0,.58),inset 0 1px 0 rgba(255,255,255,.08);
+  position:relative;overflow:hidden;transform:none !important;
+}
+#flDiceOverlay .fl-ov-zoom::before{
+  content:'';position:absolute;left:50%;top:50%;width:230px;height:230px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle,rgba(243,200,121,.20),rgba(255,95,158,.10) 45%,transparent 70%);
+  animation:v3DiceGlow 1.2s ease-in-out infinite;
+}
+#flDiceOverlay .fl-ov-zoom.landed{animation:v3DiceCardLand .52s cubic-bezier(.2,1.6,.4,1)}
+@keyframes v3DiceGlow{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.92)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+@keyframes v3DiceCardLand{0%{transform:scale(1.06,.94)}45%{transform:scale(.97,1.04)}75%{transform:scale(1.02,.99)}100%{transform:scale(1)}}
+#flDiceOverlay .dice3d-wrap{width:120px;height:120px;perspective:900px;margin:0 auto}
+#flDiceOverlay .dice3d-stage{transform:rotateX(-16deg) rotateY(-22deg)}
+#flDiceOverlay .df{
+  border-radius:18px;
+  background:radial-gradient(circle at 28% 22%,#fffdf6 0%,#f7edf8 42%,#dfc9ee 100%);
+  border:1px solid rgba(150,90,180,.55);
+  box-shadow:inset 0 -5px 12px rgba(110,50,145,.22),inset 0 3px 7px rgba(255,255,255,.95),0 0 18px rgba(243,200,121,.18);
+}
+#flDiceOverlay .df1{transform:rotateY(0deg) translateZ(60px)}
+#flDiceOverlay .df2{transform:rotateY(90deg) translateZ(60px)}
+#flDiceOverlay .df3{transform:rotateY(180deg) translateZ(60px)}
+#flDiceOverlay .df4{transform:rotateY(-90deg) translateZ(60px)}
+#flDiceOverlay .df5{transform:rotateX(90deg) translateZ(60px)}
+#flDiceOverlay .df6{transform:rotateX(-90deg) translateZ(60px)}
+#flDiceOverlay .df .pips{width:62%;height:62%}
+#flDiceOverlay .df .pip{width:16px;height:16px;border-radius:50%}
+#flDiceOverlay .dice-shadow{width:110px;height:18px;bottom:-16px}
+#flDiceOverlayLabel{min-height:0}
+.v3-dice-label{
+  display:flex;align-items:baseline;justify-content:center;gap:6px;
+  margin-top:12px;color:var(--sk-ink,#f4ecff);font-size:12px;letter-spacing:.04em;
+}
+.v3-dice-kicker{font-size:10px;font-weight:800;letter-spacing:.22em;color:var(--sk-gold,#f3c879);text-transform:uppercase}
+.v3-dice-who{font-size:11px;color:var(--sk-dim,#a99abf)}
+.v3-dice-num{font-size:38px;line-height:.9;font-weight:800;color:var(--sk-gold,#f3c879);text-shadow:0 0 18px rgba(243,200,121,.45)}
+.v3-dice-unit{font-size:11px;color:var(--sk-dim,#a99abf)}
+.v3-dice-label.rolling .v3-dice-kicker{animation:v3DiceKicker 1s ease-in-out infinite}
+@keyframes v3DiceKicker{0%,100%{opacity:.45}50%{opacity:1}}
 </style>
 <style id="arcade-css">
 /* ===== 经典游戏厅（包装层，不影响旧版内部样式） ===== */
@@ -12276,6 +12341,51 @@ html.arcade-embed .header { display: none !important; }
     mask.querySelector('[data-voice-close]').addEventListener('click', function(){ mask.remove(); });
     mask.addEventListener('click', function(e){ if (e.target === mask) mask.remove(); });
   }
+  function v3DiceRoll(v, cb){
+    var ov = document.getElementById('flDiceOverlay');
+    var wrap = document.getElementById('flDiceOverlayWrap');
+    var lbl = document.getElementById('flDiceOverlayLabel');
+    if (!ov || !wrap) { if (cb) cb(); return; }
+    var sess = window._flSess || 0;
+    var who = '';
+    try {
+      var st = window._flDuelState;
+      if (st) who = st.r1 === null ? st.p1.name : st.p2.name;
+      else { var p = window._flP[window._flOrder[window._flTurn]]; if (p) who = p.name; }
+    } catch (e) {}
+    var cube = null;
+    try { cube = v12DicePrepare(wrap); } catch (e) {}
+    ov.classList.add('show', 'v3-dice-live');
+    if (lbl) {
+      lbl.className = 'v3-dice-label rolling';
+      lbl.innerHTML = '<span class="v3-dice-kicker">摇骰中</span>' + (who ? '<span class="v3-dice-who">· ' + who + '</span>' : '');
+    }
+    try { sndSpin(); vibrate(8); } catch (e) {}
+    var done = false;
+    function finish(){
+      if (done) return;
+      done = true;
+      if (lbl) {
+        lbl.className = 'v3-dice-label landed';
+        lbl.innerHTML = '<span class="v3-dice-kicker">' + (who ? who + ' 摇出' : '摇出') + '</span><b class="v3-dice-num">' + v + '</b><span class="v3-dice-unit">点</span>';
+      }
+      try { sndDing(); vibrate([28, 18, 46]); } catch (e) {}
+      try { v12Fx.ripple(innerWidth / 2, innerHeight * 0.55); } catch (e) {}
+      var zoom = ov.querySelector('.fl-ov-zoom');
+      if (zoom) {
+        zoom.classList.add('landed');
+        setTimeout(function(){ try { zoom.classList.remove('landed'); } catch (e) {} }, 620);
+      }
+      setTimeout(function(){
+        ov.classList.remove('show', 'v3-dice-live');
+        if (window._flSess === sess && cb) cb();
+      }, 720);
+    }
+    try { v12DiceSpin(cube, v, { duration: 1150, onDone: finish }); }
+    catch (e) { finish(); }
+    setTimeout(function(){ if (!done) finish(); }, 2500);
+  }
+  window.v3DiceRoll = v3DiceRoll;
   function v3ReadTask(){
     var el = document.getElementById('flTask');
     var txt = '';

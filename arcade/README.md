@@ -16,6 +16,7 @@
 - **飞行棋**：支持保存/继续棋局（每回合自动存 + 开局页「继续上次棋局」）、暂停/收起、心愿券直接存进「升温夜航」回忆册
 - **飞行棋棋盘**：专用 7 键工具条（暂停/记录/朗读/音色/重设/大厅/遮屏）、三段式强度、追赶「风向」、互写一格、自定义称呼、落点提示、自动聚焦
 - **飞行棋 DIY 预设**：内置日常/微醺/派对/温柔 4 套；棋盘比例（喝酒/脱衣/刺激/双人/事件 0–3）+ 自定义卡（类型/文本/次数）；支持另存、切换、删除，下一局自动生效
+- **飞行棋骰子**：底部实体骰子卡、1.15s 翻滚 + 落定回弹；完成任务强制清理转盘/骰子遮罩与 _flRolled，修复下一位点骰无反应
   - **本局记录 / 已答回顾**：本局记录进入「更多」抽屉，用新版底部 sheet 展示；已答回顾改成新版底部面板
   - 去掉旧版 PWA 注册与 manifest 引用（避免 `/arcade/` 下 404）
   - 预置 `couple-onboarded` / `couple-night` 跳过开场弹窗
@@ -37,6 +38,7 @@ python tools/arcade/patch_legacy.py
 - https://chundongtou.github.io/couple-game/arcade/?game=truth
 - https://chundongtou.github.io/couple-game/arcade/?game=dare
 - https://chundongtou.github.io/couple-game/arcade/?game=flight
+
 
 
 
