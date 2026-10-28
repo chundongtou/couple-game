@@ -89,21 +89,23 @@
   function itemHtml(it) {
     var date = fmtEntryDate(it);
     var note = String(it.note || "").trim();
+    var flight = it.kind === "flight-wish";
+    var meta = flight
+      ? '<span class="mem-res heart"><i>👑</i><b>心愿券</b></span><span class="mem-dot"></span><span>飞行棋</span>'
+      : '<span class="mem-res heart"><i>♥</i><b>' + U.round(it.heart) + "</b></span>" +
+        '<span class="mem-res tension"><i>✦</i><b>' + U.round(it.tension) + "</b></span>" +
+        '<span class="mem-res sync"><i>⌁</i><b>' + U.round(it.sync) + "</b></span>" +
+        '<span class="mem-dot"></span>' +
+        "<span>" + U.round(it.rounds) + " 回合</span>" +
+        '<span class="mem-dot"></span>' +
+        "<span>完成 " + U.round(it.completes) + " · 跳过 " + U.round(it.skips) + "</span>";
     return '<div class="mem-item" data-test="memory-item" data-id="' + U.escape(it.id) + '">' +
       '<button class="mem-open" data-open="' + U.escape(it.id) + '" aria-label="查看 ' + U.escape(it.endingName || "这一晚") + '">' +
         '<div class="mem-r1">' +
           '<span class="mem-ending">' + U.escape(it.endingName || "一段夜航") + "</span>" +
           '<span class="mem-date">' + U.escape(date) + "</span>" +
         "</div>" +
-        '<div class="mem-r2">' +
-          '<span class="mem-res heart"><i>♥</i><b>' + U.round(it.heart) + "</b></span>" +
-          '<span class="mem-res tension"><i>✦</i><b>' + U.round(it.tension) + "</b></span>" +
-          '<span class="mem-res sync"><i>⌁</i><b>' + U.round(it.sync) + "</b></span>" +
-          '<span class="mem-dot"></span>' +
-          "<span>" + U.round(it.rounds) + " 回合</span>" +
-          '<span class="mem-dot"></span>' +
-          "<span>完成 " + U.round(it.completes) + " · 跳过 " + U.round(it.skips) + "</span>" +
-        "</div>" +
+        '<div class="mem-r2">' + meta + "</div>" +
         (awardText(it) ? '<div class="mem-awards">' + U.escape(awardText(it)) + "</div>" : "") +
         '<div class="mem-note' + (note ? "" : " empty") + '">' + U.escape(note || "还没有备注，留给下次想起时再写") + "</div>" +
       "</button>" +
@@ -163,9 +165,15 @@
     var names = it.names || {};
     var note = String(it.note || "").trim();
     var aws = it.awards instanceof Array ? it.awards : [];
-    var html =
-      '<div class="mem-detail">' +
-        '<div class="rows">' +
+    var rows;
+    if (it.kind === "flight-wish") {
+      rows = '<div class="rows">' +
+        "<span>日期 <b>" + U.escape(fmtEntryDate(it)) + "</b></span>" +
+        "<span>玩法 <b>飞行棋</b></span>" +
+        (it.winner ? "<span>赢家 <b>" + U.escape(it.winner) + "</b></span>" : "") +
+        "</div>";
+    } else {
+      rows = '<div class="rows">' +
           "<span>日期 <b>" + U.escape(fmtEntryDate(it)) + "</b></span>" +
           "<span>回合 <b>" + U.round(it.rounds) + "</b></span>" +
           "<span>完成 <b>" + U.round(it.completes) + "</b></span>" +
@@ -177,7 +185,11 @@
           "<span>♥ 心动 <b>" + U.round(it.heart) + "</b></span>" +
           "<span>✦ 张力 <b>" + U.round(it.tension) + "</b></span>" +
           "<span>⌁ 默契 <b>" + U.round(it.sync) + "</b></span>" +
-        "</div>" +
+        "</div>";
+    }
+    var html =
+      '<div class="mem-detail">' +
+        rows +
         (aws.length ? '<div class="aw">' + aws.map(function (a) { return "<span>" + U.escape(String(a)) + "</span>"; }).join("") + "</div>" : "") +
         '<div class="nt' + (note ? "" : " empty") + '">' + U.escape(note || "还没有备注。给这一晚留一句话，下次回来会看到。") + "</div>" +
       "</div>";

@@ -202,6 +202,7 @@ JS = """
     var h2 = wrap ? wrap.querySelector('h2') : null;
     var isFlight = !!(wrap && h2 && String(h2.textContent || '').indexOf('飞行棋') >= 0);
     document.body.classList.toggle('v3-flight-setup', isFlight);
+    if (isFlight) v3AddResumeCard(wrap, h2);
     if (!isFlight || wrap.getAttribute('data-v3-set') === '1') return;
     wrap.setAttribute('data-v3-set', '1');
     var nodes = Array.prototype.slice.call(wrap.children).filter(function(n){ return n !== h2; });
@@ -320,18 +321,247 @@ JS = """
   }
   window.v3WheelInit = v3WheelInit;
   window.v3WheelPick = v3WheelPick;
+
+  /* ---------- 飞行棋：保存/继续、暂停/收起、心愿券 ---------- */
+  var FL_SAVE = 'couple-flight-save-v1';
+  function v3Pad2(n){ return n < 10 ? ('0' + n) : String(n); }
+  function v3FlightSnapshot(){
+    if (!window._flP || !window._flCells || window._flWin) return null;
+    return {
+      v: 1, ts: Date.now(),
+      mode: window._flMode, modeName: window._flModeName, laps: window._flLaps,
+      turn: window._flTurn, order: window._flOrder,
+      P: window._flP, cells: window._flCells, sideM: window._flSideM, sideF: window._flSideF,
+      tpos: window._flTPos, six: window._flSix, rolled: window._flRolled,
+      clothes: window._flClothes, upUses: window._flUpUses,
+      godId: window._flGod ? window._flGod.id : null, godUses: window._flGodUses,
+      energyUp: window._flEnergyUp, hourglass: window._flHourglass,
+      setup: window._flSetup, diff: (typeof SET !== 'undefined' ? SET.diff : null)
+    };
+  }
+  function v3SaveFlight(){
+    var s = v3FlightSnapshot();
+    if (!s) return;
+    try { localStorage.setItem(FL_SAVE, JSON.stringify(s)); } catch (e) {}
+  }
+  function v3ClearFlight(){
+    try { localStorage.removeItem(FL_SAVE); } catch (e) {}
+  }
+  function v3LoadFlight(){
+    try {
+      var s = JSON.parse(localStorage.getItem(FL_SAVE) || 'null');
+      if (!s || s.v !== 1 || !(s.P instanceof Array) || !(s.cells instanceof Array)) return null;
+      return s;
+    } catch (e) { return null; }
+  }
+  function v3SaveFlightIfActive(){
+    if (window.curGame === 'flight' && window._flP && !window._flWin) v3SaveFlight();
+  }
+  function v3ResumeFlight(){
+    var s = v3LoadFlight();
+    if (!s) { try { toast('没有可继续的棋局'); } catch (e) {} return false; }
+    window._flSess = (window._flSess || 0) + 1;
+    window._flP = s.P;
+    window._flMode = s.mode;
+    window._flModeName = s.modeName;
+    window._flLaps = s.laps;
+    window._flTurn = s.turn;
+    window._flOrder = s.order;
+    window._flCells = s.cells;
+    window._flSideM = s.sideM;
+    window._flSideF = s.sideF;
+    window._flTPos = s.tpos || [0, 0];
+    window._flSix = s.six || 0;
+    window._flRolled = !!s.rolled;
+    window._flClothes = s.clothes || {};
+    window._flUpUses = s.upUses || 0;
+    window._flGod = (s.godId != null && s.P[s.godId]) ? s.P[s.godId] : null;
+    window._flGodUses = s.godUses || 0;
+    window._flEnergyUp = s.energyUp || 0;
+    window._flHourglass = !!s.hourglass;
+    window._flSetup = s.setup || window._flSetup;
+    if (s.diff && typeof SET !== 'undefined') SET.diff = s.diff;
+    window._flWin = false;
+    window._flSixNext = false;
+    window._flDuelState = null;
+    window._flDuelCell = false;
+    window._flEventChoice = null;
+    window._flWheel = null;
+    window._flWheelSegs = null;
+    ['flWheelOverlay', 'flChoiceOverlay'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('show');
+    });
+    try { flRender(); } catch (e) {}
+    try { v12FlStartTurnTimer(); } catch (e) {}
+    try { toast('继续上次棋局 · 第 ' + (window._flTurn + 1) + ' 回合'); } catch (e) {}
+    return true;
+  }
+  function v3EnsurePause(){
+    var mask = document.getElementById('v3PauseMask');
+    if (mask) return mask;
+    mask = document.createElement('div');
+    mask.id = 'v3PauseMask';
+    mask.className = 'v3-sheet-mask';
+    mask.setAttribute('data-test', 'flight-pause');
+    mask.innerHTML = '<div class="v3-sheet v3-pause-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">棋局暂停</div>'
+      + '<p class="v3-pause-text" id="v3PauseText"></p>'
+      + '<div class="v3-pause-actions">'
+      + '<button type="button" class="v3-btn primary" data-resume>继续棋局</button>'
+      + '<button type="button" class="v3-btn ghost" data-collapse>保存并收起</button>'
+      + '</div>'
+      + '</div>';
+    document.body.appendChild(mask);
+    mask.querySelector('[data-resume]').addEventListener('click', function(){
+      mask.classList.remove('on');
+      try { v12FlStartTurnTimer(); } catch (e) {}
+    });
+    mask.querySelector('[data-collapse]').addEventListener('click', function(){
+      mask.classList.remove('on');
+      try { goHome(); } catch (e) {}
+    });
+    mask.addEventListener('click', function(e){
+      if (e.target === mask) {
+        mask.classList.remove('on');
+        try { v12FlStartTurnTimer(); } catch (e) {}
+      }
+    });
+    return mask;
+  }
+  function v3PauseFlight(){
+    if (!window._flP) return;
+    if (window._flWin) { try { toast('本局已经结束'); } catch (e) {} return; }
+    try { v12FlStopTurnTimer(); } catch (e) {}
+    v3SaveFlight();
+    var mask = v3EnsurePause();
+    var p = window._flP[window._flOrder[window._flTurn]];
+    var txt = document.getElementById('v3PauseText');
+    if (txt) {
+      txt.textContent = '第 ' + (window._flTurn + 1) + ' 回合 · ' + (p ? ('轮到 ' + p.name + ' 摇骰子') : '棋局进行中')
+        + '。进度已经保存，可以继续，也可以先收起。';
+    }
+    mask.classList.add('on');
+  }
+  function v3WishOpen(){
+    var mask = document.getElementById('v3WishMask');
+    if (mask) { mask.classList.add('on'); var ta0 = mask.querySelector('textarea'); if (ta0) setTimeout(function(){ ta0.focus(); }, 60); return; }
+    mask = document.createElement('div');
+    mask.id = 'v3WishMask';
+    mask.className = 'v3-sheet-mask';
+    mask.setAttribute('data-test', 'flight-wish-sheet');
+    mask.innerHTML = '<div class="v3-sheet v3-wish-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">赢家心愿券</div>'
+      + '<p class="v3-wish-sub">输家赛后兑现一个不越界的小心愿。写下它，会存进「升温夜航」的回忆册。</p>'
+      + '<textarea class="v3-wish-input" maxlength="80" rows="3" placeholder="今晚想要什么？例如：给我按脚 10 分钟"></textarea>'
+      + '<div class="v3-pause-actions">'
+      + '<button type="button" class="v3-btn primary" data-wish-save>存进回忆册</button>'
+      + '<button type="button" class="v3-btn ghost" data-wish-cancel>先不写</button>'
+      + '</div>'
+      + '</div>';
+    document.body.appendChild(mask);
+    function close(){ mask.classList.remove('on'); }
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+    mask.querySelector('[data-wish-cancel]').addEventListener('click', close);
+    mask.querySelector('[data-wish-save]').addEventListener('click', function(){
+      var ta = mask.querySelector('textarea');
+      var w = ta ? String(ta.value || '').trim() : '';
+      if (!w) { try { toast('先写一句心愿吧'); } catch (e) {} return; }
+      close();
+      v3WishSave(w);
+    });
+    mask.classList.add('on');
+    setTimeout(function(){ var ta = mask.querySelector('textarea'); if (ta) ta.focus(); }, 60);
+  }
+  function v3WishSave(w){
+    w = String(w || '').trim().slice(0, 200);
+    if (!w) return;
+    var el = document.getElementById('flTask');
+    if (el) {
+      el.innerHTML = '<div class="fl-task"><div style="font-size:22px">👑 心愿券</div>'
+        + '<div style="font-size:16px;margin-top:6px">' + w.replace(/[<>&]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; }) + '</div>'
+        + '<div style="font-size:12px;color:#aaa;margin-top:6px">已收进回忆册 · 输家记得兑现</div></div>';
+    }
+    try { logEvent('✈️ 心愿券：' + w); } catch (e) {}
+    try { toast('心愿已收进回忆册'); } catch (e) {}
+    try { v3ClearFlight(); } catch (e) {}
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'arcade:flight-wish',
+          wish: w,
+          winner: window._flWinnerName || '',
+          names: (typeof HE !== 'undefined' && HE) ? { a: HE.him, b: HE.her } : { a: '他', b: '她' },
+          turn: (window._flTurn || 0) + 1
+        }, '*');
+      }
+    } catch (e) {}
+  }
+  window.v3SaveFlight = v3SaveFlight;
+  window.v3ClearFlight = v3ClearFlight;
+  window.v3SaveFlightIfActive = v3SaveFlightIfActive;
+  window.v3ResumeFlight = v3ResumeFlight;
+  window.v3PauseFlight = v3PauseFlight;
+  window.v3WishOpen = v3WishOpen;
+
+  function v3AddResumeCard(wrap, h2){
+    if (!wrap || !h2 || wrap.querySelector('.v3-resume-flight')) return;
+    var s = v3LoadFlight();
+    if (!s) return;
+    var card = document.createElement('div');
+    card.className = 'v3-resume-flight';
+    card.setAttribute('data-test', 'flight-resume');
+    var tx = document.createElement('div');
+    tx.className = 'v3-resume-tx';
+    var b = document.createElement('b');
+    b.textContent = '继续上次棋局';
+    var sp = document.createElement('span');
+    var dt = new Date(s.ts || Date.now());
+    var stamp = (dt.getMonth() + 1) + '/' + dt.getDate() + ' ' + v3Pad2(dt.getHours()) + ':' + v3Pad2(dt.getMinutes());
+    sp.textContent = (s.modeName || '飞行棋') + ' · 第 ' + ((s.turn || 0) + 1) + ' 回合 · ' + stamp;
+    tx.appendChild(b);
+    tx.appendChild(sp);
+    var go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'v3-resume-go';
+    go.textContent = '继续';
+    go.addEventListener('click', function(){ v3ResumeFlight(); });
+    var fresh = document.createElement('button');
+    fresh.type = 'button';
+    fresh.className = 'v3-resume-x';
+    fresh.textContent = '新开';
+    fresh.addEventListener('click', function(){
+      v3ClearFlight();
+      card.remove();
+      try { toast('已清除上次棋局'); } catch (e) {}
+    });
+    card.appendChild(tx);
+    card.appendChild(go);
+    card.appendChild(fresh);
+    h2.parentNode.insertBefore(card, h2);
+  }
+  window.v3AddResumeCard = v3AddResumeCard;
+
   function wrapHome(){
     if (wrapped) return;
     wrapped = true;
     if (EMBED) {
       window.goHome = function(){
+        try { v3SaveFlightIfActive(); } catch (e) {}
         try { parent.postMessage({ type: 'arcade:back' }, '*'); } catch (e) {}
       };
       return;
     }
     if (typeof window.goHome !== 'function') { wrapped = false; return; }
     var orig = window.goHome;
-    window.goHome = function(){ var r = orig.apply(this, arguments); show(); return r; };
+    window.goHome = function(){
+      try { v3SaveFlightIfActive(); } catch (e) {}
+      var r = orig.apply(this, arguments);
+      show();
+      return r;
+    };
   }
   window.Arcade = { show: show, start: start };
   Array.prototype.forEach.call(document.querySelectorAll('[data-game]'), function(btn){
@@ -418,6 +648,31 @@ def patch(html):
         "    var finalAngle=window[angleKey]%360;\n    var idx=Math.floor(((360-finalAngle)%360)/seg)%n;\n    sndDing();",
         "    var finalAngle=window[angleKey]%360;\n    var idx=Math.floor(((360-finalAngle)%360)/seg)%n;\n    try{if(cv&&cv.classList&&cv.classList.contains('v3-wheel'))cv.style.setProperty('--rot',(window[angleKey]%360)+'deg');}catch(e){}\n    sndDing();",
     )
+    # 飞行棋：保存/继续、暂停、心愿券
+    html = html.replace(
+        "  buildFlightBoard(s.mode);\n}",
+        "  buildFlightBoard(s.mode);\n  try{v3SaveFlight();}catch(e){}\n}",
+    )
+    html = html.replace(
+        "try{v12FlStartTurnTimer();}catch(e){}",
+        "try{v12FlStartTurnTimer();}catch(e){} try{v3SaveFlight();}catch(e){}",
+    )
+    html = html.replace(
+        "  window._flWin=true;",
+        "  window._flWin=true;\n  try{v3ClearFlight();}catch(e){}",
+    )
+    html = html.replace(
+        "var names=type==='team'?(window._flP.length===2?window._flP[id].name:(window._flP[id*2].name+'&'+window._flP[id*2+1].name)):window._flP[id].name;",
+        "var names=type==='team'?(window._flP.length===2?window._flP[id].name:(window._flP[id*2].name+'&'+window._flP[id*2+1].name)):window._flP[id].name;\n  window._flWinnerName=names;",
+    )
+    html = html.replace(
+        "function flWish(){\n  var w=prompt",
+        "function flWish(){\n  if(window.v3WishOpen){window.v3WishOpen();return;}\n  var w=prompt",
+    )
+    html = html.replace(
+        "+'<h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2>'",
+        "+'<div class=\"v3-fl-head\"><h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2><button class=\"v3-fl-pause\" type=\"button\" onclick=\"v3PauseFlight()\">⏸ 暂停</button></div>'",
+    )
     # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
     for pattern in [
         r'\n<link rel="manifest"[^>]*>',
@@ -451,6 +706,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

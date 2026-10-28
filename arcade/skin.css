@@ -490,3 +490,39 @@ body.v3-flight-setup .safe-tip{margin-top:14px !important}
 /* 旧版首页永远不显示：游戏厅用新版 home，内嵌时直接进游戏，避免加载时闪一下旧主页 */
 #homePage{display:none !important}
 
+
+/* ================= 飞行棋：继续/暂停/心愿券 ================= */
+.v3-fl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+.v3-fl-head h2{margin:0 !important}
+.v3-fl-pause{
+  flex:0 0 auto;height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--sk-line2);
+  background:var(--sk-glass);color:var(--sk-gold);font-size:11.5px;font-weight:800;letter-spacing:.06em;
+}
+.v3-resume-flight{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;margin:12px 0 4px;border-radius:18px;
+  border:1px solid rgba(243,200,121,.35);
+  background:linear-gradient(135deg,rgba(243,200,121,.14),rgba(255,95,158,.08));
+}
+.v3-resume-tx{flex:1;min-width:0}
+.v3-resume-tx b{display:block;font-size:13.5px;font-weight:800;color:var(--sk-ink)}
+.v3-resume-tx span{display:block;margin-top:3px;font-size:10.5px;color:var(--sk-dim);letter-spacing:.02em;line-height:1.5}
+.v3-resume-go{
+  flex:0 0 auto;height:40px;padding:0 16px;border-radius:12px;border:0;
+  background:linear-gradient(135deg,#f3c879,#ff5f9e);color:#2a1206;font-size:12px;font-weight:800;
+}
+.v3-resume-x{flex:0 0 auto;height:40px;padding:0 10px;border-radius:12px;border:1px solid var(--sk-line);background:transparent;color:var(--sk-dim2);font-size:11px}
+.v3-pause-text{margin:0 0 14px !important;font-size:12.5px;line-height:1.8;color:var(--sk-dim) !important}
+.v3-pause-actions{display:flex;flex-direction:column;gap:9px}
+.v3-btn{
+  width:100%;min-height:52px;border-radius:14px;border:1px solid var(--sk-line2);
+  background:var(--sk-glass);color:var(--sk-ink);font-size:14px;font-weight:800;letter-spacing:.06em;
+}
+.v3-btn.primary{background:linear-gradient(135deg,#f3c879,#ff5f9e);border:0;color:#2a1206}
+.v3-btn.ghost{background:transparent;color:var(--sk-dim);min-height:46px;font-size:12.5px}
+.v3-wish-sub{margin:0 0 12px !important;font-size:12px;line-height:1.8;color:var(--sk-dim) !important}
+.v3-wish-input{
+  width:100%;min-height:96px;resize:none;border-radius:14px;padding:12px 14px;
+  border:1px solid var(--sk-line);background:rgba(255,255,255,.05);color:var(--sk-ink);
+  font-size:14px;line-height:1.7;outline:none;
+}
+.v3-wish-input:focus{border-color:rgba(243,200,121,.5)}

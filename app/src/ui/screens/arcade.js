@@ -94,6 +94,33 @@
     return null;
   }
 
+  function saveFlightWish(data) {
+    var wish = String((data && data.wish) || "").trim().slice(0, 200);
+    if (!wish) return;
+    var rawNames = (data && data.names) || {};
+    var names = {
+      a: String(rawNames.a || "他").slice(0, 6) || "他",
+      b: String(rawNames.b || "她").slice(0, 6) || "她"
+    };
+    var winner = String((data && data.winner) || "").slice(0, 20);
+    var entry = {
+      id: "flight-wish-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+      ts: Date.now(),
+      names: names,
+      kind: "flight-wish",
+      ending: "flight-wish",
+      endingName: "飞行棋 · 心愿券",
+      heart: 0, tension: 0, sync: 0,
+      rounds: Math.max(0, Number(data && data.turn) || 0),
+      completes: 0, skips: 0, maxCombo: 0, maxStar: 0,
+      awards: ["👑 心愿券", "✈️ 飞行棋"],
+      winner: winner,
+      note: (winner ? "赢家 " + winner + "：" : "") + wish
+    };
+    App.Store.addHistory(entry);
+    try { App.UI.toast("心愿已存进回忆册", { kind: "gold" }); } catch (e) {}
+  }
+
   function mount(root, params) {
     var inst = {
       root: root,
@@ -180,7 +207,13 @@
     }
 
     inst.onMsg = function (e) {
-      if (!e || !e.data || e.data.type !== "arcade:back") return;
+      if (!e || !e.data) return;
+      if (e.origin && e.origin !== location.origin) return;
+      if (e.data.type === "arcade:flight-wish") {
+        saveFlightWish(e.data);
+        return;
+      }
+      if (e.data.type !== "arcade:back") return;
       goBack();
     };
     window.addEventListener("message", inst.onMsg);
