@@ -196,6 +196,208 @@ JS = """
     list.innerHTML = html || '<div class="log-empty">本局还没有记录</div>';
     mask.classList.add('on');
   }
+  var DIY_KEY = 'couple-flight-diy-v1';
+  var DIY_TYPES = [
+    ['truth', '💜 真心话'], ['dare', '🔥 大冒险'], ['touch', '💞 触碰'],
+    ['drink', '🍷 喝酒'], ['strip', '🍒 脱衣'], ['punish', '💣 惩罚']
+  ];
+  var DIY_DEFAULT = { weights: { drink: 1, strip: 0, spicy: 1, duo: 1, event: 1 }, cards: [] };
+  function v3DIYNorm(d){
+    var out = { weights: {}, cards: [] };
+    var w = (d && d.weights) || {};
+    var base = DIY_DEFAULT.weights;
+    ['drink', 'strip', 'spicy', 'duo', 'event'].forEach(function(k){
+      var v = (w[k] === undefined || w[k] === null) ? base[k] : w[k];
+      out.weights[k] = Math.max(0, Math.min(3, Number(v) || 0));
+    });
+    var cards = (d && d.cards instanceof Array) ? d.cards : [];
+    cards.forEach(function(c){
+      if (!c || !c.text) return;
+      out.cards.push({
+        type: String(c.type || 'dare'),
+        text: String(c.text).slice(0, 80),
+        count: Math.max(1, Math.min(3, Number(c.count) || 1))
+      });
+    });
+    out.cards = out.cards.slice(0, 12);
+    return out;
+  }
+  function v3DIYLoad(){
+    try { return v3DIYNorm(JSON.parse(localStorage.getItem(DIY_KEY) || 'null')); }
+    catch (e) { return v3DIYNorm(DIY_DEFAULT); }
+  }
+  function v3DIYSave(d){
+    var norm = v3DIYNorm(d);
+    try { localStorage.setItem(DIY_KEY, JSON.stringify(norm)); } catch (e) {}
+    return norm;
+  }
+  function v3DIYExpand(cards){
+    var out = [];
+    (cards || []).forEach(function(c){
+      for (var i = 0; i < (c.count || 1); i++) out.push({ type: c.type, text: c.text });
+    });
+    return out.slice(0, 10);
+  }
+  function v3DIYInfo(t){
+    var i = Number(String(t).replace('diy', ''));
+    return (window._flDIYActive && window._flDIYActive[i]) || { type: 'dare', text: '一个自定义任务' };
+  }
+  function v3DIYEachLane(cells, fn){
+    if (!cells || !cells.length) return;
+    if (cells[0] instanceof Array) cells.forEach(fn); else fn(cells);
+  }
+  function v3DIYApplyWeights(cells, weights){
+    if (!cells || !cells.length) return;
+    var w = (weights || (window._flDIY && window._flDIY.weights) || DIY_DEFAULT.weights);
+    v3DIYEachLane(cells, function(lane){
+      function ok(c){ return c && ['start', 'end', 'cross'].indexOf(c) < 0 && !/^custom|^diy/.test(c); }
+      Object.keys(w).forEach(function(type){
+        var weight = Number(w[type]) || 0;
+        if (weight === 1) return;
+        var idxs = [];
+        for (var i = 0; i < lane.length; i++) {
+          if (lane[i] === type) idxs.push(i);
+        }
+        if (weight === 0) {
+          idxs.forEach(function(i){ lane[i] = i % 2 ? 'dare' : 'truth'; });
+          return;
+        }
+        var target = Math.max(1, Math.floor(lane.length * (weight === 2 ? 0.18 : 0.30)));
+        var pool = [];
+        for (var j = 0; j < lane.length; j++) {
+          if (ok(lane[j]) && lane[j] !== type) pool.push(j);
+        }
+        for (var k = pool.length - 1; k > 0; k--) {
+          var r = Math.floor(Math.random() * (k + 1));
+          var tmp = pool[k]; pool[k] = pool[r]; pool[r] = tmp;
+        }
+        pool.slice(0, target).forEach(function(i){ lane[i] = type; });
+      });
+    });
+  }
+  function v3DIYPlaceCards(cells, mode){
+    var list = window._flDIYActive || [];
+    if (!list.length || !cells) return;
+    var lanes = (cells[0] instanceof Array) ? cells : [cells];
+    var used = 0;
+    list.forEach(function(card, ci){
+      var lane = lanes[mode === 'A' ? (ci % lanes.length) : 0];
+      if (!lane) return;
+      var free = [];
+      for (var i = 2; i < lane.length - 1; i++) {
+        if (['start', 'end', 'cross'].indexOf(lane[i]) < 0 && !/^custom|^diy/.test(lane[i])) free.push(i);
+      }
+      if (!free.length) return;
+      var pos = free[Math.floor((used + 1) * free.length / (list.length + 1))] || free[free.length - 1];
+      if (pos == null) return;
+      lane[pos] = 'diy' + ci;
+      used++;
+    });
+  }
+  function v3DIYSummary(d){
+    d = v3DIYNorm(d || (window._flDIY || v3DIYLoad()));
+    var n = 0;
+    d.cards.forEach(function(c){ n += c.count || 1; });
+    var extra = [];
+    if (d.weights.drink !== 1) extra.push('喝酒' + ['关', '标准', '多', '很多'][d.weights.drink]);
+    if (d.weights.strip > 0) extra.push('脱衣' + ['', '标准', '多', '很多'][d.weights.strip]);
+    if (d.weights.spicy > 1) extra.push('刺激多');
+    return (n ? n + ' 张自定义卡' : '未加自定义卡') + (extra.length ? ' · ' + extra.join(' · ') : '');
+  }
+  function v3DIYSheet(){
+    var old = document.getElementById('v3DIYMask');
+    if (old) old.remove();
+    var data = v3DIYNorm(window._flDIY || v3DIYLoad());
+    var mask = document.createElement('div');
+    mask.id = 'v3DIYMask';
+    mask.className = 'v3-sheet-mask on';
+    mask.setAttribute('data-test', 'flight-diy-sheet');
+    mask.innerHTML = '<div class="v3-sheet v3-diy-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">DIY 预设</div>'
+      + '<p class="v3-wish-sub">调棋盘比例、加自己的卡；应用后下一局自动生效。</p>'
+      + '<div class="v3-diy-block"><div class="v3-voice-sub">棋盘比例</div><div id="v3DiyWeights"></div></div>'
+      + '<div class="v3-diy-block"><div class="v3-voice-sub">自定义卡</div><div id="v3DiyCards"></div>'
+      + '<button type="button" class="v3-diy-add" data-diy-add>＋ 加一条</button></div>'
+      + '<div class="v3-pause-actions" style="margin-top:14px">'
+      + '<button type="button" class="v3-btn primary" data-diy-save>应用这套预设</button>'
+      + '<button type="button" class="v3-btn ghost" data-diy-close>先不改</button>'
+      + '</div></div>';
+    document.body.appendChild(mask);
+    var weightBox = mask.querySelector('#v3DiyWeights');
+    var labels = { drink: '🍷 喝酒', strip: '🍒 脱衣', spicy: '💣 刺激', duo: '💑 双人', event: '🎁 事件' };
+    ['drink', 'strip', 'spicy', 'duo', 'event'].forEach(function(key){
+      var row = document.createElement('div');
+      row.className = 'v3-diy-weight';
+      row.innerHTML = '<span>' + labels[key] + '</span>';
+      var opts = document.createElement('div');
+      opts.className = 'v3-diy-opts';
+      ['关', '标准', '多', '很多'].forEach(function(txt, val){
+        var b = document.createElement('button');
+        b.type = 'button'; b.textContent = txt;
+        b.className = (data.weights[key] === val ? 'on' : '');
+        b.addEventListener('click', function(){
+          data.weights[key] = val;
+          Array.prototype.forEach.call(opts.children, function(x){ x.classList.remove('on'); });
+          b.classList.add('on');
+        });
+        opts.appendChild(b);
+      });
+      row.appendChild(opts);
+      weightBox.appendChild(row);
+    });
+    var cardsBox = mask.querySelector('#v3DiyCards');
+    function addCardRow(c){
+      var row = document.createElement('div');
+      row.className = 'v3-diy-card';
+      var sel = document.createElement('select');
+      DIY_TYPES.forEach(function(t){
+        var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; sel.appendChild(o);
+      });
+      sel.value = c.type || 'dare';
+      var inp = document.createElement('input');
+      inp.maxLength = 80; inp.placeholder = '写一条游戏里没有的任务'; inp.value = c.text || '';
+      var cnt = document.createElement('select');
+      [1, 2, 3].forEach(function(n){ var o = document.createElement('option'); o.value = n; o.textContent = '×' + n; cnt.appendChild(o); });
+      cnt.value = c.count || 1;
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'v3-diy-del'; del.textContent = '✕';
+      del.addEventListener('click', function(){ row.remove(); });
+      row.appendChild(sel); row.appendChild(inp); row.appendChild(cnt); row.appendChild(del);
+      cardsBox.appendChild(row);
+    }
+    data.cards.forEach(addCardRow);
+    mask.querySelector('[data-diy-add]').addEventListener('click', function(){ addCardRow({ type: 'dare', text: '', count: 1 }); });
+    mask.querySelector('[data-diy-close]').addEventListener('click', function(){ mask.remove(); });
+    mask.addEventListener('click', function(e){ if (e.target === mask) mask.remove(); });
+    mask.querySelector('[data-diy-save]').addEventListener('click', function(){
+      var cards = [];
+      Array.prototype.forEach.call(cardsBox.querySelectorAll('.v3-diy-card'), function(row){
+        var text = row.querySelector('input').value.trim();
+        if (!text) return;
+        cards.push({
+          type: row.querySelector('select').value,
+          text: text.slice(0, 80),
+          count: Number(row.querySelectorAll('select')[1].value) || 1
+        });
+      });
+      data.cards = cards;
+      var saved = v3DIYSave(data);
+      window._flDIY = saved;
+      if (window._flSetup) window._flSetup.diy = saved;
+      mask.remove();
+      try { toast('DIY 预设已保存，下一局生效'); } catch (e) {}
+      try { renderFlightSetup(document.getElementById('gContent')); } catch (e) {}
+    });
+  }
+  window.v3DIYNorm = v3DIYNorm;
+  window.v3DIYLoad = v3DIYLoad;
+  window.v3DIYSave = v3DIYSave;
+  window.v3DIYExpand = v3DIYExpand;
+  window.v3DIYInfo = v3DIYInfo;
+  window.v3DIYApplyWeights = v3DIYApplyWeights;
+  window.v3DIYPlaceCards = v3DIYPlaceCards;
+  window.v3DIYSheet = v3DIYSheet;
   function v3CustomSetupSection(){
     var s = window._flSetup || (window._flSetup = {});
     var sec = document.createElement('section');
@@ -212,7 +414,9 @@ JS = """
       + '<div class="v3-custom-row"><input data-cn="m" maxlength="6" placeholder="男方称呼"><input data-cn="f" maxlength="6" placeholder="女方称呼"></div>'
       + '<p>互写一格（可选，会插入棋盘）</p>'
       + '<textarea data-cc="0" maxlength="60" placeholder="你写给 TA 的一格任务"></textarea>'
-      + '<textarea data-cc="1" maxlength="60" placeholder="TA 写给你的一格任务"></textarea>';
+      + '<textarea data-cc="1" maxlength="60" placeholder="TA 写给你的一格任务"></textarea>'
+      + '<button type="button" class="v3-diy-open" data-diy-open>✨ DIY 预设 · 棋盘比例 / 自定义卡</button>'
+      + '<div class="v3-diy-summary" data-diy-summary></div>';
     var names = s.names || {};
     var m = body.querySelector('[data-cn="m"]');
     var f = body.querySelector('[data-cn="f"]');
@@ -228,6 +432,10 @@ JS = """
       s.custom = [t0 ? t0.value.trim().slice(0, 60) : '', t1 ? t1.value.trim().slice(0, 60) : ''];
     }
     [m, f, t0, t1].forEach(function(el){ if (el) el.addEventListener('input', sync); });
+    var diyBtn = body.querySelector('[data-diy-open]');
+    if (diyBtn) diyBtn.addEventListener('click', function(){ v3DIYSheet(); });
+    var diySum = body.querySelector('[data-diy-summary]');
+    if (diySum) diySum.textContent = '当前：' + v3DIYSummary(s.diy || v3DIYLoad());
     head.addEventListener('click', function(){
       var open = sec.classList.toggle('collapsed') === false;
       head.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -404,6 +612,7 @@ JS = """
       arr[Math.floor(len / 4)] = 'cross';
       arr[Math.floor(len * 3 / 4)] = 'cross';
     }
+    try { v3DIYApplyWeights([arr], window._flDIY ? window._flDIY.weights : null); v3DIYPlaceCards(arr, window._flMode); } catch (e) {}
     v3PlaceCustomCells(arr, window._flMode);
     window._flCells = arr;
   }
@@ -437,7 +646,8 @@ JS = """
       clothes: window._flClothes, upUses: window._flUpUses,
       godId: window._flGod ? window._flGod.id : null, godUses: window._flGodUses,
       energyUp: window._flEnergyUp, hourglass: window._flHourglass,
-      setup: window._flSetup, diff: (typeof SET !== 'undefined' ? SET.diff : null)
+      setup: window._flSetup, diff: (typeof SET !== 'undefined' ? SET.diff : null),
+      diy: window._flDIY, diyActive: window._flDIYActive
     };
   }
   function v3SaveFlight(){
@@ -481,6 +691,8 @@ JS = """
     window._flEnergyUp = s.energyUp || 0;
     window._flHourglass = !!s.hourglass;
     window._flSetup = s.setup || window._flSetup;
+    window._flDIY = s.diy || v3DIYLoad();
+    window._flDIYActive = s.diyActive || v3DIYExpand(window._flDIY.cards);
     if (s.diff && typeof SET !== 'undefined') SET.diff = s.diff;
     window._flWin = false;
     window._flSixNext = false;
@@ -1009,7 +1221,7 @@ def patch(html):
     )
     html = html.replace(
         "  window._flP=players;",
-        "  window._flP=players;\n  window._flCustom=(s.custom||[]).map(function(x){return String(x||'').trim();});",
+        "  window._flP=players;\n  window._flCustom=(s.custom||[]).map(function(x){return String(x||'').trim();});\n  window._flDIY=(s.diy?v3DIYNorm(s.diy):v3DIYLoad());\n  window._flDIYActive=v3DIYExpand(window._flDIY.cards);",
     )
     html = html.replace(
         "p.drink=0;p.drinkMax=p.g==='M'?5:3;p.pardon=1;p.half=p.g==='F'?1:0;",
@@ -1025,15 +1237,15 @@ def patch(html):
     )
     html = html.replace(
         "window._flCells[0][0]='start';window._flCells[1][0]='start';\n    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';",
-        "window._flCells[0][0]='start';window._flCells[1][0]='start';\n    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';\n    try{v3PlaceCustomCells(window._flCells,'A');}catch(e){}",
+        "window._flCells[0][0]='start';window._flCells[1][0]='start';\n    window._flCells[0][ALEN-1]='end';window._flCells[1][ALEN-1]='end';\n    try{v3DIYApplyWeights(window._flCells,window._flDIY.weights);v3DIYPlaceCards(window._flCells,'A');}catch(e){}\n    try{v3PlaceCustomCells(window._flCells,'A');}catch(e){}",
     )
     html = html.replace(
         "window._flCells=ring;",
-        "window._flCells=ring;\n    try{v3PlaceCustomCells(window._flCells,'B');}catch(e){}",
+        "window._flCells=ring;\n    try{v3DIYApplyWeights(window._flCells,window._flDIY.weights);v3DIYPlaceCards(window._flCells,'B');}catch(e){}\n    try{v3PlaceCustomCells(window._flCells,'B');}catch(e){}",
     )
     html = html.replace(
         "var main=flDist(14);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';\n    window._flCells=main;",
-        "var main=v3StagedLane(14,SET.diff);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';\n    try{v3PlaceCustomCells(main,'C');}catch(e){}\n    window._flCells=main;",
+        "var main=v3StagedLane(14,SET.diff);main[0]='start';main[3]='cross';main[10]='cross';main[13]='end';\n    try{v3DIYApplyWeights(main,window._flDIY.weights);v3DIYPlaceCards(main,'C');}catch(e){}\n    try{v3PlaceCustomCells(main,'C');}catch(e){}\n    window._flCells=main;",
     )
     html = html.replace(
         "  var v=Math.floor(Math.random()*6)+1;\n  flDiceRoll(v,function(){flMove(p,v);});",
@@ -1045,11 +1257,11 @@ def patch(html):
     )
     html = html.replace(
         "function flIcon(t){return FLIGHT_ICONS[t]||'❓'}",
-        "function flIcon(t){if(String(t).indexOf('custom')===0)return '✍️';return FLIGHT_ICONS[t]||'❓'}",
+        "function flIcon(t){if(String(t).indexOf('custom')===0)return '✍️';if(t==='strip')return '🍒';if(String(t).indexOf('diy')===0){var dc=v3DIYInfo(t);return {truth:'💜',dare:'🔥',touch:'💞',drink:'🍷',strip:'🍒',punish:'💣'}[dc.type]||'✨';}return FLIGHT_ICONS[t]||'❓'}",
     )
     html = html.replace(
         "  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
-        "  }else if(String(t).indexOf('custom')===0){\n    var ci=Number(String(t).replace('custom',''))||0;\n    var ct=(window._flCustom&&window._flCustom[ci])||'一个没写完的任务';\n    flTaskShow('✍️ TA 写的格 · '+p.name+'：'+ct,['done','pardon']);\n  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
+        "  }else if(t==='strip'){\n    if(!SET.strip){flTaskShow('🍒 脱衣格 · 需要先在「边界」里打开脱衣模式',['done']);}else{flStrip(p,'棋盘脱衣格');}\n  }else if(String(t).indexOf('diy')===0){\n    var dc=v3DIYInfo(t);\n    var dic={truth:'💜',dare:'🔥',touch:'💞',drink:'🍷',strip:'🍒',punish:'💣'}[dc.type]||'✨';\n    flTaskShow(dic+' DIY · '+p.name+'：'+dc.text,['done','pardon']);\n  }else if(String(t).indexOf('custom')===0){\n    var ci=Number(String(t).replace('custom',''))||0;\n    var ct=(window._flCustom&&window._flCustom[ci])||'一个没写完的任务';\n    flTaskShow('✍️ TA 写的格 · '+p.name+'：'+ct,['done','pardon']);\n  }else{\n    flTaskShow('❓ '+p.name+' 踩中神秘格，无事发生',['done']);\n  }",
     )
     # 2) 去掉 manifest / apple-touch / og:image 的相对链接（arcade/ 下不存在）
     for pattern in [
