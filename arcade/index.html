@@ -2,7 +2,7 @@
 <!-- 情侣升温游戏 V17 · 默契大考验 / 回忆册+数据备份 / 离线安装(PWA) -->
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8"><script>try{localStorage.setItem('couple-onboarded','1');localStorage.setItem('couple-night',JSON.stringify({d:new Date().toDateString()}));}catch(e){}</script>
+<meta charset="UTF-8"><script>try{localStorage.setItem('couple-onboarded','1');localStorage.setItem('couple-night',JSON.stringify({d:new Date().toDateString()}));}catch(e){}</script><style id="arcade-early">#homePage{display:none!important}html,body{background:#070411!important}</style>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>经典游戏厅 · 升温夜航</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💕</text></svg>">
@@ -11008,6 +11008,10 @@ body.v3-flight-setup .safe-tip{margin-top:14px !important}
 
 .v3-wheel-label{width:56px !important;margin:-10px -28px !important}
 .v3-wheel-label span{font-size:8.4px !important}
+
+/* 旧版首页永远不显示：游戏厅用新版 home，内嵌时直接进游戏，避免加载时闪一下旧主页 */
+#homePage{display:none !important}
+
 </style>
 <style id="arcade-css">
 /* ===== 经典游戏厅（包装层，不影响旧版内部样式） ===== */
@@ -11330,8 +11334,8 @@ html.arcade-embed .header { display: none !important; }
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); });
-  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 30); });
+  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 30); }
 })();
 </script>
 </body>

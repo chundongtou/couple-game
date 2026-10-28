@@ -344,8 +344,8 @@ JS = """
     else if (!EMBED) show();
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); });
-  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 280); }
+    document.addEventListener('DOMContentLoaded', function(){ try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 30); });
+  } else { try { v3CtrlInit(); } catch (e) {} try { v3FlightSetupInit(); } catch (e) {} setTimeout(boot, 30); }
 })();
 """
 
@@ -429,7 +429,8 @@ def patch(html):
     # 3) 标题 / 主题色 / 预置“已开局/已引导”避免开场弹窗
     html = html.replace("<title>情侣升温游戏</title>", "<title>经典游戏厅 · 升温夜航</title>")
     html = html.replace('<meta name="theme-color" content="#6c2bd9">', '<meta name="theme-color" content="#0a0616">')
-    html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">' + SEED, 1)
+    early = '<style id="arcade-early">#homePage{display:none!important}html,body{background:#070411!important}</style>'
+    html = html.replace('<meta charset="UTF-8">', '<meta charset="UTF-8">' + SEED + early, 1)
     # 4) 注入新版皮肤 + 游戏厅层（skin 放在最后，确保覆盖旧版所有样式）
     skin_path = ROOT / "arcade" / "skin.css"
     skin = skin_path.read_text(encoding="utf-8") if skin_path.exists() else ""
@@ -450,6 +451,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

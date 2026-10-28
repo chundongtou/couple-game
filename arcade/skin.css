@@ -486,3 +486,7 @@ body.v3-flight-setup .safe-tip{margin-top:14px !important}
 
 .v3-wheel-label{width:56px !important;margin:-10px -28px !important}
 .v3-wheel-label span{font-size:8.4px !important}
+
+/* 旧版首页永远不显示：游戏厅用新版 home，内嵌时直接进游戏，避免加载时闪一下旧主页 */
+#homePage{display:none !important}
+
