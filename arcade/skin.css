@@ -633,3 +633,23 @@ body.v3-flight-play .fl-btns .wheel-btn.back[onclick*="renderFlightSetup"]{displ
   width:100%;height:40px;margin-top:9px;border-radius:11px;border:1px dashed var(--sk-line2);
   background:transparent;color:var(--sk-dim);font-size:11.5px;
 }
+
+/* DIY 预设列表 */
+.v3-diy-sheet{max-height:86vh;overflow-y:auto}
+.v3-diy-presets{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.v3-diy-presets::-webkit-scrollbar{display:none}
+.v3-diy-chip{
+  flex:0 0 auto;height:36px;padding:0 13px;border-radius:999px;border:1px solid var(--sk-line);
+  background:var(--sk-glass);color:var(--sk-dim);font-size:11.5px;white-space:nowrap;
+}
+.v3-diy-chip.on{border-color:rgba(243,200,121,.5);color:var(--sk-ink);background:rgba(243,200,121,.10)}
+.v3-diy-chip.active{color:var(--sk-gold);font-weight:800}
+.v3-diy-name-row{display:flex;gap:7px;margin:2px 0 4px}
+.v3-diy-name-row input{
+  flex:1;min-width:0;height:40px;border-radius:11px;border:1px solid var(--sk-line);
+  background:rgba(255,255,255,.05);color:var(--sk-ink);font-size:12.5px;padding:0 11px;
+}
+.v3-diy-saveas{
+  flex:0 0 auto;height:40px;padding:0 14px;border-radius:11px;border:1px solid var(--sk-line2);
+  background:transparent;color:var(--sk-gold);font-size:11.5px;font-weight:700;
+}

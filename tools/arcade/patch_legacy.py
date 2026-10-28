@@ -222,9 +222,57 @@ JS = """
     out.cards = out.cards.slice(0, 12);
     return out;
   }
+  var DIY_STORE_KEY = 'couple-flight-diy-presets-v1';
+  function v3DIYSeed(){
+    return [
+      { id: 'builtin-daily', name: '日常', builtin: true, weights: { drink: 1, strip: 0, spicy: 1, duo: 1, event: 1 }, cards: [] },
+      { id: 'builtin-tipsy', name: '微醺', builtin: true, weights: { drink: 3, strip: 0, spicy: 2, duo: 1, event: 1 }, cards: [{ type: 'drink', text: '和对方碰杯，喝一口', count: 1 }] },
+      { id: 'builtin-party', name: '派对', builtin: true, weights: { drink: 3, strip: 2, spicy: 3, duo: 2, event: 2 }, cards: [{ type: 'drink', text: '和对方碰杯，喝一口', count: 2 }, { type: 'strip', text: '脱掉一件外衣', count: 1 }] },
+      { id: 'builtin-soft', name: '温柔', builtin: true, weights: { drink: 0, strip: 0, spicy: 0, duo: 2, event: 1 }, cards: [{ type: 'touch', text: '闭眼让对方在你手心写三个字', count: 1 }] }
+    ];
+  }
+  function v3DIYStoreNorm(st){
+    var out = { activeId: '', presets: [] };
+    var list = (st && st.presets instanceof Array) ? st.presets : [];
+    list.forEach(function(p){
+      if (!p || !p.name) return;
+      var norm = v3DIYNorm(p);
+      out.presets.push({ id: String(p.id || ('diy-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5))), name: String(p.name).slice(0, 16), builtin: !!p.builtin, weights: norm.weights, cards: norm.cards });
+    });
+    if (!out.presets.length) out.presets = v3DIYSeed();
+    out.activeId = (st && st.activeId) || out.presets[0].id;
+    if (!out.presets.some(function(p){ return p.id === out.activeId; })) out.activeId = out.presets[0].id;
+    return out;
+  }
+  function v3DIYStoreLoad(){
+    try {
+      var raw = JSON.parse(localStorage.getItem(DIY_STORE_KEY) || 'null');
+      if (raw && raw.presets instanceof Array) return v3DIYStoreNorm(raw);
+    } catch (e) {}
+    var presets = v3DIYSeed();
+    var activeId = presets[0].id;
+    try {
+      var old = JSON.parse(localStorage.getItem(DIY_KEY) || 'null');
+      if (old) {
+        var norm = v3DIYNorm(old);
+        presets.push({ id: 'diy-migrated', name: '我的预设', builtin: false, weights: norm.weights, cards: norm.cards });
+        activeId = 'diy-migrated';
+      }
+    } catch (e) {}
+    var st = { activeId: activeId, presets: presets };
+    try { localStorage.setItem(DIY_STORE_KEY, JSON.stringify(st)); } catch (e) {}
+    return st;
+  }
+  function v3DIYStoreSave(st){
+    st = v3DIYStoreNorm(st);
+    try { localStorage.setItem(DIY_STORE_KEY, JSON.stringify(st)); } catch (e) {}
+    return st;
+  }
   function v3DIYLoad(){
-    try { return v3DIYNorm(JSON.parse(localStorage.getItem(DIY_KEY) || 'null')); }
-    catch (e) { return v3DIYNorm(DIY_DEFAULT); }
+    var st = v3DIYStoreLoad();
+    var p = null;
+    st.presets.forEach(function(x){ if (x.id === st.activeId) p = x; });
+    return v3DIYNorm(p || st.presets[0]);
   }
   function v3DIYSave(d){
     var norm = v3DIYNorm(d);
@@ -397,7 +445,149 @@ JS = """
   window.v3DIYInfo = v3DIYInfo;
   window.v3DIYApplyWeights = v3DIYApplyWeights;
   window.v3DIYPlaceCards = v3DIYPlaceCards;
-  window.v3DIYSheet = v3DIYSheet;
+  function v3DIYSheet2(selectedId){
+    var st = v3DIYStoreLoad();
+    var selected = null;
+    st.presets.forEach(function(p){ if (p.id === (selectedId || st.activeId)) selected = p; });
+    if (!selected) selected = st.presets[0];
+    var data = v3DIYNorm(selected);
+    var old = document.getElementById('v3DIYMask');
+    if (old) old.remove();
+    var mask = document.createElement('div');
+    mask.id = 'v3DIYMask';
+    mask.className = 'v3-sheet-mask on';
+    mask.setAttribute('data-test', 'flight-diy-sheet');
+    mask.innerHTML = '<div class="v3-sheet v3-diy-sheet">'
+      + '<div class="v3-sheet-grip"></div>'
+      + '<div class="v3-sheet-title">DIY 预设</div>'
+      + '<p class="v3-wish-sub">选一套预设，或改比例/加卡后另存。应用后下一局自动生效。</p>'
+      + '<div class="v3-diy-presets" id="v3DiyPresets"></div>'
+      + '<div class="v3-diy-name-row"><input id="v3DiyName" maxlength="16" placeholder="预设名称"><button type="button" class="v3-diy-saveas" data-diy-saveas>另存为</button></div>'
+      + '<div class="v3-diy-block"><div class="v3-voice-sub">棋盘比例</div><div id="v3DiyWeights"></div></div>'
+      + '<div class="v3-diy-block"><div class="v3-voice-sub">自定义卡</div><div id="v3DiyCards"></div>'
+      + '<button type="button" class="v3-diy-add" data-diy-add>＋ 加一条</button></div>'
+      + '<div class="v3-pause-actions" style="margin-top:14px">'
+      + '<button type="button" class="v3-btn primary" data-diy-save>应用这套预设</button>'
+      + '<button type="button" class="v3-btn ghost" data-diy-del style="display:none">删除这套预设</button>'
+      + '<button type="button" class="v3-btn ghost" data-diy-close>先不改</button>'
+      + '</div></div>';
+    document.body.appendChild(mask);
+    var chipBox = mask.querySelector('#v3DiyPresets');
+    st.presets.forEach(function(p){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'v3-diy-chip' + (p.id === selected.id ? ' on' : '') + (p.id === st.activeId ? ' active' : '');
+      chip.textContent = p.name + (p.id === st.activeId ? ' · 使用中' : '');
+      chip.addEventListener('click', function(){ mask.remove(); v3DIYSheet2(p.id); });
+      chipBox.appendChild(chip);
+    });
+    var nameInput = mask.querySelector('#v3DiyName');
+    nameInput.value = selected.name || '我的预设';
+    var weightBox = mask.querySelector('#v3DiyWeights');
+    var labels = { drink: '🍷 喝酒', strip: '🍒 脱衣', spicy: '💣 刺激', duo: '💑 双人', event: '🎁 事件' };
+    ['drink', 'strip', 'spicy', 'duo', 'event'].forEach(function(key){
+      var row = document.createElement('div');
+      row.className = 'v3-diy-weight';
+      row.innerHTML = '<span>' + labels[key] + '</span>';
+      var opts = document.createElement('div');
+      opts.className = 'v3-diy-opts';
+      ['关', '标准', '多', '很多'].forEach(function(txt, val){
+        var b = document.createElement('button');
+        b.type = 'button'; b.textContent = txt;
+        b.className = (data.weights[key] === val ? 'on' : '');
+        b.addEventListener('click', function(){
+          data.weights[key] = val;
+          Array.prototype.forEach.call(opts.children, function(x){ x.classList.remove('on'); });
+          b.classList.add('on');
+        });
+        opts.appendChild(b);
+      });
+      row.appendChild(opts);
+      weightBox.appendChild(row);
+    });
+    var cardsBox = mask.querySelector('#v3DiyCards');
+    function addCardRow(c){
+      var row = document.createElement('div');
+      row.className = 'v3-diy-card';
+      var sel = document.createElement('select');
+      DIY_TYPES.forEach(function(t){
+        var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1]; sel.appendChild(o);
+      });
+      sel.value = c.type || 'dare';
+      var inp = document.createElement('input');
+      inp.maxLength = 80; inp.placeholder = '写一条游戏里没有的任务'; inp.value = c.text || '';
+      var cnt = document.createElement('select');
+      [1, 2, 3].forEach(function(n){ var o = document.createElement('option'); o.value = n; o.textContent = '×' + n; cnt.appendChild(o); });
+      cnt.value = c.count || 1;
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'v3-diy-del'; del.textContent = '✕';
+      del.addEventListener('click', function(){ row.remove(); });
+      row.appendChild(sel); row.appendChild(inp); row.appendChild(cnt); row.appendChild(del);
+      cardsBox.appendChild(row);
+    }
+    data.cards.forEach(addCardRow);
+    mask.querySelector('[data-diy-add]').addEventListener('click', function(){ addCardRow({ type: 'dare', text: '', count: 1 }); });
+    mask.querySelector('[data-diy-close]').addEventListener('click', function(){ mask.remove(); });
+    mask.addEventListener('click', function(e){ if (e.target === mask) mask.remove(); });
+    function readCards(){
+      var cards = [];
+      Array.prototype.forEach.call(cardsBox.querySelectorAll('.v3-diy-card'), function(row){
+        var text = row.querySelector('input').value.trim();
+        if (!text) return;
+        cards.push({
+          type: row.querySelector('select').value,
+          text: text.slice(0, 80),
+          count: Number(row.querySelectorAll('select')[1].value) || 1
+        });
+      });
+      return cards;
+    }
+    function persist(preset){
+      st.presets = st.presets.map(function(p){ return p.id === preset.id ? preset : p; });
+      if (!st.presets.some(function(p){ return p.id === preset.id; })) st.presets.push(preset);
+      st.activeId = preset.id;
+      st = v3DIYStoreSave(st);
+      window._flDIY = v3DIYNorm(preset);
+      if (window._flSetup) window._flSetup.diy = window._flDIY;
+      mask.remove();
+      try { toast('已应用预设：' + preset.name); } catch (e) {}
+      try { renderFlightSetup(document.getElementById('gContent')); } catch (e) {}
+    }
+    mask.querySelector('[data-diy-save]').addEventListener('click', function(){
+      var cards = readCards();
+      var name = (nameInput.value || '').trim().slice(0, 16) || selected.name;
+      var changed = JSON.stringify(cards) !== JSON.stringify(selected.cards)
+        || JSON.stringify(data.weights) !== JSON.stringify(selected.weights);
+      if (!changed) { persist(selected); return; }
+      if (selected.builtin) {
+        var copy = { id: 'diy-' + Date.now(), name: name + ' 副本', builtin: false, weights: data.weights, cards: cards };
+        st.presets.push(copy);
+        persist(copy);
+        return;
+      }
+      var updated = { id: selected.id, name: name, builtin: false, weights: data.weights, cards: cards };
+      persist(updated);
+    });
+    mask.querySelector('[data-diy-saveas]').addEventListener('click', function(){
+      var name = (nameInput.value || '').trim().slice(0, 16) || ('我的预设 ' + (st.presets.length + 1));
+      var preset = { id: 'diy-' + Date.now(), name: name, builtin: false, weights: data.weights, cards: readCards() };
+      st.presets.push(preset);
+      persist(preset);
+    });
+    var delBtn = mask.querySelector('[data-diy-del]');
+    if (!selected.builtin && st.presets.length > 1) {
+      delBtn.style.display = '';
+      delBtn.addEventListener('click', function(){
+        st.presets = st.presets.filter(function(p){ return p.id !== selected.id; });
+        st.activeId = st.presets[0].id;
+        st = v3DIYStoreSave(st);
+        mask.remove();
+        try { toast('已删除预设'); } catch (e) {}
+        v3DIYSheet2(st.presets[0].id);
+      });
+    }
+  }
+  window.v3DIYSheet = v3DIYSheet2;
   function v3CustomSetupSection(){
     var s = window._flSetup || (window._flSetup = {});
     var sec = document.createElement('section');
@@ -433,9 +623,14 @@ JS = """
     }
     [m, f, t0, t1].forEach(function(el){ if (el) el.addEventListener('input', sync); });
     var diyBtn = body.querySelector('[data-diy-open]');
-    if (diyBtn) diyBtn.addEventListener('click', function(){ v3DIYSheet(); });
+    if (diyBtn) diyBtn.addEventListener('click', function(){ window.v3DIYSheet(); });
     var diySum = body.querySelector('[data-diy-summary]');
-    if (diySum) diySum.textContent = '当前：' + v3DIYSummary(s.diy || v3DIYLoad());
+    if (diySum) {
+      var st0 = v3DIYStoreLoad();
+      var an0 = '';
+      st0.presets.forEach(function(p){ if (p.id === st0.activeId) an0 = p.name; });
+      diySum.textContent = '当前：' + (an0 ? an0 + ' · ' : '') + v3DIYSummary(s.diy || v3DIYLoad());
+    }
     head.addEventListener('click', function(){
       var open = sec.classList.toggle('collapsed') === false;
       head.setAttribute('aria-expanded', open ? 'true' : 'false');

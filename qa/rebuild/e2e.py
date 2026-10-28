@@ -1580,22 +1580,16 @@ def group_offline(browser, base):
             sw.get("ok") and ctrl, "sw=%s ctrl=%s" % (json.dumps(sw, ensure_ascii=False), ctrl))
     pill = pb.page.evaluate("""(()=>{var p=document.querySelector('[data-test="pwa-install-pill"]');
       return {exists:!!p,text:p?p.textContent:''};})()""")
-    R.check(gid, "OF2", "boot 有「装到桌面」入口", pill.get("exists") and "装" in (pill.get("text") or ""),
+    R.check(gid, "OF2", "boot 不再显示「装到桌面」按钮", not pill.get("exists"),
             "pill=%s" % json.dumps(pill, ensure_ascii=False))
-    if pill.get("exists"):
-        click_first(pb, '[data-test="pwa-install-pill"]', timeout=3000, wait=700)
-        sheet = pb.page.evaluate("""(()=>{var s=document.querySelector('[data-test="pwa-install-sheet"]');
-          return {shown:!!s,text:s?s.innerText.slice(0,160):''};})()""")
-        method = "pill-click"
-        if not sheet.get("shown"):
-            # 有 beforeinstallprompt 时点击会走原生安装提示（headless 不可见），补测说明抽屉
-            ui_eval(pb, "()=>{try{App.PWA&&App.PWA.showInstall&&App.PWA.showInstall();}catch(e){}}")
-            pb.page.wait_for_timeout(600)
-            sheet = pb.page.evaluate("""(()=>{var s=document.querySelector('[data-test="pwa-install-sheet"]');
-              return {shown:!!s,text:s?s.innerText.slice(0,160):''};})()""")
-            method = "showInstall()"
-        R.check(gid, "OF3", "安装入口可打开安装说明抽屉（或原生安装提示）",
-                sheet.get("shown") is True, "method=%s sheet=%s" % (method, json.dumps(sheet, ensure_ascii=False)))
+    # 按钮已移除，但安装说明 API 仍保留，供未来入口或帮助页调用
+    ui_eval(pb, "()=>{try{App.PWA&&App.PWA.showInstall&&App.PWA.showInstall();}catch(e){}}")
+    pb.page.wait_for_timeout(600)
+    sheet = pb.page.evaluate("""(()=>{var s=document.querySelector('[data-test="pwa-install-sheet"]');
+      return {shown:!!s,text:s?s.innerText.slice(0,160):''};})()""")
+    R.check(gid, "OF3", "安装说明 API 仍可打开说明抽屉",
+            sheet.get("shown") is True, "sheet=%s" % json.dumps(sheet, ensure_ascii=False))
+    if sheet.get("shown"):
         click_first(pb, '[data-test="pwa-install-action"]', timeout=2500, wait=300)
     pb.clear()
     pb.ctx.set_offline(True)

@@ -9634,6 +9634,8 @@ window.CARDS = {
     reg: null,
     pill: null
   };
+  /* 右下角「装到桌面」胶囊已移除；安装说明 API 保留。 */
+  var SHOW_PILL = false;
 
   /* ------------------------------------------------------------------ */
   /* 环境判断                                                            */
@@ -9734,6 +9736,7 @@ window.CARDS = {
   /* 右下角「装到桌面」胶囊                                              */
   /* ------------------------------------------------------------------ */
   function ensurePill() {
+    if (!SHOW_PILL) return null;
     if (STATE.pill && document.body && document.body.contains(STATE.pill)) return STATE.pill;
     if (!document.body) return null;
     var btn = document.createElement("button");
@@ -9781,7 +9784,7 @@ window.CARDS = {
           if (r && r.outcome === "accepted") {
             toast("📲 正在安装…");
           } else {
-            toast("已取消 · 需要时点右下角「装到桌面」看手动方法");
+            toast("已取消安装");
           }
           syncPill();
         })["catch"](function () {});
