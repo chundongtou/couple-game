@@ -574,7 +574,16 @@ JS = """
   }
   function v3ReadTask(){
     var el = document.getElementById('flTask');
-    var txt = el ? String(el.innerText || '').replace(/\s+/g, ' ').trim() : '';
+    var txt = '';
+    if (el) {
+      try {
+        var clone = el.cloneNode(true);
+        Array.prototype.forEach.call(clone.querySelectorAll('button, .fl-btns, .fav-btn'), function(n){ n.remove(); });
+        txt = String(clone.innerText || clone.textContent || '').replace(/\s+/g, ' ').trim();
+      } catch (e) {
+        txt = String(el.innerText || '').replace(/\s+/g, ' ').trim();
+      }
+    }
     if (!txt) { try { toast('当前没有可朗读的任务'); } catch (e) {} return; }
     try {
       if (!window.speechSynthesis) { toast('这个浏览器不支持朗读'); return; }
