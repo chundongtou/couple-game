@@ -17,6 +17,7 @@ const TYPE_INFO = {
   safe: { icon: '🛡', label: '安全屋', color: 0x3fd6c0 },
   duel: { icon: '⚔️', label: '对撞', color: 0xff8a3d },
   finale: { icon: '🏁', label: '终点', color: 0xffd166 },
+  branch: { icon: '🌀', label: '支线', color: 0xff7a59 },
   diy: { icon: '✍️', label: '自定义', color: 0x66d9ff }
 };
 
@@ -25,23 +26,41 @@ const TYPE_SEQ = [
   'dare', 'truth', 'event', 'dare', 'safe', 'truth', 'dare', 'truth', 'event'
 ];
 
-const CONTROL_POINTS = [
+const QS = new URLSearchParams(location.search);
+const IS_ARCADE = QS.get('from') === 'arcade';
+let LAUNCH = null;
+try { LAUNCH = JSON.parse(localStorage.getItem('couple3d.flightLaunch') || 'null'); } catch (e) { LAUNCH = null; }
+const MODE = (LAUNCH && LAUNCH.setup && LAUNCH.setup.mode) || 'A';
+const LAPS = Math.max(1, Math.min(3, Number(LAUNCH && LAUNCH.setup && LAUNCH.setup.laps) || 1));
+const IS_LOOP = MODE === 'B' || MODE === 'D';
+const HAS_BRANCH = MODE === 'C' || MODE === 'D';
+const MODE_LABEL = ({ A: '对飞', B: '环岛', C: '双轨', D: '融合' }[MODE] || '');
+const BRANCH_SLOTS = [24, 48, 72];
+
+const OPEN_POINTS = [
   [0.0, 0.0], [-1.8, 2.8], [-3.8, 5.5], [-2.4, 8.4], [0.8, 9.7],
   [3.7, 12.0], [3.1, 15.2], [0.9, 17.6], [-2.6, 19.1], [-4.3, 22.0],
   [-2.7, 24.9], [0.5, 26.4], [3.5, 28.7], [4.1, 31.8], [1.9, 34.4],
   [-1.0, 36.0], [-3.0, 38.7], [-1.3, 41.6], [1.8, 43.2]
 ];
+const LOOP_POINTS = [
+  [0.0, 0.0], [3.0, 1.2], [5.0, 3.8], [4.4, 6.8], [2.0, 8.4],
+  [-0.8, 7.8], [-3.4, 5.6], [-4.2, 2.8], [-2.4, 0.7], [0.4, -0.8],
+  [2.4, -0.2]
+];
+const CONTROL_POINTS = IS_LOOP ? LOOP_POINTS : OPEN_POINTS;
 
 const curve = new THREE.CatmullRomCurve3(
   CONTROL_POINTS.map(([x, z]) => new THREE.Vector3(x, 0, z)),
-  false,
+  IS_LOOP,
   'catmullrom',
   0.5
 );
 
 function typeFor(i) {
   if (i === 0) return 'start';
-  if (i === TOTAL - 1) return 'finale';
+  if (!IS_LOOP && i === TOTAL - 1) return 'finale';
+  if (HAS_BRANCH && BRANCH_SLOTS.indexOf(i) >= 0) return 'branch';
   return TYPE_SEQ[(i - 1) % TYPE_SEQ.length];
 }
 
@@ -88,11 +107,6 @@ const PLAYERS = [
   { name: '她', color: 0xff5f9e }
 ];
 
-const QS = new URLSearchParams(location.search);
-const IS_ARCADE = QS.get('from') === 'arcade';
-let LAUNCH = null;
-try { LAUNCH = JSON.parse(localStorage.getItem('couple3d.flightLaunch') || 'null'); } catch (e) { LAUNCH = null; }
-const MODE_LABEL = LAUNCH && LAUNCH.setup && ({ A: '对飞', B: '环岛', C: '双轨', D: '融合' }[LAUNCH.setup.mode] || '');
 if (LAUNCH && LAUNCH.setup && LAUNCH.setup.names) {
   PLAYERS[0].name = LAUNCH.setup.names.m || PLAYERS[0].name;
   PLAYERS[1].name = LAUNCH.setup.names.f || PLAYERS[1].name;
@@ -120,6 +134,8 @@ const state = {
   heat: 0,
   act: 1,
   positions: [0, 0],
+  laps: [0, 0],
+  goalLaps: IS_LOOP ? LAPS : 1,
   winner: null,
   card: null,
   paused: false
@@ -274,7 +290,7 @@ function buildRoad() {
 
   tileData.forEach((d) => buildTile(d));
   buildStartGate();
-  buildLighthouse();
+  if (!IS_LOOP) buildLighthouse();
   buildRoadLamps();
 }
 
@@ -729,6 +745,8 @@ function startGame() {
   state.heat = 0;
   state.act = 1;
   state.positions = [0, 0];
+  state.laps = [0, 0];
+  state.goalLaps = IS_LOOP ? LAPS : 1;
   state.winner = null;
   state.card = null;
   state.paused = false;
@@ -737,7 +755,7 @@ function startGame() {
   placeDice();
   aimCamera(true);
   updateUI();
-  showToast('80 格夜航开始 · 他 先摇');
+  showToast(`${MODE_LABEL || '80 格'}夜航开始 · 他 先摇`);
   saveState();
 }
 
@@ -751,6 +769,7 @@ function roll() {
     showToast(`${PLAYERS[state.turn].name} 摇出 ${value} 点`);
     showDiceResult(`${PLAYERS[state.turn].name} · ${value} 点`);
     await moveCurrent(value);
+    if (IS_LOOP && state.laps[state.turn] >= state.goalLaps) { finish(); return; }
     resolveLanding();
   }).catch((err) => {
     console.error(err);
@@ -761,17 +780,33 @@ function roll() {
 
 async function moveCurrent(value) {
   const i = state.turn;
-  const from = state.positions[i];
-  const to = Math.min(TOTAL - 1, from + value);
   state.phase = 'moving';
   updateUI();
-  for (let p = from + 1; p <= to; p++) {
-    await tweenToken(tokens[i], p, i, 185);
-    state.positions[i] = p;
+  if (!IS_LOOP) {
+    const from = state.positions[i];
+    const to = Math.min(TOTAL - 1, from + value);
+    for (let p = from + 1; p <= to; p++) {
+      await tweenToken(tokens[i], p, i, 185);
+      state.positions[i] = p;
+      updatePlayers();
+      updateUI();
+    }
+    if (to === from) await tweenToken(tokens[i], to, i, 160);
+    return;
+  }
+  let pos = state.positions[i];
+  let lap = state.laps[i];
+  for (let step = 0; step < value; step++) {
+    const next = (pos + 1) % TOTAL;
+    if (next === 0) lap += 1;
+    await tweenToken(tokens[i], next, i, 165);
+    pos = next;
+    state.positions[i] = pos;
+    state.laps[i] = lap;
     updatePlayers();
     updateUI();
+    if (lap >= state.goalLaps) break;
   }
-  if (to === from) await tweenToken(tokens[i], to, i, 160);
 }
 
 function tweenToken(token, tileIndex, playerIndex, duration) {
@@ -809,6 +844,11 @@ function resolveLanding() {
     showEvent('对撞', '两颗棋子撞在一起。石头剪刀布，赢的人获得 1 点温度；输的人负责倒一杯水。', 1);
     return;
   }
+  if (d.type === 'branch') {
+    state._branchMove = 4;
+    showEvent('支线入口', '从侧路抄近道：继续后自动前进 4 格。', 0);
+    return;
+  }
   if (d.type === 'finale') { finish(); return; }
   showToast(d.type === 'safe' ? '🛡 安全屋 · 这一格什么都不用做' : '🚩 起点');
   nextTurn();
@@ -842,7 +882,7 @@ function closeCard(done) {
 
 function showEvent(title, text, heat) {
   state.phase = 'event';
-  dom.eventKicker.textContent = title === '对撞' ? '对撞' : '事件';
+  dom.eventKicker.textContent = title === '对撞' ? '对撞' : title === '支线入口' ? '支线' : '事件';
   dom.eventTitle.textContent = title;
   dom.eventText.textContent = text;
   dom.eventDone.textContent = heat ? '继续 · 温度 +1' : '继续';
@@ -855,6 +895,15 @@ function eventDone() {
   dom.eventMask.classList.remove('on');
   if (state._eventHeat) { state.heat += state._eventHeat; showToast('温度 +1'); }
   state._eventHeat = 0;
+  var bm = state._branchMove || 0;
+  state._branchMove = 0;
+  if (bm) {
+    moveCurrent(bm).then(function(){
+      if (IS_LOOP && state.laps[state.turn] >= state.goalLaps) { finish(); return; }
+      resolveLanding();
+    });
+    return;
+  }
   nextTurn();
 }
 
@@ -872,8 +921,14 @@ function finish() {
   state.phase = 'end';
   state.winner = state.turn;
   state.heat += 2;
-  dom.endTitle.textContent = `${PLAYERS[state.winner].name} 先到终点`;
-  dom.endText.textContent = `温度 ${state.heat} · 80 格走完。原型到灯塔为止；完整版会接三幕结局、心愿券和回忆册。`;
+  const winner = PLAYERS[state.winner].name;
+  if (IS_LOOP) {
+    dom.endTitle.textContent = `${winner} 先跑完 ${state.goalLaps} 圈`;
+    dom.endText.textContent = `温度 ${state.heat} · ${state.goalLaps} 圈环岛走完。把赢家的心愿写下来，存进「升温夜航」的回忆册。`;
+  } else {
+    dom.endTitle.textContent = `${winner} 先到终点`;
+    dom.endText.textContent = `温度 ${state.heat} · 80 格走完。把赢家的心愿写下来，存进「升温夜航」的回忆册。`;
+  }
   dom.endMask.classList.add('on');
   updateUI();
 }
@@ -885,8 +940,10 @@ function again() {
 }
 
 function actForProgress() {
-  const max = Math.max(...state.positions);
-  return max < ACT_CUT[0] ? 1 : max < ACT_CUT[1] ? 2 : 3;
+  const total = IS_LOOP ? TOTAL * state.goalLaps : TOTAL - 1;
+  const progress = state.positions.map(function(p, i){ return IS_LOOP ? p + state.laps[i] * TOTAL : p; });
+  const pct = Math.max.apply(null, progress) / Math.max(1, total);
+  return pct < 1 / 3 ? 1 : pct < 2 / 3 ? 2 : 3;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1005,7 +1062,9 @@ function updateUI() {
   dom.heatBar.style.width = `${Math.min(100, (state.heat / 20) * 100)}%`;
   dom.actPill.textContent = `${MODE_LABEL ? MODE_LABEL + ' · ' : ''}第 ${state.act} 幕 · ${ACT_NAMES[state.act - 1]}`;
   dom.turnPill.textContent = state.winner === null
-    ? `轮到 ${p.name} · 第 ${state.positions[state.turn]} 格`
+    ? (IS_LOOP
+      ? `轮到 ${p.name} · 圈 ${Math.min(state.laps[state.turn] + 1, state.goalLaps)}/${state.goalLaps} · 第 ${state.positions[state.turn]} 格`
+      : `轮到 ${p.name} · 第 ${state.positions[state.turn]} 格`)
     : `${PLAYERS[state.winner].name} 已到终点`;
   dom.rollText.textContent = state.phase === 'rolling' ? '骰子滚动中…' : `${p.name} 摇骰子`;
   dom.rollBtn.disabled = !state.started || state.phase !== 'idle' || state.winner !== null || state.paused;
@@ -1037,7 +1096,9 @@ function updatePlayers() {
   const chips = dom.players.querySelectorAll('.p-chip');
   chips.forEach((el, i) => {
     const em = el.querySelector('em');
-    if (em) em.textContent = `${state.positions[i]} / ${TOTAL - 1} 格`;
+    if (em) em.textContent = IS_LOOP
+      ? `圈 ${Math.min(state.laps[i] + 1, state.goalLaps)}/${state.goalLaps} · ${state.positions[i]} 格`
+      : `${state.positions[i]} / ${TOTAL - 1} 格`;
   });
 }
 
@@ -1062,6 +1123,8 @@ function saveState() {
       heat: state.heat,
       turn: state.turn,
       positions: state.positions.slice(),
+      laps: state.laps.slice(),
+      goalLaps: state.goalLaps,
       act: state.act,
       started: state.started,
       ts: Date.now()
@@ -1072,6 +1135,8 @@ function saveState() {
         heat: state.heat,
         turn: state.turn,
         positions: state.positions.slice(),
+        laps: state.laps.slice(),
+        goalLaps: state.goalLaps,
         act: state.act,
         ts: Date.now()
       }));
@@ -1097,6 +1162,8 @@ function resumeGameFromSave(save) {
   state.turn = save.turn === 1 ? 1 : 0;
   state.heat = Math.max(0, Number(save.heat) || 0);
   state.positions = [Math.max(0, Math.min(79, Number(save.positions[0]) || 0)), Math.max(0, Math.min(79, Number(save.positions[1]) || 0))];
+  state.laps = [Math.max(0, Number(save.laps && save.laps[0]) || 0), Math.max(0, Number(save.laps && save.laps[1]) || 0)];
+  state.goalLaps = IS_LOOP ? LAPS : 1;
   state.act = actForProgress();
   state.winner = null;
   state.card = null;
