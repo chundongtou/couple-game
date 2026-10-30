@@ -44,9 +44,9 @@ const OPEN_POINTS = [
   [-1.0, 36.0], [-3.0, 38.7], [-1.3, 41.6], [1.8, 43.2]
 ];
 const LOOP_POINTS = [
-  [0.0, 0.0], [3.0, 1.2], [5.0, 3.8], [4.4, 6.8], [2.0, 8.4],
-  [-0.8, 7.8], [-3.4, 5.6], [-4.2, 2.8], [-2.4, 0.7], [0.4, -0.8],
-  [2.4, -0.2]
+  [0.0, 0.0], [4.8, 1.9], [8.0, 6.1], [7.0, 10.9], [3.2, 13.4],
+  [-1.3, 12.5], [-5.4, 9.0], [-6.7, 4.5], [-3.8, 1.1], [0.6, -1.3],
+  [3.8, -0.3]
 ];
 const CONTROL_POINTS = IS_LOOP ? LOOP_POINTS : OPEN_POINTS;
 
@@ -150,7 +150,7 @@ const dom = {
   cardText: $('cardText'), cardDone: $('cardDone'), cardSkip: $('cardSkip'),
   eventMask: $('eventMask'), eventKicker: $('eventKicker'), eventTitle: $('eventTitle'),
   eventText: $('eventText'), eventDone: $('eventDone'),
-  endMask: $('endMask'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
+  endMask: $('endMask'), endKicker: $('endKicker'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
   intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'),
   backBtn: $('backBtn'), pauseBtn: $('pauseBtn'), pauseMask: $('pauseMask'),
   pauseText: $('pauseText'), resumeBtn: $('resumeBtn'), saveExitBtn: $('saveExitBtn'),
@@ -250,7 +250,7 @@ function addStars() {
 function addOcean() {
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(100, 100),
-    new THREE.MeshStandardMaterial({ color: 0x05030d, roughness: 0.24, metalness: 0.72 })
+    new THREE.MeshStandardMaterial({ color: 0x05030d, roughness: 0.48, metalness: 0.22 })
   );
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(0, -1.15, 20);
@@ -291,6 +291,7 @@ function buildRoad() {
   tileData.forEach((d) => buildTile(d));
   buildStartGate();
   if (!IS_LOOP) buildLighthouse();
+  if (IS_LOOP) buildLoopIsland();
   buildRoadLamps();
 }
 
@@ -416,6 +417,36 @@ function makeTileLabel(d) {
   sp.scale.set(0.76, 0.56, 1);
   sp.renderOrder = 12;
   return sp;
+}
+
+function buildLoopIsland() {
+  let cx = 0, cz = 0;
+  LOOP_POINTS.forEach(function(p){ cx += p[0]; cz += p[1]; });
+  cx /= LOOP_POINTS.length;
+  cz /= LOOP_POINTS.length;
+  const island = new THREE.Mesh(
+    new THREE.CylinderGeometry(4.5, 4.7, 0.30, 56),
+    new THREE.MeshBasicMaterial({
+      color: 0x0b0616, transparent: true, opacity: 0.96
+    })
+  );
+  island.position.set(cx, -0.18, cz);
+  roadGroup.add(island);
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(3.1, 0.02, 8, 72),
+    new THREE.MeshBasicMaterial({ color: 0xf3c879, transparent: true, opacity: 0.34 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(cx, 0.0, cz);
+  roadGroup.add(ring);
+  const label = textSprite('环岛 · NIGHT LOOP', {
+    font: '700 24px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
+    color: '#e9d9ff', width: 340, height: 64
+  });
+  label.position.set(cx, 0.35, cz);
+  label.scale.set(2.0, 0.38, 1);
+  label.material.opacity = 0.6;
+  roadGroup.add(label);
 }
 
 function buildStartGate() {
@@ -922,6 +953,7 @@ function finish() {
   state.winner = state.turn;
   state.heat += 2;
   const winner = PLAYERS[state.winner].name;
+  if (dom.endKicker) dom.endKicker.textContent = IS_LOOP ? '完成环岛' : '抵达灯塔';
   if (IS_LOOP) {
     dom.endTitle.textContent = `${winner} 先跑完 ${state.goalLaps} 圈`;
     dom.endText.textContent = `温度 ${state.heat} · ${state.goalLaps} 圈环岛走完。把赢家的心愿写下来，存进「升温夜航」的回忆册。`;
@@ -1217,6 +1249,7 @@ try {
   console.error(err);
   dom.fatal.hidden = false;
 }
+
 
 
 
