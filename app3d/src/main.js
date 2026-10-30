@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import './style.css';
+import { TRUTHS, DARES } from './questions.js';
 
 /* ------------------------------------------------------------------ */
 /* 80 格夜航公路                                                       */
@@ -80,36 +81,17 @@ function makeTileData() {
 
 const tileData = makeTileData();
 
-const TRUTHS = [
-  '你第一次见我时，最先注意到的是什么？',
-  '你最喜欢我哪个瞬间？',
-  '你偷偷收藏过我的什么东西？',
-  '你最想和我一起去哪里？',
-  '你最近一次心动，是因为我做了什么？',
-  '你最想听我对你说哪句话？',
-  '如果今晚只能问我一个问题，你会问什么？',
-  '你手机里最舍不得删的一张照片是什么？'
-];
 
-const DARES = [
-  '看着对方的眼睛，认真夸 3 个优点，不能重复。',
-  '用一句话描述你心里的我，中间不能停顿。',
-  '和对方十指相扣 10 秒，谁先松手谁喝一口水。',
-  '模仿对方一个习惯动作，让 TA 猜是什么。',
-  '给对方一个 5 秒的拥抱，然后说一句“今晚很好”。',
-  '说一件你一直想为对方做、但还没做的事。',
-  '用三个词形容你们现在的关系，并解释其中一个。',
-  '把手机放下，和对方对视 15 秒，不许笑。'
-];
-
-const PLAYERS = [
-  { name: '他', color: 0xf3c879 },
-  { name: '她', color: 0xff5f9e }
-];
-
-if (LAUNCH && LAUNCH.setup && LAUNCH.setup.names) {
-  PLAYERS[0].name = LAUNCH.setup.names.m || PLAYERS[0].name;
-  PLAYERS[1].name = LAUNCH.setup.names.f || PLAYERS[1].name;
+const PLAYER_COLORS = [0xf3c879, 0xff5f9e, 0x9b6cff, 0x3fd6c0];
+const NPLAYERS = (LAUNCH && LAUNCH.setup && Number(LAUNCH.setup.n) === 4) ? 4 : 2;
+const PLAYERS = [];
+for (let pi = 0; pi < NPLAYERS; pi++) {
+  let nm = pi === 0 ? '他' : pi === 1 ? '她' : '玩家' + (pi + 1);
+  if (LAUNCH && LAUNCH.setup && LAUNCH.setup.names) {
+    if (pi === 0) nm = LAUNCH.setup.names.m || nm;
+    if (pi === 1) nm = LAUNCH.setup.names.f || nm;
+  }
+  PLAYERS.push({ name: nm, color: PLAYER_COLORS[pi] || 0xffffff });
 }
 const DIY = (LAUNCH && LAUNCH.diy) || null;
 if (DIY && DIY.cards && DIY.cards.length) {
@@ -133,12 +115,14 @@ const state = {
   turn: 0,
   heat: 0,
   act: 1,
-  positions: [0, 0],
-  laps: [0, 0],
+  positions: PLAYERS.map(function(){ return 0; }),
+  laps: PLAYERS.map(function(){ return 0; }),
   goalLaps: IS_LOOP ? LAPS : 1,
   winner: null,
   card: null,
-  paused: false
+  paused: false,
+  usedTruth: [],
+  usedDare: []
 };
 
 const $ = (id) => document.getElementById(id);
@@ -634,11 +618,16 @@ function textSprite(text, opts = {}) {
 /* 棋子 / 骰子                                                        */
 /* ------------------------------------------------------------------ */
 function tokenOffset(i) {
-  return new THREE.Vector3(i === 0 ? -0.18 : 0.18, 0, i === 0 ? -0.03 : 0.03);
+  if (PLAYERS.length <= 2) {
+    return new THREE.Vector3(i === 0 ? -0.18 : 0.18, 0, i === 0 ? -0.03 : 0.03);
+  }
+  const offs = [[-0.17, -0.13], [0.17, -0.13], [-0.17, 0.13], [0.17, 0.13]];
+  const o = offs[i] || [0, 0];
+  return new THREE.Vector3(o[0], 0, o[1]);
 }
 
 function buildTokens() {
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < PLAYERS.length; i++) {
     const p = PLAYERS[i];
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
@@ -846,18 +835,20 @@ function startGame() {
   state.turn = 0;
   state.heat = 0;
   state.act = 1;
-  state.positions = [0, 0];
-  state.laps = [0, 0];
+  state.positions = PLAYERS.map(function(){ return 0; });
+  state.laps = PLAYERS.map(function(){ return 0; });
   state.goalLaps = IS_LOOP ? LAPS : 1;
   state.winner = null;
   state.card = null;
   state.paused = false;
+  state.usedTruth = [];
+  state.usedDare = [];
   dom.intro.classList.add('off');
   tokens.forEach((t, i) => boardSetToken(t, 0, i));
   placeDice();
   aimCamera(true);
   updateUI();
-  showToast(`${MODE_LABEL || '80 格'}夜航开始 · 他 先摇`);
+  showToast(`${MODE_LABEL || '80 格'}夜航开始 · ${PLAYERS[0].name} 先摇`);
   saveState();
 }
 
@@ -979,12 +970,26 @@ function resolveLanding() {
   nextTurn();
 }
 
+function pickQuestion(kind) {
+  const pool = kind === 'truth' ? TRUTHS : DARES;
+  const used = kind === 'truth' ? state.usedTruth : state.usedDare;
+  if (!pool.length) return '今晚，问对方一个你一直想问的问题。';
+  if (used.length >= pool.length) used.length = 0;
+  let idx = Math.floor(Math.random() * pool.length);
+  let guard = 0;
+  while (used.indexOf(idx) >= 0 && guard < pool.length) {
+    idx = (idx + 1) % pool.length;
+    guard++;
+  }
+  used.push(idx);
+  return pool[idx];
+}
+
 function showCard(type, customText) {
   state.phase = 'card';
   const isTruth = type === 'truth';
   const isDiy = type === 'diy';
-  const list = isTruth ? TRUTHS : DARES;
-  const text = customText || list[Math.floor(Math.random() * list.length)];
+  const text = customText || pickQuestion(isTruth ? 'truth' : 'dare');
   state.card = { type, text };
   dom.cardKicker.textContent = isDiy ? '自定义格' : isTruth ? '真心话' : '大冒险';
   dom.cardKicker.style.color = isDiy ? 'var(--gold)' : isTruth ? 'var(--violet)' : 'var(--rose)';
@@ -1041,7 +1046,7 @@ function eventDone() {
 }
 
 function nextTurn() {
-  state.turn = 1 - state.turn;
+  state.turn = (state.turn + 1) % PLAYERS.length;
   state.phase = 'idle';
   state.act = actForProgress();
   placeDice();
@@ -1190,6 +1195,15 @@ function saveWish() {
 /* ------------------------------------------------------------------ */
 /* UI                                                                 */
 /* ------------------------------------------------------------------ */
+function renderPlayersUI() {
+  if (!dom.players) return;
+  dom.players.classList.toggle('four', PLAYERS.length > 2);
+  dom.players.innerHTML = PLAYERS.map(function(p, i){
+    return '<div class="p-chip p' + i + '"><span class="p-dot"></span><b>' +
+      p.name + '</b><em>0 / 79 格</em></div>';
+  }).join('');
+}
+
 function updateUI() {
   const p = PLAYERS[state.turn];
   dom.heatNum.textContent = state.heat;
@@ -1281,7 +1295,7 @@ function saveState() {
 function loadSave3D() {
   try {
     var s = JSON.parse(localStorage.getItem('couple3d.flightSave') || 'null');
-    if (!s || s.v !== 1 || !(s.positions instanceof Array) || s.positions.length !== 2) return null;
+    if (!s || s.v !== 1 || !(s.positions instanceof Array) || s.positions.length !== PLAYERS.length) return null;
     return s;
   } catch (e) { return null; }
 }
@@ -1293,10 +1307,10 @@ function resumeGameFromSave(save) {
   state.started = true;
   state.phase = 'idle';
   state.paused = false;
-  state.turn = save.turn === 1 ? 1 : 0;
+  state.turn = Math.max(0, Math.min(PLAYERS.length - 1, Number(save.turn) || 0));
   state.heat = Math.max(0, Number(save.heat) || 0);
-  state.positions = [Math.max(0, Math.min(79, Number(save.positions[0]) || 0)), Math.max(0, Math.min(79, Number(save.positions[1]) || 0))];
-  state.laps = [Math.max(0, Number(save.laps && save.laps[0]) || 0), Math.max(0, Number(save.laps && save.laps[1]) || 0)];
+  state.positions = PLAYERS.map(function(_, i){ return Math.max(0, Math.min(79, Number(save.positions[i]) || 0)); });
+  state.laps = PLAYERS.map(function(_, i){ return Math.max(0, Number(save.laps && save.laps[i]) || 0); });
   state.goalLaps = IS_LOOP ? LAPS : 1;
   state.act = actForProgress();
   state.winner = null;
@@ -1338,6 +1352,7 @@ if (dom.wishSave) dom.wishSave.addEventListener('click', saveWish);
 
 try {
   init3D();
+  renderPlayersUI();
   updateUI();
   if (IS_ARCADE) {
     dom.intro.classList.add('off');
@@ -1351,6 +1366,7 @@ try {
   console.error(err);
   dom.fatal.hidden = false;
 }
+
 
 
 

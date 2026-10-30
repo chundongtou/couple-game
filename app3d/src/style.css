@@ -155,3 +155,10 @@ button{font-family:inherit}
 }
 .wish-save:disabled{opacity:.45}
 .pause-sheet .sheet-actions{margin-top:4px}
+
+.players.four{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.players.four .p-chip{min-height:32px;padding:0 9px}
+.players.four .p-chip b{font-size:11px}
+.players.four .p-chip em{font-size:8px}
+.p2 .p-dot{background:var(--violet);box-shadow:0 0 12px rgba(155,108,255,.8)}
+.p3 .p-dot{background:#3fd6c0;box-shadow:0 0 12px rgba(63,214,192,.8)}
