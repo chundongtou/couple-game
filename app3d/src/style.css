@@ -134,3 +134,12 @@ button{font-family:inherit}
   opacity:0;pointer-events:none;transition:.22s;box-shadow:0 8px 26px rgba(0,0,0,.35)
 }
 .dice-badge.on{opacity:1;transform:translate(-50%,0)}
+
+.top-actions{display:flex;align-items:center;gap:7px;pointer-events:auto}
+.back-btn{
+  height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(12,7,24,.52);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:var(--dim);font-size:9.5px;letter-spacing:.04em;white-space:nowrap;
+}
+.back-btn:active{transform:scale(.96);color:var(--gold)}
+@media (max-width:360px){.back-btn{padding:0 7px;font-size:9px}}

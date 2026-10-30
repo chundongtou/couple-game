@@ -1325,6 +1325,46 @@ JS = """
   }
   window.v3AddResumeCard = v3AddResumeCard;
 
+  function v3LaunchFlight3D(setup){
+    var diy = null;
+    try {
+      var store = JSON.parse(localStorage.getItem('couple-flight-diy-presets-v1') || 'null');
+      if (store && store.presets && store.presets.length) {
+        var active = null;
+        store.presets.forEach(function(p){ if (p.id === store.activeId) active = p; });
+        diy = active || store.presets[0];
+      }
+    } catch (e) {}
+    var payload = {
+      v: 1,
+      ts: Date.now(),
+      setup: setup || {},
+      diy: diy
+    };
+    try { localStorage.setItem('couple3d.flightLaunch', JSON.stringify(payload)); } catch (e) {}
+    var old = document.getElementById('v3Flight3DFrame');
+    if (old) old.remove();
+    var frame = document.createElement('iframe');
+    frame.id = 'v3Flight3DFrame';
+    frame.className = 'v3-flight3d-frame';
+    frame.setAttribute('data-test', 'flight-3d-frame');
+    frame.setAttribute('allow', 'fullscreen');
+    frame.src = '../3d/?from=arcade&embed=1';
+    document.body.appendChild(frame);
+    if (!window.__v3Flight3DMsgBound) {
+      window.__v3Flight3DMsgBound = true;
+      window.addEventListener('message', function(e){
+        if (!e || !e.data || e.data.type !== 'arcade:back') return;
+        var f = document.getElementById('v3Flight3DFrame');
+        if (f) f.remove();
+        try { renderFlightSetup(document.getElementById('gContent')); } catch (err) {}
+      });
+    }
+    try { logEvent('✈️ 已切到 3D 夜航棋盘'); } catch (e) {}
+    return true;
+  }
+  window.v3LaunchFlight3D = v3LaunchFlight3D;
+
   function wrapHome(){
     if (wrapped) return;
     wrapped = true;
@@ -1454,6 +1494,11 @@ def patch(html):
         "+'<h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2>'",
         "+'<div class=\"v3-fl-head\"><h2 style=\"margin-bottom:4px\">✈️ '+window._flModeName+'</h2><button class=\"v3-fl-pause\" type=\"button\" onclick=\"v3PauseFlight()\">⏸ 暂停</button></div>'",
     )
+    # 旧地址/旧设置不变，开局后切到 3D 棋盘
+    html = html.replace(
+        "  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};\n  var players=[];",
+        "  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};\n  if(window.v3LaunchFlight3D){try{return window.v3LaunchFlight3D(s);}catch(e){}}\n  var players=[];",
+    )
     # 飞行棋：三段式棋盘 / 自定义格 / 追赶 / 自定义称呼
     html = html.replace(
         "if(s.m===1&&s.f===1)players=[{name:HE.him,g:'M'},{name:HE.her,g:'F'}];",
@@ -1556,6 +1601,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 

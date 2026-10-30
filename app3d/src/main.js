@@ -16,7 +16,8 @@ const TYPE_INFO = {
   event: { icon: '🎁', label: '事件', color: 0xf3c879 },
   safe: { icon: '🛡', label: '安全屋', color: 0x3fd6c0 },
   duel: { icon: '⚔️', label: '对撞', color: 0xff8a3d },
-  finale: { icon: '🏁', label: '终点', color: 0xffd166 }
+  finale: { icon: '🏁', label: '终点', color: 0xffd166 },
+  diy: { icon: '✍️', label: '自定义', color: 0x66d9ff }
 };
 
 const TYPE_SEQ = [
@@ -87,6 +88,27 @@ const PLAYERS = [
   { name: '她', color: 0xff5f9e }
 ];
 
+const QS = new URLSearchParams(location.search);
+const IS_ARCADE = QS.get('from') === 'arcade';
+let LAUNCH = null;
+try { LAUNCH = JSON.parse(localStorage.getItem('couple3d.flightLaunch') || 'null'); } catch (e) { LAUNCH = null; }
+const MODE_LABEL = LAUNCH && LAUNCH.setup && ({ A: '对飞', B: '环岛', C: '双轨', D: '融合' }[LAUNCH.setup.mode] || '');
+if (LAUNCH && LAUNCH.setup && LAUNCH.setup.names) {
+  PLAYERS[0].name = LAUNCH.setup.names.m || PLAYERS[0].name;
+  PLAYERS[1].name = LAUNCH.setup.names.f || PLAYERS[1].name;
+}
+const DIY = (LAUNCH && LAUNCH.diy) || null;
+if (DIY && DIY.cards && DIY.cards.length) {
+  const slots = [9, 21, 33, 45, 57, 69];
+  DIY.cards.slice(0, slots.length).forEach((card, i) => {
+    const d = tileData[slots[i]];
+    if (!d) return;
+    d.type = 'diy';
+    d.info = TYPE_INFO.diy;
+    d.diyText = String(card.text || '自定义任务');
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* 状态                                                               */
 /* ------------------------------------------------------------------ */
@@ -112,7 +134,7 @@ const dom = {
   eventMask: $('eventMask'), eventKicker: $('eventKicker'), eventTitle: $('eventTitle'),
   eventText: $('eventText'), eventDone: $('eventDone'),
   endMask: $('endMask'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
-  intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal')
+  intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'), backBtn: $('backBtn')
 };
 
 /* ------------------------------------------------------------------ */
@@ -349,18 +371,18 @@ function buildTile(d) {
 
 function makeTileLabel(d) {
   const info = d.info;
-  const w = 180, h = 136;
+  const w = 210, h = 156;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '38px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-  ctx.fillText(info.icon, w / 2, 43);
-  ctx.font = '700 20px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.font = '48px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  ctx.fillText(info.icon, w / 2, 47);
+  ctx.font = '700 27px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
   ctx.fillStyle = '#f7efff';
-  ctx.fillText(info.label, w / 2, 97);
+  ctx.fillText(info.label, w / 2, 113);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -371,7 +393,7 @@ function makeTileLabel(d) {
     opacity: d.type === 'start' || d.type === 'finale' ? 1 : 0.92
   });
   const sp = new THREE.Sprite(mat);
-  sp.scale.set(0.62, 0.47, 1);
+  sp.scale.set(0.76, 0.56, 1);
   sp.renderOrder = 12;
   return sp;
 }
@@ -772,6 +794,7 @@ function resolveLanding() {
   state.act = actForProgress();
   updateUI();
   if (d.type === 'truth' || d.type === 'dare') { showCard(d.type); return; }
+  if (d.type === 'diy') { showCard('diy', d.diyText); return; }
   if (d.type === 'event') {
     showEvent('海风', '一阵海风把你们吹近了一点。互相说一句「今天最想听的话」，温度 +1。', 1);
     return;
@@ -785,14 +808,15 @@ function resolveLanding() {
   nextTurn();
 }
 
-function showCard(type) {
+function showCard(type, customText) {
   state.phase = 'card';
   const isTruth = type === 'truth';
+  const isDiy = type === 'diy';
   const list = isTruth ? TRUTHS : DARES;
-  const text = list[Math.floor(Math.random() * list.length)];
+  const text = customText || list[Math.floor(Math.random() * list.length)];
   state.card = { type, text };
-  dom.cardKicker.textContent = isTruth ? '真心话' : '大冒险';
-  dom.cardKicker.style.color = isTruth ? 'var(--violet)' : 'var(--rose)';
+  dom.cardKicker.textContent = isDiy ? '自定义格' : isTruth ? '真心话' : '大冒险';
+  dom.cardKicker.style.color = isDiy ? 'var(--gold)' : isTruth ? 'var(--violet)' : 'var(--rose)';
   dom.cardTitle.textContent = `轮到 ${PLAYERS[state.turn].name}`;
   dom.cardText.textContent = text;
   dom.cardDone.textContent = isTruth ? '回答完了 · 温度 +1' : '做完了 · 温度 +1';
@@ -918,7 +942,7 @@ function updateUI() {
   const p = PLAYERS[state.turn];
   dom.heatNum.textContent = state.heat;
   dom.heatBar.style.width = `${Math.min(100, (state.heat / 20) * 100)}%`;
-  dom.actPill.textContent = `第 ${state.act} 幕 · ${ACT_NAMES[state.act - 1]}`;
+  dom.actPill.textContent = `${MODE_LABEL ? MODE_LABEL + ' · ' : ''}第 ${state.act} 幕 · ${ACT_NAMES[state.act - 1]}`;
   dom.turnPill.textContent = state.winner === null
     ? `轮到 ${p.name} · 第 ${state.positions[state.turn]} 格`
     : `${PLAYERS[state.winner].name} 已到终点`;
@@ -988,13 +1012,30 @@ dom.againBtn.addEventListener('click', again);
 
 window.__proto3d = {
   state,
+  players: PLAYERS,
   forceRoll: (v) => { forcedRoll = Math.max(1, Math.min(6, Number(v) || 1)); }
 };
+
+if (dom.backBtn) {
+  dom.backBtn.addEventListener('click', () => {
+    if (IS_ARCADE && window.parent !== window) {
+      window.parent.postMessage({ type: 'arcade:back' }, '*');
+    } else {
+      location.href = '../arcade/?game=flight';
+    }
+  });
+}
 
 try {
   init3D();
   updateUI();
+  if (IS_ARCADE) {
+    dom.intro.classList.add('off');
+    setTimeout(startGame, 120);
+  }
 } catch (err) {
   console.error(err);
   dom.fatal.hidden = false;
 }
+
+

@@ -707,3 +707,9 @@ body.v3-flight-play .fl-btns .wheel-btn.back[onclick*="renderFlightSetup"]{displ
 .v3-dice-unit{font-size:11px;color:var(--sk-dim,#a99abf)}
 .v3-dice-label.rolling .v3-dice-kicker{animation:v3DiceKicker 1s ease-in-out infinite}
 @keyframes v3DiceKicker{0%,100%{opacity:.45}50%{opacity:1}}
+
+/* 3D 飞行棋覆盖层：旧地址/旧设置不变，只替换游戏内画面 */
+.v3-flight3d-frame{
+  position:fixed;inset:0;width:100%;height:100%;border:0;z-index:6000;
+  background:#070411;display:block;
+}
