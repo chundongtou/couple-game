@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#070411">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>升温夜航 3D · 纵切原型</title>
+  <script type="module" crossorigin src="./assets/index--6188aqI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Drnv-nZV.css">
+</head>
+<body>
+  <div id="app3d">
+    <canvas id="scene"></canvas>
+
+    <div class="ambient-vignette" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-kicker">3D 纵切原型</span>
+        <strong>升温夜航</strong>
+      </div>
+      <div class="act-pill" id="actPill">第 1 幕 · 起航</div>
+    </header>
+
+    <section class="hud">
+      <div class="heat-card">
+        <div class="heat-label"><span>温度</span><b id="heatNum">0</b></div>
+        <div class="heat-track"><i id="heatBar"></i></div>
+      </div>
+      <div class="turn-pill" id="turnPill">轮到 他</div>
+    </section>
+
+    <div class="legend" aria-hidden="true">
+      <span><i class="dot truth"></i>真心话</span>
+      <span><i class="dot dare"></i>大冒险</span>
+      <span><i class="dot event"></i>事件</span>
+      <span><i class="dot duel"></i>对撞</span>
+    </div>
+
+    <footer class="bottom">
+      <div class="players" id="players">
+        <div class="p-chip p0"><span class="p-dot"></span><b>他</b><em>0 格</em></div>
+        <div class="p-chip p1"><span class="p-dot"></span><b>她</b><em>0 格</em></div>
+      </div>
+      <button id="rollBtn" class="roll-btn" type="button">
+        <span class="roll-ic">🎲</span>
+        <span id="rollText">他 摇骰子</span>
+      </button>
+      <p class="hint" id="hint">从「起航」出发，先到灯塔的人赢下这一晚。</p>
+      <div class="dice-badge" id="diceBadge"></div>
+    </footer>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <div class="sheet-mask" id="cardMask">
+      <article class="sheet card-sheet" id="cardSheet">
+        <div class="sheet-grip"></div>
+        <div class="card-kicker" id="cardKicker">真心话</div>
+        <h2 id="cardTitle">抽到一张卡</h2>
+        <p id="cardText"></p>
+        <div class="sheet-actions">
+          <button class="btn primary" id="cardDone" type="button">做完了 · 温度 +1</button>
+          <button class="btn ghost" id="cardSkip" type="button">这轮跳过</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="sheet-mask" id="eventMask">
+      <article class="sheet">
+        <div class="sheet-grip"></div>
+        <div class="card-kicker gold" id="eventKicker">事件</div>
+        <h2 id="eventTitle">海风</h2>
+        <p id="eventText"></p>
+        <div class="sheet-actions">
+          <button class="btn primary" id="eventDone" type="button">继续</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="sheet-mask" id="endMask">
+      <article class="sheet end-sheet">
+        <div class="end-glow" aria-hidden="true"></div>
+        <div class="card-kicker gold">抵达灯塔</div>
+        <h2 id="endTitle">他 先靠岸</h2>
+        <p id="endText"></p>
+        <div class="sheet-actions">
+          <button class="btn primary" id="againBtn" type="button">再走一局</button>
+        </div>
+      </article>
+    </div>
+
+    <div class="intro" id="intro">
+      <div class="intro-inner">
+        <div class="intro-kicker">COUPLE NIGHT VOYAGE · 3D</div>
+        <h1>升温夜航<br><span>3D</span></h1>
+        <p>一张 12 格的夜航棋盘，两颗棋子，一颗会滚的骰子。<br>真心话和大冒险，都落在路上。</p>
+        <div class="intro-tags">
+          <span>一男一女</span><span>12 格</span><span>约 8 分钟</span>
+        </div>
+        <button class="btn primary start-btn" id="startBtn" type="button">开始夜航</button>
+        <p class="intro-note">这是纵切原型 · 先验证手感，不替换现有 2D 版</p>
+      </div>
+    </div>
+
+    <div class="fatal" id="fatal" hidden>
+      <b>这台设备暂时画不出 3D</b>
+      <span>请用支持 WebGL 的浏览器打开，或回到 2D 版继续。</span>
+    </div>
+  </div>
+</body>
+</html>
+

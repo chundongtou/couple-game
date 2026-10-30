@@ -13,3 +13,7 @@ qa/**/_tmp*/
 # 经典游戏厅构建缓存（由 tools/arcade/patch_legacy.py 从 git 历史重新提取）
 arcade/_legacy-v17.html
 
+
+# 3D prototype deps
+app3d/node_modules/
+app3d/dist/
