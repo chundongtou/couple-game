@@ -11896,7 +11896,7 @@ html.arcade-embed .header { display: none !important; }
     var h2 = wrap ? wrap.querySelector('h2') : null;
     var isFlight = !!(wrap && h2 && String(h2.textContent || '').indexOf('飞行棋') >= 0);
     document.body.classList.toggle('v3-flight-setup', isFlight);
-    if (isFlight) v3AddResumeCard(wrap, h2);
+    if (isFlight) { if (v3Load3DSave()) v3Add3DResumeCard(wrap, h2); else v3AddResumeCard(wrap, h2); }
     if (!isFlight || wrap.getAttribute('data-v3-set') === '1') return;
     wrap.setAttribute('data-v3-set', '1');
     var nodes = Array.prototype.slice.call(wrap.children).filter(function(n){ return n !== h2 && !(n.classList && n.classList.contains('v3-resume-flight')); });
@@ -12536,6 +12536,51 @@ html.arcade-embed .header { display: none !important; }
   window.v3PauseFlight = v3PauseFlight;
   window.v3WishOpen = v3WishOpen;
 
+  function v3Load3DSave(){
+    try {
+      var s = JSON.parse(localStorage.getItem('couple3d.flightSave') || 'null');
+      if (!s || s.v !== 1 || !(s.positions instanceof Array) || s.positions.length !== 2) return null;
+      return s;
+    } catch (e) { return null; }
+  }
+  function v3Add3DResumeCard(wrap, h2){
+    if (!wrap || !h2 || wrap.querySelector('.v3-resume-3d')) return;
+    var s = v3Load3DSave();
+    if (!s) return;
+    var card = document.createElement('div');
+    card.className = 'v3-resume-flight v3-resume-3d';
+    card.setAttribute('data-test', 'flight3d-resume');
+    var tx = document.createElement('div');
+    tx.className = 'v3-resume-tx';
+    var b = document.createElement('b');
+    b.textContent = '继续 3D 棋局';
+    var sp = document.createElement('span');
+    sp.textContent = '他 ' + s.positions[0] + '/79 · 她 ' + s.positions[1] + '/79 · 温度 ' + (s.heat || 0);
+    tx.appendChild(b);
+    tx.appendChild(sp);
+    var go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'v3-resume-go';
+    go.textContent = '继续';
+    go.addEventListener('click', function(){
+      v3LaunchFlight3D(window._flSetup || {}, true);
+    });
+    var fresh = document.createElement('button');
+    fresh.type = 'button';
+    fresh.className = 'v3-resume-x';
+    fresh.textContent = '新开';
+    fresh.addEventListener('click', function(){
+      try { localStorage.removeItem('couple3d.flightSave'); } catch (e) {}
+      card.remove();
+      try { toast('已清除 3D 存档'); } catch (e) {}
+    });
+    card.appendChild(tx);
+    card.appendChild(go);
+    card.appendChild(fresh);
+    h2.parentNode.insertBefore(card, h2);
+  }
+  window.v3Load3DSave = v3Load3DSave;
+  window.v3Add3DResumeCard = v3Add3DResumeCard;
   function v3AddResumeCard(wrap, h2){
     if (!wrap || !h2 || wrap.querySelector('.v3-resume-flight')) return;
     var s = v3LoadFlight();
@@ -12574,7 +12619,7 @@ html.arcade-embed .header { display: none !important; }
   }
   window.v3AddResumeCard = v3AddResumeCard;
 
-  function v3LaunchFlight3D(setup){
+  function v3LaunchFlight3D(setup, resume){
     var diy = null;
     try {
       var store = JSON.parse(localStorage.getItem('couple-flight-diy-presets-v1') || 'null');
@@ -12588,7 +12633,8 @@ html.arcade-embed .header { display: none !important; }
       v: 1,
       ts: Date.now(),
       setup: setup || {},
-      diy: diy
+      diy: diy,
+      resume: !!resume
     };
     try { localStorage.setItem('couple3d.flightLaunch', JSON.stringify(payload)); } catch (e) {}
     var old = document.getElementById('v3Flight3DFrame');
@@ -12603,7 +12649,17 @@ html.arcade-embed .header { display: none !important; }
     if (!window.__v3Flight3DMsgBound) {
       window.__v3Flight3DMsgBound = true;
       window.addEventListener('message', function(e){
-        if (!e || !e.data || e.data.type !== 'arcade:back') return;
+        if (!e || !e.data) return;
+        if (e.data.type === 'arcade:flight-wish') {
+          if (window.parent !== window) {
+            try { window.parent.postMessage(e.data, '*'); } catch (err) {}
+          } else {
+            try { localStorage.setItem('couple3d.wish', JSON.stringify(e.data)); } catch (err) {}
+            try { toast('心愿已写下 · 回忆册入口在 V3 版'); } catch (err) {}
+          }
+          return;
+        }
+        if (e.data.type !== 'arcade:back') return;
         var f = document.getElementById('v3Flight3DFrame');
         if (f) f.remove();
         try { renderFlightSetup(document.getElementById('gContent')); } catch (err) {}

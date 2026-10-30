@@ -121,7 +121,8 @@ const state = {
   act: 1,
   positions: [0, 0],
   winner: null,
-  card: null
+  card: null,
+  paused: false
 };
 
 const $ = (id) => document.getElementById(id);
@@ -134,7 +135,10 @@ const dom = {
   eventMask: $('eventMask'), eventKicker: $('eventKicker'), eventTitle: $('eventTitle'),
   eventText: $('eventText'), eventDone: $('eventDone'),
   endMask: $('endMask'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
-  intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'), backBtn: $('backBtn')
+  intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'),
+  backBtn: $('backBtn'), pauseBtn: $('pauseBtn'), pauseMask: $('pauseMask'),
+  pauseText: $('pauseText'), resumeBtn: $('resumeBtn'), saveExitBtn: $('saveExitBtn'),
+  wishInput: $('wishInput'), wishSave: $('wishSave')
 };
 
 /* ------------------------------------------------------------------ */
@@ -718,6 +722,7 @@ function rollDice(value) {
 /* 回合                                                               */
 /* ------------------------------------------------------------------ */
 function startGame() {
+  clearSave();
   state.started = true;
   state.phase = 'idle';
   state.turn = 0;
@@ -726,6 +731,7 @@ function startGame() {
   state.positions = [0, 0];
   state.winner = null;
   state.card = null;
+  state.paused = false;
   dom.intro.classList.add('off');
   tokens.forEach((t, i) => boardSetToken(t, 0, i));
   placeDice();
@@ -862,6 +868,7 @@ function nextTurn() {
 }
 
 function finish() {
+  clearSave();
   state.phase = 'end';
   state.winner = state.turn;
   state.heat += 2;
@@ -873,6 +880,7 @@ function finish() {
 
 function again() {
   dom.endMask.classList.remove('on');
+  clearSave();
   startGame();
 }
 
@@ -936,6 +944,59 @@ function smooth(x) {
 }
 
 /* ------------------------------------------------------------------ */
+/* 暂停 / 心愿                                                       */
+/* ------------------------------------------------------------------ */
+function pauseGame() {
+  if (!state.started || state.winner !== null) return;
+  if (state.phase !== 'idle') { showToast('等这一轮落稳再暂停'); return; }
+  saveState();
+  state.paused = true;
+  if (dom.pauseText) dom.pauseText.textContent =
+    `第 ${state.act} 幕 · 温度 ${state.heat} · ${PLAYERS[state.turn].name} 在 ${state.positions[state.turn]} 格。进度已保存。`;
+  dom.pauseMask.classList.add('on');
+  updateUI();
+}
+function unpauseGame() {
+  state.paused = false;
+  dom.pauseMask.classList.remove('on');
+  updateUI();
+}
+function goBackToSetup() {
+  saveState();
+  if (IS_ARCADE && window.parent !== window) {
+    window.parent.postMessage({ type: 'arcade:back' }, '*');
+  } else {
+    location.href = '../arcade/?game=flight';
+  }
+}
+function saveAndExit() {
+  saveState();
+  dom.pauseMask.classList.remove('on');
+  goBackToSetup();
+}
+function saveWish() {
+  var wish = dom.wishInput ? String(dom.wishInput.value || '').trim().slice(0, 80) : '';
+  if (!wish) { showToast('先写一句心愿吧'); return; }
+  var winner = state.winner === null ? '' : PLAYERS[state.winner].name;
+  var payload = {
+    type: 'arcade:flight-wish',
+    wish: wish,
+    winner: winner,
+    names: { a: PLAYERS[0].name, b: PLAYERS[1].name },
+    turn: TOTAL - 1,
+    ts: Date.now()
+  };
+  if (window.parent !== window) {
+    try { window.parent.postMessage(payload, '*'); } catch (e) {}
+  } else {
+    try { localStorage.setItem('couple3d.wish', JSON.stringify(payload)); } catch (e) {}
+  }
+  if (dom.wishSave) dom.wishSave.disabled = true;
+  clearSave3D();
+  showToast('心愿已存进回忆册');
+}
+
+/* ------------------------------------------------------------------ */
 /* UI                                                                 */
 /* ------------------------------------------------------------------ */
 function updateUI() {
@@ -947,14 +1008,16 @@ function updateUI() {
     ? `轮到 ${p.name} · 第 ${state.positions[state.turn]} 格`
     : `${PLAYERS[state.winner].name} 已到终点`;
   dom.rollText.textContent = state.phase === 'rolling' ? '骰子滚动中…' : `${p.name} 摇骰子`;
-  dom.rollBtn.disabled = !state.started || state.phase !== 'idle' || state.winner !== null;
+  dom.rollBtn.disabled = !state.started || state.phase !== 'idle' || state.winner !== null || state.paused;
+  if (dom.pauseBtn) dom.pauseBtn.disabled = !state.started || state.winner !== null;
   const chips = dom.players.querySelectorAll('.p-chip');
   chips.forEach((el, i) => {
     el.classList.toggle('active', i === state.turn && state.winner === null);
     const em = el.querySelector('em');
     if (em) em.textContent = `${state.positions[i]} / ${TOTAL - 1} 格`;
   });
-  if (state.phase === 'rolling') dom.hint.textContent = '骰子落桌之前，先别急着走。';
+  if (state.paused) dom.hint.textContent = '棋局已暂停，进度已保存。';
+  else if (state.phase === 'rolling') dom.hint.textContent = '骰子落桌之前，先别急着走。';
   else if (state.phase === 'moving') dom.hint.textContent = '棋子正在沿夜航公路前进…';
   else if (state.phase === 'card') dom.hint.textContent = '卡面已经翻开，完成后再交给下一位。';
   else if (state.phase === 'event') dom.hint.textContent = '这一格是你们共同的事件。';
@@ -995,9 +1058,54 @@ function showToast(text) {
 function saveState() {
   try {
     localStorage.setItem('couple3d.proto', JSON.stringify({
-      heat: state.heat, turn: state.turn, positions: state.positions, act: state.act, ts: Date.now()
+      v: 1,
+      heat: state.heat,
+      turn: state.turn,
+      positions: state.positions.slice(),
+      act: state.act,
+      started: state.started,
+      ts: Date.now()
     }));
+    if (state.started && state.winner === null) {
+      localStorage.setItem('couple3d.flightSave', JSON.stringify({
+        v: 1,
+        heat: state.heat,
+        turn: state.turn,
+        positions: state.positions.slice(),
+        act: state.act,
+        ts: Date.now()
+      }));
+    }
   } catch (e) {}
+}
+
+function loadSave3D() {
+  try {
+    var s = JSON.parse(localStorage.getItem('couple3d.flightSave') || 'null');
+    if (!s || s.v !== 1 || !(s.positions instanceof Array) || s.positions.length !== 2) return null;
+    return s;
+  } catch (e) { return null; }
+}
+function clearSave3D() {
+  try { localStorage.removeItem('couple3d.flightSave'); } catch (e) {}
+}
+function clearSave() { clearSave3D(); }
+function resumeGameFromSave(save) {
+  state.started = true;
+  state.phase = 'idle';
+  state.paused = false;
+  state.turn = save.turn === 1 ? 1 : 0;
+  state.heat = Math.max(0, Number(save.heat) || 0);
+  state.positions = [Math.max(0, Math.min(79, Number(save.positions[0]) || 0)), Math.max(0, Math.min(79, Number(save.positions[1]) || 0))];
+  state.act = actForProgress();
+  state.winner = null;
+  state.card = null;
+  dom.intro.classList.add('off');
+  tokens.forEach(function(t, i){ boardSetToken(t, state.positions[i], i); });
+  placeDice();
+  aimCamera(true);
+  updateUI();
+  showToast('继续 3D 棋局');
 }
 
 /* ------------------------------------------------------------------ */
@@ -1017,25 +1125,32 @@ window.__proto3d = {
 };
 
 if (dom.backBtn) {
-  dom.backBtn.addEventListener('click', () => {
-    if (IS_ARCADE && window.parent !== window) {
-      window.parent.postMessage({ type: 'arcade:back' }, '*');
-    } else {
-      location.href = '../arcade/?game=flight';
-    }
+  dom.backBtn.addEventListener('click', function(){
+    if (state.started && state.winner === null) saveState();
+    goBackToSetup();
   });
 }
+if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', pauseGame);
+if (dom.resumeBtn) dom.resumeBtn.addEventListener('click', unpauseGame);
+if (dom.saveExitBtn) dom.saveExitBtn.addEventListener('click', saveAndExit);
+if (dom.wishSave) dom.wishSave.addEventListener('click', saveWish);
 
 try {
   init3D();
   updateUI();
   if (IS_ARCADE) {
     dom.intro.classList.add('off');
-    setTimeout(startGame, 120);
+    var saved = loadSave3D();
+    setTimeout(function(){
+      if (LAUNCH && LAUNCH.resume && saved) resumeGameFromSave(saved);
+      else startGame();
+    }, 120);
   }
 } catch (err) {
   console.error(err);
   dom.fatal.hidden = false;
 }
+
+
 
 

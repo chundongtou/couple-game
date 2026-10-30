@@ -143,3 +143,15 @@ button{font-family:inherit}
 }
 .back-btn:active{transform:scale(.96);color:var(--gold)}
 @media (max-width:360px){.back-btn{padding:0 7px;font-size:9px}}
+
+.wish-row{display:flex;gap:7px;margin:0 0 12px}
+.wish-row input{
+  flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(255,255,255,.05);color:var(--ink);font-size:12px;padding:0 11px;
+}
+.wish-save{
+  flex:0 0 auto;height:44px;padding:0 12px;border-radius:12px;border:1px solid rgba(243,200,121,.3);
+  background:rgba(243,200,121,.10);color:var(--gold);font-size:10.5px;font-weight:800;
+}
+.wish-save:disabled{opacity:.45}
+.pause-sheet .sheet-actions{margin-top:4px}

@@ -7,8 +7,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>升温夜航 3D · 纵切原型</title>
-  <script type="module" crossorigin src="./assets/index-DthTfYG6.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-igOPxcQo.css">
+  <script type="module" crossorigin src="./assets/index-B4LJu6Oi.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-D7fTxbX7.css">
 </head>
 <body>
   <div id="app3d">
@@ -22,6 +22,7 @@
         <strong>升温夜航</strong>
       </div>
       <div class="top-actions">
+        <button class="back-btn" id="pauseBtn" type="button">⏸</button>
         <button class="back-btn" id="backBtn" type="button">← 设置</button>
         <div class="act-pill" id="actPill">第 1 幕 · 起航</div>
       </div>
@@ -82,12 +83,29 @@
       </article>
     </div>
 
+    <div class="sheet-mask" id="pauseMask">
+      <article class="sheet pause-sheet">
+        <div class="sheet-grip"></div>
+        <div class="card-kicker gold">棋局暂停</div>
+        <h2>先歇一下</h2>
+        <p id="pauseText">进度已保存。继续棋局，或者先收起，下次从「继续 3D 棋局」回来。</p>
+        <div class="sheet-actions">
+          <button class="btn primary" id="resumeBtn" type="button">继续棋局</button>
+          <button class="btn ghost" id="saveExitBtn" type="button">保存并收起</button>
+        </div>
+      </article>
+    </div>
+
     <div class="sheet-mask" id="endMask">
       <article class="sheet end-sheet">
         <div class="end-glow" aria-hidden="true"></div>
         <div class="card-kicker gold">抵达灯塔</div>
         <h2 id="endTitle">他 先靠岸</h2>
         <p id="endText"></p>
+        <div class="wish-row">
+          <input id="wishInput" maxlength="80" placeholder="赢家写一个不越界的小心愿">
+          <button class="wish-save" id="wishSave" type="button">存进回忆册</button>
+        </div>
         <div class="sheet-actions">
           <button class="btn primary" id="againBtn" type="button">再走一局</button>
         </div>
