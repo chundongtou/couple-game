@@ -149,7 +149,7 @@ const dom = {
   cardMask: $('cardMask'), cardKicker: $('cardKicker'), cardTitle: $('cardTitle'),
   cardText: $('cardText'), cardDone: $('cardDone'), cardSkip: $('cardSkip'),
   eventMask: $('eventMask'), eventKicker: $('eventKicker'), eventTitle: $('eventTitle'),
-  eventText: $('eventText'), eventDone: $('eventDone'),
+  eventText: $('eventText'), eventDone: $('eventDone'), eventAlt: $('eventAlt'),
   endMask: $('endMask'), endKicker: $('endKicker'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
   intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'),
   backBtn: $('backBtn'), pauseBtn: $('pauseBtn'), pauseMask: $('pauseMask'),
@@ -166,6 +166,7 @@ let cameraDesired = new THREE.Vector3(), lookDesired = new THREE.Vector3(0, 0.2,
 let currentLook = lookDesired.clone();
 let elapsed = 0;
 let diceTargetBase = new THREE.Vector3();
+const branchPaths = {};
 
 function init3D() {
   try {
@@ -293,6 +294,7 @@ function buildRoad() {
   if (!IS_LOOP) buildLighthouse();
   if (IS_LOOP) buildLoopIsland();
   buildRoadLamps();
+  if (HAS_BRANCH) buildBranchRoads();
 }
 
 function sampleCurve(n = 420) {
@@ -417,6 +419,75 @@ function makeTileLabel(d) {
   sp.scale.set(0.76, 0.56, 1);
   sp.renderOrder = 12;
   return sp;
+}
+
+function buildPathRibbon(points, halfWidth, color, y, opacity) {
+  const verts = [];
+  const idx = [];
+  points.forEach((p, i) => {
+    const prev = points[Math.max(0, i - 1)];
+    const next = points[Math.min(points.length - 1, i + 1)];
+    const t = next.clone().sub(prev).normalize();
+    const normal = new THREE.Vector3(-t.z, 0, t.x).normalize();
+    const l = p.clone().add(normal.clone().multiplyScalar(halfWidth));
+    const r = p.clone().add(normal.clone().multiplyScalar(-halfWidth));
+    verts.push(l.x, y, l.z, r.x, y, r.z);
+    if (i < points.length - 1) {
+      const a = i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color, roughness: 0.4, metalness: 0.25, transparent: true, opacity
+  }));
+  roadGroup.add(mesh);
+  return mesh;
+}
+
+function buildBranchRoads() {
+  BRANCH_SLOTS.forEach(function(slot){
+    const d = tileData[slot];
+    const end = (slot + 4) % TOTAL;
+    const e = tileData[end];
+    const start = d.pos.clone().add(d.normal.clone().multiplyScalar(0.32));
+    const stop = e.pos.clone().add(e.normal.clone().multiplyScalar(0.32));
+    start.y = 0.06;
+    stop.y = 0.06;
+    const mid = start.clone().lerp(stop, 0.5).add(d.normal.clone().multiplyScalar(2.0));
+    mid.y = 0.06;
+    const curveB = new THREE.QuadraticBezierCurve3(start, mid, stop);
+    const pts = curveB.getPoints(28);
+    buildPathRibbon(pts, 0.34, 0x1a0d2c, 0.045, 0.92);
+    const edgeGeo = new THREE.BufferGeometry().setFromPoints(pts.map(function(p){ return p.clone().setY(0.06); }));
+    roadGroup.add(new THREE.Line(edgeGeo, new THREE.LineBasicMaterial({ color: 0xff7a59, transparent: true, opacity: 0.45 })));
+
+    for (let k = 1; k <= 4; k++) {
+      const u = k / 5;
+      const p = curveB.getPointAt(u);
+      const tan = curveB.getTangentAt(u).normalize();
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xff7a59, emissive: 0xff7a59, emissiveIntensity: 0.18,
+        roughness: 0.3, metalness: 0.35
+      });
+      const tile = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.06, 0.40, 2, 0.07), mat);
+      tile.position.set(p.x, 0.12, p.z);
+      tile.rotation.y = Math.atan2(tan.x, tan.z);
+      roadGroup.add(tile);
+      const label = textSprite('支线', {
+        font: '700 22px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
+        color: '#ffd8c9', width: 140, height: 60
+      });
+      label.position.set(p.x, 0.36, p.z);
+      label.scale.set(0.46, 0.20, 1);
+      label.material.opacity = 0.85;
+      roadGroup.add(label);
+    }
+    branchPaths[slot] = { curve: curveB, end: end };
+  });
 }
 
 function buildLoopIsland() {
@@ -860,6 +931,28 @@ function tweenToken(token, tileIndex, playerIndex, duration) {
   });
 }
 
+function animateBranch(playerIndex, slot) {
+  return new Promise(function(resolve){
+    const bp = branchPaths[slot];
+    if (!bp) { resolve(); return; }
+    const token = tokens[playerIndex];
+    const start = performance.now();
+    const dur = 920;
+    function frame(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const p = bp.curve.getPointAt(e);
+      const o = tokenOffset(playerIndex);
+      token.position.x = p.x + o.x;
+      token.position.z = p.z + o.z;
+      token.position.y = token.userData.baseY + Math.sin(Math.PI * t) * 0.12;
+      if (t < 1) requestAnimationFrame(frame);
+      else { token.position.y = token.userData.baseY; resolve(); }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
 function resolveLanding() {
   const d = tileData[state.positions[state.turn]];
   if (!d) { nextTurn(); return; }
@@ -876,8 +969,9 @@ function resolveLanding() {
     return;
   }
   if (d.type === 'branch') {
-    state._branchMove = 4;
-    showEvent('支线入口', '从侧路抄近道：继续后自动前进 4 格。', 0);
+    state._branchSlot = state.positions[state.turn];
+    showEvent('支线入口', '这里有一条侧路。走支线可以抄近道，留主线则按原路继续。', 0, '走支线 +4', '留主线');
+    if (dom.eventDone) dom.eventDone.textContent = '走支线 +4';
     return;
   }
   if (d.type === 'finale') { finish(); return; }
@@ -911,14 +1005,19 @@ function closeCard(done) {
   nextTurn();
 }
 
-function showEvent(title, text, heat) {
+function showEvent(title, text, heat, primaryLabel, altLabel) {
   state.phase = 'event';
   dom.eventKicker.textContent = title === '对撞' ? '对撞' : title === '支线入口' ? '支线' : '事件';
   dom.eventTitle.textContent = title;
   dom.eventText.textContent = text;
-  dom.eventDone.textContent = heat ? '继续 · 温度 +1' : '继续';
+  dom.eventDone.textContent = primaryLabel || (heat ? '继续 · 温度 +1' : '继续');
   dom.eventMask.classList.add('on');
   state._eventHeat = heat || 0;
+  state._branchSlot = state._branchSlot || null;
+  if (dom.eventAlt) {
+    dom.eventAlt.style.display = altLabel ? '' : 'none';
+    dom.eventAlt.textContent = altLabel || '留主线';
+  }
   updateUI();
 }
 
@@ -926,10 +1025,13 @@ function eventDone() {
   dom.eventMask.classList.remove('on');
   if (state._eventHeat) { state.heat += state._eventHeat; showToast('温度 +1'); }
   state._eventHeat = 0;
-  var bm = state._branchMove || 0;
-  state._branchMove = 0;
-  if (bm) {
-    moveCurrent(bm).then(function(){
+  var slot = state._branchSlot;
+  state._branchSlot = null;
+  if (slot != null && branchPaths[slot]) {
+    animateBranch(state.turn, slot).then(function(){
+      state.positions[state.turn] = branchPaths[slot].end;
+      updatePlayers();
+      updateUI();
       if (IS_LOOP && state.laps[state.turn] >= state.goalLaps) { finish(); return; }
       resolveLanding();
     });
