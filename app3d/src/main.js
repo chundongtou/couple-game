@@ -90,6 +90,8 @@ for (let pi = 0; pi < NPLAYERS; pi++) {
   if (LAUNCH && LAUNCH.setup && LAUNCH.setup.names) {
     if (pi === 0) nm = LAUNCH.setup.names.m || nm;
     if (pi === 1) nm = LAUNCH.setup.names.f || nm;
+    if (pi === 2) nm = LAUNCH.setup.names.p3 || nm;
+    if (pi === 3) nm = LAUNCH.setup.names.p4 || nm;
   }
   PLAYERS.push({ name: nm, color: PLAYER_COLORS[pi] || 0xffffff });
 }
