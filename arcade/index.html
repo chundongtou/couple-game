@@ -45,6 +45,33 @@
   .loading .acts button:first-child{background:linear-gradient(135deg,#f3c879,#ff5f9e);color:#2a1206;border:0}
   iframe{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:5000;background:#070411}
   @media (max-width:360px){.opt{padding:0 9px}.row .lbl{width:50px}}
+
+  .diy-edit{height:38px;padding:0 12px;border-radius:10px;border:1px solid rgba(243,200,121,.45);background:rgba(243,200,121,.13);color:var(--gold);font-size:11px;font-weight:800;white-space:nowrap}
+  .diy-mask{position:fixed;inset:0;z-index:9000;display:none;align-items:flex-end;justify-content:center;background:rgba(3,1,10,.7);backdrop-filter:blur(8px)}
+  .diy-mask.on{display:flex}
+  .diy-sheet{width:100%;max-width:460px;max-height:88vh;overflow:auto;background:linear-gradient(180deg,#1a0d2f,#0b0616);border:1px solid var(--line2);border-radius:24px 24px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 -18px 60px rgba(0,0,0,.5)}
+  .diy-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+  .diy-top b{font-size:16px}.diy-top button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:18px}
+  .diy-chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+  .diy-chip{height:30px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--dim);font-size:10px}
+  .diy-chip.on{border-color:rgba(243,200,121,.5);background:rgba(243,200,121,.14);color:var(--ink)}
+  .diy-field{display:flex;align-items:center;gap:8px;margin:9px 0}
+  .diy-field label{width:52px;flex:0 0 auto;font-size:10px;color:var(--dim)}
+  .diy-field input{flex:1;min-width:0;height:36px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-size:12px;padding:0 9px}
+  .diy-weight{display:flex;align-items:center;gap:6px;margin:7px 0}
+  .diy-weight span{width:54px;flex:0 0 auto;font-size:10px;color:var(--dim)}
+  .diy-weight button{flex:1;height:30px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--dim);font-size:10px}
+  .diy-weight button.on{border-color:rgba(255,95,158,.5);background:rgba(255,95,158,.14);color:var(--ink);font-weight:800}
+  .diy-cards-head{display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px;font-size:11px;color:var(--ink)}
+  .diy-cards-head button{height:28px;padding:0 9px;border-radius:8px;border:1px solid rgba(243,200,121,.4);background:rgba(243,200,121,.1);color:var(--gold);font-size:10px}
+  .diy-card{display:grid;grid-template-columns:64px 1fr 26px;gap:5px;align-items:center;margin:6px 0}
+  .diy-card select{height:32px;border-radius:8px;border:1px solid var(--line);background:#140b26;color:var(--ink);font-size:10px}
+  .diy-card input{height:32px;min-width:0;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-size:11px;padding:0 7px}
+  .diy-card button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--dim)}
+  .diy-actions{display:flex;gap:7px;margin-top:14px}
+  .diy-actions button{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font-size:12px;font-weight:800}
+  .diy-actions button:first-child{border:0;background:linear-gradient(135deg,#f3c879,#ff5f9e);color:#2a1206}
+  .diy-actions button.danger{flex:0 0 92px;color:#ff9bb8;border-color:rgba(255,95,158,.3)}
 </style>
 </head>
 <body>
@@ -76,6 +103,7 @@
     <h2>DIY 预设 <span>沿用上次</span></h2>
     <div class="diy">
       <select id="diySelect"></select>
+      <button class="diy-edit" id="diyEdit" type="button">编辑</button>
       <a href="classic.html?game=flight&embed=1">完整旧设置</a>
       <div class="diysum" id="diySum"></div>
     </div>
@@ -85,6 +113,19 @@
 <div class="foot">
   <button class="start" id="start" type="button">进入 3D 夜航</button>
   <p>进入后原地址不变 · 3D 加载慢会自动提示</p>
+</div>
+
+
+<div class="diy-mask" id="diyMask">
+  <div class="diy-sheet">
+    <div class="diy-top"><b>DIY 预设</b><button id="diyClose" type="button">×</button></div>
+    <div class="diy-chips" id="diyChips"></div>
+    <div class="diy-field"><label>名称</label><input id="diyName" maxlength="12" placeholder="给这套预设起个名字"></div>
+    <div id="diyWeights"></div>
+    <div class="diy-cards-head"><span>自定义卡</span><button id="diyAddCard" type="button">+ 加一张</button></div>
+    <div id="diyCards"></div>
+    <div class="diy-actions"><button id="diySave" type="button">保存并使用</button><button class="danger" id="diyDelete" type="button">删除这套</button></div>
+  </div>
 </div>
 
 <div class="loading" id="loading">
@@ -106,12 +147,114 @@
   var setup = { n:2, m:1, f:1, mode:'A', laps:1, diff:3, names:{m:'他',f:'她',p3:'玩家3',p4:'玩家4'} };
   try { var old = JSON.parse(localStorage.getItem(KEY) || 'null'); if (old) setup = Object.assign(setup, old, { names: Object.assign(setup.names, old.names || {}) }); } catch(e) {}
   var $ = function(id){ return document.getElementById(id); };
+  var SEED = [
+    { id:'seed-daily', name:'日常', builtin:true, weights:{drink:1,strip:0,spicy:1,duo:1,event:1}, cards:[] },
+    { id:'seed-tipsy', name:'微醺', builtin:true, weights:{drink:2,strip:1,spicy:2,duo:1,event:2}, cards:[] },
+    { id:'seed-party', name:'派对', builtin:true, weights:{drink:3,strip:2,spicy:3,duo:2,event:2}, cards:[] },
+    { id:'seed-soft', name:'温柔', builtin:true, weights:{drink:0,strip:0,spicy:1,duo:1,event:1}, cards:[] }
+  ];
   var diyStore = null;
-  try { diyStore = JSON.parse(localStorage.getItem(DIY_KEY) || 'null'); } catch(e) {}
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function seedStore(){
+    return { v:1, activeId:'seed-daily', presets: clone(SEED) };
+  }
+  function ensureDiy(){
+    try { diyStore = JSON.parse(localStorage.getItem(DIY_KEY) || 'null'); } catch(e) { diyStore = null; }
+    if (!diyStore || !diyStore.presets || !diyStore.presets.length) {
+      diyStore = seedStore();
+      try { localStorage.setItem(DIY_KEY, JSON.stringify(diyStore)); } catch(e) {}
+    }
+    diyStore.presets.forEach(function(p){
+      if (!p.weights) p.weights = {drink:1,strip:0,spicy:1,duo:1,event:1};
+      if (!p.cards) p.cards = [];
+    });
+    if (!diyStore.activeId || !diyStore.presets.some(function(p){return p.id === diyStore.activeId;})) diyStore.activeId = diyStore.presets[0].id;
+    return diyStore;
+  }
   function activeDiy(){
-    if (!diyStore || !diyStore.presets || !diyStore.presets.length) return null;
+    ensureDiy();
     var p = null; diyStore.presets.forEach(function(x){ if (x.id === diyStore.activeId) p = x; });
     return p || diyStore.presets[0];
+  }
+  var diyDraft = null;
+  var WEIGHTS = [['drink','酒'],['strip','脱'],['spicy','辣'],['duo','双人'],['event','事件']];
+  function openDiy(){
+    ensureDiy();
+    diyDraft = clone(activeDiy());
+    if (diyDraft.builtin) { diyDraft.name = diyDraft.name + ' · 改'; diyDraft.id = 'diy-' + Date.now(); diyDraft.builtin = false; }
+    $('diyMask').classList.add('on');
+    renderDiy();
+  }
+  function closeDiy(){ $('diyMask').classList.remove('on'); }
+  function renderDiy(){
+    if (!diyDraft) return;
+    var chips = $('diyChips'); chips.innerHTML = '';
+    diyStore.presets.forEach(function(p){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'diy-chip' + (p.id === diyDraft.id ? ' on' : '');
+      b.textContent = p.name + (p.builtin ? '' : ' · 自定义');
+      b.addEventListener('click', function(){ diyDraft = clone(p); renderDiy(); });
+      chips.appendChild(b);
+    });
+    $('diyName').value = diyDraft.name || '';
+    var w = $('diyWeights'); w.innerHTML = '';
+    WEIGHTS.forEach(function(pair){
+      var key = pair[0];
+      var row = document.createElement('div'); row.className = 'diy-weight';
+      var label = document.createElement('span'); label.textContent = pair[1]; row.appendChild(label);
+      for (var v = 0; v <= 3; v++) {
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = v === 0 ? '关' : v + '';
+        if (Number(diyDraft.weights[key] || 0) === v) b.className = 'on';
+        (function(val){
+          b.addEventListener('click', function(){ diyDraft.weights[key] = val; renderDiy(); });
+        })(v);
+        row.appendChild(b);
+      }
+      w.appendChild(row);
+    });
+    var cards = $('diyCards'); cards.innerHTML = '';
+    (diyDraft.cards || []).forEach(function(card, idx){
+      var row = document.createElement('div'); row.className = 'diy-card';
+      var sel = document.createElement('select');
+      [['truth','真心话'],['dare','大冒险'],['event','事件']].forEach(function(t){
+        var o = document.createElement('option'); o.value = t[0]; o.textContent = t[1];
+        if ((card.type || 'truth') === t[0]) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', function(){ card.type = this.value; });
+      var input = document.createElement('input'); input.maxLength = 80; input.placeholder = '写一条只属于你们的卡'; input.value = card.text || '';
+      input.addEventListener('input', function(){ card.text = this.value; });
+      var del = document.createElement('button'); del.type = 'button'; del.textContent = '×';
+      del.addEventListener('click', function(){ diyDraft.cards.splice(idx,1); renderDiy(); });
+      row.appendChild(sel); row.appendChild(input); row.appendChild(del); cards.appendChild(row);
+    });
+    if (!(diyDraft.cards || []).length) {
+      var empty = document.createElement('div'); empty.style.cssText = 'font-size:9.5px;color:var(--dim2);padding:4px 0';
+      empty.textContent = '还没有自定义卡。加一张会替换棋盘上的 6 个 DIY 格。'; cards.appendChild(empty);
+    }
+    $('diyDelete').style.display = diyDraft.builtin ? 'none' : '';
+  }
+  function saveDiy(){
+    ensureDiy();
+    diyDraft.name = ($('diyName').value || '我的预设').slice(0,12);
+    var cards = (diyDraft.cards || []).filter(function(c){ return (c.text || '').trim(); });
+    if (!cards.length) cards = [{type:'truth', text:'今晚，问对方一个你一直想问的问题。'}];
+    diyDraft.cards = cards;
+    diyDraft.builtin = false;
+    var old = -1;
+    diyStore.presets.forEach(function(p, i){ if (p.id === diyDraft.id) old = i; });
+    if (old >= 0) diyStore.presets[old] = clone(diyDraft); else diyStore.presets.push(clone(diyDraft));
+    diyStore.activeId = diyDraft.id;
+    try { localStorage.setItem(DIY_KEY, JSON.stringify(diyStore)); } catch(e){}
+    closeDiy(); render();
+  }
+  function deleteDiy(){
+    ensureDiy();
+    if (!diyDraft || diyDraft.builtin) return;
+    diyStore.presets = diyStore.presets.filter(function(p){ return p.id !== diyDraft.id; });
+    if (!diyStore.presets.length) diyStore = seedStore();
+    diyStore.activeId = diyStore.presets[0].id;
+    try { localStorage.setItem(DIY_KEY, JSON.stringify(diyStore)); } catch(e){}
+    closeDiy(); render();
   }
   function saveSetup(){ try { localStorage.setItem(KEY, JSON.stringify(setup)); } catch(e){} }
   function bindOpts(box, key){
@@ -136,6 +279,7 @@
     });
   });
   function render(){
+    ensureDiy();
     if (setup.n !== 4) { setup.m = 1; setup.f = 1; }
     Array.prototype.forEach.call($('players').children, function(b){ b.classList.toggle('on', Number(b.getAttribute('data-n')) === setup.n); });
     Array.prototype.forEach.call($('modes').children, function(b){ b.classList.toggle('on', b.getAttribute('data-mode') === setup.mode); });
@@ -169,11 +313,23 @@
     } else card.classList.remove('on');
   }
   $('diySelect').addEventListener('change', function(){
-    if (!diyStore) return;
+    ensureDiy();
     diyStore.activeId = this.value;
     try { localStorage.setItem(DIY_KEY, JSON.stringify(diyStore)); } catch(e){}
     render();
   });
+  $('diyEdit').addEventListener('click', openDiy);
+  $('diyClose').addEventListener('click', closeDiy);
+  $('diyMask').addEventListener('click', function(e){ if (e.target === this) closeDiy(); });
+  $('diyAddCard').addEventListener('click', function(){
+    if (!diyDraft) return;
+    diyDraft.cards = diyDraft.cards || [];
+    diyDraft.cards.push({type:'truth', text:''});
+    renderDiy();
+  });
+  $('diySave').addEventListener('click', saveDiy);
+  $('diyDelete').addEventListener('click', deleteDiy);
+  $('diyName').addEventListener('input', function(){ if (diyDraft) diyDraft.name = this.value; });
   $('resumeX').addEventListener('click', function(){ try { localStorage.removeItem(SAVE_KEY); } catch(e){}; render(); });
   $('resumeGo').addEventListener('click', function(){ launch(true); });
   $('start').addEventListener('click', function(){ launch(false); });
