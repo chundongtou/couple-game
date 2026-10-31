@@ -12,7 +12,7 @@
  * 发版注意：改了 app/ 或静态资源后，把 CACHE 版本号 +1（v24 → v25），
  * 老用户下次打开会拿到新 SW 并提示「新版本已就绪」。
  */
-var CACHE = 'couple-voyage-v24';
+var CACHE = 'couple-voyage-v25';
 
 /* 预缓存清单：相对路径，dev 服务根目录 = 构建产物目录，GitHub Pages 子路径同样可用 */
 var PRECACHE = [
@@ -22,9 +22,7 @@ var PRECACHE = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './arcade/index.html',
-  './arcade/thermometer.html'
+  './icons/apple-touch-icon.png'
 ];
 
 var INDEX_KEY = './index.html';
@@ -113,18 +111,33 @@ self.addEventListener('fetch', function (event) {
   event.respondWith(cacheFirst(req));
 });
 
+function fetchWithTimeout(req, ms) {
+  return new Promise(function (resolve, reject) {
+    var timer = setTimeout(function () { reject(new Error('sw-fetch-timeout')); }, ms || 12000);
+    fetch(req).then(function (res) {
+      clearTimeout(timer);
+      resolve(res);
+    }, function (err) {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 function networkFirst(req) {
   var path = pathOf(req);
   var isArcade = path.indexOf('/arcade/') >= 0;
   var isThermo = path.indexOf('/arcade/thermometer.html') >= 0;
+  var isHome = path === '/couple-game/' || path === '/couple-game/index.html' || path === '/' || path === '/index.html';
 
-  return fetch(req).then(function (res) {
+  return fetchWithTimeout(req, 12000).then(function (res) {
     // 只缓存正常响应；首页与游戏厅分别写回，避免互相覆盖
     if (res && res.ok && res.type === 'basic') {
       var copy = res.clone();
       caches.open(CACHE).then(function (cache) {
         if (isArcade) cache.put(req, copy);
-        else cache.put(absUrl(INDEX_KEY), copy);
+        else if (isThermo) cache.put(req, copy);
+        else if (isHome) cache.put(absUrl(INDEX_KEY), copy);
       })["catch"](function () {});
     }
     return res;
@@ -163,6 +176,7 @@ function cacheFirst(req) {
     });
   });
 }
+
 
 
 
