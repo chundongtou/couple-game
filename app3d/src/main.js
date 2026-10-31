@@ -121,6 +121,8 @@ const state = {
   winner: null,
   card: null,
   paused: false,
+  dir: 1,
+  dir: 1,
   usedTruth: [],
   usedDare: []
 };
@@ -137,6 +139,7 @@ const dom = {
   endMask: $('endMask'), endKicker: $('endKicker'), endTitle: $('endTitle'), endText: $('endText'), againBtn: $('againBtn'),
   intro: $('intro'), startBtn: $('startBtn'), toast: $('toast'), fatal: $('fatal'),
   backBtn: $('backBtn'), pauseBtn: $('pauseBtn'), pauseMask: $('pauseMask'),
+  dirMask: $('dirMask'), dirLeft: $('dirLeft'), dirRight: $('dirRight'),
   pauseText: $('pauseText'), resumeBtn: $('resumeBtn'), saveExitBtn: $('saveExitBtn'),
   wishInput: $('wishInput'), wishSave: $('wishSave')
 };
@@ -831,7 +834,7 @@ function rollDice(value) {
 function startGame() {
   clearSave();
   state.started = true;
-  state.phase = 'idle';
+  state.phase = IS_LOOP ? 'choosing' : 'idle';
   state.turn = 0;
   state.heat = 0;
   state.act = 1;
@@ -841,6 +844,7 @@ function startGame() {
   state.winner = null;
   state.card = null;
   state.paused = false;
+  state.dir = 1;
   state.usedTruth = [];
   state.usedDare = [];
   dom.intro.classList.add('off');
@@ -848,7 +852,8 @@ function startGame() {
   placeDice();
   aimCamera(true);
   updateUI();
-  showToast(`${MODE_LABEL || '80 格'}夜航开始 · ${PLAYERS[0].name} 先摇`);
+  if (IS_LOOP) { dom.dirMask.classList.add('on'); }
+  else { showToast(`${MODE_LABEL || '80 格'}夜航开始 · ${PLAYERS[0].name} 先摇`); }
   saveState();
 }
 
@@ -890,7 +895,7 @@ async function moveCurrent(value) {
   let pos = state.positions[i];
   let lap = state.laps[i];
   for (let step = 0; step < value; step++) {
-    const next = (pos + 1) % TOTAL;
+    const next = (pos + state.dir + TOTAL) % TOTAL;
     if (next === 0) lap += 1;
     await tweenToken(tokens[i], next, i, 165);
     pos = next;
@@ -1090,11 +1095,12 @@ function actForProgress() {
 /* ------------------------------------------------------------------ */
 function aimCamera(instant = false) {
   const d = tileData[state.positions[state.turn]] || tileData[0];
-  const behind = d.tangent.clone().multiplyScalar(-4.8);
+  const forward = d.tangent.clone().multiplyScalar(state.dir);
+  const behind = forward.clone().multiplyScalar(-4.8);
   const side = d.normal.clone().multiplyScalar(0.62);
   const up = new THREE.Vector3(0, 5.2, 0);
   cameraDesired.copy(d.pos).add(behind).add(side).add(up);
-  lookDesired.copy(d.pos).add(d.tangent.clone().multiplyScalar(2.8)).add(new THREE.Vector3(0, 0.22, 0));
+  lookDesired.copy(d.pos).add(forward.clone().multiplyScalar(2.8)).add(new THREE.Vector3(0, 0.22, 0));
   if (instant) {
     camera.position.copy(cameraDesired);
     currentLook.copy(lookDesired);
@@ -1142,6 +1148,16 @@ function smooth(x) {
 /* ------------------------------------------------------------------ */
 /* 暂停 / 心愿                                                       */
 /* ------------------------------------------------------------------ */
+function chooseDir(dir) {
+  if (state.phase !== 'choosing') return;
+  state.dir = dir < 0 ? -1 : 1;
+  dom.dirMask.classList.remove('on');
+  state.phase = 'idle';
+  updateUI();
+  saveState();
+  showToast(state.dir > 0 ? '顺时针出发 · 走右边' : '逆时针出发 · 走左边');
+}
+
 function pauseGame() {
   if (!state.started || state.winner !== null) return;
   if (state.phase !== 'idle') { showToast('等这一轮落稳再暂停'); return; }
@@ -1223,7 +1239,8 @@ function updateUI() {
     const em = el.querySelector('em');
     if (em) em.textContent = `${state.positions[i]} / ${TOTAL - 1} 格`;
   });
-  if (state.paused) dom.hint.textContent = '棋局已暂停，进度已保存。';
+  if (state.phase === 'choosing') dom.hint.textContent = '先选环岛方向：顺时针走右边，逆时针走左边。';
+  else if (state.paused) dom.hint.textContent = '棋局已暂停，进度已保存。';
   else if (state.phase === 'rolling') dom.hint.textContent = '骰子落桌之前，先别急着走。';
   else if (state.phase === 'moving') dom.hint.textContent = '棋子正在沿夜航公路前进…';
   else if (state.phase === 'card') dom.hint.textContent = '卡面已经翻开，完成后再交给下一位。';
@@ -1272,6 +1289,7 @@ function saveState() {
       turn: state.turn,
       positions: state.positions.slice(),
       laps: state.laps.slice(),
+      dir: state.dir,
       goalLaps: state.goalLaps,
       act: state.act,
       started: state.started,
@@ -1284,6 +1302,7 @@ function saveState() {
         turn: state.turn,
         positions: state.positions.slice(),
         laps: state.laps.slice(),
+        dir: state.dir,
         goalLaps: state.goalLaps,
         act: state.act,
         ts: Date.now()
@@ -1311,6 +1330,7 @@ function resumeGameFromSave(save) {
   state.heat = Math.max(0, Number(save.heat) || 0);
   state.positions = PLAYERS.map(function(_, i){ return Math.max(0, Math.min(79, Number(save.positions[i]) || 0)); });
   state.laps = PLAYERS.map(function(_, i){ return Math.max(0, Number(save.laps && save.laps[i]) || 0); });
+  state.dir = Number(save.dir) === -1 ? -1 : 1;
   state.goalLaps = IS_LOOP ? LAPS : 1;
   state.act = actForProgress();
   state.winner = null;
@@ -1345,6 +1365,8 @@ if (dom.backBtn) {
     goBackToSetup();
   });
 }
+if (dom.dirLeft) dom.dirLeft.addEventListener('click', function(){ chooseDir(-1); });
+if (dom.dirRight) dom.dirRight.addEventListener('click', function(){ chooseDir(1); });
 if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', pauseGame);
 if (dom.resumeBtn) dom.resumeBtn.addEventListener('click', unpauseGame);
 if (dom.saveExitBtn) dom.saveExitBtn.addEventListener('click', saveAndExit);

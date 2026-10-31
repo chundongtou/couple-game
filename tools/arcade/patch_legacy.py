@@ -1397,6 +1397,36 @@ JS = """
     frame.setAttribute('allow', 'fullscreen');
     frame.src = '../3d/?from=arcade&embed=1';
     document.body.appendChild(frame);
+    var oldCover = document.getElementById('v3Flight3DLoading');
+    if (oldCover) oldCover.remove();
+    var cover = document.createElement('div');
+    cover.id = 'v3Flight3DLoading';
+    cover.className = 'v3-flight3d-loading';
+    cover.innerHTML = '<div class="v3-f3d-spin"></div><b>3D 棋盘加载中…</b><span>第一次加载会慢一点</span><div class="v3-f3d-actions" style="display:none"><button type="button" data-f3d-retry>重新加载</button><button type="button" data-f3d-2d>先用 2D 版</button></div>';
+    document.body.appendChild(cover);
+    var f3dLoaded = false;
+    frame.addEventListener('load', function(){
+      f3dLoaded = true;
+      cover.remove();
+    });
+    var coverTimer = setTimeout(function(){
+      if (f3dLoaded) return;
+      var acts = cover.querySelector('.v3-f3d-actions');
+      if (acts) acts.style.display = 'flex';
+      cover.querySelector('b').textContent = '3D 还没有加载出来';
+      cover.querySelector('span').textContent = '可以重试，或先用 2D 版继续。';
+      var rb = cover.querySelector('[data-f3d-retry]');
+      var fb = cover.querySelector('[data-f3d-2d]');
+      if (rb) rb.addEventListener('click', function(){ cover.remove(); v3LaunchFlight3D(setup, resume); });
+      if (fb) fb.addEventListener('click', function(){
+        cover.remove();
+        var f = document.getElementById('v3Flight3DFrame');
+        if (f) f.remove();
+        window.__v3Flight3DForce2D = true;
+        try { flightStart(); } catch (e) {}
+        setTimeout(function(){ window.__v3Flight3DForce2D = false; }, 300);
+      });
+    }, 10000);
     if (!window.__v3Flight3DMsgBound) {
       window.__v3Flight3DMsgBound = true;
       window.addEventListener('message', function(e){
@@ -1413,6 +1443,8 @@ JS = """
         if (e.data.type !== 'arcade:back') return;
         var f = document.getElementById('v3Flight3DFrame');
         if (f) f.remove();
+        var lc = document.getElementById('v3Flight3DLoading');
+        if (lc) lc.remove();
         try { renderFlightSetup(document.getElementById('gContent')); } catch (err) {}
       });
     }
@@ -1553,7 +1585,7 @@ def patch(html):
     # 旧地址/旧设置不变，开局后切到 3D 棋盘
     html = html.replace(
         "  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};\n  var players=[];",
-        "  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};\n  if(window.v3LaunchFlight3D){try{return window.v3LaunchFlight3D(s);}catch(e){}}\n  var players=[];",
+        "  var s=window._flSetup=window._flSetup||{n:2,m:1,f:1,mode:'A',laps:1,diff:SET.diff};\n  if(window.v3LaunchFlight3D && !window.__v3Flight3DForce2D){try{return window.v3LaunchFlight3D(s);}catch(e){}}\n  var players=[];",
     )
     # 飞行棋：三段式棋盘 / 自定义格 / 追赶 / 自定义称呼
     html = html.replace(
