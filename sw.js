@@ -12,7 +12,7 @@
  * 发版注意：改了 app/ 或静态资源后，把 CACHE 版本号 +1（v24 → v25），
  * 老用户下次打开会拿到新 SW 并提示「新版本已就绪」。
  */
-var CACHE = 'couple-voyage-v25';
+var CACHE = 'couple-voyage-v26';
 
 /* 预缓存清单：相对路径，dev 服务根目录 = 构建产物目录，GitHub Pages 子路径同样可用 */
 var PRECACHE = [
@@ -22,7 +22,8 @@ var PRECACHE = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/apple-touch-icon.png',
+  './assets/cards.js'
 ];
 
 var INDEX_KEY = './index.html';
@@ -176,6 +177,7 @@ function cacheFirst(req) {
     });
   });
 }
+
 
 
 

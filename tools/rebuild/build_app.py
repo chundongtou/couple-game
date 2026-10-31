@@ -111,6 +111,22 @@ def build(outdir=None, release=False):
     out.mkdir(parents=True, exist_ok=True)
     target = out / "index.html"
     target.write_text(html, encoding="utf-8", newline="")
+    # 把题库从单文件里拆出去：首屏 HTML 压到 100KB 以内，弱网更容易打开。
+    try:
+        raw = target.read_text(encoding="utf-8")
+        marker = "<script>\n/* ===== src/data/cards.js ===== */"
+        start = raw.find(marker)
+        if start >= 0:
+            cstart = raw.find(">", start) + 1
+            cend = raw.find("</script>", cstart)
+            if cend >= 0:
+                cards_dir = target.parent / "assets"
+                cards_dir.mkdir(parents=True, exist_ok=True)
+                (cards_dir / "cards.js").write_text(raw[cstart:cend], encoding="utf-8", newline="")
+                raw = raw[:start] + '<script src="assets/cards.js"></script>' + raw[cend + len("</script>"):]
+                target.write_text(raw, encoding="utf-8", newline="")
+    except Exception:
+        pass
     # 静态资源（--release 直接写仓库根时，源/目标可能是同一文件，跳过复制）
     assets = []
     for name in ("manifest.webmanifest", "sw.js"):
