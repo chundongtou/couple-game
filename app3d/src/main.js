@@ -155,7 +155,8 @@ const dom = {
   backBtn: $('backBtn'), pauseBtn: $('pauseBtn'), pauseMask: $('pauseMask'),
   dirMask: $('dirMask'), dirLeft: $('dirLeft'), dirRight: $('dirRight'),
   pauseText: $('pauseText'), resumeBtn: $('resumeBtn'), saveExitBtn: $('saveExitBtn'),
-  wishInput: $('wishInput'), wishSave: $('wishSave')
+  wishInput: $('wishInput'), wishSave: $('wishSave'),
+  voyageLog: $('voyageLog'), logDownload: $('logDownload')
 };
 
 /* ------------------------------------------------------------------ */
@@ -941,6 +942,8 @@ function startGame() {
   state.dir = 1;
   state.usedTruth = [];
   state.usedDare = [];
+  state.stats = { rounds: 0, stars: 0, waves: 0, tasks: 0, events: 0, duels: 0 };
+  state.cardLog = [];
   state._checkpoints = [];
   dom.intro.classList.add('off');
   tokens.forEach((t, i) => boardSetToken(t, 0, i));
@@ -1086,6 +1089,7 @@ function resolveLanding() {
   if (d.type === 'diy') { showCard('diy', d.diyText); return; }
   if (d.type === 'star') {
     state.heat = Math.min(6, state.heat + 1);
+    state.stats.stars += 1;
     state.phase = 'idle';
     updateUI();
     saveState();
@@ -1094,16 +1098,19 @@ function resolveLanding() {
     return;
   }
   if (d.type === 'wave') {
+    state.stats.waves += 1;
     state._waveMove = 2;
     showEvent('暗流', '海面下有一道暗流，把棋子往回推了 2 格。', 0, '退后 2 格');
     return;
   }
   if (d.type === 'event') {
+    state.stats.events += 1;
     const ev = EVENT_CARDS[Math.floor(Math.random() * EVENT_CARDS.length)];
     showEvent(ev.title, ev.text, ev.heat);
     return;
   }
   if (d.type === 'duel') {
+    state.stats.duels += 1;
     showEvent('对撞', '两颗棋子撞在一起。石头剪刀布，赢的人获得 1 点温度；输的人负责倒一杯水。', 1);
     return;
   }
@@ -1139,6 +1146,9 @@ function showCard(type, customText) {
   const isDiy = type === 'diy';
   const text = customText || pickQuestion(isTruth ? 'truth' : 'dare');
   state.card = { type, text };
+  state.stats.tasks += 1;
+  state.cardLog.push({ type: type, text: text });
+  if (state.cardLog.length > 12) state.cardLog.shift();
   dom.cardKicker.textContent = isDiy ? '自定义格' : isTruth ? '真心话' : '大冒险';
   dom.cardKicker.style.color = isDiy ? 'var(--gold)' : isTruth ? 'var(--violet)' : 'var(--rose)';
   dom.cardTitle.textContent = `轮到 ${PLAYERS[state.turn].name}`;
@@ -1200,12 +1210,123 @@ function eventDone() {
 }
 
 function nextTurn() {
+  if (state.turn === PLAYERS.length - 1) state.stats.rounds += 1;
   state.turn = (state.turn + 1) % PLAYERS.length;
   state.phase = 'idle';
   state.act = actForProgress();
   placeDice();
   updateUI();
   saveState();
+}
+
+function logTypeName(type){
+  return ({truth:'真心话', dare:'大冒险', diy:'自定义', duo:'双人任务', memory:'回忆', future:'未来'})[type] || '任务';
+}
+
+function renderVoyageLog(){
+  if (!dom.voyageLog) return;
+  const st = state.stats || {};
+  const winner = state.winner === null ? '' : PLAYERS[state.winner].name;
+  const cards = (state.cardLog || []).slice(-3);
+  let route = '';
+  const maxPos = Math.max.apply(null, state.positions.concat([0]));
+  for (let i = 0; i < TOTAL; i++) {
+    let cls = i <= maxPos ? 'done' : '';
+    state.positions.forEach(function(pos, pi){ if (pos === i && pi < 4) cls += ' p' + pi; });
+    route += '<i class="' + cls + '"></i>';
+  }
+  dom.voyageLog.innerHTML =
+    '<div class="vlog-head"><b>今晚的航海日志</b><span>' + (MODE_LABEL || '80 格') + ' · ' + (st.rounds || 0) + ' 回合</span></div>' +
+    '<div class="vlog-stats">' +
+      '<div class="vlog-stat"><em>WINNER</em><b>' + winner + '</b></div>' +
+      '<div class="vlog-stat"><em>温度</em><b>' + state.heat + '</b></div>' +
+      '<div class="vlog-stat"><em>抽卡</em><b>' + (st.tasks || 0) + '</b></div>' +
+      '<div class="vlog-stat"><em>星光</em><b>' + (st.stars || 0) + '</b></div>' +
+      '<div class="vlog-stat"><em>暗流</em><b>' + (st.waves || 0) + '</b></div>' +
+      '<div class="vlog-stat"><em>事件</em><b>' + ((st.events || 0) + (st.duels || 0)) + '</b></div>' +
+    '</div>' +
+    '<div class="vlog-route">' + route + '</div>' +
+    '<div class="vlog-cards">' + (cards.length ? cards.map(function(c){ return '<div><b>' + logTypeName(c.type) + '</b> · ' + c.text + '</div>'; }).join('') : '这一局没有留下任务卡。') + '</div>';
+}
+
+function wrapCanvas(ctx, text, maxWidth){
+  const words = String(text || '').split('');
+  let line = '', lines = [];
+  words.forEach(function(ch){
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = ch; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, 4);
+}
+
+function downloadVoyageLog(){
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 1200;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 900, 1200);
+  g.addColorStop(0, '#0b0617'); g.addColorStop(.55, '#160b2a'); g.addColorStop(1, '#070411');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 900, 1200);
+  ctx.fillStyle = 'rgba(243,200,121,.08)';
+  ctx.beginPath(); ctx.arc(740, 90, 220, 0, Math.PI * 2); ctx.fill();
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f3c879'; ctx.font = '800 22px "Microsoft YaHei",sans-serif';
+  ctx.fillText('COUPLE NIGHT VOYAGE · 3D', 70, 86);
+  ctx.fillStyle = '#f7efff'; ctx.font = '900 58px "Microsoft YaHei",sans-serif';
+  ctx.fillText('今晚的航海日志', 70, 160);
+  const win = state.winner === null ? '' : PLAYERS[state.winner].name;
+  ctx.fillStyle = '#a99abf'; ctx.font = '400 22px "Microsoft YaHei",sans-serif';
+  ctx.fillText((MODE_LABEL || '80 格') + ' · ' + (state.stats.rounds || 0) + ' 回合 · 温度 ' + state.heat, 72, 205);
+  ctx.fillStyle = '#ffd166'; ctx.font = '900 40px "Microsoft YaHei",sans-serif';
+  ctx.fillText(win + ' 先靠岸', 70, 285);
+
+  // route
+  const x0 = 70, y0 = 350, w = 760, gap = 4;
+  for (let i = 0; i < TOTAL; i++) {
+    ctx.fillStyle = i <= Math.max.apply(null, state.positions) ? '#ff5f9e' : 'rgba(255,255,255,.13)';
+    const x = x0 + (w / TOTAL) * i;
+    ctx.fillRect(x, y0, Math.max(2, w / TOTAL - gap), 10);
+  }
+  let markers = '';
+  state.positions.forEach(function(pos, pi){ markers += PLAYERS[pi].name + ' ' + pos + ' 格  '; });
+  ctx.fillStyle = '#a99abf'; ctx.font = '400 20px "Microsoft YaHei",sans-serif';
+  ctx.fillText(markers, 70, 395);
+
+  // stats
+  const stats = [
+    ['抽卡', state.stats.tasks || 0], ['星光', state.stats.stars || 0],
+    ['暗流', state.stats.waves || 0], ['事件', (state.stats.events || 0) + (state.stats.duels || 0)]
+  ];
+  stats.forEach(function(pair, i){
+    const x = 70 + (i % 4) * 190;
+    ctx.fillStyle = 'rgba(255,255,255,.055)'; ctx.fillRect(x, 445, 170, 86);
+    ctx.fillStyle = '#76678f'; ctx.font = '400 16px "Microsoft YaHei",sans-serif'; ctx.fillText(pair[0], x + 16, 475);
+    ctx.fillStyle = '#f7efff'; ctx.font = '800 30px "Microsoft YaHei",sans-serif'; ctx.fillText(String(pair[1]), x + 16, 510);
+  });
+
+  // cards
+  ctx.fillStyle = '#f3c879'; ctx.font = '800 22px "Microsoft YaHei",sans-serif';
+  ctx.fillText('本局留下的话', 70, 600);
+  const cards = (state.cardLog || []).slice(-3);
+  ctx.fillStyle = '#c9badf'; ctx.font = '400 19px "Microsoft YaHei",sans-serif';
+  let yy = 645;
+  cards.forEach(function(card){
+    ctx.fillStyle = '#f3c879'; ctx.font = '700 17px "Microsoft YaHei",sans-serif';
+    ctx.fillText('· ' + logTypeName(card.type), 72, yy); yy += 26;
+    ctx.fillStyle = '#c9badf'; ctx.font = '400 19px "Microsoft YaHei",sans-serif';
+    wrapCanvas(ctx, card.text, 720).forEach(function(line){ ctx.fillText(line, 92, yy); yy += 27; });
+    yy += 12;
+  });
+  if (!cards.length) { ctx.fillStyle = '#76678f'; ctx.fillText('这一局没有留下任务卡。', 72, yy); }
+
+  ctx.fillStyle = 'rgba(243,200,121,.6)'; ctx.font = '400 16px "Microsoft YaHei",sans-serif';
+  ctx.fillText('升温夜航 · 只属于你们的 80 格', 70, 1120);
+  const a = document.createElement('a');
+  a.download = 'couple-voyage-' + Date.now() + '.png';
+  a.href = c.toDataURL('image/png');
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast('航海日志已生成');
 }
 
 function finish() {
@@ -1222,6 +1343,8 @@ function finish() {
     dom.endTitle.textContent = `${winner} 先到终点`;
     dom.endText.textContent = `温度 ${state.heat} · 80 格走完。把赢家的心愿写下来，存进「升温夜航」的回忆册。`;
   }
+  renderVoyageLog();
+  try { localStorage.setItem('couple3d.lastVoyage', JSON.stringify({ winner: state.winner, names: PLAYERS.map(function(p){ return p.name; }), stats: state.stats, cards: state.cardLog.slice(-6), heat: state.heat, mode: MODE, ts: Date.now() })); } catch (e) {}
   dom.endMask.classList.add('on');
   updateUI();
 }
@@ -1542,6 +1665,7 @@ if (dom.dirRight) dom.dirRight.addEventListener('click', function(){ chooseDir(1
 if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', pauseGame);
 if (dom.resumeBtn) dom.resumeBtn.addEventListener('click', unpauseGame);
 if (dom.saveExitBtn) dom.saveExitBtn.addEventListener('click', saveAndExit);
+if (dom.logDownload) dom.logDownload.addEventListener('click', downloadVoyageLog);
 if (dom.wishSave) dom.wishSave.addEventListener('click', saveWish);
 
 try {
