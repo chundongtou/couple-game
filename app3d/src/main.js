@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import './style.css';
 import { TRUTHS, DARES } from './questions.js';
-import { DUO_TASKS, MEMORIES, FUTURES } from './extras.js';
+import { DUO_TASKS, FUTURES } from './extras.js';
 
 /* ------------------------------------------------------------------ */
 /* 80 格夜航公路                                                       */
@@ -24,7 +24,6 @@ const TYPE_INFO = {
   star: { icon: '⭐', label: '星光', color: 0xffd166 },
   wave: { icon: '🌊', label: '暗流', color: 0x4da6ff },
   duo: { icon: '🤝', label: '双人任务', color: 0xff9f43 },
-  memory: { icon: '📷', label: '回忆', color: 0x66d9ff },
   future: { icon: '🌅', label: '未来', color: 0x7ee081 }
 };
 
@@ -37,10 +36,10 @@ const EVENT_CARDS = [
 ];
 
 const TYPE_SEQ = [
-  'truth', 'dare', 'duo', 'event', 'memory', 'safe', 'truth', 'duel',
-  'dare', 'duo', 'event', 'future', 'safe', 'memory', 'dare', 'truth',
-  'duo', 'event', 'star', 'memory', 'dare', 'truth', 'wave', 'future',
-  'truth', 'dare', 'safe'
+  'truth', 'dare', 'truth', 'duo', 'truth', 'dare', 'event', 'truth',
+  'dare', 'truth', 'duel', 'dare', 'truth', 'event', 'dare', 'truth',
+  'duo', 'event', 'star', 'truth', 'dare', 'truth', 'wave', 'future',
+  'truth', 'dare', 'safe', 'truth', 'dare', 'event'
 ];
 
 const QS = new URLSearchParams(location.search);
@@ -948,7 +947,6 @@ function startGame() {
   state.usedTruth = [];
   state.usedDare = [];
   state.usedDuo = [];
-  state.usedMemory = [];
   state.usedFuture = [];
   state.stats = { rounds: 0, stars: 0, waves: 0, tasks: 0, events: 0, duels: 0 };
   state.cardLog = [];
@@ -1093,7 +1091,7 @@ function resolveLanding() {
     showEvent(n, d.i === ACT_CUT[0] ? '航线过半。接下来是更靠近彼此的「升温」段。温度 +1。' : '灯塔已经在视线里。最后一段「靠岸」，把今晚收进回忆。温度 +1。', 1);
     return;
   }
-  if (d.type === 'truth' || d.type === 'dare' || d.type === 'duo' || d.type === 'memory' || d.type === 'future') { showCard(d.type); return; }
+  if (d.type === 'truth' || d.type === 'dare' || d.type === 'duo' || d.type === 'future') { showCard(d.type); return; }
   if (d.type === 'diy') { showCard('diy', d.diyText); return; }
   if (d.type === 'star') {
     state.heat = Math.min(6, state.heat + 1);
@@ -1134,9 +1132,9 @@ function resolveLanding() {
 }
 
 function pickQuestion(kind) {
-  const pools = { truth: TRUTHS, dare: DARES, duo: DUO_TASKS, memory: MEMORIES, future: FUTURES };
+  const pools = { truth: TRUTHS, dare: DARES, duo: DUO_TASKS, future: FUTURES };
   const pool = pools[kind] || DARES;
-  const keys = { truth: 'usedTruth', dare: 'usedDare', duo: 'usedDuo', memory: 'usedMemory', future: 'usedFuture' };
+  const keys = { truth: 'usedTruth', dare: 'usedDare', duo: 'usedDuo', future: 'usedFuture' };
   const used = state[keys[kind]] || state.usedDare;
   if (!pool.length) return '今晚，问对方一个你一直想问的问题。';
   if (used.length >= pool.length) used.length = 0;
@@ -1156,7 +1154,6 @@ function showCard(type, customText) {
     truth: { label: '真心话', color: 'var(--violet)', done: '回答完了 · 温度 +1' },
     dare: { label: '大冒险', color: 'var(--rose)', done: '做完了 · 温度 +1' },
     duo: { label: '双人任务', color: '#ff9f43', done: '一起做完 · 温度 +1' },
-    memory: { label: '回忆', color: '#66d9ff', done: '讲完了 · 温度 +1' },
     future: { label: '未来', color: '#7ee081', done: '写进未来 · 温度 +1' },
     diy: { label: '自定义格', color: 'var(--gold)', done: '做完了 · 温度 +1' }
   }[type] || { label: '任务', color: 'var(--gold)', done: '做完了 · 温度 +1' };
@@ -1236,7 +1233,7 @@ function nextTurn() {
 }
 
 function logTypeName(type){
-  return ({truth:'真心话', dare:'大冒险', diy:'自定义', duo:'双人任务', memory:'回忆', future:'未来'})[type] || '任务';
+  return ({truth:'真心话', dare:'大冒险', diy:'自定义', duo:'双人任务', future:'未来'})[type] || '任务';
 }
 
 function renderVoyageLog(){
