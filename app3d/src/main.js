@@ -19,12 +19,23 @@ const TYPE_INFO = {
   duel: { icon: '⚔️', label: '对撞', color: 0xff8a3d },
   finale: { icon: '🏁', label: '终点', color: 0xffd166 },
   branch: { icon: '🌀', label: '支线', color: 0xff7a59 },
-  diy: { icon: '✍️', label: '自定义', color: 0x66d9ff }
+  diy: { icon: '✍️', label: '自定义', color: 0x66d9ff },
+  star: { icon: '⭐', label: '星光', color: 0xffd166 },
+  wave: { icon: '🌊', label: '暗流', color: 0x4da6ff }
 };
+
+const EVENT_CARDS = [
+  { title: '海风', text: '一阵海风把你们吹近了一点。互相说一句「今天最想听的话」，温度 +1。', heat: 1 },
+  { title: '灯塔信号', text: '远处的灯塔闪了两下。说出一个你们还没一起做过、但想做的事，温度 +1。', heat: 1 },
+  { title: '甲板舞', text: '船上放起一首慢歌。牵着手站十秒，谁先笑谁讲一个秘密；温度 +1。', heat: 1 },
+  { title: '夜航广播', text: '广播里念到一个陌生地名。如果现在能下船，你们最想去哪里？温度 +1。', heat: 1 },
+  { title: '潮汐', text: '浪把一颗玻璃珠推到你脚边。许一个只有今晚知道的愿望，温度 +1。', heat: 1 }
+];
 
 const TYPE_SEQ = [
   'truth', 'dare', 'truth', 'event', 'dare', 'safe', 'truth', 'duel',
-  'dare', 'truth', 'event', 'dare', 'safe', 'truth', 'dare', 'truth', 'event'
+  'dare', 'truth', 'event', 'dare', 'safe', 'truth', 'dare', 'truth', 'event',
+  'star', 'dare', 'truth', 'wave', 'event', 'truth', 'dare', 'safe'
 ];
 
 const QS = new URLSearchParams(location.search);
@@ -42,7 +53,8 @@ const OPEN_POINTS = [
   [0.0, 0.0], [-1.8, 2.8], [-3.8, 5.5], [-2.4, 8.4], [0.8, 9.7],
   [3.7, 12.0], [3.1, 15.2], [0.9, 17.6], [-2.6, 19.1], [-4.3, 22.0],
   [-2.7, 24.9], [0.5, 26.4], [3.5, 28.7], [4.1, 31.8], [1.9, 34.4],
-  [-1.0, 36.0], [-3.0, 38.7], [-1.3, 41.6], [1.8, 43.2]
+  [-1.0, 36.0], [-3.0, 38.7], [-1.3, 41.6], [1.8, 43.2],
+  [1.2, 46.2], [0.3, 49.2]
 ];
 const LOOP_POINTS = [
   [0.0, 0.0], [4.8, 1.9], [8.0, 6.1], [7.0, 10.9], [3.2, 13.4],
@@ -240,7 +252,7 @@ function addStars() {
 function addOcean() {
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(100, 100),
-    new THREE.MeshStandardMaterial({ color: 0x05030d, roughness: 0.48, metalness: 0.22 })
+    new THREE.MeshBasicMaterial({ color: 0x04020a })
   );
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(0, -1.15, 20);
@@ -284,6 +296,8 @@ function buildRoad() {
   if (IS_LOOP) buildLoopIsland();
   buildRoadLamps();
   if (HAS_BRANCH) buildBranchRoads();
+  buildFinishPlaza();
+  buildWorldDecor();
 }
 
 function sampleCurve(n = 420) {
@@ -375,6 +389,7 @@ function buildTile(d) {
   tile.userData.type = d.type;
 
   const label = makeTileLabel(d);
+  if (d.i >= TOTAL - 8) label.visible = false;
   label.position.copy(d.pos);
   label.position.y = 0.62;
   roadGroup.add(label);
@@ -509,6 +524,82 @@ function buildLoopIsland() {
   roadGroup.add(label);
 }
 
+function buildFinishPlaza() {
+  if (IS_LOOP) return;
+  const d = tileData[TOTAL - 1];
+  const plaza = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.05, 1.16, 0.08, 48),
+    new THREE.MeshStandardMaterial({ color: 0x1a0d2c, roughness: 0.32, metalness: 0.5 })
+  );
+  plaza.position.copy(d.pos);
+  plaza.position.y = 0.02;
+  roadGroup.add(plaza);
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.92, 0.025, 8, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.55 })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.copy(d.pos);
+  ring.position.y = 0.075;
+  roadGroup.add(ring);
+  // 终点只用灯塔与广场，避免最后一个拱门和灯塔重复。
+
+}
+
+function buildCheckpointGate(i, labelText, color) {
+  const d = tileData[i];
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.28, roughness: 0.3, metalness: 0.6 });
+  [-0.92, 0.92].forEach(function(side){
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.045, 1.15, 8), mat);
+    p.position.copy(d.normal.clone().multiplyScalar(side));
+    p.position.y = 0.57;
+    g.add(p);
+  });
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.028, 0.028), mat);
+  beam.position.y = 1.12;
+  g.add(beam);
+  const label = textSprite(labelText, {
+    font: '800 30px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif',
+    color: '#fff0cf', width: 240, height: 64
+  });
+  label.position.y = 1.38;
+  label.scale.set(1.0, 0.28, 1);
+  g.add(label);
+  g.position.copy(d.pos);
+  roadGroup.add(g);
+}
+
+function buildWorldDecor() {
+  // 远月与浮岛：把公路两侧的空白填起来
+  // 星空已由粒子层提供，不再放巨大月球，避免近距离只露出边缘弧。
+
+
+  // 不再放大型浮岛：近距离会形成遮挡整个镜头的暗色锥体。
+  // 沿途浮灯
+  const lanternMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+  const lanternGeo = new THREE.SphereGeometry(0.045, 8, 6);
+  for (let i = 4; i < TOTAL - 2; i += 9) {
+    const d = tileData[i];
+    [-1.65, 1.65].forEach(function(side, k){
+      const lamp = new THREE.Mesh(lanternGeo, lanternMat);
+      lamp.position.copy(d.pos).add(d.normal.clone().multiplyScalar(side));
+      lamp.position.y = 0.55 + (i % 3) * 0.12;
+      scene.add(lamp);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: radialTexture(0.22), color: 0xff9a5c, transparent: true,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      halo.position.copy(lamp.position);
+      halo.scale.set(0.55, 0.55, 1);
+      scene.add(halo);
+    });
+  }
+
+  buildCheckpointGate(ACT_CUT[0], '第 二 幕', 0xff5f9e);
+  buildCheckpointGate(ACT_CUT[1], '第 三 幕', 0x9b6cff);
+}
+
 function buildStartGate() {
   const d = tileData[0];
   const g = new THREE.Group();
@@ -570,8 +661,9 @@ function buildLighthouse() {
   label.scale.set(0.8, 0.3, 1);
   label.position.y = 1.62;
   g.add(label);
-  g.scale.setScalar(0.78);
-  g.position.copy(d.pos).add(d.normal.clone().multiplyScalar(1.15));
+
+  g.scale.setScalar(0.92);
+  g.position.copy(d.pos).add(d.normal.clone().multiplyScalar(1.75));
   roadGroup.add(g);
 }
 
@@ -849,6 +941,7 @@ function startGame() {
   state.dir = 1;
   state.usedTruth = [];
   state.usedDare = [];
+  state._checkpoints = [];
   dom.intro.classList.add('off');
   tokens.forEach((t, i) => boardSetToken(t, 0, i));
   placeDice();
@@ -951,15 +1044,63 @@ function animateBranch(playerIndex, slot) {
   });
 }
 
+async function moveBack(value) {
+  const i = state.turn;
+  state.phase = 'moving';
+  updateUI();
+  if (!IS_LOOP) {
+    const from = state.positions[i];
+    const to = Math.max(0, from - value);
+    for (let p = from - 1; p >= to; p--) {
+      await tweenToken(tokens[i], p, i, 170);
+      state.positions[i] = p;
+      updatePlayers();
+      updateUI();
+    }
+  } else {
+    let pos = state.positions[i];
+    for (let step = 0; step < value; step++) {
+      const next = (pos - state.dir + TOTAL) % TOTAL;
+      await tweenToken(tokens[i], next, i, 170);
+      pos = next;
+      state.positions[i] = pos;
+      updatePlayers();
+      updateUI();
+    }
+  }
+}
+
 function resolveLanding() {
   const d = tileData[state.positions[state.turn]];
   if (!d) { nextTurn(); return; }
   state.act = actForProgress();
   updateUI();
+  if (!IS_LOOP && (d.i === ACT_CUT[0] || d.i === ACT_CUT[1]) && !(state._checkpoints || []).includes(d.i)) {
+    state._checkpoints = state._checkpoints || [];
+    state._checkpoints.push(d.i);
+    const n = d.i === ACT_CUT[0] ? '第二幕' : '第三幕';
+    showEvent(n, d.i === ACT_CUT[0] ? '航线过半。接下来是更靠近彼此的「升温」段。温度 +1。' : '灯塔已经在视线里。最后一段「靠岸」，把今晚收进回忆。温度 +1。', 1);
+    return;
+  }
   if (d.type === 'truth' || d.type === 'dare') { showCard(d.type); return; }
   if (d.type === 'diy') { showCard('diy', d.diyText); return; }
+  if (d.type === 'star') {
+    state.heat = Math.min(6, state.heat + 1);
+    state.phase = 'idle';
+    updateUI();
+    saveState();
+    showToast('⭐ 星光落在你这边 · 温度 +1');
+    nextTurn();
+    return;
+  }
+  if (d.type === 'wave') {
+    state._waveMove = 2;
+    showEvent('暗流', '海面下有一道暗流，把棋子往回推了 2 格。', 0, '退后 2 格');
+    return;
+  }
   if (d.type === 'event') {
-    showEvent('海风', '一阵海风把你们吹近了一点。互相说一句「今天最想听的话」，温度 +1。', 1);
+    const ev = EVENT_CARDS[Math.floor(Math.random() * EVENT_CARDS.length)];
+    showEvent(ev.title, ev.text, ev.heat);
     return;
   }
   if (d.type === 'duel') {
@@ -1037,6 +1178,12 @@ function eventDone() {
   dom.eventMask.classList.remove('on');
   if (state._eventHeat) { state.heat += state._eventHeat; showToast('温度 +1'); }
   state._eventHeat = 0;
+  var back = state._waveMove || 0;
+  state._waveMove = 0;
+  if (back) {
+    moveBack(back).then(function(){ resolveLanding(); });
+    return;
+  }
   var slot = state._branchSlot;
   state._branchSlot = null;
   if (slot != null && branchPaths[slot]) {
@@ -1098,11 +1245,26 @@ function actForProgress() {
 function aimCamera(instant = false) {
   const d = tileData[state.positions[state.turn]] || tileData[0];
   const forward = d.tangent.clone().multiplyScalar(state.dir);
-  const behind = forward.clone().multiplyScalar(-4.8);
-  const side = d.normal.clone().multiplyScalar(0.62);
-  const up = new THREE.Vector3(0, 5.2, 0);
-  cameraDesired.copy(d.pos).add(behind).add(side).add(up);
-  lookDesired.copy(d.pos).add(forward.clone().multiplyScalar(2.8)).add(new THREE.Vector3(0, 0.22, 0));
+  const finishNear = !IS_LOOP && d.i >= TOTAL - 8 && d.i < TOTAL - 1;
+  let behind, side, up, lookAt;
+  if (finishNear) {
+    const end = tileData[TOTAL - 1];
+    const toEnd = end.pos.clone().sub(d.pos).setY(0);
+    if (toEnd.lengthSq() < 0.01) toEnd.copy(forward);
+    toEnd.normalize();
+    behind = toEnd.clone().multiplyScalar(-4.0);
+    side = d.normal.clone().multiplyScalar(0.30);
+    up = new THREE.Vector3(0, 4.4, 0);
+    lookAt = end.pos.clone().add(new THREE.Vector3(0, 0.28, 0));
+    cameraDesired.copy(d.pos).add(behind).add(side).add(up);
+    lookDesired.copy(lookAt);
+  } else {
+    behind = forward.clone().multiplyScalar(-4.8);
+    side = d.normal.clone().multiplyScalar(0.62);
+    up = new THREE.Vector3(0, 5.2, 0);
+    cameraDesired.copy(d.pos).add(behind).add(side).add(up);
+    lookDesired.copy(d.pos).add(forward.clone().multiplyScalar(2.8)).add(new THREE.Vector3(0, 0.22, 0));
+  }
   if (instant) {
     camera.position.copy(cameraDesired);
     currentLook.copy(lookDesired);
@@ -1241,6 +1403,13 @@ function updateUI() {
     const em = el.querySelector('em');
     if (em) em.textContent = `${state.positions[i]} / ${TOTAL - 1} 格`;
   });
+  if (dom.routeFill) {
+    const totalUnits = IS_LOOP ? TOTAL * state.goalLaps : TOTAL - 1;
+    const doneUnits = IS_LOOP ? (state.laps[state.turn] * TOTAL + state.positions[state.turn]) : state.positions[state.turn];
+    const pct = Math.max(0, Math.min(100, (doneUnits / totalUnits) * 100));
+    dom.routeFill.style.width = pct.toFixed(1) + '%';
+    dom.routeText.textContent = IS_LOOP ? ('圈 ' + Math.min(state.laps[state.turn] + 1, state.goalLaps) + '/' + state.goalLaps + ' · ' + state.positions[state.turn] + ' 格') : (state.positions[state.turn] + ' / ' + (TOTAL - 1));
+  }
   if (state.phase === 'choosing') dom.hint.textContent = '先选环岛方向：顺时针走右边，逆时针走左边。';
   else if (state.paused) dom.hint.textContent = '棋局已暂停，进度已保存。';
   else if (state.phase === 'rolling') dom.hint.textContent = '骰子落桌之前，先别急着走。';
@@ -1358,6 +1527,7 @@ dom.againBtn.addEventListener('click', again);
 window.__proto3d = {
   state,
   players: PLAYERS,
+  tiles: tileData,
   forceRoll: (v) => { forcedRoll = Math.max(1, Math.min(6, Number(v) || 1)); }
 };
 

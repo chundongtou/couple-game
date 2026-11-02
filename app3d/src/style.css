@@ -42,7 +42,7 @@ button{font-family:inherit}
 .turn-pill{align-self:flex-start;font-size:10px;letter-spacing:.10em;color:var(--dim);padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(11,6,23,.46);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 
 /* legend */
-.legend{position:absolute;left:18px;right:18px;top:calc(var(--safe-t) + 132px);z-index:12;display:flex;justify-content:center;gap:12px;font-size:8.5px;color:var(--dim2);pointer-events:none;letter-spacing:.03em;text-shadow:0 1px 8px #000}
+.legend{position:absolute;left:18px;right:18px;top:calc(var(--safe-t) + 132px);z-index:12;display:flex;justify-content:center;gap:7px;font-size:8.5px;color:var(--dim2);pointer-events:none;letter-spacing:.03em;text-shadow:0 1px 8px #000}
 .legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .dot{width:6px;height:6px;border-radius:2px;display:inline-block;box-shadow:0 0 8px currentColor}
 .dot.truth{background:#a47bff;color:#a47bff}
@@ -162,3 +162,14 @@ button{font-family:inherit}
 .players.four .p-chip em{font-size:8px}
 .p2 .p-dot{background:var(--violet);box-shadow:0 0 12px rgba(155,108,255,.8)}
 .p3 .p-dot{background:#3fd6c0;box-shadow:0 0 12px rgba(63,214,192,.8)}
+
+.dot.star{background:#ffd166;color:#ffd166}
+.dot.wave{background:#4da6ff;color:#4da6ff}
+.route-card{position:absolute;left:18px;right:18px;top:calc(var(--safe-t) + 158px);z-index:14;pointer-events:none}
+.route-head{display:flex;align-items:center;justify-content:space-between;font-size:8px;letter-spacing:.12em;color:var(--dim2);margin:0 2px 5px}
+.route-head b{color:var(--gold);font-size:8.5px;letter-spacing:.04em}
+.route-track{position:relative;height:4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;box-shadow:0 0 12px rgba(155,108,255,.16)}
+.route-track i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#9b6cff,#ff5f9e,#f3c879);box-shadow:0 0 10px rgba(255,95,158,.6);transition:width .35s ease}
+.rcut{position:absolute;top:-2px;bottom:-2px;width:1px;background:rgba(255,255,255,.32)}
+.rc1{left:34%}.rc2{left:68%}
+@media (max-height:700px){.route-card{top:calc(var(--safe-t) + 146px)}}
