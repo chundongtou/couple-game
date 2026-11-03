@@ -195,3 +195,6 @@ button{font-family:inherit}
 .vlog-cards b{color:var(--violet);font-weight:700}
 .log-download{width:100%;height:38px;border-radius:11px;border:1px solid rgba(243,200,121,.32);background:rgba(243,200,121,.08);color:var(--gold);font-size:10.5px;margin:0 0 10px}
 @media (max-height:700px){.voyage-log{max-height:180px;overflow-y:auto}}
+
+.route-map{display:block;width:100%;height:44px;margin:0 0 4px;opacity:.92}
+@media (max-height:700px){.route-map{height:34px}}

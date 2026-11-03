@@ -54,16 +54,17 @@ const MODE_LABEL = ({ A: '对飞', B: '环岛', C: '双轨', D: '融合' }[MODE]
 const BRANCH_SLOTS = [24, 48, 72];
 
 const OPEN_POINTS = [
-  [0.0, 0.0], [-1.8, 2.8], [-3.8, 5.5], [-2.4, 8.4], [0.8, 9.7],
-  [3.7, 12.0], [3.1, 15.2], [0.9, 17.6], [-2.6, 19.1], [-4.3, 22.0],
-  [-2.7, 24.9], [0.5, 26.4], [3.5, 28.7], [4.1, 31.8], [1.9, 34.4],
-  [-1.0, 36.0], [-3.0, 38.7], [-1.3, 41.6], [1.8, 43.2],
-  [1.2, 46.2], [0.3, 49.2]
+  // 从心形左下起航，沿左叶、心尖缺口、右叶，最后进入灯塔中心。
+  [-4.2, 2.2], [-6.4, 5.2], [-7.6, 9.4], [-7.0, 13.8], [-5.2, 17.8],
+  [-2.8, 20.6], [-0.8, 21.8], [0.0, 19.4], [0.8, 21.8], [2.8, 20.6],
+  [5.2, 17.8], [7.0, 13.8], [7.6, 9.4], [6.4, 5.2], [4.2, 2.2],
+  [2.2, 5.2], [0.0, 8.2]
 ];
 const LOOP_POINTS = [
-  [0.0, 0.0], [4.8, 1.9], [8.0, 6.1], [7.0, 10.9], [3.2, 13.4],
-  [-1.3, 12.5], [-5.4, 9.0], [-6.7, 4.5], [-3.8, 1.1], [0.6, -1.3],
-  [3.8, -0.3]
+  // 环岛是一颗完整的心：从心尖出发，逆时针/顺时针都绕一圈回到心尖。
+  [0.0, 0.0], [-4.0, 2.6], [-6.8, 6.2], [-7.8, 10.8], [-6.6, 15.8],
+  [-3.8, 19.8], [-1.2, 21.4], [0.0, 18.8], [1.2, 21.4], [3.8, 19.8],
+  [6.6, 15.8], [7.8, 10.8], [6.8, 6.2], [4.0, 2.6]
 ];
 const CONTROL_POINTS = IS_LOOP ? LOOP_POINTS : OPEN_POINTS;
 
@@ -141,6 +142,7 @@ const state = {
   paused: false,
   dir: 1,
   dir: 1,
+  flyUntil: 0,
   usedTruth: [],
   usedDare: []
 };
@@ -948,6 +950,7 @@ function startGame() {
   state.usedDare = [];
   state.usedDuo = [];
   state.usedFuture = [];
+  state.flyUntil = performance.now() + 2400;
   state.stats = { rounds: 0, stars: 0, waves: 0, tasks: 0, events: 0, duels: 0 };
   state.cardLog = [];
   state._checkpoints = [];
@@ -957,7 +960,7 @@ function startGame() {
   aimCamera(true);
   updateUI();
   if (IS_LOOP) { dom.dirMask.classList.add('on'); }
-  else { showToast(`${MODE_LABEL || '80 格'}夜航开始 · ${PLAYERS[0].name} 先摇`); }
+  else { showToast('♡ 心形航线 · ' + (MODE_LABEL || '夜航')); }
   saveState();
 }
 
@@ -1379,6 +1382,13 @@ function actForProgress() {
 /* 镜头                                                               */
 /* ------------------------------------------------------------------ */
 function aimCamera(instant = false) {
+  if (state.flyUntil && performance.now() < state.flyUntil) {
+    const center = tileData[Math.floor(TOTAL / 2)].pos;
+    cameraDesired.set(center.x, 25, center.z - 15);
+    lookDesired.set(center.x, 0, center.z);
+    if (instant) { camera.position.copy(cameraDesired); currentLook.copy(lookDesired); camera.lookAt(currentLook); }
+    return;
+  }
   const d = tileData[state.positions[state.turn]] || tileData[0];
   const forward = d.tangent.clone().multiplyScalar(state.dir);
   const finishNear = !IS_LOOP && d.i >= TOTAL - 8 && d.i < TOTAL - 1;
@@ -1520,6 +1530,47 @@ function renderPlayersUI() {
   }).join('');
 }
 
+function drawRouteMap() {
+  const c = dom.routeMap;
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  tileData.forEach(function(d){
+    minX = Math.min(minX, d.pos.x); maxX = Math.max(maxX, d.pos.x);
+    minZ = Math.min(minZ, d.pos.z); maxZ = Math.max(maxZ, d.pos.z);
+  });
+  const pad = 12;
+  const sx = (W - pad * 2) / Math.max(0.001, maxX - minX);
+  const sy = (H - pad * 2) / Math.max(0.001, maxZ - minZ);
+  const sc = Math.min(sx, sy);
+  const ox = (W - (maxX - minX) * sc) / 2;
+  const oz = (H - (maxZ - minZ) * sc) / 2;
+  const pt = function(d){ return { x: ox + (d.pos.x - minX) * sc, y: H - (oz + (d.pos.z - minZ) * sc) }; };
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255,95,158,.45)';
+  ctx.beginPath();
+  tileData.forEach(function(d, i){ const p = pt(d); if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  if (IS_LOOP) ctx.closePath();
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(243,200,121,.4)';
+  ctx.stroke();
+  tileData.forEach(function(d, i){
+    if (i % 3 !== 0 && i !== TOTAL - 1 && i !== 0) return;
+    const p = pt(d);
+    ctx.fillStyle = i === TOTAL - 1 ? '#ffd166' : i === 0 ? '#f3c879' : 'rgba(255,255,255,.38)';
+    ctx.beginPath(); ctx.arc(p.x, p.y, i === TOTAL - 1 || i === 0 ? 3 : 1.5, 0, Math.PI * 2); ctx.fill();
+  });
+  state.positions.forEach(function(pos, i){
+    const p = pt(tileData[pos] || tileData[0]);
+    ctx.fillStyle = PLAYERS[i].color || '#fff';
+    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(7,4,17,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+}
+
 function updateUI() {
   const p = PLAYERS[state.turn];
   dom.heatNum.textContent = state.heat;
@@ -1545,6 +1596,7 @@ function updateUI() {
     const pct = Math.max(0, Math.min(100, (doneUnits / totalUnits) * 100));
     dom.routeFill.style.width = pct.toFixed(1) + '%';
     dom.routeText.textContent = IS_LOOP ? ('圈 ' + Math.min(state.laps[state.turn] + 1, state.goalLaps) + '/' + state.goalLaps + ' · ' + state.positions[state.turn] + ' 格') : (state.positions[state.turn] + ' / ' + (TOTAL - 1));
+    drawRouteMap();
   }
   if (state.phase === 'choosing') dom.hint.textContent = '先选环岛方向：顺时针走右边，逆时针走左边。';
   else if (state.paused) dom.hint.textContent = '棋局已暂停，进度已保存。';
