@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { COLORS, squareXZ, hangarCenter } from "./layout.js";
+import { ringMark, cellTexture, homeTexture, goalTexture, hangarTexture, feltNightTexture } from "./print.js";
 
 const BOARD_Y = 0.46;
 const PIECE_Y = 0.62;
@@ -171,7 +172,7 @@ function createBoardView() {
   let cup = null;
   let turnLamp = null;
   let playing = false;
-  const cam = { theta: 0.2, phi: 0.78, radius: 52, target: new THREE.Vector3(0, 0, 0) };
+  const cam = { theta: 0.0, phi: 0.16, radius: 43, target: new THREE.Vector3(0, 0, 0) };
   const pointers = new Map();
 
   function dur(ms) { return reduced ? Math.min(90, ms * 0.18) : ms; }
@@ -544,7 +545,7 @@ function createBoardView() {
       return;
     }
     cam.theta += dx * 0.005;
-    cam.phi = Math.max(0.48, Math.min(1.15, cam.phi + dy * 0.004));
+    cam.phi = Math.max(0.2, Math.min(1.15, cam.phi + dy * 0.004));
     const base = 0.2;
     if (cam.theta > base + 0.9) cam.theta = base + 0.9;
     if (cam.theta < base - 0.9) cam.theta = base - 0.9;
@@ -563,8 +564,8 @@ function createBoardView() {
   function buildScene() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x140e0b);
-    scene.fog = new THREE.Fog(0x140e0b, 38, 70);
-    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 120);
+    scene.fog = new THREE.Fog(0x120c09, 70, 120);
+    camera = new THREE.PerspectiveCamera(42, 1, 0.1, 140);
     applyCamera();
 
     scene.add(new THREE.AmbientLight(0xfff1df, 0.55));
@@ -594,16 +595,16 @@ function createBoardView() {
     table.receiveShadow = true;
     scene.add(table);
     const felt = new THREE.Mesh(
-      new THREE.CircleGeometry(13.2, 48),
-      new THREE.MeshStandardMaterial({ map: feltTexture(), color: 0xffffff, roughness: 0.95, metalness: 0 })
+      new THREE.CircleGeometry(13.2, 64),
+      new THREE.MeshStandardMaterial({ map: feltNightTexture(), color: 0xffffff, roughness: 0.9, metalness: 0.02 })
     );
     felt.rotation.x = -Math.PI / 2;
     felt.position.y = 0.02;
     felt.receiveShadow = true;
     scene.add(felt);
 
-    const boardGeo = new THREE.ExtrudeGeometry(crossShape(), { depth: 0.42, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.05, bevelSegments: 2 });
-    const boardMat = new THREE.MeshStandardMaterial({ color: 0xf3e6c8, roughness: 0.62, metalness: 0.04 });
+    const boardGeo = new THREE.ExtrudeGeometry(crossShape(), { depth: 0.38, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.06, bevelSegments: 2 });
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0x24160f, roughness: 0.55, metalness: 0.08 });
     const board = new THREE.Mesh(boardGeo, boardMat);
     board.rotation.x = -Math.PI / 2;
     board.position.y = 0.04;
@@ -611,49 +612,44 @@ function createBoardView() {
     board.castShadow = true;
     scene.add(board);
 
-    const ink = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.7 });
-    for (let n = 0; n < 52; n++) {
-      const id = "ring:" + n;
-      const xz = squareXZ(id);
-      const owner = ["red", "yellow", "blue", "green"][n % 4];
-      const plate = new THREE.Mesh(
-        new THREE.BoxGeometry(0.96, 0.06, 0.96),
-        new THREE.MeshStandardMaterial({ color: COLORS[owner], roughness: 0.48, metalness: 0.08 })
+    function addPrint(tex, x, z, w, h, y) {
+      const tile = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshStandardMaterial({ map: tex, roughness: 0.58, metalness: 0.06 })
       );
-      plate.position.set(xz[0], BOARD_Y, xz[1]);
-      plate.castShadow = true;
-      plate.receiveShadow = true;
-      scene.add(plate);
-      const line = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.02, 1.04), ink);
-      line.position.set(xz[0], BOARD_Y - 0.03, xz[1]);
-      scene.add(line);
+      tile.rotation.x = -Math.PI / 2;
+      tile.position.set(x, y, z);
+      tile.receiveShadow = true;
+      scene.add(tile);
+      return tile;
     }
+    for (let n = 0; n < 52; n++) {
+      const xz = squareXZ("ring:" + n);
+      const mark = ringMark(n);
+      addPrint(cellTexture(mark, n), xz[0], xz[1], 1.08, 1.08, BOARD_Y + 0.03);
+    }
+    const hangarName = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
     ["red", "yellow", "blue", "green"].forEach(function (color) {
       for (let step = 0; step < 5; step++) {
         const xz = squareXZ("home:" + color + ":" + step);
-        const cell = new THREE.Mesh(
-          new THREE.BoxGeometry(0.86, 0.07, 0.86),
-          new THREE.MeshStandardMaterial({ color: COLORS[color], roughness: 0.4, metalness: 0.12 })
-        );
-        cell.position.set(xz[0], BOARD_Y + 0.02, xz[1]);
-        cell.receiveShadow = true;
-        scene.add(cell);
+        addPrint(homeTexture(color, step), xz[0], xz[1], 0.96, 0.96, BOARD_Y + 0.045);
       }
       const base = hangarCenter(color);
       const pad = new THREE.Mesh(
-        new THREE.BoxGeometry(2.7, 0.12, 2.5),
-        new THREE.MeshStandardMaterial({ color: COLORS[color], roughness: 0.5, metalness: 0.08 })
+        new THREE.BoxGeometry(3.35, 0.16, 3.15),
+        new THREE.MeshStandardMaterial({ map: hangarTexture(color, hangarName[color]), roughness: 0.5, metalness: 0.08 })
       );
-      pad.position.set(base[0], 0.16, base[1]);
+      pad.position.set(base[0], 0.18, base[1]);
       pad.castShadow = true;
       pad.receiveShadow = true;
       scene.add(pad);
     });
     const goal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.95, 1.05, 0.12, 6),
-      new THREE.MeshStandardMaterial({ color: 0xf0d48a, metalness: 0.35, roughness: 0.35 })
+      new THREE.CircleGeometry(1.05, 32),
+      new THREE.MeshStandardMaterial({ map: goalTexture(), roughness: 0.42, metalness: 0.2 })
     );
-    goal.position.y = BOARD_Y + 0.04;
+    goal.rotation.x = -Math.PI / 2;
+    goal.position.y = BOARD_Y + 0.05;
     goal.receiveShadow = true;
     scene.add(goal);
 
@@ -731,7 +727,7 @@ function createBoardView() {
   function setCamera(partial) {
     partial = partial || {};
     if (typeof partial.theta === "number") cam.theta = partial.theta;
-    if (typeof partial.phi === "number") cam.phi = Math.max(0.48, Math.min(1.15, partial.phi));
+    if (typeof partial.phi === "number") cam.phi = Math.max(0.2, Math.min(1.15, partial.phi));
     if (typeof partial.radius === "number") cam.radius = Math.max(18, Math.min(64, partial.radius));
     if (partial.target && typeof partial.target.x === "number") {
       cam.target.set(partial.target.x, partial.target.y || 0, partial.target.z || 0);
