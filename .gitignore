@@ -17,3 +17,4 @@ arcade/_legacy-v17.html
 # 3D prototype deps
 app3d/node_modules/
 app3d/dist/
+app/render/node_modules/

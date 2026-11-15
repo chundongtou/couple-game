@@ -1,11 +1,11 @@
-/* ===== 安全词：长按「先回去关灯」 ===== */
+/* ===== 安全词：长按收棋。时长保持 1600ms，本轮未改。 ===== */
 (function () {
   var App = (window.App = window.App || {});
   var el = null;
   var pressing = false;
   var rafId = null;
   var HOLD = 1600;
-  var SHOW = { plan: 1, room: 1, door: 1 };
+  var SHOW = { table: 1 };
 
   var CSS = [
     ".global-safe{position:fixed;top:calc(8px + var(--safe-t));right:10px;z-index:380;",
@@ -29,7 +29,7 @@
   function nightOn() {
     try {
       var s = App.Store.getSession();
-      return !!(s && s.phase && s.phase !== "done" && s.mode !== "standalone");
+      return !!(s && s.kind === "flight" && s.phase === "playing");
     } catch (e) { return false; }
   }
 
@@ -53,34 +53,25 @@
     if (el) { el.classList.remove("pressing"); setProgress(0); }
   }
 
-  function archive(state) {
-    if (!state || state.archived) return state;
-    try {
-      App.Store.addHistory(App.Store.makeHistoryEntry(state));
-      state.archived = true;
-      App.Store.saveSession(state);
-    } catch (e) {}
-    return state;
-  }
-
   function trigger() {
     stopPress();
     var s = null;
     try { s = App.Store.getSession(); } catch (e) {}
-    if (!s || s.mode === "standalone" || s.phase === "done") {
-      App.UI.toast("现在没有进行中的夜晚");
+    if (!s || s.kind !== "flight" || s.phase !== "playing") {
+      App.UI.toast("现在没有进行中的棋");
       return;
     }
     try {
-      var ret = App.Engine.safeWord(s);
-      var next = archive(ret.state);
+      var ret = App.Flight.safeWord(s);
+      var entry = App.Store.makeHistoryEntry(ret.state);
+      App.Store.addHistory(entry);
+      App.Store.clearSession();
       if (App.Audio) App.Audio.play("soft");
       App.UI.haptic("heavy");
-      App.Night.paint(null);
-      App.UI.toast("灯先关了。做过的都还在。");
-      App.Router.reset("close", { state: next });
+      App.UI.toast("先收好了。做过的都还在。");
+      App.Router.reset("ledger", { id: entry.id });
     } catch (e) {
-      App.UI.toast("没能关灯，可以先退出页面");
+      App.UI.toast("没能收棋，可以先退出页面");
     }
   }
 
@@ -108,8 +99,8 @@
     el.type = "button";
     el.className = "global-safe";
     el.setAttribute("data-test", "safety-word");
-    el.setAttribute("aria-label", "安全词：按住「先回去关灯」，灯会自己暗下去，已经发生的都留着");
-    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span>先回去关灯</span>';
+    el.setAttribute("aria-label", "安全词：按住约一秒半收棋，已经发生的都留着");
+    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span>先收棋</span>';
     document.getElementById("app").appendChild(el);
     el.addEventListener("pointerdown", startPress);
     el.addEventListener("pointerup", stopPress);

@@ -158,6 +158,11 @@ body[data-night="1"] .page { padding-top: calc(58px + var(--safe-t)); }
 .btn.soft { background: rgba(255, 236, 214, 0.08); }
 .btn.wide { width: 100%; }
 .btn.sm { min-height: 44px; font-size: 13px; padding: 0 14px; letter-spacing: 0.04em; }
+.field {
+  width: 100%; min-height: 48px; padding: 0 12px; border-radius: 14px;
+  border: 1px solid var(--line2); background: rgba(20, 12, 8, 0.35); color: var(--ink);
+}
+body[data-screen="table"] #bg { opacity: 0; }
 .btn[disabled] { opacity: 0.4; pointer-events: none; }
 .icon-btn, .topbar .back {
   width: 44px; height: 44px; border-radius: 50%;

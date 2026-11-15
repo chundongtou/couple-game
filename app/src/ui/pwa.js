@@ -203,7 +203,7 @@
       return [
         '点 Chrome 右上角的 <em>⋮</em> 菜单',
         '选 <em>「安装应用」</em>（部分机型叫「添加到主屏幕」）',
-        '确认后桌面会出现 <em>「升温夜航」</em> 图标'
+        '确认后桌面会出现 <em>「今晚飞行棋」</em> 图标'
       ];
     }
     return [
@@ -225,7 +225,7 @@
     try {
       ref = App.UI.sheet({
         title: "装到桌面",
-        subtitle: "像 App 一样全屏打开 · 没有地址栏 · 离线也能继续夜航",
+        subtitle: "像 App 一样全屏打开 · 没有地址栏 · 离线也能继续这盘棋",
         cls: "pwa-sheet",
         html:
           '<div class="pwa-steps" data-test="pwa-install-sheet">' + list + "</div>" +
@@ -309,7 +309,7 @@
     window.addEventListener("offline", function () {
       if (STATE.online === false) return;
       STATE.online = false;
-      toast("📴 已离线 · 夜航仍可继续");
+      toast("📴 已离线 · 这盘棋仍可继续");
     });
 
     window.addEventListener("online", function () {

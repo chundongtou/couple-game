@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>今晚在这间公寓</title>
+<title>今晚飞行棋</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23140c09' width='100' height='100'/><rect x='18' y='16' width='64' height='40' rx='4' fill='%231c2a44'/><rect x='22' y='44' width='56' height='8' fill='%23f0b56a'/></svg>">
 <meta name="theme-color" content="#1a100c">
-<meta name="description" content="今晚在这间公寓：两个人，一部手机，从门厅走到卧室。灯会随着夜里越来越热。">
+<meta name="description" content="今晚飞行棋：两个人，一部手机，一盘桌上的飞行棋。">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="这间公寓">
+<meta name="apple-mobile-web-app-title" content="飞行棋">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="今晚在这间公寓">
-<meta property="og:description" content="两个人，一部手机，一枚「我们」。客厅、厨房、阳台、浴室、卧室，各自有自己的玩法。">
+<meta property="og:title" content="今晚飞行棋">
+<meta property="og:description" content="两个人，一部手机，一盘桌上的飞行棋。起飞、跳、抄近路，题在桌边。">
 <meta property="og:url" content="https://chundongtou.github.io/couple-game/">
 <meta property="og:image" content="https://chundongtou.github.io/couple-game/icons/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -181,6 +181,11 @@ body[data-night="1"] .page { padding-top: calc(58px + var(--safe-t)); }
 .btn.soft { background: rgba(255, 236, 214, 0.08); }
 .btn.wide { width: 100%; }
 .btn.sm { min-height: 44px; font-size: 13px; padding: 0 14px; letter-spacing: 0.04em; }
+.field {
+  width: 100%; min-height: 48px; padding: 0 12px; border-radius: 14px;
+  border: 1px solid var(--line2); background: rgba(20, 12, 8, 0.35); color: var(--ink);
+}
+body[data-screen="table"] #bg { opacity: 0; }
 .btn[disabled] { opacity: 0.4; pointer-events: none; }
 .icon-btn, .topbar .back {
   width: 44px; height: 44px; border-radius: 50%;
@@ -435,6 +440,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   <div id="overlay"></div>
   <div id="toasts" aria-live="assertive"></div>
 </div>
+<script src="assets/board.js"></script>
 <script src="assets/cards.js"></script>
 <script>
 /* ===== src/core/util.js ===== */
@@ -565,7 +571,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
 })();
 
 /* ===== src/core/store.js ===== */
-/* ===== 公寓夜：设置 / 存档 / 以前的夜 / 导入导出 ===== */
+/* ===== 今晚飞行棋：设置 / 存档 / 以前的夜 / 导入导出 ===== */
 (function () {
   var App = (window.App = window.App || {});
   var U = App.util;
@@ -576,54 +582,78 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     standalone: "couple2.standalone",
     pending: "couple2.pending"
   };
-  var VER = 4;
+  var VER = 5;
+  var SCALES = { gentle: 1, warm: 2, hot: 3, open: 4 };
+  var COLORS = ["red", "yellow", "blue", "green"];
   var DEFAULT_SETTINGS = {
     v: VER,
-    maxStar: 3,
     sound: true,
     haptics: true,
     reduced: false,
-    gentleOnly: false,
-    blacklist: [],
-    names: { a: "他", b: "她" }
+    names: { a: "他", b: "她" },
+    blacklist: []
   };
 
   function merge(base, patch) {
     var out = U.copy(base || {});
     Object.keys(patch || {}).forEach(function (k) {
       var v = patch[k];
-      if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object") out[k] = merge(out[k], v);
+      if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object" && !Array.isArray(out[k])) out[k] = merge(out[k], v);
       else out[k] = v;
     });
     return out;
   }
 
-  function engine() { return App.Engine || null; }
+  function archiveApi() { return App.Archive || null; }
+  function flightApi() { return App.Flight || null; }
 
   var legacyNote = null;
 
-  function archiveLegacy(raw) {
-    var E = engine();
-    var entry = E && E.archiveLegacy ? E.archiveLegacy(raw) : {
-      id: raw.id || U.uid(),
-      ts: raw.ts || Date.now(),
-      kind: "voyage",
-      title: "以前的夜航",
-      endingName: "未走完的夜航",
-      note: "这是升温夜航的记录，已收进以前的夜，不会在这间公寓里继续。",
-      imported: true,
-      rooms: []
-    };
-    var list = U.storage.get(KEYS.history, []);
-    if (!Array.isArray(list)) list = [];
-    if (!list.some(function (x) { return x && x.id === entry.id; })) {
-      list.unshift(entry);
-      if (list.length > 60) list = list.slice(0, 60);
-      U.storage.set(KEYS.history, list);
-      if (App.Bus) App.Bus.emit("history", list);
-    }
+  function pushHistory(entry) {
+    if (!entry) return Store.getHistory();
+    var list = Store.getHistory();
+    if (entry.id && list.some(function (x) { return x && x.id === entry.id; })) return list;
+    list.unshift(entry);
+    if (list.length > 60) list = list.slice(0, 60);
+    U.storage.set(KEYS.history, list);
+    if (App.Bus) App.Bus.emit("history", list);
+    return list;
+  }
+
+  function rememberForeign(raw) {
+    var A = archiveApi();
+    var entry = A && A.archiveForeign ? A.archiveForeign(raw) : null;
+    if (!entry) return null;
+    pushHistory(entry);
     legacyNote = entry;
     return entry;
+  }
+
+  function cleanSettings(raw) {
+    var merged = merge(DEFAULT_SETTINGS, raw || {});
+    merged.v = VER;
+    merged.names = {
+      a: merged.names && String(merged.names.a || "").trim() ? String(merged.names.a).trim() : "他",
+      b: merged.names && String(merged.names.b || "").trim() ? String(merged.names.b).trim() : "她"
+    };
+    merged.sound = merged.sound !== false;
+    merged.haptics = merged.haptics !== false;
+    merged.reduced = !!merged.reduced;
+    if (!Array.isArray(merged.blacklist)) merged.blacklist = [];
+    merged.blacklist = merged.blacklist.map(function (x) { return String(x || "").trim(); }).filter(Boolean);
+    if (!SCALES[merged.scale]) delete merged.scale;
+    if (merged.colors) {
+      if (COLORS.indexOf(merged.colors.a) < 0 || COLORS.indexOf(merged.colors.b) < 0 || merged.colors.a === merged.colors.b) delete merged.colors;
+    }
+    if (merged.lastPlaneCount !== 2 && merged.lastPlaneCount !== 4) delete merged.lastPlaneCount;
+    /* 公寓的 maxStar / gentleOnly 不作为本局尺度，也不自动开局。 */
+    var oldCap = parseInt(raw && raw.maxStar, 10);
+    if (!SCALES[merged.scale] && oldCap >= 1 && oldCap <= 4) {
+      merged.suggestScale = ({ 1: "gentle", 2: "warm", 3: "hot", 4: "open" })[oldCap];
+    }
+    delete merged.maxStar;
+    delete merged.gentleOnly;
+    return merged;
   }
 
   var Store = (App.Store = {
@@ -637,57 +667,57 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     },
 
     getSettings: function () {
-      var s = U.storage.get(KEYS.settings, null) || {};
-      var merged = merge(DEFAULT_SETTINGS, s);
-      merged.v = VER;
-      merged.maxStar = U.clamp(parseInt(merged.maxStar, 10) || 3, 1, 4);
-      if (!Array.isArray(merged.blacklist)) merged.blacklist = [];
-      merged.names = {
-        a: merged.names && merged.names.a ? String(merged.names.a) : "他",
-        b: merged.names && merged.names.b ? String(merged.names.b) : "她"
-      };
-      merged.sound = merged.sound !== false;
-      merged.haptics = merged.haptics !== false;
-      merged.reduced = !!merged.reduced;
-      merged.gentleOnly = !!merged.gentleOnly;
-      return merged;
+      var raw = null;
+      try { raw = U.storage.get(KEYS.settings, null); } catch (e) { raw = null; }
+      return cleanSettings(raw || {});
     },
+
     saveSettings: function (patch) {
-      var next = patch && patch.__full ? patch : merge(Store.getSettings(), patch || {});
-      next.v = VER;
-      U.storage.set(KEYS.settings, next);
+      var next = cleanSettings(merge(Store.getSettings(), patch || {}));
+      if (patch && patch.scale && SCALES[patch.scale]) next.scale = patch.scale;
+      if (patch && patch.colors) next.colors = patch.colors;
+      if (patch && (patch.lastPlaneCount === 2 || patch.lastPlaneCount === 4)) next.lastPlaneCount = patch.lastPlaneCount;
+      next = cleanSettings(next);
+      var ok = U.storage.set(KEYS.settings, next);
       if (App.Bus) App.Bus.emit("settings", next);
-      return Store.getSettings();
-    },
-    resetSettings: function () {
-      U.storage.set(KEYS.settings, DEFAULT_SETTINGS);
+      if (ok === false) return next;
       return Store.getSettings();
     },
 
     getSession: function () {
-      var raw = U.storage.get(KEYS.session, null);
+      var raw = null;
+      try { raw = U.storage.get(KEYS.session, null); } catch (e) { return null; }
       if (!raw || typeof raw !== "object") return null;
-      var E = engine();
-      try {
-        if (E && E.isLegacy && E.isLegacy(raw)) {
-          archiveLegacy(raw);
-          U.storage.remove(KEYS.session);
-          if (App.Bus) App.Bus.emit("session", null);
-          return null;
-        }
-        if (E && E.validate) return E.validate(raw);
-      } catch (e) { return null; }
-      return raw && raw.kind === "apartment" ? raw : null;
+      var A = archiveApi();
+      if (A && A.isForeign && A.isForeign(raw)) {
+        rememberForeign(raw);
+        U.storage.remove(KEYS.session);
+        if (App.Bus) App.Bus.emit("session", null);
+        return null;
+      }
+      var F = flightApi();
+      if (F && F.validate) {
+        var valid = F.validate(raw);
+        return valid;
+      }
+      return raw.kind === "flight" ? raw : null;
     },
+
     hasSession: function () {
       var s = Store.getSession();
-      return !!(s && s.phase && s.phase !== "done" && s.mode !== "standalone");
+      return !!(s && s.kind === "flight" && s.phase === "playing");
     },
+
     saveSession: function (state) {
-      var ok = U.storage.set(KEYS.session, state);
-      if (App.Bus) App.Bus.emit("session", state);
-      return ok;
+      var F = flightApi();
+      var valid = F && F.validate ? F.validate(state) : null;
+      if (!valid) return { ok: false };
+      var ok = U.storage.set(KEYS.session, valid);
+      if (ok === false) return { ok: false };
+      if (App.Bus) App.Bus.emit("session", valid);
+      return { ok: true };
     },
+
     clearSession: function () {
       U.storage.remove(KEYS.session);
       if (App.Bus) App.Bus.emit("session", null);
@@ -695,7 +725,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
 
     getStandalone: function () {
       var s = U.storage.get(KEYS.standalone, null);
-      if (!s || s.kind !== "apartment") return null;
+      if (!s || typeof s !== "object") return null;
       return s;
     },
     saveStandalone: function (state) {
@@ -716,30 +746,11 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
       var list = U.storage.get(KEYS.history, []);
       return Array.isArray(list) ? list : [];
     },
+
     addHistory: function (entry) {
-      var list = Store.getHistory();
-      if (entry && entry.id && list.some(function (x) { return x.id === entry.id; })) return list;
-      list.unshift(entry);
-      if (list.length > 60) list = list.slice(0, 60);
-      U.storage.set(KEYS.history, list);
-      if (App.Bus) App.Bus.emit("history", list);
-      return list;
+      return pushHistory(entry);
     },
-    updateHistory: function (id, patch) {
-      var list = Store.getHistory().map(function (x) {
-        if (!x || x.id !== id) return x;
-        var next = U.copy(x);
-        Object.keys(patch || {}).forEach(function (k) { next[k] = patch[k]; });
-        return next;
-      });
-      U.storage.set(KEYS.history, list);
-      return list;
-    },
-    removeHistory: function (id) {
-      var list = Store.getHistory().filter(function (x) { return x.id !== id; });
-      U.storage.set(KEYS.history, list);
-      return list;
-    },
+
     clearHistory: function () {
       U.storage.set(KEYS.history, []);
       if (App.Bus) App.Bus.emit("history", []);
@@ -747,7 +758,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
 
     exportAll: function () {
       return {
-        app: "couple-apartment",
+        app: "couple-flight",
         v: VER,
         exportedAt: new Date().toISOString(),
         settings: Store.getSettings(),
@@ -757,66 +768,83 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
         pending: Store.getPending()
       };
     },
+
     importAll: function (obj) {
-      if (!obj || typeof obj !== "object") return { ok: false, msg: "文件格式不对" };
+      if (!obj || typeof obj !== "object") return { ok: false, msg: "文件格式不对", error: { code: "IMPORT_INVALID", message: "文件格式不对" } };
       var data = obj.data && typeof obj.data === "object" ? obj.data : obj;
+      var knownApp = !data.app || data.app === "couple-flight" || data.app === "couple-apartment" || data.app === "couple-voyage";
       if (!data.settings && !data.session && !data.history && !data.standalone) {
-        return { ok: false, msg: "找不到可恢复的数据" };
+        return { ok: false, msg: "找不到可恢复的数据", error: { code: "IMPORT_INVALID", message: "找不到可恢复的数据" } };
+      }
+      if (!knownApp && !data.settings && !data.history) {
+        return { ok: false, msg: "文件格式不对", error: { code: "IMPORT_INVALID", message: "文件格式不对" } };
+      }
+      if (data.session && data.session.kind === "flight") {
+        var F = flightApi();
+        if (!F || !F.validate || !F.validate(data.session)) {
+          return { ok: false, msg: "这盘飞行棋读不出来，没有覆盖当前对局", error: { code: "IMPORT_REJECTED", message: "这盘飞行棋读不出来，没有覆盖当前对局" } };
+        }
       }
       try {
-        if (data.settings) U.storage.set(KEYS.settings, merge(DEFAULT_SETTINGS, data.settings));
+        if (data.settings) U.storage.set(KEYS.settings, cleanSettings(data.settings));
         if (Array.isArray(data.history)) U.storage.set(KEYS.history, data.history.slice(0, 60));
-        var E = engine();
-        if (data.session && E && E.isLegacy && E.isLegacy(data.session)) {
-          archiveLegacy(data.session);
+        if (data.session && archiveApi() && archiveApi().isForeign(data.session)) {
+          rememberForeign(data.session);
           U.storage.remove(KEYS.session);
-        } else if (data.session) {
-          U.storage.set(KEYS.session, data.session);
-        } else {
+        } else if (data.session && data.session.kind === "flight") {
+          U.storage.set(KEYS.session, flightApi().validate(data.session));
+        } else if (!data.session) {
           U.storage.remove(KEYS.session);
         }
-        if (data.standalone && data.standalone.kind === "apartment") U.storage.set(KEYS.standalone, data.standalone);
+        if (data.standalone && typeof data.standalone === "object") U.storage.set(KEYS.standalone, data.standalone);
         else U.storage.remove(KEYS.standalone);
         if (data.pending) U.storage.set(KEYS.pending, data.pending);
+        else U.storage.remove(KEYS.pending);
         if (App.Bus) {
           App.Bus.emit("settings", Store.getSettings());
           App.Bus.emit("history", Store.getHistory());
           App.Bus.emit("session", Store.getSession());
         }
         return { ok: true, msg: "已恢复" };
-      } catch (e) { return { ok: false, msg: "恢复失败" }; }
+      } catch (e) {
+        return { ok: false, msg: "恢复失败", error: { code: "IMPORT_INVALID", message: "恢复失败" } };
+      }
     },
+
     resetAll: function () {
       U.storage.remove(KEYS.settings);
       U.storage.remove(KEYS.session);
       U.storage.remove(KEYS.history);
       U.storage.remove(KEYS.standalone);
       U.storage.remove(KEYS.pending);
+      legacyNote = null;
       if (App.Bus) {
         App.Bus.emit("settings", Store.getSettings());
         App.Bus.emit("history", []);
         App.Bus.emit("session", null);
       }
     },
+
+    archiveForeign: function (raw) {
+      return rememberForeign(raw);
+    },
+
     makeHistoryEntry: function (state) {
-      var mem = state.result || (engine() && App.Engine.buildMemory ? App.Engine.buildMemory(state) : {});
-      var rooms = mem.rooms || [];
+      var ledger = (state && state.result) || (App.Flight && App.Flight.buildLedger ? App.Flight.buildLedger(state) : null);
+      var endingName = "这局记下了";
+      if (ledger && ledger.ending === "safe") endingName = "安全词收棋";
+      else if (ledger && ledger.ending === "win-a") endingName = ((state.names && state.names.a) || "甲方") + " 先把飞机送回家";
+      else if (ledger && ledger.ending === "win-b") endingName = ((state.names && state.names.b) || "乙方") + " 先把飞机送回家";
       return {
-        id: state.id || U.uid(),
-        ts: state.ts || Date.now(),
-        kind: "apartment",
-        title: "今晚在这间公寓",
-        names: state.names,
-        heat: state.heat || 0,
-        intensity: state.settings && state.settings.maxStar,
-        intensityName: mem.intensityName || "",
-        rooms: rooms,
-        moments: (state.log || []).length,
-        endingName: mem.safe ? "先回去关灯" : "灯关掉了",
+        id: (state && state.id) || U.uid(),
+        ts: (ledger && ledger.endedAt) || (state && state.ts) || Date.now(),
+        kind: "flight",
+        title: "今晚飞行棋",
+        names: state && state.names,
+        endingName: endingName,
         note: "",
-        safe: !!mem.safe,
-        line: mem.line || "",
-        clock: mem.clock || ""
+        safe: !!(ledger && ledger.ending === "safe"),
+        ledger: ledger || undefined
       };
     }
   });
@@ -1090,14 +1118,14 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
 })();
 
 /* ===== src/core/safe.js ===== */
-/* ===== 安全词：长按「先回去关灯」 ===== */
+/* ===== 安全词：长按收棋。时长保持 1600ms，本轮未改。 ===== */
 (function () {
   var App = (window.App = window.App || {});
   var el = null;
   var pressing = false;
   var rafId = null;
   var HOLD = 1600;
-  var SHOW = { plan: 1, room: 1, door: 1 };
+  var SHOW = { table: 1 };
 
   var CSS = [
     ".global-safe{position:fixed;top:calc(8px + var(--safe-t));right:10px;z-index:380;",
@@ -1121,7 +1149,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   function nightOn() {
     try {
       var s = App.Store.getSession();
-      return !!(s && s.phase && s.phase !== "done" && s.mode !== "standalone");
+      return !!(s && s.kind === "flight" && s.phase === "playing");
     } catch (e) { return false; }
   }
 
@@ -1145,34 +1173,25 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     if (el) { el.classList.remove("pressing"); setProgress(0); }
   }
 
-  function archive(state) {
-    if (!state || state.archived) return state;
-    try {
-      App.Store.addHistory(App.Store.makeHistoryEntry(state));
-      state.archived = true;
-      App.Store.saveSession(state);
-    } catch (e) {}
-    return state;
-  }
-
   function trigger() {
     stopPress();
     var s = null;
     try { s = App.Store.getSession(); } catch (e) {}
-    if (!s || s.mode === "standalone" || s.phase === "done") {
-      App.UI.toast("现在没有进行中的夜晚");
+    if (!s || s.kind !== "flight" || s.phase !== "playing") {
+      App.UI.toast("现在没有进行中的棋");
       return;
     }
     try {
-      var ret = App.Engine.safeWord(s);
-      var next = archive(ret.state);
+      var ret = App.Flight.safeWord(s);
+      var entry = App.Store.makeHistoryEntry(ret.state);
+      App.Store.addHistory(entry);
+      App.Store.clearSession();
       if (App.Audio) App.Audio.play("soft");
       App.UI.haptic("heavy");
-      App.Night.paint(null);
-      App.UI.toast("灯先关了。做过的都还在。");
-      App.Router.reset("close", { state: next });
+      App.UI.toast("先收好了。做过的都还在。");
+      App.Router.reset("ledger", { id: entry.id });
     } catch (e) {
-      App.UI.toast("没能关灯，可以先退出页面");
+      App.UI.toast("没能收棋，可以先退出页面");
     }
   }
 
@@ -1200,8 +1219,8 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     el.type = "button";
     el.className = "global-safe";
     el.setAttribute("data-test", "safety-word");
-    el.setAttribute("aria-label", "安全词：按住「先回去关灯」，灯会自己暗下去，已经发生的都留着");
-    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span>先回去关灯</span>';
+    el.setAttribute("aria-label", "安全词：按住约一秒半收棋，已经发生的都留着");
+    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span>先收棋</span>';
     document.getElementById("app").appendChild(el);
     el.addEventListener("pointerdown", startPress);
     el.addEventListener("pointerup", stopPress);
@@ -1400,164 +1419,242 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   };
 })();
 
-/* ===== src/engine/balance.js ===== */
+/* ===== src/engine/flight-rules.js ===== */
 /* ==========================================================================
- * 今晚在这间公寓 —— 数值与规则常量
- * 纯数据。引擎只读这里，不写死收益。
+ * 今晚飞行棋 · 规则开关
+ * 默认值来自架构契约 §1。A1 / A2 / A3 与 stackCapturedBySingle 均为待确认，
+ * 不是用户已批准的死规则。确认后只改这里的默认值。
  * ========================================================================== */
 (function (global) {
   'use strict';
 
   var root = global.App = global.App || {};
 
-  var Balance = {
-    VERSION: 2,
-    SESSION_VERSION: 2,
-
-    ROOMS: ['living', 'kitchen', 'balcony', 'bathroom', 'bedroom'],
-    ROOM_META: {
-      living: { id: 'living', name: '客厅', play: 'talk', hint: '沙发上的话' },
-      kitchen: { id: 'kitchen', name: '厨房', play: 'dare', hint: '做到的事' },
-      balcony: { id: 'balcony', name: '阳台', play: 'thermo', hint: '今晚的温度' },
-      bathroom: { id: 'bathroom', name: '浴室', play: 'truth', hint: '要说的真话' },
-      bedroom: { id: 'bedroom', name: '卧室', play: 'close', hint: '更近的话或动作' }
-    },
-
-    /* 1 温柔 / 2 暧昧 / 3 热烈 / 4 不设限 */
-    INTENSITY: {
-      1: { id: 1, name: '温柔', key: 'tender' },
-      2: { id: 2, name: '暧昧', key: 'flirt' },
-      3: { id: 3, name: '热烈', key: 'hot' },
-      4: { id: 4, name: '不设限', key: 'open' }
-    },
-
-    /* 开场热度。热烈 / 不设限一进门就已经带电。 */
-    HEAT_START: { 1: 4, 2: 14, 3: 28, 4: 40 },
-    /* 走路与完成时的热度倍率。 */
-    HEAT_MULT: { 1: 0.55, 2: 1, 3: 1.55, 4: 1.8 },
-    VISIT_HEAT: { living: 8, kitchen: 12, balcony: 9, bathroom: 10, bedroom: 14 },
-    REVISIT_RATIO: 0.35,
-    HEAT_MAX: 100,
-    /* quiet < 22 <= warm < 48 <= charged < 72 <= burning */
-    HEAT_WARM: 22,
-    HEAT_CHARGED: 48,
-    HEAT_BURNING: 72,
-
-    ROOM_MINUTES: { living: 16, kitchen: 14, balcony: 12, bathroom: 12, bedroom: 22 },
-    START_MINUTES: 21 * 60 + 40,
-
-    REROLLS: { truth: 2, dare: 2 },
-
-    /* 尺度封顶（卡面星级 1–5）。温柔锁在 1；暧昧最多到 3（热了或再深一点）；
-       热烈开场就能到 4，热起来开放 5；不设限从第一句就是 5。 */
-    BAND: {
-      1: { baseMax: 1, hotMax: 1, hotAt: 999, prefer: 1, preferHot: 1, preferHotAt: 999 },
-      2: { baseMax: 2, hotMax: 3, hotAt: 46, prefer: 1, preferHot: 2, preferHotAt: 32 },
-      3: { baseMax: 4, hotMax: 5, hotAt: 34, prefer: 2, preferMid: 3, preferMidAt: 22, preferHot: 4, preferHotAt: 48 },
-      4: { baseMax: 5, hotMax: 5, hotAt: 0, prefer: 3, preferHot: 4, preferHotAt: 55 }
-    },
-
-    GENTLE_BLOCK_TAGS: ['束缚', '露出', '道具', '蒙眼'],
-
-    /* 露骨词：温柔与暧昧抽牌时排除（星级打漏的也排除）。热烈 / 不设限不使用这条。 */
-    EXPLICIT_SRC: '口交|插入|高潮|射精|射了|射在|全裸|裸体|自慰|肉棒|抽插|后入|骑乘|乳头|乳房|私处|下体|做爱|口爆|内射|调教|绑住|束缚|脱光|肛|潮吹|吞精|被口|口对方|口你|口我|阴茎|阴道|阴蒂|精液|深喉|坐脸',
-
-    /* 只对温柔再收一层，避免星级打成 1 的直球漏进来。 */
-    GENTLE_EXTRA_SRC: '做几次|做多少次|一天做|下不了床|叫出来|内裤|内衣|胸口|臀部|大腿内侧|舌吻|伸进|摸进|敏感部位|打屁股|湿了|硬了|喘给|呻吟',
-
-    THERMO_LABELS: {
-      1: ['还想聊天', '坐近一点', '靠着肩', '牵着手', '想被抱一下', '额头碰额头', '轻声说喜欢'],
-      2: ['看着就好', '靠得很近', '吻在嘴角', '手停在腰上', '吻得更深', '衣领会松', '想被碰到衣服里', '今晚别只是抱'],
-      3: ['还在说话', '吻深一点', '手放进来', '压近一点', '想被要', '别停在前戏', '去更暗的地方', '看着我做', '再狠一点', '现在就继续', '做到出汗'],
-      4: ['还能等', '想被吻狠一点', '手不要停', '衣服可以脱掉', '想听你的声音', '别只是磨', '换到更近的地方', '照你想的来', '做到腿软', '今晚不用收着', '你想要到哪']
-    },
-
-    STROLL_TILES: [
-      { id: 'sofa', room: 'living', name: '沙发' },
-      { id: 'record', room: 'living', name: '唱片机' },
-      { id: 'glass', room: 'kitchen', name: '杯沿' },
-      { id: 'counter', room: 'kitchen', name: '台面' },
-      { id: 'rain', room: 'balcony', name: '窗边的雨' },
-      { id: 'rail', room: 'balcony', name: '栏杆' },
-      { id: 'mirror', room: 'bathroom', name: '镜子' },
-      { id: 'steam', room: 'bathroom', name: '热水' },
-      { id: 'bed', room: 'bedroom', name: '床沿' },
-      { id: 'lamp', room: 'bedroom', name: '床头灯' },
-      { id: 'rug', room: 'living', name: '地毯' },
-      { id: 'hall', room: 'kitchen', name: '过道' }
-    ],
-
-    MEMORY_TITLE: '今晚在这间公寓',
-    MEMORY_LINES: {
-      safe: '你们先回去把灯关了。已经做过的、说过的，都留在这页上。没有要扣的，也没有要道歉的。',
-      empty: '灯还没在房间里停久。这一页很短，也算今晚。',
-      warm: '有几间房亮过。谁问了，谁做了，都写在这里，不打分。',
-      deep: '房间一间间热起来。这一页只记你们真的走过的，不评价。'
-    },
-
-    FALLBACK_CARDS: [
-      { id: 'fb1', text: '用一个词，说你现在看见对方的样子。', star: 1, tags: [], pool: 'truth' },
-      { id: 'fb2', text: '看着对方的眼睛，说一件你一直记得的小事。', star: 1, tags: [], pool: 'truth' },
-      { id: 'fb3', text: '把手放在对方手背上，停十秒，再说一句实话。', star: 1, tags: [], pool: 'sync' },
-      { id: 'fb4', text: '问对方：此刻你更想说话，还是先靠着？', star: 1, tags: [], pool: 'truth' },
-      { id: 'fb5', text: '坐近一点，说你今晚想把灯留到多晚。', star: 1, tags: [], pool: 'truth' }
-    ],
-
-    BOUNDARIES: [
-      { id: '束缚', name: '束缚' },
-      { id: '露出', name: '露出' },
-      { id: '道具', name: '道具' },
-      { id: '喝酒', name: '喝酒' },
-      { id: '蒙眼', name: '蒙眼' },
-      { id: '角色', name: '角色' }
-    ],
-
-    DEFAULT_SETTINGS: {
-      maxStar: 3,
-      sound: true,
-      haptics: true,
-      reduced: false,
-      gentleOnly: false,
-      blacklist: [],
-      names: { a: '他', b: '她' }
-    },
-
-    stageOf: function (heat) {
-      var h = Number(heat) || 0;
-      if (h >= Balance.HEAT_BURNING) return 'burning';
-      if (h >= Balance.HEAT_CHARGED) return 'charged';
-      if (h >= Balance.HEAT_WARM) return 'warm';
-      return 'quiet';
-    },
-    stageLabel: function (heat) {
-      var s = Balance.stageOf(heat);
-      if (s === 'burning') return '很深了';
-      if (s === 'charged') return '已经烫';
-      if (s === 'warm') return '热起来了';
-      return '还轻';
-    }
+  /* 待确认：总控暂定口径，不得写成已批准规则。 */
+  var DEFAULTS = {
+    rerollOnEverySix: true,          /* 待确认 A1 */
+    chooseAmongLegalPieces: true,    /* 待确认 A1 */
+    threeSixesPenalty: false,        /* 待确认 A1：true 时的罚则本轮不实现 */
+    skipHomeEntryBlocksEntry: true,  /* 待确认 A2 */
+    skipStackKeepsBonusStep: false,  /* 待确认 A2 */
+    endingPromptSkippable: true,     /* 待确认 A2 */
+    ledgerIncludeMoveReplay: false,  /* 待确认 A3 */
+    stackCapturedBySingle: true      /* 待确认：按规格原文暂定，不是已立项疑点 */
   };
 
-  root.Balance = Balance;
-  if (typeof module !== 'undefined' && module.exports) module.exports = Balance;
+  function current() {
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function (k) { out[k] = DEFAULTS[k]; });
+    return out;
+  }
+
+  root.FlightRules = {
+    DEFAULTS: DEFAULTS,
+    current: current
+  };
 })(typeof window !== 'undefined' ? window : this);
 
-/* ===== src/engine/engine.js ===== */
+/* ===== src/engine/flight-board.js ===== */
 /* ==========================================================================
- * 今晚在这间公寓 —— 规则引擎
- * 纯逻辑：无 DOM、无 localStorage。UI 只派发动作。
- * 两个人、一部手机、一枚「我们」。没有三选一，没有贴纸格。
+ * 今晚飞行棋 · 棋盘拓扑（锁死坐标，见 T-003 清单 §1）
+ * 外周 52 格顺时针。四色起飞错开 13 格。航线 N = 5，再加 goal。
+ * 跳 / 飞不在 UI 里重算，只读这张表。
+ *
+ * 红 takeoff ring:0  进航 ring:50  飞点 ring:20 → ring:32 → 再跳 ring:36  禁跳 ring:48
+ * 黄 takeoff ring:13 进航 ring:11  飞点 ring:33 → ring:45 → 再跳 ring:49  禁跳 ring:9
+ * 蓝 takeoff ring:26 进航 ring:24  飞点 ring:46 → ring:6  → 再跳 ring:10  禁跳 ring:22
+ * 绿 takeoff ring:39 进航 ring:37  飞点 ring:7  → ring:19 → 再跳 ring:23  禁跳 ring:35
  * ========================================================================== */
 (function (global) {
   'use strict';
 
   var root = global.App = global.App || {};
 
-  function B() { return root.Balance; }
+  var COLORS = ['red', 'yellow', 'blue', 'green'];
+  var TAKEOFF = { red: 0, yellow: 13, blue: 26, green: 39 };
+  var HOME_STEPS = 5;
 
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  /* 题格：避开起飞、飞点、飞的终点、进航格、禁跳格。 */
+  var CELL_KIND = {
+    2: 'truth', 16: 'truth', 28: 'truth', 42: 'truth',
+    4: 'dare', 18: 'dare', 30: 'dare', 44: 'dare',
+    8: 'touch', 21: 'touch', 34: 'touch', 47: 'touch',
+    10: 'thermo', 36: 'thermo',
+    14: 'wheel', 40: 'wheel'
+  };
+  var WHEEL_KIND = { 14: 'truth-wheel', 40: 'dare-wheel' };
+
+  function mod(n) { return ((n % 52) + 52) % 52; }
+
+  function colorOfRing(n) { return COLORS[mod(n) % 4]; }
+
+  function isForbidden(n) {
+    var c = colorOfRing(n);
+    return n === mod(TAKEOFF[c] + 48);
+  }
+
+  function isFlyIndex(n) {
+    var c = colorOfRing(n);
+    return n === mod(TAKEOFF[c] + 20);
+  }
+
+  var squares = [];
+  var byId = {};
+
+  function add(sq) {
+    squares.push(sq);
+    byId[sq.id] = sq;
+  }
+
+  COLORS.forEach(function (c) {
+    for (var slot = 0; slot < 4; slot++) {
+      add({
+        id: 'hangar:' + c + ':' + slot,
+        kind: 'hangar',
+        color: c,
+        isFly: false,
+        jumpTo: null,
+        flyTo: null
+      });
+    }
+  });
+
+  for (var n = 0; n < 52; n++) {
+    var color = colorOfRing(n);
+    var fly = isFlyIndex(n);
+    var forbid = isForbidden(n);
+    add({
+      id: 'ring:' + n,
+      kind: CELL_KIND[n] || 'ring',
+      color: color,
+      wheel: WHEEL_KIND[n] || null,
+      isFly: fly,
+      jumpTo: forbid ? null : ('ring:' + mod(n + 4)),
+      flyTo: fly ? ('ring:' + mod(n + 12)) : null
+    });
+  }
+
+  COLORS.forEach(function (c) {
+    for (var step = 0; step < HOME_STEPS; step++) {
+      add({
+        id: 'home:' + c + ':' + step,
+        kind: 'home',
+        color: c,
+        step: step,
+        isFly: false,
+        jumpTo: null,
+        flyTo: null
+      });
+    }
+    add({
+      id: 'home:' + c + ':goal',
+      kind: 'goal',
+      color: c,
+      isFly: false,
+      jumpTo: null,
+      flyTo: null
+    });
+  });
+
+  var takeoffOf = {};
+  var homeEntryOf = {};
+  var homePathOf = {};
+  var flyOf = {};
+  var flyDestOf = {};
+  var flyThenJumpOf = {};
+  var noJumpOf = {};
+
+  COLORS.forEach(function (c) {
+    var t = TAKEOFF[c];
+    takeoffOf[c] = 'ring:' + t;
+    homeEntryOf[c] = 'ring:' + mod(t + 50);
+    flyOf[c] = 'ring:' + mod(t + 20);
+    flyDestOf[c] = 'ring:' + mod(t + 32);
+    flyThenJumpOf[c] = 'ring:' + mod(t + 36);
+    noJumpOf[c] = 'ring:' + mod(t + 48);
+    var path = [];
+    for (var s = 0; s < HOME_STEPS; s++) path.push('home:' + c + ':' + s);
+    path.push('home:' + c + ':goal');
+    homePathOf[c] = path;
+  });
+
+  var BOARD = {
+    colors: COLORS.slice(),
+    homeSteps: HOME_STEPS,
+    squares: squares,
+    takeoffOf: takeoffOf,
+    homeEntryOf: homeEntryOf,
+    homePathOf: homePathOf,
+    flyOf: flyOf,
+    flyDestOf: flyDestOf,
+    flyThenJumpOf: flyThenJumpOf,
+    noJumpOf: noJumpOf
+  };
+
+  function square(id) { return byId[id] || null; }
+
+  function parseSquare(id) {
+    var hangar = /^hangar:(red|yellow|blue|green):(\d+)$/.exec(id || '');
+    if (hangar) return { type: 'hangar', color: hangar[1], slot: Number(hangar[2]) };
+    var ring = /^ring:(\d+)$/.exec(id || '');
+    if (ring) return { type: 'ring', n: Number(ring[1]) };
+    var goal = /^home:(red|yellow|blue|green):goal$/.exec(id || '');
+    if (goal) return { type: 'goal', color: goal[1] };
+    var home = /^home:(red|yellow|blue|green):(\d+)$/.exec(id || '');
+    if (home) return { type: 'home', color: home[1], step: Number(home[2]) };
+    return null;
+  }
+
+  function progressOf(color, ringId) {
+    var loc = parseSquare(ringId);
+    if (!loc || loc.type !== 'ring') return -1;
+    return mod(loc.n - TAKEOFF[color]);
+  }
+
+  function ringAt(color, progress) {
+    return 'ring:' + mod(TAKEOFF[color] + progress);
+  }
+
+  root.FlightBoard = {
+    COLORS: COLORS,
+    TAKEOFF: TAKEOFF,
+    HOME_STEPS: HOME_STEPS,
+    map: function () { return BOARD; },
+    square: square,
+    parseSquare: parseSquare,
+    progressOf: progressOf,
+    ringAt: ringAt,
+    mod: mod
+  };
+})(typeof window !== 'undefined' ? window : this);
+
+/* ===== src/engine/flight-draw.js ===== */
+/* ==========================================================================
+ * 今晚飞行棋 · 抽题
+ * 词表从公寓 balance.js 原样迁出，不重写、不读热度。边界永远优先。
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  var root = global.App = global.App || {};
+
+  var SCALE_CAP = { gentle: 1, warm: 2, hot: 3, open: 4 };
+
+  /* 与 app/src/engine/balance.js 同一份词表，不改写。 */
+  var GENTLE_BLOCK_TAGS = ['束缚', '露出', '道具', '蒙眼'];
+  var EXPLICIT_SRC = '口交|插入|高潮|射精|射了|射在|全裸|裸体|自慰|肉棒|抽插|后入|骑乘|乳头|乳房|私处|下体|做爱|口爆|内射|调教|绑住|束缚|脱光|肛|潮吹|吞精|被口|口对方|口你|口我|阴茎|阴道|阴蒂|精液|深喉|坐脸';
+  var GENTLE_EXTRA_SRC = '做几次|做多少次|一天做|下不了床|叫出来|内裤|内衣|胸口|臀部|大腿内侧|舌吻|伸进|摸进|敏感部位|打屁股|湿了|硬了|喘给|呻吟';
+  var FALLBACK_CARDS = [
+    { id: 'fb1', text: '用一个词，说你现在看见对方的样子。', star: 1, tags: [], pool: 'truth' },
+    { id: 'fb2', text: '看着对方的眼睛，说一件你一直记得的小事。', star: 1, tags: [], pool: 'truth' },
+    { id: 'fb3', text: '把手放在对方手背上，停十秒，再说一句实话。', star: 1, tags: [], pool: 'sync' },
+    { id: 'fb4', text: '问对方：此刻你更想说话，还是先靠着？', star: 1, tags: [], pool: 'truth' },
+    { id: 'fb5', text: '坐近一点，说你今晚想把灯留到多晚。', star: 1, tags: [], pool: 'truth' }
+  ];
+
+  var POOLS = ['truth', 'dare', 'touch', 'sync', 'spark', 'punish'];
+
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
-  function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
   function createRng(seed) {
     var a = (Number(seed) >>> 0) || 1;
@@ -1573,897 +1670,1427 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     };
   }
 
-  function rngOf(state) { return createRng(state.rng); }
-  function saveRng(state, rng) { state.rng = rng.state(); }
-
-  function pack(state, events) {
-    return { state: state, events: events || [] };
-  }
-  function blocked(state, reason) {
-    return pack(state, [{ type: 'blocked', reason: reason }]);
-  }
-
-  function norm(s) {
-    return String(s || '').toLowerCase().replace(/\s+/g, '');
-  }
+  function norm(s) { return String(s || '').toLowerCase().replace(/\s+/g, ''); }
 
   function capOf(state) {
-    var b = B();
-    var c = clamp(parseInt(state && state.settings && state.settings.maxStar, 10) || 1, 1, 4);
-    if (state && state.settings && state.settings.gentleOnly) c = Math.min(c, 2);
-    return c;
+    if (state && SCALE_CAP[state.scale]) return SCALE_CAP[state.scale];
+    var n = Number(state && state.maxStarCap);
+    if (n >= 1 && n <= 4) return n;
+    return 2;
   }
 
-  function explicitRe() { return new RegExp(B().EXPLICIT_SRC); }
-  function gentleExtraRe() { return new RegExp(B().GENTLE_EXTRA_SRC); }
-
-  function band(state, opts) {
-    opts = opts || {};
-    var b = B();
+  function band(state) {
     var cap = capOf(state);
-    var heat = clamp((state && state.heat) || 0, 0, b.HEAT_MAX);
-    var spec = b.BAND[cap] || b.BAND[1];
-    var maxStar = heat >= spec.hotAt ? spec.hotMax : spec.baseMax;
-    var minPrefer = spec.prefer;
-    if (spec.preferMidAt != null && heat >= spec.preferMidAt) minPrefer = spec.preferMid;
-    if (heat >= spec.preferHotAt) minPrefer = spec.preferHot;
-    if (opts.deeper && cap === 2) {
-      maxStar = Math.max(maxStar, 3);
-      minPrefer = Math.min(maxStar, minPrefer + 1);
-    } else if (opts.deeper && cap >= 3) {
-      minPrefer = Math.min(maxStar, minPrefer + 1);
-    }
-    if (cap <= 1) { maxStar = 1; minPrefer = 1; }
-    if (minPrefer > maxStar) minPrefer = maxStar;
-    return { cap: cap, maxStar: maxStar, minPrefer: minPrefer, heat: heat };
+    /* 无热度。暧昧偏向 2 星；热烈 / 不设限把偏好抬高，不设限再加成 4–5 星。 */
+    var table = {
+      1: { cap: 1, maxStar: 1, minPrefer: 1 },
+      2: { cap: 2, maxStar: 3, minPrefer: 2 },
+      3: { cap: 3, maxStar: 5, minPrefer: 3 },
+      4: { cap: 4, maxStar: 5, minPrefer: 4 }
+    };
+    return table[cap] || table[1];
+  }
+
+  function boundaryList(state) {
+    var raw = [];
+    if (state && Array.isArray(state.boundaries)) raw = raw.concat(state.boundaries);
+    if (state && Array.isArray(state.blacklist)) raw = raw.concat(state.blacklist);
+    if (state && state.settings && Array.isArray(state.settings.blacklist)) raw = raw.concat(state.settings.blacklist);
+    var out = [];
+    var seen = {};
+    raw.forEach(function (item) {
+      var n = norm(item);
+      if (!n || seen[n]) return;
+      seen[n] = true;
+      out.push(n);
+    });
+    return out;
   }
 
   function hitsBoundary(card, state) {
-    var list = ((state.settings && state.settings.blacklist) || []).map(norm).filter(Boolean);
-    if (!list.length) return false;
+    var list = boundaryList(state);
+    if (!list.length || !card) return false;
     var tags = (card.tags || []).map(norm);
     var text = norm(card.text);
     for (var i = 0; i < list.length; i++) {
-      var item = list[i];
-      if (tags.indexOf(item) >= 0) return true;
-      if (item && text.indexOf(item) >= 0) return true;
+      if (tags.indexOf(list[i]) >= 0) return true;
+      if (list[i] && text.indexOf(list[i]) >= 0) return true;
     }
     return false;
   }
 
-  function cardAllowed(card, state, bandOpt) {
+  function allowed(card, state) {
     if (!card || !card.text) return false;
-    if (card.pool === 'punish' || card.type === 'punish') return false;
-    var bd = bandOpt || band(state);
+    var pool = card.pool || card.type;
+    if (pool === 'punish' || card.type === 'punish') return false;
+    var bd = band(state);
     var star = Number(card.star) || 1;
     if (star > bd.maxStar) return false;
     if (hitsBoundary(card, state)) return false;
-    if (bd.cap <= 2 && explicitRe().test(card.text)) return false;
+    if (bd.cap <= 2 && new RegExp(EXPLICIT_SRC).test(card.text)) return false;
     if (bd.cap <= 1) {
-      if (star > 1) return false;
-      if (gentleExtraRe().test(card.text)) return false;
-      var block = B().GENTLE_BLOCK_TAGS;
+      if (star !== 1) return false;
+      if (new RegExp(GENTLE_EXTRA_SRC).test(card.text)) return false;
       var tags = card.tags || [];
-      for (var i = 0; i < tags.length; i++) if (block.indexOf(tags[i]) >= 0) return false;
+      for (var i = 0; i < tags.length; i++) {
+        if (GENTLE_BLOCK_TAGS.indexOf(tags[i]) >= 0) return false;
+      }
     }
+    if ((pool === 'spark' || card.type === 'spark') && bd.maxStar < 4) return false;
     return true;
   }
 
-  function isQuestion(card) {
-    return /[？?]|吗|什么|哪|为什么|有没有|想不想|敢不敢|还是/.test(card.text || '');
-  }
-
-  function usable(card, state, bd, opts) {
-    if (!cardAllowed(card, state, bd)) return false;
-    if ((card.pool === 'spark' || card.type === 'spark') && bd.maxStar < 4) return false;
-    if (opts && opts.talk && (card.pool === 'spark' || card.type === 'spark') && !isQuestion(card)) return false;
-    return true;
-  }
-
-  function eachCard(fn) {
-    var C = global.CARDS || {};
-    var pools = ['truth', 'dare', 'touch', 'sync', 'spark', 'punish'];
-    for (var p = 0; p < pools.length; p++) {
-      var list = C[pools[p]] || [];
-      for (var i = 0; i < list.length; i++) fn(list[i], pools[p]);
-    }
-  }
-
-  function weightOf(card, bd) {
+  function weightOf(card, bd, mild) {
     var s = Number(card.star) || 1;
+    if (mild) return Math.max(1, 7 - s);
+    if (bd.cap === 2) {
+      if (s === 2) return 20;
+      if (s === 1) return 4;
+      return 3;
+    }
     var w = 1;
     if (s >= bd.minPrefer) w = 6 + (s - bd.minPrefer) * 4;
     else if (s >= bd.minPrefer - 1) w = 2;
-    if (bd.cap >= 4 && s >= 4) w += 6;
+    if (bd.cap >= 4 && s >= 4) w += 10;
     else if (bd.cap === 3 && s >= 4) w += 3;
     return w;
   }
 
-  function pickWeighted(items, rng) {
-    var total = 0;
-    for (var i = 0; i < items.length; i++) total += items[i].w;
-    if (total <= 0) return items[0].card;
-    var t = rng.next() * total;
-    for (var j = 0; j < items.length; j++) {
-      t -= items[j].w;
-      if (t < 0) return items[j].card;
-    }
-    return items[items.length - 1].card;
+  function library() {
+    var C = (global.CARDS || {});
+    return C;
   }
 
-  function fallbackCard(state) {
-    var list = B().FALLBACK_CARDS;
-    var rng = rngOf(state);
-    var card = list[Math.floor(rng.next() * list.length)];
-    saveRng(state, rng);
-    return {
-      id: card.id, text: card.text, star: 1, tags: [], pool: card.pool || 'truth',
-      type: card.pool || 'truth', fallback: true, src: 'apartment'
-    };
-  }
+  function rngOf(state) { return createRng(state.rng || 1); }
 
-  function collect(state, pools, bd, opts, ignoreUsed) {
-    var want = {};
-    for (var i = 0; i < pools.length; i++) want[pools[i]] = true;
-    var used = state.used || {};
+  function saveRng(state, rng) { state.rng = rng.state(); }
+
+  function collect(state, pool, ignoreUsed) {
+    var bd = band(state);
+    var used = (state.usedCards && state.usedCards[pool]) || {};
+    var list = library()[pool] || [];
     var items = [];
-    eachCard(function (raw, pool) {
-      if (!want[pool]) return;
-      if (!ignoreUsed && used[pool] && used[pool][raw.id]) return;
+    for (var i = 0; i < list.length; i++) {
+      var raw = list[i];
+      if (!ignoreUsed && used[raw.id]) continue;
       var card = {
-        id: raw.id, text: raw.text, star: raw.star, tags: raw.tags || [],
-        pool: pool, type: pool, src: raw.src || ''
+        id: raw.id,
+        text: raw.text,
+        star: raw.star,
+        tags: raw.tags || [],
+        pool: pool,
+        type: pool,
+        src: raw.src || ''
       };
-      if (!usable(card, state, bd, opts)) return;
-      items.push({ card: card, w: weightOf(card, bd) });
-    });
+      if (!allowed(card, state)) continue;
+      items.push(card);
+    }
     return items;
   }
 
-  function clearUsed(state, pools) {
-    state.used = state.used || {};
-    for (var i = 0; i < pools.length; i++) state.used[pools[i]] = {};
+  function pickWeighted(items, rng, bd, mild) {
+    var total = 0;
+    var weights = [];
+    for (var i = 0; i < items.length; i++) {
+      var w = weightOf(items[i], bd, mild);
+      weights.push(w);
+      total += w;
+    }
+    if (total <= 0) return items[0];
+    var t = rng.next() * total;
+    for (var j = 0; j < items.length; j++) {
+      t -= weights[j];
+      if (t < 0) return items[j];
+    }
+    return items[items.length - 1];
   }
 
-  function takeCard(state, pools, bd, opts) {
-    var items = collect(state, pools, bd, opts, false);
+  function takePool(state, pool, mild) {
+    var items = collect(state, pool, false);
     if (!items.length) {
-      clearUsed(state, pools);
-      items = collect(state, pools, bd, opts, false);
+      state.usedCards = state.usedCards || {};
+      state.usedCards[pool] = {};
+      items = collect(state, pool, false);
     }
-    if (!items.length) return fallbackCard(state);
+    if (!items.length) return null;
     var rng = rngOf(state);
-    var card = pickWeighted(items, rng);
+    var card = pickWeighted(items, rng, band(state), mild);
     saveRng(state, rng);
-    state.used = state.used || {};
-    state.used[card.pool] = state.used[card.pool] || {};
-    state.used[card.pool][card.id] = true;
+    state.usedCards = state.usedCards || {};
+    state.usedCards[pool] = state.usedCards[pool] || {};
+    state.usedCards[pool][card.id] = true;
     return card;
   }
 
-  function nextId(state) {
-    state.seq = (state.seq || 0) + 1;
-    return 'n' + state.seq;
-  }
-
-  function pushLog(state, prompt, outcome) {
-    var card = (prompt && prompt.card) || {};
-    state.log.push({
-      id: nextId(state),
-      room: (prompt && prompt.room) || state.room || '',
-      game: (prompt && (prompt.mode || prompt.role)) || state.game || state.room || '',
-      text: card.text || prompt.text || '',
-      star: card.star || 0,
-      tags: card.tags || [],
-      outcome: outcome || 'done',
-      who: (prompt && prompt.who) || '',
-      via: (prompt && prompt.via) || ''
-    });
-  }
-
-  function heatGain(state, base) {
-    var mult = B().HEAT_MULT[capOf(state)] || 1;
-    return Math.max(1, Math.round((Number(base) || 1) * mult));
-  }
-
-  function addHeat(state, amount) {
-    var b = B();
-    var next = clamp((state.heat || 0) + (amount || 0), 0, b.HEAT_MAX);
-    var delta = next - (state.heat || 0);
-    state.heat = next;
-    return delta;
-  }
-
-  function blankLit() {
-    return { living: false, kitchen: false, balcony: false, bathroom: false, bedroom: false };
-  }
-  function blankVisits() {
-    return { living: 0, kitchen: 0, balcony: 0, bathroom: 0, bedroom: 0 };
-  }
-
-  function normalizeSettings(settings) {
-    var d = B().DEFAULT_SETTINGS;
-    settings = settings || {};
-    var names = settings.names || d.names;
-    var blacklist = Array.isArray(settings.blacklist) ? settings.blacklist : [];
-    blacklist = blacklist.map(function (x) { return String(x || '').trim(); }).filter(Boolean).slice(0, 24);
-    return {
-      maxStar: clamp(parseInt(settings.maxStar, 10) || d.maxStar, 1, 4),
-      sound: settings.sound !== false,
-      haptics: settings.haptics !== false,
-      reduced: !!settings.reduced,
-      gentleOnly: !!settings.gentleOnly,
-      blacklist: blacklist,
-      names: {
-        a: (names.a && String(names.a).trim()) || d.names.a,
-        b: (names.b && String(names.b).trim()) || d.names.b
-      }
-    };
-  }
-
-  function newSession(settings, names, seed) {
-    var b = B();
-    var merged = normalizeSettings(settings || {});
-    if (names) {
-      if (names.a) merged.names.a = String(names.a).trim() || merged.names.a;
-      if (names.b) merged.names.b = String(names.b).trim() || merged.names.b;
+  function poolsFor(purpose, cap) {
+    if (purpose === 'cell-truth') return ['truth'];
+    if (purpose === 'cell-dare') return ['dare'];
+    if (purpose === 'cell-touch') return ['touch'];
+    if (purpose === 'capture') {
+      var caps = ['dare', 'touch', 'truth'];
+      if (cap >= 3) caps.push('spark');
+      return caps;
     }
-    var cap = merged.gentleOnly ? Math.min(merged.maxStar, 2) : merged.maxStar;
-    var heat = b.HEAT_START[cap] || b.HEAT_START[1];
-    var now = Date.now();
+    if (purpose === 'stack-duo') return ['sync', 'touch'];
+    if (purpose === 'home-entry' || purpose === 'ending') {
+      var home = ['truth', 'touch', 'dare'];
+      if (cap >= 3) home.push('spark');
+      return home;
+    }
+    return ['truth'];
+  }
+
+  function fallback(state) {
+    var rng = rngOf(state);
+    var card = FALLBACK_CARDS[Math.floor(rng.next() * FALLBACK_CARDS.length)];
+    saveRng(state, rng);
     return {
-      v: b.SESSION_VERSION,
-      kind: 'apartment',
-      mode: 'night',
-      game: null,
-      id: 'apt-' + now.toString(36) + '-' + ((Number(seed) >>> 0) || (now % 100000)).toString(36),
-      ts: now,
-      names: { a: merged.names.a, b: merged.names.b },
-      settings: merged,
-      phase: 'plan',
-      room: null,
-      at: 'foyer',
-      heat: heat,
-      heatBase: heat,
-      minutes: b.START_MINUTES,
-      lit: blankLit(),
-      visits: blankVisits(),
-      log: [],
-      used: {},
-      truthRerolls: b.REROLLS.truth,
-      dareRerolls: b.REROLLS.dare,
-      prompt: null,
-      wheel: null,
-      thermo: null,
-      stroll: null,
-      bedroomMode: null,
-      flags: {},
-      pasted: {},
-      seq: 0,
-      rng: (Number(seed) >>> 0) || ((now % 2147483646) + 1),
-      result: null,
-      archived: false
+      id: card.id,
+      text: card.text,
+      star: 1,
+      tags: [],
+      pool: card.pool || 'truth',
+      type: card.pool || 'truth',
+      fallback: true,
+      src: 'flight'
     };
   }
 
-  function isLegacy(state) {
-    if (!state || typeof state !== 'object') return false;
-    if (state.kind === 'apartment') return false;
-    if (state.hand || state.act || state.tokens || state.resources) return true;
-    var ph = state.phase;
+  function take(state, purpose) {
+    var s = clone(state || {});
+    s.usedCards = s.usedCards || {};
+    POOLS.forEach(function (p) {
+      if (!s.usedCards[p]) s.usedCards[p] = {};
+    });
+    if (!s.rng) s.rng = 1;
+    var bd = band(s);
+    var pools = poolsFor(purpose, bd.cap);
+    var mild = purpose === 'ending';
+    var card = null;
+    for (var i = 0; i < pools.length; i++) {
+      card = takePool(s, pools[i], mild);
+      if (card) break;
+    }
+    if (!card) card = fallback(s);
+    return { state: s, card: card };
+  }
+
+  root.FlightDraw = {
+    SCALE_CAP: SCALE_CAP,
+    GENTLE_BLOCK_TAGS: GENTLE_BLOCK_TAGS,
+    EXPLICIT_SRC: EXPLICIT_SRC,
+    GENTLE_EXTRA_SRC: GENTLE_EXTRA_SRC,
+    FALLBACK_CARDS: FALLBACK_CARDS,
+    allowed: allowed,
+    band: band,
+    take: take,
+    poolsFor: poolsFor,
+    weightOf: weightOf
+  };
+})(typeof window !== 'undefined' ? window : this);
+
+/* ===== src/engine/archive.js ===== */
+/* ==========================================================================
+ * 今晚飞行棋 · 旧局归档
+ * 进行中的夜航、进行中的公寓局收进「以前的夜」，不按新规则续玩。
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  var root = global.App = global.App || {};
+
+  function isApartment(raw) {
+    return !!(raw && typeof raw === 'object' && raw.kind === 'apartment');
+  }
+
+  function isLegacy(raw) {
+    if (!raw || typeof raw !== 'object') return false;
+    if (raw.kind === 'apartment' || raw.kind === 'flight') return false;
+    if (raw.hand || raw.act || raw.tokens || raw.resources) return true;
+    var ph = raw.phase;
     return !!(ph && ['draft', 'play', 'resolve', 'escalate', 'event', 'act', 'shop', 'finale'].indexOf(ph) >= 0);
   }
 
-  function archiveLegacy(state) {
-    var res = (state && state.resources) || {};
-    var result = (state && state.result) || {};
-    var done = state && state.phase === 'finale';
+  function isForeign(raw) {
+    return isApartment(raw) || isLegacy(raw);
+  }
+
+  function archiveForeign(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    if (isApartment(raw)) {
+      var safe = !!(raw.flags && raw.flags.safeWord) || !!(raw.result && raw.result.safe);
+      return {
+        id: raw.id || ('apt-' + (raw.ts || 0)),
+        ts: raw.ts || Date.now(),
+        kind: 'apartment',
+        title: '今晚在这间公寓',
+        names: raw.names || undefined,
+        endingName: safe ? '先回去关灯' : '未走完的公寓',
+        note: '已收进以前的夜，不按今晚飞行棋续玩',
+        safe: safe,
+        imported: true
+      };
+    }
+    if (isLegacy(raw)) {
+      var res = raw.resources || {};
+      var result = raw.result || {};
+      var done = raw.phase === 'finale';
+      return {
+        id: raw.id || ('legacy-' + (raw.ts || 0)),
+        ts: raw.ts || Date.now(),
+        kind: 'voyage',
+        title: '以前的夜航',
+        endingName: result.endingName || (done ? '已靠岸' : '未走完的夜航'),
+        note: '这是升温夜航的记录，已收进以前的夜，不会继续，也不会在这间公寓里继续。',
+        heart: res.heart || 0,
+        tension: res.tension || 0,
+        sync: res.sync || 0,
+        rounds: raw.round || 0,
+        safe: !!(raw.flags && raw.flags.safeWord),
+        imported: true,
+        rooms: []
+      };
+    }
+    return null;
+  }
+
+  root.Archive = {
+    isApartment: isApartment,
+    isLegacy: isLegacy,
+    isForeign: isForeign,
+    archiveForeign: archiveForeign
+  };
+})(typeof window !== 'undefined' ? window : this);
+
+/* ===== src/engine/minigames.js ===== */
+/* ==========================================================================
+ * 今晚飞行棋 · 温度计 / 真心话转盘 / 大冒险转盘
+ * 纯逻辑。不读不写公寓热度。旧 stroll* 不再提供。
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  var root = global.App = global.App || {};
+
+  var THERMO_LABELS = {
+    1: ['还想聊天', '坐近一点', '靠着肩', '牵着手', '想被抱一下', '额头碰额头', '轻声说喜欢'],
+    2: ['看着就好', '靠得很近', '吻在嘴角', '手停在腰上', '吻得更深', '衣领会松', '想被碰到衣服里', '今晚别只是抱'],
+    3: ['还在说话', '吻深一点', '手放进来', '压近一点', '想被要', '别停在前戏', '去更暗的地方', '看着我做', '再狠一点', '现在就继续', '做到出汗'],
+    4: ['还能等', '想被吻狠一点', '手不要停', '衣服可以脱掉', '想听你的声音', '别只是磨', '换到更近的地方', '照你想的来', '做到腿软', '今晚不用收着', '你想要到哪']
+  };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function createRng(seed) {
+    var a = (Number(seed) >>> 0) || 1;
     return {
-      id: (state && state.id) || ('legacy-' + ((state && state.ts) || 0)),
-      ts: (state && state.ts) || Date.now(),
-      kind: 'voyage',
-      title: '以前的夜航',
-      endingName: result.endingName || (done ? '已靠岸' : '未走完的夜航'),
-      note: '这是升温夜航的记录，已收进以前的夜，不会在这间公寓里继续。',
-      heart: res.heart || 0,
-      tension: res.tension || 0,
-      sync: res.sync || 0,
-      rounds: (state && state.round) || 0,
-      safe: !!(state && state.flags && state.flags.safeWord),
-      imported: true,
-      rooms: [],
-      names: (state && state.names) || null
+      next: function () {
+        a |= 0;
+        a = (a + 0x6d2b79f5) | 0;
+        var t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      },
+      state: function () { return a >>> 0; }
     };
   }
 
-  function knownRoom(id) { return B().ROOMS.indexOf(id) >= 0; }
-
-  function roomOpen(state, roomId) {
-    if (!knownRoom(roomId)) return { ok: false, locked: false, reason: 'unknown' };
-    /* 卧室从第一分钟就开着，不做成夜末锁。 */
-    return { ok: true, locked: false, reason: 'open' };
+  function fail(state, code, message) {
+    return { ok: false, state: state || null, events: [], error: { code: code, message: message } };
+  }
+  function ok(state, events) {
+    if (state && Object.prototype.hasOwnProperty.call(state, 'heat')) delete state.heat;
+    return { ok: true, state: state, events: events || [], error: null };
   }
 
-  function enterRoom(state, roomId) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    if (state.phase === 'done') return blocked(state, 'done');
-    var gate = roomOpen(state, roomId);
-    if (!gate.ok) return blocked(state, gate.reason);
-    var b = B();
-    var s = clone(state);
-    var cap = capOf(s);
-    if (s.mode !== 'standalone') {
-      var gain = Math.max(1, Math.round((b.VISIT_HEAT[roomId] || 8) * (b.HEAT_MULT[cap] || 1)));
-      if ((s.visits[roomId] || 0) > 0) gain = Math.max(1, Math.round(gain * b.REVISIT_RATIO));
-      s.visits[roomId] = (s.visits[roomId] || 0) + 1;
-      s.lit[roomId] = true;
-      addHeat(s, gain);
-      s.minutes = (s.minutes || b.START_MINUTES) + (b.ROOM_MINUTES[roomId] || 12);
-    }
-    s.phase = 'room';
-    s.room = roomId;
-    s.at = roomId;
-    s.prompt = null;
-    s.wheel = null;
-    s.thermo = null;
-    s.bedroomMode = null;
-    s.stroll = null;
-    return pack(s, [{ type: 'enter', room: roomId, heat: s.heat, lit: true }]);
+  function draw() { return root.FlightDraw; }
+
+  function capOf(state) {
+    var D = draw();
+    if (D && D.SCALE_CAP && D.SCALE_CAP[state.scale]) return D.SCALE_CAP[state.scale];
+    return state.maxStarCap || 2;
   }
 
-  function leaveRoom(state) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    if (state.phase === 'done') return pack(state, []);
-    var s = clone(state);
-    s.at = s.room || s.at || 'foyer';
-    s.phase = 'plan';
-    s.prompt = null;
-    s.wheel = null;
-    s.thermo = null;
-    s.bedroomMode = null;
-    s.stroll = null;
-    return pack(s, [{ type: 'leave', at: s.at }]);
-  }
-
-  function drawPrompt(state, opts) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    opts = opts || {};
-    var s = clone(state);
-    var bd = band(s, opts);
-    var pools = (opts.pools || ['truth']).slice();
-    pools = pools.filter(function (p) {
-      if (p === 'punish') return false;
-      if (p === 'spark' && bd.maxStar < 4) return false;
-      return true;
-    });
-    if (!pools.length) pools = ['truth'];
-    var card = takeCard(s, pools, bd, opts);
-    s.prompt = {
-      card: card,
-      room: opts.room || s.room,
-      pools: pools,
-      who: opts.who || null,
-      role: opts.role || null,
-      mode: opts.mode || null,
-      deeper: !!opts.deeper,
-      talk: !!opts.talk
-    };
-    return pack(s, [{ type: 'prompt', card: card, band: bd }]);
-  }
-
-  function livingOffer(state, opts) {
-    opts = opts || {};
-    if (!state || state.room !== 'living') return blocked(state, 'not-living');
-    return drawPrompt(state, {
-      pools: ['truth', 'sync'],
-      room: 'living',
-      who: opts.who || 'a',
-      role: opts.role || 'ask',
-      talk: true,
-      deeper: false
-    });
-  }
-
-  function pushDeeper(state) {
-    if (!state || !state.prompt) return blocked(state, 'no-prompt');
-    var prev = state.prompt;
-    var pools = (prev.pools || ['truth']).slice();
-    var bd = band(state, { deeper: true });
-    if (bd.maxStar >= 4 && pools.indexOf('spark') < 0 && (prev.room === 'living' || prev.room === 'bedroom' || prev.talk)) {
-      pools.push('spark');
-    }
-    var ret = drawPrompt(state, {
-      pools: pools,
-      room: prev.room,
-      who: prev.who,
-      role: prev.role,
-      mode: prev.mode,
-      talk: !!prev.talk || prev.room === 'living' || prev.room === 'bathroom',
-      deeper: true
-    });
-    var s = ret.state;
-    var gain = heatGain(s, bd.cap >= 3 ? 4 : 2);
-    if (bd.cap <= 1) gain = heatGain(s, 1);
-    var delta = addHeat(s, gain);
-    pushLog(s, prev, 'deeper');
-    ret.events.push({ type: 'heat', delta: delta, heat: s.heat });
-    return ret;
-  }
-
-  function settlePrompt(state, outcome) {
-    if (!state || !state.prompt) return blocked(state, 'no-prompt');
-    var s = clone(state);
-    var card = s.prompt.card || {};
-    var how = outcome || 'done';
-    var delta = 0;
-    if (how === 'done') delta = addHeat(s, heatGain(s, Math.max(2, (card.star || 1) * 2)));
-    else if (how === 'hold') delta = addHeat(s, heatGain(s, 1));
-    pushLog(s, s.prompt, how);
-    if (s.mode !== 'standalone' && s.prompt.room && s.lit && s.prompt.room in s.lit) s.lit[s.prompt.room] = true;
-    s.prompt = null;
-    return pack(s, [{ type: 'settle', outcome: how, delta: delta, heat: s.heat }]);
-  }
-
-  function dealWheelMut(s, kind) {
-    var bd = band(s);
-    var talk = kind === 'truth';
-    var pools = talk ? ['truth'] : ['dare', 'touch'];
-    if (!talk && bd.maxStar >= 4) pools.push('spark');
-    if (talk && bd.cap >= 3 && bd.maxStar >= 4) pools.push('spark');
-    var slots = [];
-    for (var i = 0; i < 6; i++) slots.push(takeCard(s, pools, bd, { talk: talk }));
-    s.wheel = { kind: kind, slots: slots, index: null, spun: false, pools: pools };
-    s.prompt = null;
-    return pack(s, [{ type: 'deal', kind: kind, slots: slots.length }]);
-  }
-
-  function dealWheel(state, kind) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    if (kind !== 'truth' && kind !== 'dare') return blocked(state, 'kind');
-    return dealWheelMut(clone(state), kind);
-  }
-
-  function spinWheel(state) {
-    if (!state || !state.wheel || !state.wheel.slots || !state.wheel.slots.length) return blocked(state, 'no-wheel');
-    var s = clone(state);
-    var rng = rngOf(s);
-    var idx = Math.floor(rng.next() * s.wheel.slots.length);
-    saveRng(s, rng);
-    s.wheel.index = idx;
-    s.wheel.spun = true;
-    var card = s.wheel.slots[idx];
-    s.prompt = {
-      card: card,
-      room: s.room,
-      pools: s.wheel.pools,
-      who: null,
-      role: 'wheel',
-      mode: s.wheel.kind,
-      talk: s.wheel.kind === 'truth'
-    };
-    return pack(s, [{ type: 'spin', index: idx, card: card }]);
-  }
-
-  function rerollWheel(state) {
-    if (!state || !state.wheel) return blocked(state, 'no-wheel');
-    var key = state.wheel.kind === 'truth' ? 'truthRerolls' : 'dareRerolls';
-    if ((state[key] || 0) <= 0) return blocked(state, 'no-reroll');
-    var s = clone(state);
-    s[key] = (s[key] || 0) - 1;
-    var kind = s.wheel.kind;
-    return dealWheelMut(s, kind);
-  }
-
-  function handTruth(state, who) {
-    if (!state || !state.prompt) return blocked(state, 'no-prompt');
-    var s = clone(state);
-    s.prompt.who = who === 'other' ? 'other' : 'self';
-    s.prompt.hand = s.prompt.who;
-    return pack(s, [{ type: 'hand', who: s.prompt.who }]);
-  }
-
-  function thermoMax(cap) {
-    var labels = B().THERMO_LABELS[cap] || B().THERMO_LABELS[1];
-    return labels.length - 1;
+  function stripHeat(s) {
+    if (s && Object.prototype.hasOwnProperty.call(s, 'heat')) delete s.heat;
+    return s;
   }
 
   function thermoBegin(state) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    var s = clone(state);
+    if (!state) return fail(null, 'NO_SESSION', '没有温度计可开始');
+    var s = stripHeat(clone(state));
     var cap = capOf(s);
-    s.thermo = { max: thermoMax(cap), a: null, b: null, passing: false, revealed: false, delta: 0, err: null, closeness: null };
-    return pack(s, [{ type: 'thermo', max: s.thermo.max }]);
+    var labels = THERMO_LABELS[cap] || THERMO_LABELS[2];
+    s.thermo = {
+      max: labels.length - 1,
+      labels: labels,
+      a: null,
+      b: null,
+      passing: false,
+      revealed: false
+    };
+    return ok(s, [{ type: 'thermo', max: s.thermo.max }]);
   }
 
   function thermoSet(state, player, place, guess) {
-    if (!state) return blocked(state, 'no-session');
-    if (player !== 'a' && player !== 'b') return blocked(state, 'player');
-    var s = clone(state);
-    if (!s.thermo) s.thermo = { max: thermoMax(capOf(s)), a: null, b: null, passing: false, revealed: false };
-    if (s.thermo.revealed) return blocked(state, 'revealed');
+    if (!state) return fail(null, 'NO_SESSION', '没有温度计');
+    if (player !== 'a' && player !== 'b') return fail(state, 'AWAITING_OTHER', '要分清是谁');
+    var s = stripHeat(clone(state));
+    if (!s.thermo) return fail(state, 'AWAITING_OTHER', '温度计还没开始');
+    if (s.thermo.revealed) return fail(state, 'AWAITING_OTHER', '已经揭晓了');
     var max = s.thermo.max;
     s.thermo[player] = {
-      place: clamp(Math.round(Number(place) || 0), 0, max),
-      guess: clamp(Math.round(Number(guess) || 0), 0, max)
+      place: Math.max(0, Math.min(max, Math.round(Number(place) || 0))),
+      guess: Math.max(0, Math.min(max, Math.round(Number(guess) || 0)))
     };
-    return pack(s, [{ type: 'lock', player: player }]);
+    return ok(s, [{ type: 'lock', player: player }]);
   }
 
   function thermoPass(state) {
-    if (!state || !state.thermo || !state.thermo.a) return blocked(state, 'no-a');
-    var s = clone(state);
+    if (!state || !state.thermo || !state.thermo.a) return fail(state || null, 'AWAITING_OTHER', '还没轮到换手');
+    var s = stripHeat(clone(state));
     s.thermo.passing = true;
-    return pack(s, [{ type: 'pass-phone' }]);
+    return ok(s, [{ type: 'pass-phone' }]);
   }
 
   function thermoReveal(state) {
-    if (!state || !state.thermo) return blocked(state, 'no-thermo');
-    if (!state.thermo.a || !state.thermo.b) return blocked(state, 'incomplete');
-    if (state.thermo.revealed) return pack(state, []);
-    var s = clone(state);
+    if (!state || !state.thermo) return fail(state || null, 'AWAITING_OTHER', '没有温度计');
+    if (!state.thermo.a || !state.thermo.b) return fail(state, 'AWAITING_OTHER', '两个人都还没标');
+    if (state.thermo.revealed) return ok(stripHeat(clone(state)), []);
+    var s = stripHeat(clone(state));
     var t = s.thermo;
     var err = Math.abs(t.a.guess - t.b.place) + Math.abs(t.b.guess - t.a.place);
     var maxErr = t.max * 2;
     var closeness = maxErr === 0 ? 1 : 1 - err / maxErr;
-    var mult = B().HEAT_MULT[capOf(s)] || 1;
-    var delta = Math.round(closeness * 16 * mult);
-    var avg = (t.a.place + t.b.place) / 2;
-    delta += Math.round((avg / Math.max(1, t.max)) * 6 * mult);
-    delta = addHeat(s, delta);
     t.revealed = true;
     t.err = err;
     t.closeness = Math.round(closeness * 100) / 100;
-    t.delta = delta;
-    var names = s.names || { a: '他', b: '她' };
-    pushLog(s, {
-      card: { text: names.a + ' 和 ' + names.b + ' 在阳台上对了温度。猜近了 ' + Math.round(closeness * 100) + '。', star: 0, tags: [] },
-      room: 'balcony',
-      role: 'thermo',
-      mode: 'thermo'
-    }, 'reveal');
-    if (s.mode !== 'standalone' && s.lit) s.lit.balcony = true;
-    return pack(s, [{ type: 'reveal', delta: delta, closeness: t.closeness, err: err, heat: s.heat }]);
+    return ok(s, [{ type: 'reveal', closeness: t.closeness, err: err }]);
   }
 
-  function bedroomMode(state, mode) {
-    if (!state || state.room !== 'bedroom') return blocked(state, 'not-bedroom');
-    var s = clone(state);
-    s.bedroomMode = mode === 'act' ? 'act' : 'talk';
+  function dealWheel(state, kind) {
+    if (!state) return fail(null, 'NO_SESSION', '没有转盘');
+    if (kind !== 'truth' && kind !== 'dare') return fail(state, 'INVALID_SETUP', '转盘只有真话和动作');
+    var s = stripHeat(clone(state));
+    var D = draw();
+    var purpose = kind === 'truth' ? 'cell-truth' : 'cell-dare';
+    var slots = [];
+    for (var i = 0; i < 6; i++) {
+      var got = D.take(s, purpose);
+      s = got.state;
+      slots.push(got.card);
+    }
+    s.wheel = { kind: kind, slots: slots, index: null, spun: false };
     s.prompt = null;
-    return pack(s, [{ type: 'mode', mode: s.bedroomMode }]);
+    return ok(s, [{ type: 'deal', kind: kind, slots: slots.length }]);
   }
 
-  function bedroomDraw(state) {
-    if (!state || state.room !== 'bedroom') return blocked(state, 'not-bedroom');
-    var mode = state.bedroomMode || 'talk';
-    var pools = mode === 'act' ? ['touch', 'dare'] : ['truth', 'sync'];
-    var bd = band(state);
-    if (bd.maxStar >= 4) pools.push('spark');
-    return drawPrompt(state, {
-      pools: pools,
-      room: 'bedroom',
-      mode: mode,
-      talk: mode !== 'act',
-      role: mode
-    });
-  }
-
-  function strollStart(state) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    if (state.phase === 'done') return blocked(state, 'done');
-    var s = clone(state);
-    s.phase = 'stroll';
-    s.room = null;
-    s.prompt = null;
-    s.wheel = null;
-    s.thermo = null;
-    s.stroll = { pos: 0, pending: null, turns: 0, lastDie: 0 };
-    return pack(s, [{ type: 'stroll', pos: 0 }]);
-  }
-
-  function poolsFor(room, bd) {
-    var map = {
-      living: ['truth', 'sync'],
-      kitchen: ['dare', 'touch'],
-      balcony: ['truth', 'sync'],
-      bathroom: ['truth'],
-      bedroom: ['touch', 'dare', 'truth']
-    };
-    var pools = (map[room] || ['truth']).slice();
-    if (bd.maxStar >= 4 && (room === 'bedroom' || room === 'kitchen')) pools.push('spark');
-    if (bd.maxStar >= 4 && room === 'bathroom') pools.push('spark');
-    return pools;
-  }
-
-  function strollRoll(state) {
-    if (!state || state.phase !== 'stroll' || !state.stroll) return blocked(state, 'not-stroll');
-    if (state.stroll.pending) return blocked(state, 'pending');
-    var s = clone(state);
-    var rng = rngOf(s);
-    var die = 1 + Math.floor(rng.next() * 3);
-    saveRng(s, rng);
-    var tiles = B().STROLL_TILES;
-    var pos = (s.stroll.pos + die) % tiles.length;
-    var tile = tiles[pos];
-    s.stroll.pos = pos;
-    s.stroll.lastDie = die;
-    s.stroll.turns += 1;
-    var bd = band(s);
-    var pools = poolsFor(tile.room, bd);
-    var talk = tile.room === 'living' || tile.room === 'bathroom' || tile.room === 'balcony';
-    var card = takeCard(s, pools, bd, { talk: talk });
-    s.stroll.pending = { tile: { id: tile.id, room: tile.room, name: tile.name }, card: card };
-    if (s.mode !== 'standalone' && s.lit && tile.room in s.lit) s.lit[tile.room] = true;
-    return pack(s, [{ type: 'land', die: die, tile: s.stroll.pending.tile, card: card }]);
-  }
-
-  function strollSettle(state, outcome) {
-    if (!state || !state.stroll || !state.stroll.pending) return blocked(state, 'no-pending');
-    var s = clone(state);
-    var pending = s.stroll.pending;
-    var how = outcome === 'pass' ? 'pass' : 'done';
-    var delta = 0;
-    if (how === 'done') delta = addHeat(s, heatGain(s, Math.max(2, (pending.card.star || 1) * 2)));
-    pushLog(s, { card: pending.card, room: pending.tile.room, role: 'stroll', mode: 'stroll', who: '我们' }, how);
-    if (s.mode !== 'standalone' && s.lit) s.lit[pending.tile.room] = true;
-    s.stroll.pending = null;
-    return pack(s, [{ type: 'settle', outcome: how, delta: delta, heat: s.heat, room: pending.tile.room }]);
-  }
-
-  function clockLabel(state) {
-    var m = (state && state.minutes) || B().START_MINUTES;
-    var h = Math.floor(m / 60) % 24;
-    var min = m % 60;
-    return pad2(h) + ':' + pad2(min);
-  }
-
-  function buildMemory(state) {
-    var b = B();
-    var lit = state.lit || {};
-    var visits = state.visits || {};
-    var rooms = [];
-    b.ROOMS.forEach(function (id) {
-      if (lit[id]) rooms.push({ id: id, name: b.ROOM_META[id].name, visits: visits[id] || 0 });
-    });
-    var safe = !!(state.flags && state.flags.safeWord);
-    var line = b.MEMORY_LINES.warm;
-    if (safe) line = b.MEMORY_LINES.safe;
-    else if (!rooms.length && !(state.log || []).length) line = b.MEMORY_LINES.empty;
-    else if ((state.heat || 0) >= b.HEAT_CHARGED) line = b.MEMORY_LINES.deep;
-    var cap = capOf(state);
-    return {
-      title: b.MEMORY_TITLE,
-      names: state.names || { a: '他', b: '她' },
-      heat: state.heat || 0,
-      stage: b.stageOf(state.heat || 0),
-      intensity: cap,
-      intensityName: (b.INTENSITY[cap] && b.INTENSITY[cap].name) || '',
-      rooms: rooms,
-      moments: (state.log || []).slice(),
-      safe: safe,
-      line: line,
-      clock: clockLabel(state),
-      shamed: false
-    };
-  }
-
-  function finish(state, safe) {
-    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
-    if (state.phase === 'done' && state.result) return pack(state, [{ type: 'ending', safe: !!state.result.safe }]);
-    var s = clone(state);
-    if (safe) s.flags = Object.assign({}, s.flags, { safeWord: true });
-    s.phase = 'done';
-    s.result = buildMemory(s);
-    return pack(s, [{ type: safe ? 'safe' : 'close', heat: s.heat, result: s.result }]);
-  }
-
-  function safeWord(state) {
-    if (!state) return blocked(state, 'no-session');
-    var beforeHeat = state.heat;
-    var beforeLog = (state.log || []).length;
-    var ret = finish(state, true);
-    /* 安全词不改热度、不改已经发生的记录。 */
-    if (ret.state && ret.state !== state) {
-      ret.state.heat = beforeHeat;
-      if (ret.state.result) ret.state.result.heat = beforeHeat;
+  function spinWheel(state) {
+    if (!state || !state.wheel || !state.wheel.slots || !state.wheel.slots.length) {
+      return fail(state || null, 'AWAITING_OTHER', '转盘还没备好');
     }
-    if (ret.state && (ret.state.log || []).length !== beforeLog) {
-      ret.state.log = clone(state.log || []);
-    }
-    return ret;
+    var s = stripHeat(clone(state));
+    var rng = createRng(s.rng || 1);
+    var idx = Math.floor(rng.next() * s.wheel.slots.length);
+    s.rng = rng.state();
+    s.wheel.index = idx;
+    s.wheel.spun = true;
+    var card = s.wheel.slots[idx];
+    s.prompt = { card: card, who: null, role: 'wheel', mode: s.wheel.kind };
+    return ok(s, [{ type: 'spin', index: idx, card: card }]);
   }
 
-  function closeNight(state) { return finish(state, false); }
-
-  var GAME_ROOM = { thermo: 'balcony', truth: 'bathroom', dare: 'kitchen', stroll: null };
-
-  function newStandalone(game, settings, seed) {
-    if (GAME_ROOM[game] === undefined && game !== 'stroll') game = 'dare';
-    var names = settings && settings.names;
-    var s = newSession(settings || {}, names, seed);
-    s.mode = 'standalone';
-    s.game = game;
-    s.id = 'door-' + s.id;
-    s.heatBase = s.heat;
-    if (game === 'stroll') {
-      var st = strollStart(s);
-      st.state.mode = 'standalone';
-      st.state.game = 'stroll';
-      return st.state;
-    }
-    var entered = enterRoom(s, GAME_ROOM[game]);
-    entered.state.mode = 'standalone';
-    entered.state.game = game;
-    entered.state.heat = s.heatBase;
-    entered.state.heatBase = s.heatBase;
-    entered.state.lit = blankLit();
-    entered.state.visits = blankVisits();
-    return entered.state;
+  function rerollWheel(state) {
+    if (!state || !state.wheel) return fail(state || null, 'AWAITING_OTHER', '没有转盘可重转');
+    var s = stripHeat(clone(state));
+    s.rerolls = s.rerolls || { truth: 2, dare: 2 };
+    var key = s.wheel.kind === 'truth' ? 'truth' : 'dare';
+    if ((s.rerolls[key] || 0) <= 0) return fail(state, 'AWAITING_OTHER', '没有重转次数了');
+    s.rerolls[key] -= 1;
+    var kind = s.wheel.kind;
+    return dealWheel(s, kind);
   }
 
-  function standalonePack(state) {
-    if (!state) return null;
-    var rooms = [];
-    (state.log || []).forEach(function (m) {
-      if (m.room && rooms.indexOf(m.room) < 0) rooms.push(m.room);
-    });
-    if (!rooms.length && state.room) rooms.push(state.room);
-    return {
-      id: state.id,
-      game: state.game || state.room,
-      room: state.room,
-      heatDelta: Math.max(0, (state.heat || 0) - (state.heatBase || 0)),
-      moments: clone(state.log || []),
-      rooms: rooms
+  function handTruth(state, who) {
+    if (!state || !state.prompt) return fail(state || null, 'AWAITING_OTHER', '还没有题目可交给谁');
+    var s = stripHeat(clone(state));
+    s.prompt.who = who === 'other' ? 'other' : 'self';
+    s.prompt.hand = s.prompt.who;
+    return ok(s, [{ type: 'hand', who: s.prompt.who }]);
+  }
+
+  function newStandalone(kind, settings, seed) {
+    settings = settings || {};
+    if (kind !== 'thermo' && kind !== 'truth' && kind !== 'dare') {
+      return fail(null, 'INVALID_SETUP', '单独玩只有温度计、真心话转盘、大冒险转盘');
+    }
+    var scale = settings.scale || 'warm';
+    var caps = { gentle: 1, warm: 2, hot: 3, open: 4 };
+    if (!caps[scale]) return fail(null, 'INVALID_SETUP', '尺度认不出来');
+    var names = settings.names || { a: '他', b: '她' };
+    var now = Date.now();
+    var rng = (seed === undefined || seed === null) ? ((now % 2147483646) + 1) : ((Number(seed) >>> 0) || 1);
+    var state = {
+      v: 1,
+      kind: 'standalone',
+      game: kind,
+      id: 'door-' + now.toString(36) + '-' + rng.toString(36),
+      ts: now,
+      scale: scale,
+      maxStarCap: caps[scale],
+      boundaries: Array.isArray(settings.blacklist) ? settings.blacklist.slice() : (Array.isArray(settings.boundaries) ? settings.boundaries.slice() : []),
+      names: { a: (names.a && String(names.a)) || '他', b: (names.b && String(names.b)) || '她' },
+      rng: rng,
+      usedCards: {},
+      log: [],
+      rerolls: { truth: 2, dare: 2 },
+      thermo: null,
+      wheel: null,
+      prompt: null
     };
+    if (kind === 'thermo') return thermoBegin(state);
+    return dealWheel(state, kind);
   }
 
-  function pasteStandalone(night, payload) {
-    if (!night || night.kind !== 'apartment' || night.mode === 'standalone') return blocked(night, 'no-night');
-    if (!payload || !payload.id) return blocked(night, 'no-pack');
-    if (night.phase === 'done') return blocked(night, 'done');
-    var s = clone(night);
-    s.pasted = s.pasted || {};
-    if (s.pasted[payload.id]) return pack(s, [{ type: 'paste', already: true, id: payload.id }]);
-    s.pasted[payload.id] = true;
-    var delta = addHeat(s, Math.max(0, Math.round(payload.heatDelta || 0)));
-    (payload.moments || []).forEach(function (m) {
-      s.log.push({
-        id: nextId(s),
-        room: m.room || payload.room || '',
-        game: m.game || payload.game || 'door',
-        text: m.text || '',
-        star: m.star || 0,
-        tags: m.tags || [],
-        outcome: m.outcome || 'done',
-        who: m.who || '',
-        via: 'door'
-      });
-    });
-    var rooms = payload.rooms || [];
-    if (!rooms.length && payload.room) rooms = [payload.room];
-    rooms.forEach(function (r) {
-      if (s.lit && Object.prototype.hasOwnProperty.call(s.lit, r)) s.lit[r] = true;
-    });
-    return pack(s, [{ type: 'paste', already: false, id: payload.id, delta: delta, heat: s.heat }]);
-  }
-
-  function validate(state) {
-    if (!state || typeof state !== 'object') return null;
-    if (isLegacy(state)) return null;
-    if (state.kind !== 'apartment') return null;
-    var b = B();
-    var s = clone(state);
-    s.settings = normalizeSettings(s.settings);
-    s.names = s.names || s.settings.names;
-    s.heat = clamp(Number(s.heat) || 0, 0, b.HEAT_MAX);
-    s.heatBase = clamp(Number(s.heatBase) || s.heat, 0, b.HEAT_MAX);
-    s.lit = Object.assign(blankLit(), s.lit || {});
-    s.visits = Object.assign(blankVisits(), s.visits || {});
-    b.ROOMS.forEach(function (r) {
-      s.lit[r] = !!s.lit[r];
-      s.visits[r] = Math.max(0, parseInt(s.visits[r], 10) || 0);
-    });
-    if (['plan', 'room', 'stroll', 'done'].indexOf(s.phase) < 0) s.phase = 'plan';
-    s.log = Array.isArray(s.log) ? s.log : [];
-    s.truthRerolls = clamp(s.truthRerolls == null ? b.REROLLS.truth : s.truthRerolls, 0, 6);
-    s.dareRerolls = clamp(s.dareRerolls == null ? b.REROLLS.dare : s.dareRerolls, 0, 6);
-    s.pasted = s.pasted || {};
-    s.flags = s.flags || {};
-    s.minutes = s.minutes || b.START_MINUTES;
-    if (s.phase === 'done' && !s.result) s.result = buildMemory(s);
-    return s;
-  }
-
-  function heatStage(state) { return B().stageOf(state && state.heat); }
-
-  root.Engine = {
-    newSession: newSession,
-    validate: validate,
-    isLegacy: isLegacy,
-    archiveLegacy: archiveLegacy,
-    band: band,
-    capOf: capOf,
-    cardAllowed: cardAllowed,
-    heatStage: heatStage,
-    roomOpen: roomOpen,
-    enterRoom: enterRoom,
-    leaveRoom: leaveRoom,
-    drawPrompt: drawPrompt,
-    livingOffer: livingOffer,
-    pushDeeper: pushDeeper,
-    settlePrompt: settlePrompt,
-    dealWheel: dealWheel,
-    spinWheel: spinWheel,
-    rerollWheel: rerollWheel,
-    handTruth: handTruth,
+  root.Minigames = {
+    THERMO_LABELS: THERMO_LABELS,
+    newStandalone: newStandalone,
     thermoBegin: thermoBegin,
     thermoSet: thermoSet,
     thermoPass: thermoPass,
     thermoReveal: thermoReveal,
-    bedroomMode: bedroomMode,
-    bedroomDraw: bedroomDraw,
-    strollStart: strollStart,
-    strollRoll: strollRoll,
-    strollSettle: strollSettle,
-    safeWord: safeWord,
-    closeNight: closeNight,
-    buildMemory: buildMemory,
-    newStandalone: newStandalone,
-    standalonePack: standalonePack,
-    pasteStandalone: pasteStandalone,
-    clockLabel: clockLabel
+    dealWheel: dealWheel,
+    spinWheel: spinWheel,
+    rerollWheel: rerollWheel,
+    handTruth: handTruth
   };
 })(typeof window !== 'undefined' ? window : this);
 
-/* ===== src/content/content.js ===== */
-/* 今晚在这间公寓 · 房间与尺度文案。规则数值在 balance.js。 */
+/* ===== src/engine/flight-engine.js ===== */
+/* ==========================================================================
+ * 今晚飞行棋 · 对局状态机
+ * 纯函数：不改入参，无 DOM，无 localStorage。
+ * 跳 / 飞 / 航线只读 FlightBoard。A1/A2/A3 与叠机击落开关均为待确认。
+ * ========================================================================== */
 (function (global) {
+  'use strict';
+
   var root = global.App = global.App || {};
-  root.CONTENT = {
-    title: "今晚在这间公寓",
-    subtitle: "两个人，一部手机，一枚「我们」。想去哪间，就走进去。",
-    intensities: {
-      1: { name: "温柔", line: "灯调得很低。只说想说的，只碰到想碰的。" },
-      2: { name: "暧昧", line: "话可以停在嘴边，手可以多留一会儿。" },
-      3: { name: "热烈", line: "不想绕。问到身上，做到出汗。灯不用再装无辜。" },
-      4: { name: "不设限", line: "你们自己画过线。线以外，今晚不替你们害羞。" }
-    },
-    rooms: {
-      living: {
-        1: "坐到沙发上。谁先开口，就轻一点问。",
-        2: "灯把你们圈在沙发里。这句可以再近一点。",
-        3: "别绕。今晚的话可以直接落到身上。",
-        4: "想问什么就问。这张沙发听得住。"
-      },
-      kitchen: {
-        1: "台面上只有好做的事。转盘停在哪，就轻轻做。",
-        2: "酒杯还在。转到的事，可以做到脸热。",
-        3: "厨房的灯很直。转到的，就做到，别只是笑。",
-        4: "热度已经在这儿了。转盘不会替你们收着。"
-      },
-      balcony: {
-        1: "雨在窗上。各自把想靠近的程度悄悄放好。",
-        2: "猜对方会把今晚放到哪一格。猜近了，夜里就更热。",
-        3: "别客气。把你觉得对方想要的那一格标出来。",
-        4: "尺拉到头也行。猜得越准，这间公寓越烫。"
-      },
-      bathroom: {
-        1: "镜子起了一点雾。说一句真的，或者说给对方听。",
-        2: "可以自己说，也可以把问题递到对方手里。",
-        3: "问到这儿就别打哈哈。重抽只有两次。",
-        4: "真话可以很直。不想说的，用掉一次重抽，没有惩罚。"
-      },
-      bedroom: {
-        1: "门没锁。进来可以说话，也可以只是靠着。",
-        2: "床已经乱了。说话，或者做一个更近的动作。",
-        3: "不用等到夜深。想说的、想做的，现在就可以。",
-        4: "灯只留一盏。选说话，还是直接做。"
-      }
-    }
+
+  var SCALES = { gentle: 1, warm: 2, hot: 3, open: 4 };
+  var PROMPT_KINDS = {
+    'cell-truth': 1, 'cell-dare': 1, 'cell-touch': 1,
+    capture: 1, 'stack-duo': 1, 'home-entry': 1, ending: 1,
+    'minigame-thermo': 1, 'minigame-wheel': 1
   };
-  if (typeof global.CONTENT === "undefined") global.CONTENT = root.CONTENT;
-})(typeof window !== "undefined" ? window : this);
+
+  function board() { return root.FlightBoard; }
+  function drawApi() { return root.FlightDraw; }
+  function rulesApi() { return root.FlightRules; }
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function fail(state, code, message) {
+    return { ok: false, state: state, events: [], error: { code: code, message: message } };
+  }
+  function pass(state, events) {
+    return { ok: true, state: state, events: events || [], error: null };
+  }
+
+  function mergeRules(over) {
+    var base = rulesApi().current();
+    if (!over || typeof over !== 'object') return base;
+    Object.keys(base).forEach(function (k) {
+      if (typeof over[k] === 'boolean') base[k] = over[k];
+    });
+    return base;
+  }
+
+  function shanghaiDate(ts) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date(ts));
+    } catch (e) {
+      var d = new Date(ts + 8 * 3600 * 1000);
+      var y = d.getUTCFullYear();
+      var m = d.getUTCMonth() + 1;
+      var day = d.getUTCDate();
+      return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+    }
+  }
+
+  function nextId(s, prefix) {
+    s.seq = (s.seq || 0) + 1;
+    return prefix + '-' + s.seq;
+  }
+
+  function otherOf(pid) { return pid === 'a' ? 'b' : 'a'; }
+
+  function pieceById(s, id) {
+    var list = s.pieces || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function groupIdsOf(s, pieceId) {
+    var p = pieceById(s, pieceId);
+    if (!p) return [];
+    if (!p.stackGroupId) return [p.id];
+    return s.pieces.filter(function (x) {
+      return x.stackGroupId === p.stackGroupId && !x.arrived;
+    }).map(function (x) { return x.id; });
+  }
+
+  function othersAt(s, squareId, ignore) {
+    return (s.pieces || []).filter(function (p) {
+      return p.squareId === squareId && ignore.indexOf(p.id) < 0 && !p.arrived;
+    });
+  }
+
+  function freeHangar(s, color) {
+    var used = {};
+    (s.pieces || []).forEach(function (p) {
+      var m = /^hangar:(red|yellow|blue|green):(\d+)$/.exec(p.squareId || '');
+      if (m && m[1] === color) used[m[2]] = true;
+    });
+    for (var i = 0; i < 4; i++) {
+      if (!used[i]) return 'hangar:' + color + ':' + i;
+    }
+    return 'hangar:' + color + ':0';
+  }
+
+  function crossesHome(color, fromId, toId) {
+    var B = board();
+    var a = B.progressOf(color, fromId);
+    var b = B.progressOf(color, toId);
+    if (a < 0 || b < 0) return false;
+    if (a < 50 && b > 50) return true;
+    if (b < a && a <= 50) return true;
+    return false;
+  }
+
+  function homeDest(color, destIndex) {
+    if (destIndex >= 5) return 'home:' + color + ':goal';
+    return 'home:' + color + ':' + destIndex;
+  }
+
+  function homePathUntil(color, destIndex) {
+    var path = [];
+    var last = Math.min(4, destIndex);
+    for (var s = 0; s <= last; s++) path.push('home:' + color + ':' + s);
+    if (destIndex >= 5) path.push('home:' + color + ':goal');
+    return path;
+  }
+
+  function emptyPlan(pieceId, reason) {
+    return {
+      legal: false,
+      pieceId: pieceId,
+      path: [],
+      modes: [],
+      captures: [],
+      stacksWith: null,
+      wouldEnterHome: false,
+      blockedReason: reason || 'NONE',
+      segments: [],
+      dest: null,
+      from: null
+    };
+  }
+
+  /* 几何计划：不改状态。ignore 是一起走的棋，不当成叠机或击落对象。 */
+  function computePlan(state, piece, die, ignore) {
+    var B = board();
+    var plan = emptyPlan(piece.id, 'NONE');
+    plan.from = piece.squareId;
+    plan.legal = false;
+    if (!piece || piece.arrived) {
+      plan.blockedReason = 'NONE';
+      return plan;
+    }
+    var loc = B.parseSquare(piece.squareId);
+    if (!loc) {
+      plan.blockedReason = 'INVALID_PIECE';
+      return plan;
+    }
+    var color = piece.color;
+
+    if (loc.type === 'hangar') {
+      if (die !== 6) {
+        plan.blockedReason = 'NEED_SIX_TO_TAKEOFF';
+        return plan;
+      }
+      var dest = B.map().takeoffOf[color];
+      plan.legal = true;
+      plan.blockedReason = undefined;
+      plan.path = [dest];
+      plan.dest = dest;
+      plan.modes = ['takeoff'];
+      plan.takeoff = true;
+      plan.segments = [];
+      decorateLanding(state, plan, ignore, color, false);
+      return plan;
+    }
+
+    if (loc.type === 'goal') {
+      plan.blockedReason = 'NONE';
+      return plan;
+    }
+
+    if (loc.type === 'home') {
+      if (loc.color !== color) {
+        plan.blockedReason = 'EXACT_COUNT_REQUIRED';
+        return plan;
+      }
+      var destIndex = loc.step + die;
+      if (destIndex > 5) {
+        plan.blockedReason = 'EXACT_COUNT_REQUIRED';
+        return plan;
+      }
+      plan.legal = true;
+      plan.blockedReason = undefined;
+      plan.path = [];
+      for (var st = loc.step + 1; st <= Math.min(4, destIndex); st++) plan.path.push('home:' + color + ':' + st);
+      if (destIndex >= 5) plan.path.push('home:' + color + ':goal');
+      plan.dest = homeDest(color, destIndex);
+      plan.modes = destIndex >= 5 ? ['walk', 'arrive'] : ['walk'];
+      plan.inHome = true;
+      decorateLanding(state, plan, ignore, color, true);
+      return plan;
+    }
+
+    if (loc.type !== 'ring') {
+      plan.blockedReason = 'INVALID_PIECE';
+      return plan;
+    }
+
+    var progress = B.progressOf(color, piece.squareId);
+    if (progress < 0) {
+      plan.blockedReason = 'INVALID_PIECE';
+      return plan;
+    }
+
+    if (progress + die > 50) {
+      var remain = progress + die - 50;
+      var enterIndex = remain - 1;
+      if (enterIndex > 5) {
+        plan.blockedReason = 'EXACT_COUNT_REQUIRED';
+        return plan;
+      }
+      plan.legal = true;
+      plan.blockedReason = undefined;
+      plan.wouldEnterHome = true;
+      plan.path = homePathUntil(color, enterIndex);
+      plan.dest = homeDest(color, enterIndex);
+      plan.modes = ['enter-home'].concat(enterIndex >= 5 ? ['arrive'] : []);
+      plan.enterIndex = enterIndex;
+      return plan;
+    }
+
+    var walk = [];
+    for (var i = 1; i <= die; i++) walk.push(B.ringAt(color, progress + i));
+    var cursor = walk[walk.length - 1];
+    var segments = [];
+    var guard = 0;
+    var chain = [cursor];
+    while (guard++ < 8) {
+      if (othersAt(state, cursor, ignore).length) break;
+      var sq = B.square(cursor);
+      if (sq && sq.isFly && sq.flyTo && sq.color === color) {
+        if (crossesHome(color, cursor, sq.flyTo)) break;
+        segments.push({ type: 'fly', from: cursor, to: sq.flyTo });
+        cursor = sq.flyTo;
+        chain.push(cursor);
+        continue;
+      }
+      if (sq && sq.jumpTo && sq.color === color) {
+        if (crossesHome(color, cursor, sq.jumpTo)) break;
+        segments.push({ type: 'jump', from: cursor, to: sq.jumpTo });
+        cursor = sq.jumpTo;
+        chain.push(cursor);
+        continue;
+      }
+      break;
+    }
+    plan.legal = true;
+    plan.blockedReason = undefined;
+    plan.walk = walk;
+    plan.segments = segments;
+    plan.path = walk.slice();
+    segments.forEach(function (seg) {
+      if (plan.path[plan.path.length - 1] !== seg.to) plan.path.push(seg.to);
+    });
+    plan.dest = cursor;
+    plan.modes = ['walk'].concat(segments.map(function (seg) { return seg.type; }));
+    decorateLanding(state, plan, ignore, color, false);
+    return plan;
+  }
+
+  function decorateLanding(state, plan, ignore, color, inHome) {
+    plan.captures = [];
+    plan.stacksWith = null;
+    if (!plan.dest || plan.wouldEnterHome) return;
+    var occ = othersAt(state, plan.dest, ignore);
+    if (!occ.length) return;
+    var foes = occ.filter(function (p) { return p.color !== color; });
+    var friends = occ.filter(function (p) { return p.color === color; });
+    if (inHome) foes = [];
+    if (foes.length) {
+      plan.captures = foes.map(function (p) { return p.id; });
+      plan.captureCount = foes.length;
+      plan.attackerCount = ignore.length || 1;
+    } else if (friends.length && plan.dest.indexOf(':goal') < 0) {
+      plan.stacksWith = friends[0].id;
+    }
+  }
+
+  function sendHangar(s, piece) {
+    piece.squareId = freeHangar(s, piece.color);
+    piece.stackGroupId = null;
+    piece.arrived = false;
+  }
+
+  function logMove(s, pieceId, from, to, die) {
+    s.log.push({
+      id: nextId(s, 'log'),
+      ts: Date.now(),
+      kind: 'move',
+      actorId: s.turn,
+      pieceId: pieceId,
+      from: from,
+      to: to,
+      die: die
+    });
+  }
+
+  function makeCardPrompt(s, kind, actorId, targetId, pieceIds, pre) {
+    var got = drawApi().take(s, kind === 'cell-truth' || kind === 'cell-dare' || kind === 'cell-touch' || kind === 'capture' || kind === 'stack-duo' || kind === 'home-entry' || kind === 'ending' ? kind : 'cell-truth');
+    s.usedCards = got.state.usedCards;
+    s.rng = got.state.rng;
+    var prompt = {
+      id: nextId(s, 'pr'),
+      kind: kind,
+      card: got.card,
+      actorId: actorId,
+      targetId: targetId,
+      pieceIds: pieceIds.slice()
+    };
+    if (pre) prompt.preSquareId = pre;
+    return prompt;
+  }
+
+  function occupantPrompt(s, plan, movers) {
+    var rules = s.rules;
+    var dest = plan.dest;
+    var moverIds = movers.map(function (p) { return p.id; });
+    if (plan.captures && plan.captures.length) {
+      var attackerCount = movers.length;
+      var defenderCount = plan.captures.length;
+      /* 待确认：stackCapturedBySingle 默认 true。反相时只击落数量不多于落子的对方棋。 */
+      if (rules.stackCapturedBySingle === false && attackerCount < defenderCount) {
+        movers.forEach(function (p) { sendHangar(s, p); });
+        return { type: 'repelled' };
+      }
+      var victims = plan.captures.map(function (id) { return pieceById(s, id); }).filter(Boolean);
+      victims.forEach(function (p) { sendHangar(s, p); });
+      var victimPlayer = victims[0] ? victims[0].playerId : otherOf(s.turn);
+      var prompt = makeCardPrompt(s, 'capture', victimPlayer, victimPlayer, victims.map(function (p) { return p.id; }));
+      s.awaiting = { type: 'prompt', prompt: prompt };
+      return { type: 'capture', prompt: prompt, victims: victims.map(function (p) { return p.id; }) };
+    }
+    if (plan.stacksWith) {
+      var target = pieceById(s, plan.stacksWith);
+      var friends = othersAt(s, dest, moverIds).filter(function (p) { return p.color === movers[0].color; });
+      var gid = (target && target.stackGroupId) || movers[0].stackGroupId || nextId(s, 'stk');
+      movers.forEach(function (p) { p.stackGroupId = gid; });
+      friends.forEach(function (p) { p.stackGroupId = gid; });
+      var all = s.pieces.filter(function (p) { return p.stackGroupId === gid && !p.arrived; }).map(function (p) { return p.id; });
+      var promptStack = makeCardPrompt(s, 'stack-duo', s.turn, 'both', all);
+      s.pendingMove = { type: 'bonus', pieceIds: all.slice(), steps: 1, from: dest };
+      s.awaiting = { type: 'prompt', prompt: promptStack };
+      return { type: 'stack', prompt: promptStack, pieceIds: all, at: dest };
+    }
+    var sq = board().square(dest);
+    if (!sq || plan.dest.indexOf(':goal') >= 0) return null;
+    if (sq.kind === 'truth' || sq.kind === 'dare' || sq.kind === 'touch') {
+      var key = sq.kind === 'truth' ? 'cell-truth' : (sq.kind === 'dare' ? 'cell-dare' : 'cell-touch');
+      var cellPrompt = makeCardPrompt(s, key, s.turn, s.turn, moverIds);
+      s.awaiting = { type: 'prompt', prompt: cellPrompt };
+      return { type: 'prompt', prompt: cellPrompt };
+    }
+    if (sq.kind === 'thermo' || sq.kind === 'wheel') {
+      var game = sq.kind === 'thermo' ? 'thermo' : (sq.wheel || 'truth-wheel');
+      s.awaiting = { type: 'minigame', kind: game, pieceIds: moverIds.slice() };
+      return { type: 'minigame', kind: game };
+    }
+    return null;
+  }
+
+  function placeMovers(movers, dest) {
+    var goal = dest.indexOf(':goal') >= 0;
+    movers.forEach(function (p) {
+      p.squareId = dest;
+      if (goal) {
+        p.arrived = true;
+        p.stackGroupId = null;
+      }
+    });
+  }
+
+  function emitMotion(events, primary, plan, opt) {
+    if (plan.takeoff) {
+      events.push({ type: 'takeoff', pieceId: primary.id, path: [plan.from].concat(plan.path) });
+      return;
+    }
+    var mode = opt && opt.bonus ? 'bonus' : 'walk';
+    if (plan.walk && plan.walk.length) {
+      events.push({ type: 'move', pieceId: primary.id, path: plan.walk.slice(), mode: mode });
+    } else if (plan.path && plan.path.length && !plan.segments.length) {
+      events.push({ type: 'move', pieceId: primary.id, path: plan.path.slice(), mode: mode });
+    }
+    (plan.segments || []).forEach(function (seg) {
+      events.push({ type: seg.type, pieceId: primary.id, from: seg.from, to: seg.to });
+    });
+  }
+
+  function applyPlan(s, pieceIds, die, opt, events) {
+    opt = opt || {};
+    var movers = pieceIds.map(function (id) { return pieceById(s, id); }).filter(Boolean);
+    if (!movers.length) return { illegal: true, reason: 'INVALID_PIECE' };
+    var primary = movers[0];
+    var ignore = movers.map(function (p) { return p.id; });
+    var plan = computePlan(s, primary, die, ignore);
+    if (!plan.legal) return { illegal: true, reason: plan.blockedReason || 'NO_LEGAL_MOVE' };
+
+    if (plan.wouldEnterHome && !opt.applyingHome) {
+      s.pendingMove = {
+        type: 'enter-home',
+        pieceIds: ignore.slice(),
+        steps: die,
+        from: primary.squareId
+      };
+      var prompt = makeCardPrompt(s, 'home-entry', s.turn, s.turn, ignore, primary.squareId);
+      s.awaiting = { type: 'prompt', prompt: prompt };
+      events.push({ type: 'prompt', prompt: prompt });
+      return { waiting: true };
+    }
+
+    if (opt.applyingHome && plan.wouldEnterHome) {
+      /* 结算时从原格真正走进航线，不再次出题。 */
+      placeMovers(movers, plan.dest);
+      logMove(s, primary.id, plan.from, plan.dest, die);
+      events.push({
+        type: 'move',
+        pieceId: primary.id,
+        path: plan.path.slice(),
+        mode: 'walk'
+      });
+      return { waiting: false };
+    }
+
+    emitMotion(events, primary, plan, opt);
+    placeMovers(movers, plan.dest);
+    logMove(s, primary.id, plan.from, plan.dest, die);
+
+    var effect = occupantPrompt(s, plan, movers);
+    if (effect && effect.type === 'capture') {
+      events.push({ type: 'capture', attackerId: primary.id, victimIds: effect.victims });
+      events.push({ type: 'prompt', prompt: effect.prompt });
+      return { waiting: true };
+    }
+    if (effect && effect.type === 'stack') {
+      events.push({ type: 'stack', pieceIds: effect.pieceIds, at: effect.at });
+      events.push({ type: 'prompt', prompt: effect.prompt });
+      return { waiting: true };
+    }
+    if (effect && effect.type === 'prompt') {
+      events.push({ type: 'prompt', prompt: effect.prompt });
+      return { waiting: true };
+    }
+    if (effect && effect.type === 'minigame') {
+      events.push({ type: 'minigame', kind: effect.kind });
+      return { waiting: true };
+    }
+    return { waiting: false };
+  }
+
+  function allHome(s, pid) {
+    var mine = (s.pieces || []).filter(function (p) { return p.playerId === pid; });
+    return mine.length > 0 && mine.every(function (p) { return p.arrived; });
+  }
+
+  function checkWin(s, events) {
+    /* 只在刚走完的这一方把最后一架送回家时判胜。对方若早已全部到家，应在对方那一步结束。 */
+    if (!allHome(s, s.turn)) return false;
+    var w = s.turn;
+    s.winnerId = w;
+    s.rollContext = null;
+    s.pendingMove = null;
+    var other = otherOf(w);
+    var prompt = makeCardPrompt(s, 'ending', other, other, s.pieces.filter(function (p) { return p.playerId === w; }).map(function (p) { return p.id; }));
+    s.awaiting = { type: 'ending-prompt', prompt: prompt };
+    events.push({ type: 'win', playerId: w });
+    events.push({ type: 'prompt', prompt: prompt });
+    return true;
+  }
+
+  function finishTurn(s, events) {
+    var extra = !!(s.rollContext && s.rollContext.extra && s.rules && s.rules.rerollOnEverySix);
+    s.pendingMove = null;
+    s.rollContext = null;
+    if (extra) {
+      s.awaiting = { type: 'roll' };
+      return;
+    }
+    s.turn = otherOf(s.turn);
+    s.consecutiveSixes = 0;
+    s.awaiting = { type: 'roll' };
+    events.push({ type: 'turn', playerId: s.turn, color: s.colors[s.turn] });
+  }
+
+  function afterAction(s, events) {
+    if (s.awaiting && (s.awaiting.type === 'prompt' || s.awaiting.type === 'minigame' || s.awaiting.type === 'ending-prompt')) return;
+    if (checkWin(s, events)) return;
+    finishTurn(s, events);
+  }
+
+  function playing(state) {
+    return state && (state.phase === 'playing' || state.phase === 'setup');
+  }
+
+  function rollDie(s) {
+    var rng = drawApi().take ? null : null;
+    var a = (Number(s.rng) >>> 0) || 1;
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    var u = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    s.rng = a >>> 0;
+    return 1 + Math.floor(u * 6);
+  }
+
+  function beginRoll(s, die) {
+    var extra = die === 6 && !!(s.rules && s.rules.rerollOnEverySix);
+    if (die === 6) s.consecutiveSixes = (s.consecutiveSixes || 0) + 1;
+    else s.consecutiveSixes = 0;
+    s.rollContext = { die: die, extra: extra };
+    s.log.push({
+      id: nextId(s, 'log'),
+      ts: Date.now(),
+      kind: 'roll',
+      die: die,
+      actorId: s.turn
+    });
+    /* threeSixesPenalty 为 true 时本轮也不处罚，只计数。待确认 A1。 */
+    return extra;
+  }
+
+  function newGame(setup, seed) {
+    setup = setup || {};
+    var names = setup.names || {};
+    var colors = setup.colors || {};
+    var aName = names.a != null ? String(names.a).trim() : '';
+    var bName = names.b != null ? String(names.b).trim() : '';
+    var aColor = colors.a;
+    var bColor = colors.b;
+    var scale = setup.scale;
+    var count = setup.planeCount == null ? 4 : setup.planeCount;
+    var known = board().COLORS;
+    if (!aName || !bName || !aColor || !bColor || aColor === bColor || known.indexOf(aColor) < 0 || known.indexOf(bColor) < 0 || (count !== 2 && count !== 4) || !SCALES[scale]) {
+      return fail(null, 'INVALID_SETUP', '名字、颜色、尺度或飞机架数不完整');
+    }
+    var now = Date.now();
+    var rng = (seed === undefined || seed === null) ? ((now % 2147483646) + 1) : ((Number(seed) >>> 0) || 1);
+    var boundaries = [];
+    (setup.boundaries || []).forEach(function (item) {
+      var t = String(item || '').trim();
+      if (t && boundaries.indexOf(t) < 0) boundaries.push(t);
+    });
+    var pieces = [];
+    ['a', 'b'].forEach(function (pid) {
+      var color = pid === 'a' ? aColor : bColor;
+      for (var i = 0; i < count; i++) {
+        pieces.push({
+          id: pid + ':' + i,
+          playerId: pid,
+          color: color,
+          squareId: 'hangar:' + color + ':' + i,
+          stackGroupId: null,
+          arrived: false
+        });
+      }
+    });
+    var state = {
+      v: 1,
+      kind: 'flight',
+      id: 'flight-' + now.toString(36) + '-' + rng.toString(36),
+      ts: now,
+      names: { a: aName, b: bName },
+      colors: { a: aColor, b: bColor },
+      scale: scale,
+      maxStarCap: SCALES[scale],
+      boundaries: boundaries,
+      planeCount: count,
+      rules: mergeRules(setup.rules),
+      phase: 'playing',
+      turn: 'a',
+      consecutiveSixes: 0,
+      pieces: pieces,
+      usedCards: { truth: {}, dare: {}, touch: {}, sync: {}, spark: {}, punish: {} },
+      log: [],
+      awaiting: { type: 'roll' },
+      winnerId: null,
+      rng: rng,
+      result: null,
+      pendingMove: null,
+      rollContext: null,
+      seq: 0
+    };
+    return pass(state, []);
+  }
+
+  function validate(raw) {
+    try {
+      if (!raw || typeof raw !== 'object') return null;
+      if (raw.kind !== 'flight' || raw.v !== 1) return null;
+      if (['setup', 'playing', 'ended', 'safe-ended'].indexOf(raw.phase) < 0) return null;
+      if (!raw.names || !String(raw.names.a || '').trim() || !String(raw.names.b || '').trim()) return null;
+      if (!raw.colors || raw.colors.a === raw.colors.b) return null;
+      if (board().COLORS.indexOf(raw.colors.a) < 0 || board().COLORS.indexOf(raw.colors.b) < 0) return null;
+      if (raw.planeCount !== 2 && raw.planeCount !== 4) return null;
+      if (!SCALES[raw.scale]) return null;
+      if (!raw.pieces || raw.pieces.length !== raw.planeCount * 2) return null;
+      if (!raw.awaiting || !raw.awaiting.type) return null;
+      var s = clone(raw);
+      s.rules = mergeRules(s.rules);
+      s.maxStarCap = SCALES[s.scale];
+      if (!Array.isArray(s.boundaries)) s.boundaries = [];
+      if (!Array.isArray(s.log)) s.log = [];
+      if (!s.usedCards) s.usedCards = {};
+      return s;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function legalMoves(state, die) {
+    var empty = { pieceIds: [], moves: {}, blocked: {} };
+    var n = Number(die);
+    if (!state || n !== (n | 0) || n < 1 || n > 6) return empty;
+    var pieceIds = [];
+    var moves = {};
+    var blocked = {};
+    (state.pieces || []).forEach(function (p) {
+      if (p.arrived || p.playerId !== state.turn) return;
+      var ignore = groupIdsOf(state, p.id);
+      var plan = computePlan(state, p, n, ignore);
+      if (plan.legal) {
+        pieceIds.push(p.id);
+        moves[p.id] = {
+          pieceId: p.id,
+          path: plan.path.slice(),
+          modes: plan.modes.slice(),
+          captures: (plan.captures || []).slice(),
+          stacksWith: plan.stacksWith || null,
+          wouldEnterHome: !!plan.wouldEnterHome,
+          blockedReason: plan.blockedReason
+        };
+      } else {
+        blocked[p.id] = {
+          pieceId: p.id,
+          path: [],
+          modes: [],
+          captures: [],
+          stacksWith: null,
+          wouldEnterHome: false,
+          blockedReason: plan.blockedReason || 'NONE'
+        };
+      }
+    });
+    return { pieceIds: pieceIds, moves: moves, blocked: blocked };
+  }
+
+  function guard(state) {
+    if (!state) return fail(null, 'NO_SESSION', '没有进行中的棋局');
+    if (state.phase === 'ended' || state.phase === 'safe-ended') return fail(state, 'GAME_OVER', '这局已经结束');
+    if (!playing(state)) return fail(state, 'NO_SESSION', '没有进行中的棋局');
+    if (!SCALES[state.scale]) return fail(state, 'UNKNOWN_SCALE', '尺度无法识别');
+    return null;
+  }
+
+  function roll(state, dieOpt) {
+    var blocked = guard(state);
+    if (blocked) return blocked;
+    if (!state.awaiting || state.awaiting.type !== 'roll') {
+      if (state.awaiting && (state.awaiting.type === 'prompt' || state.awaiting.type === 'ending-prompt') && state.awaiting.prompt && state.awaiting.prompt.kind === 'home-entry') {
+        return fail(state, 'PROMPT_REQUIRED', '还没过进航这张题');
+      }
+      return fail(state, 'AWAITING_OTHER', '现在还不能掷骰');
+    }
+    var injected = dieOpt !== undefined && dieOpt !== null && dieOpt !== '';
+    if (injected) {
+      var d = Number(dieOpt);
+      if (d !== (d | 0) || d < 1 || d > 6) return fail(state, 'INVALID_DIE', '骰子只能是 1 到 6');
+    }
+    var s = clone(state);
+    var die = injected ? Number(dieOpt) : rollDie(s);
+    var extra = beginRoll(s, die);
+    var events = [{ type: 'dice', die: die, extraRoll: extra ? true : undefined }];
+    if (events[0].extraRoll === undefined) delete events[0].extraRoll;
+    var legal = legalMoves(s, die);
+    if (!legal.pieceIds.length) {
+      s.rollContext = { die: die, extra: extra };
+      if (extra) {
+        events[0].extraRoll = true;
+        s.awaiting = { type: 'roll' };
+        s.rollContext = null;
+      } else {
+        finishTurn(s, events);
+      }
+      return pass(s, events);
+    }
+    var chosen = legal.pieceIds.slice().sort();
+    if (chosen.length > 1 && s.rules.chooseAmongLegalPieces) {
+      s.awaiting = { type: 'choose-piece', pieceIds: chosen, die: die };
+      return pass(s, events);
+    }
+    /* 待确认 A1：chooseAmongLegalPieces 为 false 时按 id 顺序代选第一架。 */
+    chosen.sort();
+    var ids = groupIdsOf(s, chosen[0]);
+    var applied = applyPlan(s, ids, die, {}, events);
+    if (applied.illegal) return fail(state, applied.reason || 'NO_LEGAL_MOVE', '这步走不了');
+    if (!applied.waiting) afterAction(s, events);
+    return pass(s, events);
+  }
+
+  function move(state, pieceId) {
+    var blocked = guard(state);
+    if (blocked) return blocked;
+    var awaiting = state.awaiting || {};
+    if (awaiting.type === 'prompt' || awaiting.type === 'ending-prompt') {
+      if (awaiting.prompt && awaiting.prompt.kind === 'home-entry') return fail(state, 'PROMPT_REQUIRED', '还没过进航这张题');
+      return fail(state, 'AWAITING_OTHER', '先把眼前这张处理完');
+    }
+    if (awaiting.type !== 'choose-piece') return fail(state, 'AWAITING_OTHER', '现在不是选飞机');
+    if (!awaiting.pieceIds || !awaiting.pieceIds.length) return fail(state, 'NO_LEGAL_MOVE', '没有可走的飞机');
+    if (!pieceById(state, pieceId)) return fail(state, 'INVALID_PIECE', '没有这架飞机');
+    if (awaiting.pieceIds.indexOf(pieceId) < 0) return fail(state, 'PIECE_NOT_LEGAL', '这架飞机这步不能走');
+    var s = clone(state);
+    var ids = groupIdsOf(s, pieceId);
+    var events = [];
+    var applied = applyPlan(s, ids, awaiting.die, {}, events);
+    if (applied.illegal) return fail(state, applied.reason || 'NO_LEGAL_MOVE', '这步走不了');
+    if (!applied.waiting) afterAction(s, events);
+    return pass(s, events);
+  }
+
+  function pushPromptLog(s, prompt, outcome) {
+    s.log.push({
+      id: nextId(s, 'log'),
+      ts: Date.now(),
+      kind: prompt.kind,
+      outcome: outcome,
+      card: prompt.card ? {
+        id: prompt.card.id,
+        text: prompt.card.text,
+        star: prompt.card.star,
+        tags: prompt.card.tags || [],
+        pool: prompt.card.pool || prompt.card.type
+      } : undefined,
+      actorId: prompt.targetId === 'both' ? 'both' : prompt.actorId,
+      pieceId: prompt.pieceIds && prompt.pieceIds[0]
+    });
+  }
+
+  function runPending(s, pending, events) {
+    if (!pending) return { waiting: false };
+    if (pending.type === 'enter-home') {
+      return applyPlan(s, pending.pieceIds, pending.steps, { applyingHome: true }, events);
+    }
+    if (pending.type === 'bonus') {
+      return applyPlan(s, pending.pieceIds, pending.steps, { bonus: true }, events);
+    }
+    return { waiting: false };
+  }
+
+  function resolvePrompt(state, outcome) {
+    var blocked = guard(state);
+    if (blocked) return blocked;
+    var awaiting = state.awaiting || {};
+    if (awaiting.type !== 'prompt' && awaiting.type !== 'ending-prompt') {
+      return fail(state, 'AWAITING_OTHER', '现在没有要结算的题');
+    }
+    var how = outcome === 'skipped' ? 'skipped' : (outcome === 'done' ? 'done' : null);
+    if (!how) return fail(state, 'AWAITING_OTHER', '只能做了或放过');
+    var prompt = awaiting.prompt;
+    if (awaiting.type === 'ending-prompt' && how === 'skipped' && state.rules && state.rules.endingPromptSkippable === false) {
+      return fail(state, 'PROMPT_NOT_SKIPPABLE', '这张收尾先做完');
+    }
+    var s = clone(state);
+    prompt = s.awaiting.prompt;
+    pushPromptLog(s, prompt, how);
+    var events = [];
+
+    if (awaiting.type === 'ending-prompt') {
+      s.phase = 'ended';
+      s.awaiting = { type: 'none' };
+      s.pendingMove = null;
+      s.rollContext = null;
+      s.result = buildLedger(s);
+      events.push({ type: 'ledger' });
+      return pass(s, events);
+    }
+
+    if (prompt.kind === 'home-entry') {
+      var pending = s.pendingMove;
+      /* 待确认 A2：默认跳过则停在进入前的格子。反相为跳过仍进入。 */
+      var enter = how === 'done' || (how === 'skipped' && s.rules.skipHomeEntryBlocksEntry === false);
+      s.awaiting = { type: 'roll' };
+      s.pendingMove = null;
+      if (enter && pending && pending.type === 'enter-home') {
+        runPending(s, pending, events);
+      }
+      afterAction(s, events);
+      return pass(s, events);
+    }
+
+    if (prompt.kind === 'stack-duo') {
+      var bonus = s.pendingMove;
+      s.awaiting = { type: 'roll' };
+      s.pendingMove = null;
+      /* 待确认 A2：默认跳过叠机题不再多走一步。反相仍多走一步。 */
+      var step = how === 'done' || (how === 'skipped' && s.rules.skipStackKeepsBonusStep === true);
+      if (step && bonus && bonus.type === 'bonus') {
+        var applied = runPending(s, bonus, events);
+        if (applied.waiting) return pass(s, events);
+      }
+      afterAction(s, events);
+      return pass(s, events);
+    }
+
+    s.awaiting = { type: 'roll' };
+    afterAction(s, events);
+    return pass(s, events);
+  }
+
+  function resolveMinigame(state) {
+    var blocked = guard(state);
+    if (blocked) return blocked;
+    if (!state.awaiting || state.awaiting.type !== 'minigame') return fail(state, 'AWAITING_OTHER', '现在没有小游戏');
+    var s = clone(state);
+    var kind = s.awaiting.kind;
+    var logKind = kind === 'thermo' ? 'minigame-thermo' : 'minigame-wheel';
+    s.log.push({
+      id: nextId(s, 'log'),
+      ts: Date.now(),
+      kind: logKind,
+      outcome: 'done',
+      minigame: kind,
+      actorId: s.turn,
+      pieceId: s.awaiting.pieceIds && s.awaiting.pieceIds[0]
+    });
+    s.awaiting = { type: 'roll' };
+    var events = [];
+    afterAction(s, events);
+    return pass(s, events);
+  }
+
+  function buildLedger(state) {
+    if (!state || (state.phase !== 'ended' && state.phase !== 'safe-ended')) return null;
+    var endedAt = Date.now();
+    var prompts = [];
+    (state.log || []).forEach(function (entry) {
+      if (!entry || !entry.outcome || !PROMPT_KINDS[entry.kind]) return;
+      prompts.push({
+        kind: entry.kind,
+        outcome: entry.outcome,
+        pool: entry.card ? entry.card.pool : undefined,
+        text: entry.card ? entry.card.text : undefined,
+        star: entry.card ? entry.card.star : undefined
+      });
+    });
+    var ending = 'win-a';
+    var winnerId = state.winnerId || null;
+    if (state.phase === 'safe-ended') {
+      ending = 'safe';
+      winnerId = null;
+    } else if (state.winnerId === 'b') ending = 'win-b';
+    else if (state.winnerId === 'a') ending = 'win-a';
+    var ledger = {
+      date: shanghaiDate(endedAt),
+      endedAt: endedAt,
+      names: { a: state.names.a, b: state.names.b },
+      colors: { a: state.colors.a, b: state.colors.b },
+      scale: state.scale,
+      boundaries: (state.boundaries || []).slice(),
+      planeCount: state.planeCount,
+      ending: ending,
+      winnerId: winnerId,
+      prompts: prompts
+    };
+    /* 待确认 A3：默认不写逐步走子。 */
+    if (state.rules && state.rules.ledgerIncludeMoveReplay) {
+      ledger.moves = (state.log || []).filter(function (entry) {
+        return entry && (entry.kind === 'roll' || entry.kind === 'move');
+      });
+    }
+    return ledger;
+  }
+
+  function safeWord(state) {
+    if (!state) return fail(null, 'NO_SESSION', '没有进行中的棋局');
+    if (state.phase === 'ended' || state.phase === 'safe-ended') {
+      if (state.result) return pass(state, []);
+      var done = clone(state);
+      done.result = buildLedger(done);
+      return pass(done, []);
+    }
+    if (state.kind !== 'flight') return fail(state, 'NO_SESSION', '没有进行中的棋局');
+    var beforeLog = JSON.stringify(state.log || []);
+    var s = clone(state);
+    s.phase = 'safe-ended';
+    s.winnerId = null;
+    s.awaiting = { type: 'none' };
+    s.pendingMove = null;
+    s.rollContext = null;
+    if (JSON.stringify(s.log || []) !== beforeLog) s.log = clone(state.log || []);
+    s.result = buildLedger(s);
+    return pass(s, [{ type: 'safe' }, { type: 'ledger' }]);
+  }
+
+  function view(state, opts) {
+    opts = opts || {};
+    return {
+      pieces: ((state && state.pieces) || []).map(function (p) {
+        return {
+          id: p.id,
+          color: p.color,
+          squareId: p.squareId,
+          arrived: !!p.arrived,
+          stackGroupId: p.stackGroupId || null
+        };
+      }),
+      turn: state && state.turn,
+      colors: state && state.colors ? { a: state.colors.a, b: state.colors.b } : { a: 'red', b: 'yellow' },
+      reduced: !!opts.reduced
+    };
+  }
+
+  root.Flight = {
+    newGame: newGame,
+    validate: validate,
+    roll: roll,
+    legalMoves: legalMoves,
+    move: move,
+    resolvePrompt: resolvePrompt,
+    resolveMinigame: resolveMinigame,
+    safeWord: safeWord,
+    buildLedger: buildLedger,
+    view: view
+  };
+})(typeof window !== 'undefined' ? window : this);
 
 /* ===== src/ui/router.js ===== */
 /* ===== V3 ui/router.js：屏幕路由（栈 + 转场） ===== */
@@ -2547,758 +3174,458 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   };
 })();
 
-/* ===== src/ui/night.js ===== */
-/* ===== 公寓夜 · 画面状态（热度、深浅） ===== */
+/* ===== src/ui/overlay/prompt-card.js ===== */
+/* ===== 桌边题卡：棋盘留在画面里 ===== */
 (function () {
   var App = (window.App = window.App || {});
 
-  function stage(heat) {
-    try { return App.Balance.stageOf(heat); } catch (e) { return "quiet"; }
+  var KIND = {
+    "cell-truth": "真心话",
+    "cell-dare": "大冒险",
+    "cell-touch": "靠近",
+    "capture": "击落",
+    "stack-duo": "叠机",
+    "home-entry": "进终点",
+    "ending": "今晚最后一张"
+  };
+
+  var CSS = [
+    ".prompt-dock{position:absolute;left:10px;right:10px;bottom:calc(10px + var(--safe-b));z-index:30;",
+    "max-height:46%;overflow:auto;border-radius:22px;padding:14px 14px 12px;",
+    "background:linear-gradient(180deg,#fff8ee,#f3e2c8);color:#2a1a12;",
+    "box-shadow:0 16px 40px rgba(0,0,0,.35);transform-origin:50% 100%;",
+    "animation:cardIn .32s cubic-bezier(.2,.8,.2,1);}",
+    "@keyframes cardIn{from{opacity:0;transform:translateY(18px) rotateX(12deg)}to{opacity:1;transform:none}}",
+    ".prompt-kicker{font-size:12px;letter-spacing:.14em;color:#8a5a32;font-weight:700}",
+    ".prompt-text{font-family:var(--font);font-size:20px;line-height:1.45;margin:8px 0 12px}",
+    ".prompt-actions{display:flex;gap:8px}",
+    ".prompt-actions .btn{flex:1}",
+    ".prompt-dock .btn.primary{background:#2a1a12;color:#fff8ee}",
+    ".prompt-dock .btn.ghost{color:#6a4630;border-color:rgba(80,40,20,.25)}"
+  ].join("");
+
+  function whoLine(prompt, state) {
+    if (!prompt) return "";
+    if (prompt.kind === "stack-duo" || prompt.targetId === "both") return "两人一起";
+    if (prompt.kind === "capture" || prompt.kind === "ending") {
+      var id = prompt.actorId;
+      var name = state && state.names ? state.names[id] : "";
+      return (name || "对方") + " 来做";
+    }
+    return "这张给走到的人";
   }
 
-  App.Night = {
-    paint: function (state) {
-      var body = document.body;
-      if (!body) return;
-      var on = !!(state && state.kind === "apartment" && state.phase && state.phase !== "done" && state.mode !== "standalone");
-      body.setAttribute("data-night", on ? "1" : "0");
-      var heat = state && state.heat || 0;
-      var st = stage(heat);
-      var level = st === "burning" ? "3" : st === "charged" ? "2" : st === "warm" ? "1" : "0";
-      body.setAttribute("data-heat", on || (state && state.mode === "standalone") ? level : "0");
-      var late = state && (state.minutes || 0) >= 23 * 60 + 20;
-      body.setAttribute("data-late", late ? "1" : "0");
-    },
-    line: function (room, cap) {
-      var C = (App.CONTENT && App.CONTENT.rooms) || {};
-      var pack = C[room] || {};
-      return pack[cap] || pack[3] || "";
-    },
-    intensityLine: function (cap) {
-      var I = (App.CONTENT && App.CONTENT.intensities) || {};
-      return (I[cap] && I[cap].line) || "";
+  App.PromptCard = {
+    open: function (host, prompt, state, handlers) {
+      if (!host || !prompt) return function () {};
+      App.UI.injectStyle("prompt-card", CSS);
+      host.innerHTML = "";
+      var dock = document.createElement("div");
+      dock.className = "prompt-dock";
+      dock.setAttribute("data-test", "prompt-card");
+      var stars = App.UI.stars(prompt.card && prompt.card.star || 1);
+      dock.innerHTML =
+        '<div class="prompt-kicker">' + (KIND[prompt.kind] || "题目") + " · " + whoLine(prompt, state) + "</div>" +
+        '<div class="prompt-text">' + App.util.escape(prompt.card && prompt.card.text || "") + "</div>" +
+        '<div class="small" style="color:#8a5a32;margin-bottom:10px">' + stars + "</div>" +
+        '<div class="prompt-actions">' +
+          '<button class="btn primary" data-act="done" data-test="prompt-done">做了</button>' +
+          '<button class="btn ghost" data-act="skipped" data-test="prompt-skip">放过</button>' +
+        "</div>";
+      host.appendChild(dock);
+      if (App.Audio) App.Audio.play("flip");
+      dock.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-act]");
+        if (!btn) return;
+        handlers[btn.getAttribute("data-act")]();
+      });
+      return function () { host.innerHTML = ""; };
     }
   };
 })();
 
 /* ===== src/ui/screens/boot.js ===== */
-/* ===== 门口 ===== */
+/* ===== 开场 ===== */
 (function () {
   var App = window.App;
   var U = App.util;
+  var COLORS = [
+    { id: "red", name: "红" },
+    { id: "yellow", name: "黄" },
+    { id: "blue", name: "蓝" },
+    { id: "green", name: "绿" }
+  ];
+  var SCALES = [
+    { id: "gentle", name: "温柔" },
+    { id: "warm", name: "暧昧" },
+    { id: "hot", name: "热烈" },
+    { id: "open", name: "不设限" }
+  ];
+  var CHIPS = ["束缚", "露出", "道具", "蒙眼", "喝酒", "角色"];
 
   App.Screens = App.Screens || {};
   App.Screens.boot = {
-    mount: function (root) {
-      var has = App.Store.hasSession();
-      var note = App.Store.takeLegacyNote();
-      root.innerHTML =
-        '<div class="page">' +
-          '<div class="kicker">NIGHT APARTMENT</div>' +
-          '<div class="mt-20">' +
-            '<h1 class="title-xl">今晚<br>在这间公寓</h1>' +
-            '<p class="muted mt-12" style="max-width:18em">两个人，一部手机，一枚「我们」。灯开着的房间，可以再走进去。</p>' +
-          '</div>' +
-          '<div class="grow"></div>' +
-          '<div class="actions">' +
-            (has
-              ? '<button class="btn primary wide" data-test="continue-night" data-go="plan">回到这间公寓</button>' +
-                '<button class="btn soft wide" data-test="new-night" data-go="fresh">另开一夜</button>'
-              : '<button class="btn primary wide" data-test="enter-night" data-go="foyer">推门进去</button>') +
-            '<div class="choice-row">' +
-              '<button class="btn soft" data-test="open-nights" data-go="nights">以前的夜</button>' +
-              '<button class="btn soft" data-test="open-door" data-go="door">游戏门</button>' +
-            '</div>' +
-            '<button class="btn ghost wide" data-test="open-settings" data-go="settings">设置</button>' +
-          '</div>' +
-          '<p class="tiny dim center mt-12">长按「先回去关灯」可以随时结束。做过的都留着。</p>' +
-        '</div>';
-      if (note) App.UI.toast("上一趟夜航已收进以前的夜");
-      function go(name) {
-        if (name === "plan") {
-          var s = App.Store.getSession();
-          App.Night.paint(s);
-          App.Router.reset("plan");
-          return;
-        }
-        if (name === "fresh") {
-          var cur = App.Store.getSession();
-          if (cur && cur.phase !== "done") {
-            var fin = App.Engine.closeNight(cur);
-            fin.state.archived = true;
-            App.Store.addHistory(App.Store.makeHistoryEntry(fin.state));
-            App.Store.clearSession();
-          }
-          App.Router.go("foyer");
-          return;
-        }
-        if (name === "foyer") App.Router.go("foyer");
-        else App.Router.go(name);
-      }
-      U.delegate(root, "[data-go]", "click", function (e, el) { go(el.getAttribute("data-go")); });
-    }
-  };
-})();
-
-/* ===== src/ui/screens/foyer.js ===== */
-/* ===== 门厅：大衣名牌、壁灯、桌上的纸条 ===== */
-(function () {
-  var App = window.App;
-  var U = App.util;
-  var BOUNDS = [
-    { id: "束缚", name: "束缚" },
-    { id: "露出", name: "露出" },
-    { id: "道具", name: "道具" },
-    { id: "喝酒", name: "喝酒" },
-    { id: "蒙眼", name: "蒙眼" },
-    { id: "角色", name: "角色" }
-  ];
-
-  function line(cap) {
-    var I = (App.CONTENT && App.CONTENT.intensities && App.CONTENT.intensities[cap]) || {};
-    return I.line || "";
-  }
-
-  App.Screens.foyer = {
-    mount: function (root) {
-      var settings = App.Store.getSettings();
-      var cap = settings.maxStar || 3;
-      var picked = {};
-      (settings.blacklist || []).forEach(function (b) { picked[b] = true; });
-      var custom = (settings.blacklist || []).filter(function (b) {
-        return !BOUNDS.some(function (x) { return x.id === b; });
-      }).join(" ");
-
-      function paint() {
-        root.innerHTML =
-          '<div class="page">' +
-            '<div class="topbar"><button class="back" data-go="boot" aria-label="回到门口">←</button><div class="tb-title">门厅</div><div class="tb-right"></div></div>' +
-            '<p class="kicker">把外套挂上</p>' +
-            '<h1 class="title-lg mt-8">今晚怎么称呼</h1>' +
-            '<div class="coat-rail">' +
-              '<div class="coat"><label for="name-a">左边这件</label><input id="name-a" data-test="name-a" maxlength="12" value="' + U.escape(settings.names.a) + '"></div>' +
-              '<div class="coat"><label for="name-b">右边这件</label><input id="name-b" data-test="name-b" maxlength="12" value="' + U.escape(settings.names.b) + '"></div>' +
-            '</div>' +
-            '<p class="kicker mt-20">壁灯拨到哪一档</p>' +
-            '<div class="lamp-row" data-test="intensity">' +
-              [1, 2, 3, 4].map(function (n) {
-                var name = ["", "温柔", "暧昧", "热烈", "不设限"][n];
-                return '<button type="button" class="lamp-btn' + (cap === n ? " on" : "") + '" data-cap="' + n + '" data-test="intensity-' + n + '" aria-pressed="' + (cap === n) + '"><b>' + name + '</b><span>' + U.escape(line(n)) + '</span></button>';
-              }).join("") +
-            '</div>' +
-            '<div class="table-note">' +
-              '<h3>今晚不做的</h3>' +
-              '<p>写在这张纸条上的，整晚都不会出现。划掉就作数。</p>' +
-              BOUNDS.map(function (b) {
-                var on = !!picked[b.id];
-                return '<button type="button" class="bound-line' + (on ? " on" : "") + '" data-bound="' + b.id + '" data-test="boundary-' + b.id + '" aria-pressed="' + on + '"><i>' + (on ? "✕" : "·") + '</i>' + b.name + '</button>';
-              }).join("") +
-              '<input data-test="boundary-custom" maxlength="40" placeholder="再写一条，比如某个词" value="' + U.escape(custom) + '">' +
-            '</div>' +
-            '<button class="btn primary wide mt-20" data-test="start-night">把灯拧开</button>' +
-          '</div>';
-      }
-
-      function snapshot() {
-        var a = root.querySelector("#name-a");
-        var b = root.querySelector("#name-b");
-        var c = root.querySelector("[data-test=boundary-custom]");
-        if (a) settings.names.a = a.value;
-        if (b) settings.names.b = b.value;
-        if (c) custom = c.value;
-      }
-
-      function begin() {
-        var a = (root.querySelector("#name-a").value || "").trim() || "他";
-        var b = (root.querySelector("#name-b").value || "").trim() || "她";
-        var extra = (root.querySelector("[data-test=boundary-custom]").value || "").trim();
-        var blacklist = BOUNDS.filter(function (b) { return picked[b.id]; }).map(function (b) { return b.id; });
-        if (extra) blacklist.push(extra);
-        var prev = App.Store.getSettings();
-        var settings = App.Store.saveSettings({
-          maxStar: cap,
-          blacklist: blacklist,
-          names: { a: a, b: b },
-          sound: prev.sound,
-          haptics: prev.haptics,
-          reduced: prev.reduced,
-          gentleOnly: prev.gentleOnly
-        });
-        var session = App.Engine.newSession(settings, { a: a, b: b }, Date.now() % 1000000);
-        var pending = App.Store.takePending();
-        if (pending && pending.id) {
-          var pasted = App.Engine.pasteStandalone(session, pending);
-          if (pasted.state) session = pasted.state;
-          App.UI.toast("游戏门的结果已经收进今晚");
-        }
-        App.Store.saveSession(session);
-        App.Night.paint(session);
-        if (App.Audio) App.Audio.play("soft");
-        App.Router.reset("plan");
-      }
-
-      paint();
-      U.delegate(root, "[data-cap]", "click", function (e, el) {
-        snapshot();
-        cap = parseInt(el.getAttribute("data-cap"), 10);
-        paint();
-      });
-      U.delegate(root, "[data-bound]", "click", function (e, el) {
-        snapshot();
-        var id = el.getAttribute("data-bound");
-        picked[id] = !picked[id];
-        paint();
-      });
-      U.delegate(root, "[data-go]", "click", function () { App.Router.reset("boot"); });
-      U.delegate(root, "[data-test=start-night]", "click", function () { begin(); });
-    }
-  };
-})();
-
-/* ===== src/ui/screens/plan.js ===== */
-/* ===== 平面图 ===== */
-(function () {
-  var App = window.App;
-  var U = App.util;
-  var ROOMS = [
-    { id: "balcony", cls: "room-balcony", illu: '<i class="rail"></i><i class="rainbit"></i><i class="bulb"></i>' },
-    { id: "bedroom", cls: "room-bed", illu: '<i class="bedshape"></i><i class="bulb"></i>' },
-    { id: "bathroom", cls: "room-bath", illu: '<i class="tub"></i><i class="bulb"></i>' },
-    { id: "living", cls: "room-living", illu: '<i class="sofa"></i><i class="glasscup"></i><i class="bulb"></i>' },
-    { id: "kitchen", cls: "room-kitchen", illu: '<i class="counter"></i><i class="bulb"></i>' }
-  ];
-
-  function meta(id) { return App.Balance.ROOM_META[id]; }
-
-  App.Screens.plan = {
-    mount: function (root) {
-      var state = App.Store.getSession();
-      if (!state || state.phase === "done") { App.Router.reset("boot"); return; }
-      if (state.phase !== "plan") {
-        var back = App.Engine.leaveRoom(state);
-        App.Store.saveSession(back.state);
-        state = back.state;
-      }
-      App.Night.paint(state);
-      function paint() {
-        state = App.Store.getSession();
-        if (!state) { App.Router.reset("boot"); return; }
-        var cap = App.Engine.capOf(state);
-        var name = (App.Balance.INTENSITY[cap] && App.Balance.INTENSITY[cap].name) || "";
-        var at = state.at || "foyer";
-        root.innerHTML =
-          '<div class="page">' +
-            '<div class="night-bar">' +
-              '<div><div class="kicker">' + U.escape(state.names.a) + " · " + U.escape(state.names.b) + "</div>" +
-              '<div class="clock" data-test="clock">' + U.escape(App.Engine.clockLabel(state)) + " · " + U.escape(name) + "</div></div>" +
-              '<div class="wine" aria-hidden="true"><i style="height:' + Math.max(8, state.heat) + '%"></i></div>' +
-            '</div>' +
-            '<div class="meter" data-test="heat" data-heat="' + state.heat + '"><div class="meter-track"><div class="meter-fill" style="width:' + state.heat + '%"></div></div>' +
-            '<div class="tiny dim mt-8">' + U.escape(App.Balance.stageLabel(state.heat)) + " · " + state.heat + "</div></div>" +
-            '<div class="apt mt-12" data-test="floor">' +
-              ROOMS.map(function (r) {
-                var m = meta(r.id);
-                var lit = state.lit && state.lit[r.id];
-                return '<button class="room ' + r.cls + (lit ? " lit" : "") + '" data-room="' + r.id + '" data-test="room-' + r.id + '" aria-label="走进' + m.name + '">' +
-                  '<span class="illu">' + r.illu + "</span>" +
-                  '<span class="room-name">' + m.name + "</span>" +
-                  '<span class="room-hint">' + m.hint + (lit ? " · 亮着" : "") + "</span>" +
-                  (at === r.id ? '<span class="we" data-test="token">我们</span>' : "") +
-                "</button>";
-              }).join("") +
-              '<div class="foyer-cell"><span><b style="letter-spacing:.16em">门厅</b><span class="room-hint">从这里开始</span></span>' +
-              (at === "foyer" || !at ? '<span class="we" data-test="token">我们</span>' : "") +
-              "</div></div>" +
-            '<div class="actions">' +
-              '<button class="btn soft wide" data-test="stroll" data-act="stroll">在公寓里走一走</button>' +
-              '<div class="choice-row">' +
-                '<button class="btn soft" data-test="to-door" data-act="door">游戏门</button>' +
-                '<button class="btn soft" data-test="close-night" data-act="close">关灯</button>' +
-              "</div></div>" +
-          "</div>";
-        U.delegate(root, "[data-room]", "click", function (e, el) {
-          var id = el.getAttribute("data-room");
-          var ret = App.Engine.enterRoom(App.Store.getSession(), id);
-          App.Store.saveSession(ret.state);
-          App.Night.paint(ret.state);
-          if (App.Audio) App.Audio.play("tick");
-          App.Router.go("room");
-        });
-        U.delegate(root, "[data-act]", "click", function (e, el) {
-          var act = el.getAttribute("data-act");
-          if (act === "door") App.Router.go("door");
-          else if (act === "stroll") {
-            var ret = App.Engine.strollStart(App.Store.getSession());
-            App.Store.saveSession(ret.state);
-            App.Router.go("room");
-          } else if (act === "close") {
-            App.UI.confirm({ title: "把灯关掉", text: "已经走过的房间和做过的事会留在这一页上。", ok: "关灯", cancel: "再待一会儿" }).then(function (yes) {
-              if (!yes) return;
-              var fin = App.Engine.closeNight(App.Store.getSession());
-              App.Store.addHistory(App.Store.makeHistoryEntry(fin.state));
-              fin.state.archived = true;
-              App.Store.saveSession(fin.state);
-              App.Night.paint(null);
-              App.Router.reset("close");
-            });
-          }
-        });
-      }
-      paint();
-    }
-  };
-})();
-
-/* ===== src/ui/screens/kit.js ===== */
-/* ===== 房间里的四种玩法，夜里和游戏门共用 ===== */
-(function () {
-  var App = window.App;
-  var U = App.util;
-  var OUT = { done: "做了", hold: "停在这里", pass: "先放下", deeper: "又往下问", reveal: "对过温度" };
-
-  function tone(star, cap) {
-    if (cap <= 1) return "轻声";
-    if (star <= 2) return "靠近";
-    if (star === 3) return "发烫";
-    if (star === 4) return "直接";
-    return "不收";
-  }
-  function esc(s) { return U.escape(s || ""); }
-  function reduced() { return App.Motion && App.Motion.reduced && App.Motion.reduced(); }
-  function labels(cap) { return App.Balance.THERMO_LABELS[cap] || App.Balance.THERMO_LABELS[1]; }
-  function labelAt(cap, i) {
-    var list = labels(cap);
-    return list[Math.max(0, Math.min(list.length - 1, i))] || "";
-  }
-
-  function scene(room, title, sub) {
-    var prop = {
-      living: '<i class="sofa"></i><i class="glasscup"></i><i class="bulb"></i>',
-      kitchen: '<i class="counter"></i><i class="bulb"></i>',
-      balcony: '<i class="rail"></i><i class="rainbit"></i>',
-      bathroom: '<i class="tub"></i><i class="bulb"></i>',
-      bedroom: '<i class="bedshape"></i><i class="bulb"></i>'
-    }[room] || "";
-    return '<div class="scene scene-' + room + '"><div class="illu">' + prop + '</div><div class="cap"><b>' + esc(title) + '</b><span class="small muted">' + esc(sub) + "</span></div></div>";
-  }
-
-  function promptBlock(state, card, extra) {
-    var cap = App.Engine.capOf(state);
-    return '<article class="prompt" data-test="prompt"><p class="prompt-text">' + esc(card.text) + "</p>" +
-      '<div class="prompt-meta">' + esc(tone(card.star || 1, cap)) + (extra ? " · " + esc(extra) : "") + "</div></article>";
-  }
-
-  function last(state) {
-    var log = state.log || [];
-    return log.length ? log[log.length - 1] : null;
-  }
-
-  function wheelHtml(state) {
-    return '<div class="wheel-wrap"><div class="pointer"></div><div class="rotor" data-rotor>' +
-      '<button class="hub" data-act="spin" data-test="spin" type="button">转</button></div></div>';
-  }
-
-  function top(title, leaveLabel) {
-    return '<div class="topbar"><button class="back" data-act="leave" aria-label="' + esc(leaveLabel || "回到平面图") + '">←</button>' +
-      '<div class="tb-title">' + esc(title) + '</div><div class="tb-right"></div></div>';
-  }
-
-  function livingHtml(state) {
-    var cap = App.Engine.capOf(state);
-    var sub = App.Night.line("living", cap);
-    var html = top("客厅") + scene("living", "客厅", sub);
-    if (!state.prompt) {
-      var prev = last(state);
-      if (prev && prev.room === "living") {
-        html += '<p class="small dim">刚才：' + esc(OUT[prev.outcome] || "") + "</p>";
-      }
-      html += '<p class="title-md">谁先把这句话递出去</p><div class="choice-row mt-12">' +
-        '<button class="btn soft" data-test="who-ask" data-act="offer" data-who="a" data-role="ask">' + esc(state.names.a) + " 先问</button>" +
-        '<button class="btn soft" data-test="who-listen" data-act="offer" data-who="b" data-role="listen">' + esc(state.names.b) + " 先听</button>" +
-        "</div>";
-      return html;
-    }
-    var who = state.prompt.who === "b" ? state.names.b : state.names.a;
-    var role = state.prompt.role === "listen" ? "先听" : "先问";
-    html += promptBlock(state, state.prompt.card, who + role);
-    html += '<div class="actions">' +
-      '<button class="btn primary wide" data-test="hold" data-act="settle" data-how="hold">就停在这</button>' +
-      '<button class="btn soft wide" data-test="deeper" data-act="deeper">再往下问</button>' +
-      '<button class="btn ghost wide" data-test="pass" data-act="settle" data-how="pass">先放下</button></div>';
-    return html;
-  }
-
-  function wheelScreen(state, kind) {
-    var room = kind === "dare" ? "kitchen" : "bathroom";
-    var title = kind === "dare" ? "厨房" : "浴室";
-    var cap = App.Engine.capOf(state);
-    var html = top(title) + scene(room, title, App.Night.line(room, cap));
-    var spun = state.wheel && state.wheel.spun && state.prompt;
-    if (!spun) {
-      html += '<p class="center small dim">' + (kind === "dare" ? "停在哪一件，就做到哪一件。" : "停下之后，自己说，或者递到对方手里。") + "</p>";
-      html += wheelHtml(state);
-      var left = kind === "dare" ? state.dareRerolls : state.truthRerolls;
-      html += '<p class="center tiny dim">重抽还剩 ' + (left || 0) + " 次</p>";
-      return html;
-    }
-    html += promptBlock(state, state.prompt.card, kind === "dare" ? "厨房" : "浴室");
-    if (kind === "truth" && !state.prompt.hand) {
-      html += '<div class="choice-row mt-12">' +
-        '<button class="btn primary" data-test="hand-self" data-act="hand" data-who="self">我来说</button>' +
-        '<button class="btn soft" data-test="hand-other" data-act="hand" data-who="other">交给对方</button></div>';
-    } else {
-      var whoLine = "";
-      if (kind === "truth") whoLine = state.prompt.hand === "other" ? "交给对方说" : "自己说";
-      if (whoLine) html += '<p class="small dim mt-8">' + whoLine + "</p>";
-      var left2 = kind === "dare" ? state.dareRerolls : state.truthRerolls;
-      html += '<div class="actions">' +
-        '<button class="btn primary wide" data-test="did" data-act="settle" data-how="done">' + (kind === "dare" ? "做到了" : "说了") + "</button>" +
-        '<button class="btn soft wide" data-test="reroll" data-act="reroll"' + (left2 ? "" : " disabled") + ">再转一次</button>" +
-        '<button class="btn ghost wide" data-test="pass" data-act="settle" data-how="pass">先放下</button></div>';
-    }
-    return html;
-  }
-
-  function thermoHtml(state) {
-    var cap = App.Engine.capOf(state);
-    var t = state.thermo || { max: 6, a: null, b: null };
-    var html = top("阳台") + scene("balcony", "阳台", App.Night.line("balcony", cap));
-    if (t.revealed) {
-      html += '<article class="prompt" data-test="thermo-result"><p class="prompt-text">你们把温度摊开了。</p>' +
-        '<p class="muted mt-8">' + esc(state.names.a) + " 放在「" + esc(labelAt(cap, t.a.place)) + "」，猜的是「" + esc(labelAt(cap, t.a.guess)) + "」。</p>" +
-        '<p class="muted">' + esc(state.names.b) + " 放在「" + esc(labelAt(cap, t.b.place)) + "」，猜的是「" + esc(labelAt(cap, t.b.guess)) + "」。</p>" +
-        '<p class="prompt-meta">接近 ' + Math.round((t.closeness || 0) * 100) + " · 夜里 +" + (t.delta || 0) + "</p></article>" +
-        '<p class="small dim mt-12">' + ((t.closeness || 0) >= 0.75 ? "猜得很近。热度跟着上来了。" : "没贴准也没关系。温度本身已经放在桌上。") + "</p>" +
-        '<div class="actions"><button class="btn soft wide" data-test="thermo-again" data-act="thermo-reset">再量一次</button></div>';
-      return html;
-    }
-    if (!t.a) {
-      html += sliders("a", state.names.a, cap, t.max, "盖住，递给 " + state.names.b);
-      return html;
-    }
-    if (!t.passing) {
-      html += '<div class="prompt pass-card" data-test="pass-phone"><p class="title-md">把手机递给 ' + esc(state.names.b) + '</p><p class="muted">刚才的刻度已经盖住了。</p>' +
-        '<button class="btn primary" data-test="got-phone" data-act="thermo-pass">我拿到了</button></div>';
-      return html;
-    }
-    if (!t.b) {
-      html += sliders("b", state.names.b, cap, t.max, "揭开");
-      return html;
-    }
-    html += '<button class="btn primary wide" data-test="thermo-reveal" data-act="thermo-reveal">揭开两边的温度</button>';
-    return html;
-  }
-
-  function sliders(who, name, cap, max, submit) {
-    return '<div data-test="thermo-' + who + '"><p class="title-md">' + esc(name) + "，先别给对方看</p>" +
-      '<p class="small dim mt-12">你把今晚放在</p><p class="scale-label" data-place-label>' + esc(labelAt(cap, Math.round(max / 2))) + "</p>" +
-      '<input data-place type="range" min="0" max="' + max + '" value="' + Math.round(max / 2) + '" aria-label="自己的温度">' +
-      '<p class="small dim mt-12">你猜对方会放在</p><p class="scale-label" data-guess-label>' + esc(labelAt(cap, Math.round(max / 2))) + "</p>" +
-      '<input data-guess type="range" min="0" max="' + max + '" value="' + Math.round(max / 2) + '" aria-label="猜对方的温度">' +
-      '<button class="btn primary wide mt-16" data-test="thermo-lock-' + who + '" data-act="thermo-lock" data-who="' + who + '">' + esc(submit) + "</button></div>";
-  }
-
-  function bedroomHtml(state) {
-    var cap = App.Engine.capOf(state);
-    var html = top("卧室") + scene("bedroom", "卧室", App.Night.line("bedroom", cap));
-    if (!state.bedroomMode) {
-      html += '<p class="small dim">门没有锁。</p><div class="choice-row mt-12">' +
-        '<button class="btn soft" data-test="bed-talk" data-act="bed" data-mode="talk">说话</button>' +
-        '<button class="btn primary" data-test="bed-act" data-act="bed" data-mode="act">做事</button></div>';
-      return html;
-    }
-    if (!state.prompt) {
-      html += '<button class="btn primary wide" data-test="bed-draw" data-act="bed-draw">' + (state.bedroomMode === "act" ? "抽一件更近的事" : "抽一句更近的话") + "</button>";
-      return html;
-    }
-    html += promptBlock(state, state.prompt.card, state.bedroomMode === "act" ? "做事" : "说话");
-    html += '<div class="actions">' +
-      '<button class="btn primary wide" data-test="did" data-act="settle" data-how="done">就这样</button>' +
-      '<button class="btn soft wide" data-test="deeper" data-act="deeper">再近一点</button>' +
-      '<button class="btn ghost wide" data-test="pass" data-act="settle" data-how="pass">先放下</button></div>';
-    return html;
-  }
-
-  function strollHtml(state) {
-    var tiles = App.Balance.STROLL_TILES;
-    var pos = state.stroll ? state.stroll.pos : 0;
-    var html = top(state.mode === "standalone" ? "走一走" : "公寓里走") +
-      '<p class="small dim">一枚「我们」。不是比赛，走到哪间，就做那一间的事。</p>' +
-      '<div class="stroll mt-12" data-test="stroll-board">' +
-      tiles.map(function (tile, i) {
-        return '<div class="tile' + (i === pos ? " on" : "") + '" data-test="tile-' + tile.id + '"><b>' + esc(tile.name) + "</b>" + esc(App.Balance.ROOM_META[tile.room].name) + "</div>";
-      }).join("") + "</div>";
-    var pending = state.stroll && state.stroll.pending;
-    if (!pending) {
-      html += '<button class="btn primary wide mt-16" data-test="stroll-roll" data-act="stroll-roll">一起走</button>';
-      return html;
-    }
-    html += '<p class="small gold mt-12">走了 ' + state.stroll.lastDie + " 步 · " + esc(pending.tile.name) + "</p>";
-    html += promptBlock(state, pending.card, App.Balance.ROOM_META[pending.tile.room].name);
-    html += '<div class="actions"><button class="btn primary wide" data-test="did" data-act="stroll-settle" data-how="done">做了</button>' +
-      '<button class="btn ghost wide" data-test="pass" data-act="stroll-settle" data-how="pass">先放下</button></div>';
-    return html;
-  }
-
-  function body(state) {
-    if (state.phase === "stroll") return strollHtml(state);
-    if (state.room === "living") return livingHtml(state);
-    if (state.room === "kitchen") return wheelScreen(state, "dare");
-    if (state.room === "bathroom") return wheelScreen(state, "truth");
-    if (state.room === "balcony") return thermoHtml(state);
-    if (state.room === "bedroom") return bedroomHtml(state);
-    return "<p>这间房还没准备好。</p>";
-  }
-
-  function prepare(state, api) {
-    if (!state || state.phase === "stroll" || state.phase === "done") return state;
-    var next = null;
-    if (state.room === "kitchen" && (!state.wheel || state.wheel.kind !== "dare")) next = App.Engine.dealWheel(state, "dare");
-    else if (state.room === "bathroom" && (!state.wheel || state.wheel.kind !== "truth")) next = App.Engine.dealWheel(state, "truth");
-    else if (state.room === "balcony" && !state.thermo) next = App.Engine.thermoBegin(state);
-    if (!next) return state;
-    api.save(next.state);
-    return next.state;
-  }
-
-  App.Kit = {
-    open: function (root, api) {
-      var timer = null;
-      function get() { return api.get(); }
-      function commit(ret, opts) {
-        opts = opts || {};
-        var s = ret && ret.state ? ret.state : ret;
-        api.save(s);
-        if (api.night) App.Night.paint(s);
-        if (opts.spin) {
-          var rotor = root.querySelector("[data-rotor]");
-          var idx = s.wheel && s.wheel.index || 0;
-          if (rotor) {
-            var deg = 1440 - idx * 60;
-            rotor.style.transition = reduced() ? "none" : "transform 1s cubic-bezier(.15,.8,.2,1)";
-            rotor.style.transform = "rotate(" + deg + "deg)";
-          }
-          clearTimeout(timer);
-          timer = setTimeout(render, reduced() ? 30 : 1000);
-          return;
-        }
-        render();
-      }
-      function render() {
-        var state = prepare(get(), api);
-        if (!state) { api.onLeave(); return; }
-        var heat = '<div class="tiny dim mb-8" data-test="room-heat" data-heat="' + (state.heat || 0) + '">' +
-          esc(App.Balance.stageLabel(state.heat || 0)) + " · " + (state.heat || 0) +
-          (state.mode === "standalone" ? " · 游戏门" : "") + "</div>";
-        var paste = "";
-        if (!api.night && state.mode === "standalone" && ((state.log && state.log.length) || (state.thermo && state.thermo.revealed))) {
-          paste = '<button class="btn soft wide mt-12" data-test="paste-tonight" data-act="paste">带回今晚</button>';
-        }
-        root.innerHTML = '<div class="page">' + heat + body(state) + paste + "</div>";
-        root.querySelectorAll("[data-place],[data-guess]").forEach(function (input) {
-          input.addEventListener("input", function () {
-            var cap = App.Engine.capOf(get());
-            var slot = input.hasAttribute("data-place") ? "[data-place-label]" : "[data-guess-label]";
-            var lab = root.querySelector(slot);
-            if (lab) lab.textContent = labelAt(cap, parseInt(input.value, 10) || 0);
-          });
-        });
-      }
-      function bind() {
-        U.delegate(root, "[data-act]", "click", function (e, el) {
-          if (el.disabled) return;
-          var act = el.getAttribute("data-act");
-          var state = get();
-          if (!state) return;
-          if (act === "leave") { api.onLeave(); return; }
-          if (act === "offer") {
-            commit(App.Engine.livingOffer(state, { who: el.getAttribute("data-who"), role: el.getAttribute("data-role") }));
-            return;
-          }
-          if (act === "deeper") { commit(App.Engine.pushDeeper(state)); return; }
-          if (act === "settle") { commit(App.Engine.settlePrompt(state, el.getAttribute("data-how"))); return; }
-          if (act === "spin") { commit(App.Engine.spinWheel(state), { spin: true }); return; }
-          if (act === "reroll") {
-            var r = App.Engine.rerollWheel(state);
-            if (r.events[0] && r.events[0].type === "blocked") App.UI.toast("重抽用完了");
-            commit(r);
-            return;
-          }
-          if (act === "hand") { commit(App.Engine.handTruth(state, el.getAttribute("data-who"))); return; }
-          if (act === "thermo-lock") {
-            var who = el.getAttribute("data-who");
-            var place = parseInt((root.querySelector("[data-place]") || {}).value, 10) || 0;
-            var guess = parseInt((root.querySelector("[data-guess]") || {}).value, 10) || 0;
-            var locked = App.Engine.thermoSet(state, who, place, guess);
-            if (who === "b") commit(App.Engine.thermoReveal(locked.state));
-            else commit(locked);
-            return;
-          }
-          if (act === "thermo-pass") { commit(App.Engine.thermoPass(state)); return; }
-          if (act === "thermo-reveal") { commit(App.Engine.thermoReveal(state)); return; }
-          if (act === "thermo-reset") { commit(App.Engine.thermoBegin(state)); return; }
-          if (act === "bed") {
-            var mode = App.Engine.bedroomMode(state, el.getAttribute("data-mode"));
-            commit(App.Engine.bedroomDraw(mode.state));
-            return;
-          }
-          if (act === "bed-draw") { commit(App.Engine.bedroomDraw(state)); return; }
-          if (act === "stroll-roll") { commit(App.Engine.strollRoll(state)); return; }
-          if (act === "stroll-settle") { commit(App.Engine.strollSettle(state, el.getAttribute("data-how"))); return; }
-          if (act === "paste" && api.onPaste) api.onPaste(App.Engine.standalonePack(state));
-        });
-      }
-      render();
-      bind();
-      return function () { clearTimeout(timer); };
-    }
-  };
-})();
-
-/* ===== src/ui/screens/room.js ===== */
-/* ===== 走进当前这间房 ===== */
-(function () {
-  var App = window.App;
-  App.Screens.room = {
-    mount: function (root) {
-      var state = App.Store.getSession();
-      if (!state || state.phase === "done") { App.Router.reset("boot"); return; }
-      return App.Kit.open(root, {
-        night: true,
-        get: function () { return App.Store.getSession(); },
-        save: function (s) { App.Store.saveSession(s); App.Night.paint(s); },
-        onLeave: function () {
-          var s = App.Store.getSession();
-          if (s && s.phase !== "done" && s.phase !== "plan") {
-            var left = App.Engine.leaveRoom(s);
-            App.Store.saveSession(left.state);
-            App.Night.paint(left.state);
-          }
-          App.Router.back();
-        }
-      });
-    }
-  };
-})();
-
-/* ===== src/ui/screens/door.js ===== */
-/* ===== 游戏门：四款可以单独玩，也可以带回今晚 ===== */
-(function () {
-  var App = window.App;
-  var U = App.util;
-  var GAMES = [
-    { id: "thermo", name: "温度", where: "阳台", text: "各自猜对方会把热放在哪一格。" },
-    { id: "truth", name: "真话", where: "浴室", text: "转盘停下。自己说，或交到对方手里。" },
-    { id: "dare", name: "动作", where: "厨房", text: "转到的事跟着今晚的热度走。" },
-    { id: "stroll", name: "走一走", where: "整间公寓", text: "一枚「我们」，走到哪间做哪间的事。" }
-  ];
-
-  function menu(root) {
-    root.innerHTML =
-      '<div class="page">' +
-        '<div class="topbar"><button class="back" data-act="back" aria-label="返回">←</button><div class="tb-title">游戏门</div><div class="tb-right"></div></div>' +
-        '<p class="kicker">单独玩，或收进今晚</p>' +
-        '<h1 class="title-lg mt-8">门后的四样</h1>' +
-        '<div class="door-grid mt-16">' +
-          GAMES.map(function (g) {
-            return '<button class="door-card" data-test="game-' + g.id + '" data-game="' + g.id + '"><span class="tiny">' + g.where + '</span><b>' + g.name + '</b><span>' + g.text + '</span></button>';
-          }).join("") +
-        "</div></div>";
-    U.delegate(root, "[data-act=back]", "click", function () { App.Router.back(); });
-    U.delegate(root, "[data-game]", "click", function (e, el) {
-      App.Router.go("door", { game: el.getAttribute("data-game") });
-    });
-  }
-
-  function startGame(game) {
-    var settings = App.Store.getSettings();
-    var cur = App.Store.getStandalone();
-    if (cur && cur.game === game && cur.phase !== "done" && ((cur.log && cur.log.length) || (cur.wheel && cur.wheel.spun) || (cur.thermo && (cur.thermo.a || cur.thermo.revealed)) || (cur.stroll && cur.stroll.turns))) {
-      return cur;
-    }
-    var s = App.Engine.newStandalone(game, settings, Date.now() % 1000000);
-    App.Store.saveStandalone(s);
-    return s;
-  }
-
-  App.Screens.door = {
     mount: function (root, params) {
       params = params || {};
-      var game = params.game || null;
-      if (!game) { menu(root); return; }
-      startGame(game);
-      return App.Kit.open(root, {
-        night: false,
-        get: function () { return App.Store.getStandalone(); },
-        save: function (s) { App.Store.saveStandalone(s); if (s) App.Night.paint(s); },
-        onLeave: function () { App.Router.back(); },
-        onPaste: function (pack) {
-          if (!pack) return;
-          var night = App.Store.getSession();
-          if (night && night.phase !== "done" && night.mode !== "standalone") {
-            var ret = App.Engine.pasteStandalone(night, pack);
-            App.Store.saveSession(ret.state);
-            App.Night.paint(ret.state);
-            App.UI.toast(ret.events[0] && ret.events[0].already ? "这场已经在今晚里了" : "带回今晚了");
-            App.Router.reset("plan");
-            return;
-          }
-          App.Store.setPending(pack);
-          App.UI.toast("先在门厅把名字和尺度定下来");
-          App.Router.reset("foyer");
+      var settings = App.Store.getSettings();
+      var has = App.Store.hasSession();
+      if (params.resumeFlight) {
+        if (has) { App.Router.reset("table"); return; }
+      }
+      var picked = {
+        a: (settings.colors && settings.colors.a) || "red",
+        b: (settings.colors && settings.colors.b) || "yellow"
+      };
+      if (picked.a === picked.b) picked.b = "yellow";
+      var scale = settings.scale || settings.suggestScale || "warm";
+      var boundaries = (settings.blacklist || []).slice();
+      var planes = settings.lastPlaneCount === 2 ? 2 : 4;
+      var note = App.Store.takeLegacyNote();
+
+      function chip(name) {
+        var on = boundaries.indexOf(name) >= 0;
+        return '<button type="button" class="btn sm' + (on ? " primary" : " soft") + '" data-bound="' + name + '">' + name + "</button>";
+      }
+      function colorBtn(pid, c) {
+        var on = picked[pid] === c.id;
+        return '<button type="button" class="btn sm' + (on ? " primary" : " soft") + '" data-color="' + pid + ":" + c.id + '">' + c.name + "</button>";
+      }
+
+      root.innerHTML =
+        '<div class="page">' +
+          '<div class="kicker">TONIGHT</div>' +
+          '<h1 class="title-xl mt-12">今晚<br>飞行棋</h1>' +
+          '<p class="muted mt-12">两个人，一部手机，一盘桌上的棋。</p>' +
+          (has ? '<button class="btn primary wide mt-16" data-go="table" data-test="continue-flight">继续今晚飞行棋</button>' : "") +
+          '<div class="glass pad-16 mt-16">' +
+            '<label class="small dim">名字</label>' +
+            '<div class="choice-row mt-8">' +
+              '<input class="field" data-name="a" data-test="name-a" value="' + U.escape(settings.names.a || "他") + '" maxlength="12" />' +
+              '<input class="field" data-name="b" data-test="name-b" value="' + U.escape(settings.names.b || "她") + '" maxlength="12" />' +
+            "</div>" +
+            '<div class="small dim mt-12">第一位的飞机</div>' +
+            '<div class="choice-row mt-8" data-test="colors-a">' + COLORS.map(function (c) { return colorBtn("a", c); }).join("") + "</div>" +
+            '<div class="small dim mt-12">第二位的飞机</div>' +
+            '<div class="choice-row mt-8" data-test="colors-b">' + COLORS.map(function (c) { return colorBtn("b", c); }).join("") + "</div>" +
+            '<div class="small dim mt-12">尺度</div>' +
+            '<div class="choice-row mt-8" data-test="scales">' + SCALES.map(function (s) {
+              return '<button type="button" class="btn sm' + (scale === s.id ? " primary" : " soft") + '" data-scale="' + s.id + '">' + s.name + "</button>";
+            }).join("") + "</div>" +
+            '<div class="small dim mt-12">今晚不做的</div>' +
+            '<div class="choice-row mt-8" data-test="bounds">' + CHIPS.map(chip).join("") + "</div>" +
+            '<input class="field mt-8" data-test="bound-custom" placeholder="再写一条，回车加上" />' +
+            '<div class="small dim mt-12">飞机</div>' +
+            '<div class="choice-row mt-8">' +
+              '<button type="button" class="btn sm' + (planes === 4 ? " primary" : " soft") + '" data-planes="4" data-test="planes-4">每人四架</button>' +
+              '<button type="button" class="btn sm' + (planes === 2 ? " primary" : " soft") + '" data-planes="2" data-test="planes-2">每人两架 · 快局</button>' +
+            "</div>" +
+          "</div>" +
+          '<div class="actions mt-16">' +
+            '<button class="btn primary wide" data-go="start" data-test="start-flight">摆上棋盘</button>' +
+            '<div class="choice-row">' +
+              '<button class="btn soft" data-go="nights">以前的夜</button>' +
+              '<button class="btn soft" data-go="minigame" data-test="open-minigames">小游戏</button>' +
+            "</div>" +
+            '<button class="btn ghost wide" data-go="settings">设置</button>' +
+          "</div>" +
+          '<p class="tiny dim center mt-12">长按「先收棋」可以随时停。做过的都留着。</p>' +
+        "</div>";
+
+      if (note) App.UI.toast("以前的一局已收进以前的夜");
+
+      function paintScale() {
+        U.qsa("[data-scale]", root).forEach(function (el) {
+          el.className = "btn sm " + (el.getAttribute("data-scale") === scale ? "primary" : "soft");
+        });
+      }
+      function paintColors() {
+        U.qsa("[data-color]", root).forEach(function (el) {
+          var parts = el.getAttribute("data-color").split(":");
+          el.className = "btn sm " + (picked[parts[0]] === parts[1] ? "primary" : "soft");
+        });
+      }
+      function paintPlanes() {
+        U.qsa("[data-planes]", root).forEach(function (el) {
+          el.className = "btn sm " + (Number(el.getAttribute("data-planes")) === planes ? "primary" : "soft");
+        });
+      }
+      function paintBounds() {
+        var box = root.querySelector("[data-test=bounds]");
+        if (box) box.innerHTML = CHIPS.concat(boundaries.filter(function (b) { return CHIPS.indexOf(b) < 0; })).map(chip).join("");
+      }
+
+      U.delegate(root, "[data-scale]", "click", function (e, el) { scale = el.getAttribute("data-scale"); paintScale(); });
+      U.delegate(root, "[data-color]", "click", function (e, el) {
+        var parts = el.getAttribute("data-color").split(":");
+        picked[parts[0]] = parts[1];
+        if (picked.a === picked.b) {
+          picked[parts[0] === "a" ? "b" : "a"] = COLORS.filter(function (c) { return c.id !== parts[1]; })[0].id;
         }
+        paintColors();
+      });
+      U.delegate(root, "[data-planes]", "click", function (e, el) { planes = Number(el.getAttribute("data-planes")); paintPlanes(); });
+      U.delegate(root, "[data-bound]", "click", function (e, el) {
+        var name = el.getAttribute("data-bound");
+        var i = boundaries.indexOf(name);
+        if (i >= 0) boundaries.splice(i, 1); else boundaries.push(name);
+        paintBounds();
+      });
+      var custom = root.querySelector("[data-test=bound-custom]");
+      if (custom) custom.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        var t = custom.value.trim();
+        if (t && boundaries.indexOf(t) < 0) boundaries.push(t);
+        custom.value = "";
+        paintBounds();
+      });
+
+      function start() {
+        var names = {
+          a: root.querySelector("[data-name=a]").value.trim(),
+          b: root.querySelector("[data-name=b]").value.trim()
+        };
+        var made = App.Flight.newGame({
+          names: names,
+          colors: { a: picked.a, b: picked.b },
+          scale: scale,
+          boundaries: boundaries,
+          planeCount: planes
+        });
+        if (!made.ok) { App.UI.toast(made.error.message || "还没法开局"); return; }
+        App.Store.saveSettings({
+          names: names,
+          colors: { a: picked.a, b: picked.b },
+          scale: scale,
+          blacklist: boundaries,
+          lastPlaneCount: planes
+        });
+        var saved = App.Store.saveSession(made.state);
+        if (!saved.ok) { App.UI.toast("这台手机没能记下这局"); return; }
+        App.Router.reset("table");
+      }
+
+      U.delegate(root, "[data-go]", "click", function (e, el) {
+        var go = el.getAttribute("data-go");
+        if (go === "start") start();
+        else if (go === "table") App.Router.reset("table");
+        else App.Router.go(go);
       });
     }
   };
 })();
 
-/* ===== src/ui/screens/close.js ===== */
-/* ===== 关灯之后的一页 ===== */
+/* ===== src/ui/screens/table.js ===== */
+/* ===== 主桌 ===== */
 (function () {
   var App = window.App;
   var U = App.util;
-  var OUT = { done: "做了", hold: "停在这里", pass: "先放下", deeper: "又往下问", reveal: "对过温度" };
-  var ROOM = {};
+  var INK = { red: "#d64545", yellow: "#e6b325", blue: "#3a78d8", green: "#2fa36a" };
 
-  App.Screens.close = {
+  var CSS = [
+    ".table-root{position:absolute;inset:0;background:#140e0b;overflow:hidden}",
+    ".table-canvas{position:absolute;inset:0}",
+    ".table-canvas canvas{width:100%;height:100%;display:block}",
+    ".table-hud{position:absolute;left:0;right:0;top:0;z-index:5;pointer-events:none;",
+    "padding:calc(10px + var(--safe-t)) 12px 0;display:flex;justify-content:space-between;gap:8px}",
+    ".turn-pill{pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;",
+    "background:rgba(20,12,8,.72);color:#fff8ee;border:1px solid rgba(255,255,255,.12)}",
+    ".turn-dot{width:12px;height:12px;border-radius:50%}",
+    ".hud-btn{pointer-events:auto}",
+    ".table-actions{position:absolute;left:12px;right:12px;bottom:calc(18px + var(--safe-b));z-index:6;",
+    "display:flex;flex-direction:column;gap:8px}",
+    ".piece-choices{display:flex;flex-wrap:wrap;gap:8px}",
+    ".table-root .prompt-dock{z-index:8}"
+  ].join("");
+
+  App.Screens = App.Screens || {};
+  App.Screens.table = {
     mount: function (root) {
-      App.Balance.ROOMS.forEach(function (id) { ROOM[id] = App.Balance.ROOM_META[id].name; });
       var state = App.Store.getSession();
-      if (!state || !state.result) { App.Router.reset("boot"); return; }
-      if (!state.archived) {
-        App.Store.addHistory(App.Store.makeHistoryEntry(state));
-        state.archived = true;
-        App.Store.saveSession(state);
-      }
-      var mem = state.result;
-      var rooms = (mem.rooms || []).map(function (r) {
-        return '<div class="memory-room"><span>' + U.escape(r.name) + '</span><span class="dim">亮过' + (r.visits ? " · " + r.visits + " 次" : "") + "</span></div>";
-      }).join("") || '<p class="dim">还没有房间被点亮。这一页仍然算数。</p>';
-      var moments = (mem.moments || []).slice(-12).map(function (m) {
-        return '<div class="moment"><b>' + U.escape(ROOM[m.room] || "公寓") + " · " + U.escape(OUT[m.outcome] || "记下了") +
-          (m.via === "door" ? " · 游戏门" : "") + "</b><p>" + U.escape(m.text) + "</p></div>";
-      }).join("");
+      if (!state) { App.Router.reset("boot"); return; }
+      App.UI.injectStyle("table", CSS);
+      var settings = App.Store.getSettings();
       root.innerHTML =
-        '<div class="page">' +
-          '<p class="kicker">' + U.escape(mem.clock || "") + " · " + U.escape(mem.intensityName || "") + "</p>" +
-          '<h1 class="title-xl mt-12" data-test="memory-title">' + U.escape(mem.title) + "</h1>" +
-          '<p class="muted mt-12" data-test="memory-line">' + U.escape(mem.line) + "</p>" +
-          '<div class="glass pad-16 mt-16"><div class="tiny dim">温度 ' + (mem.heat || 0) + " · " + U.escape(App.Balance.stageLabel(mem.heat || 0)) + "</div>" +
-            '<div class="mt-8">' + rooms + "</div></div>" +
-          (moments ? '<div class="mt-16">' + moments + "</div>" : "") +
-          '<div class="actions mt-20">' +
-            '<button class="btn primary wide" data-test="again" data-act="again">再开一夜</button>' +
-            '<button class="btn soft wide" data-test="to-nights" data-act="nights">以前的夜</button>' +
-            '<button class="btn ghost wide" data-act="boot">回到门口</button>' +
-          "</div></div>";
-      U.delegate(root, "[data-act]", "click", function (e, el) {
-        var act = el.getAttribute("data-act");
-        if (act === "again") {
+        '<div class="table-root" data-test="table">' +
+          '<div class="table-canvas" data-board></div>' +
+          '<div class="table-hud">' +
+            '<div class="turn-pill" data-test="turn-pill"><i class="turn-dot"></i><span data-turn-name></span></div>' +
+            '<button class="btn sm soft hud-btn" data-go="boot">离开</button>' +
+          "</div>" +
+          '<div class="table-actions" data-actions></div>' +
+          '<div data-card></div>' +
+        "</div>";
+      var boardEl = root.querySelector("[data-board]");
+      var actions = root.querySelector("[data-actions]");
+      var cardHost = root.querySelector("[data-card]");
+      var busy = false;
+      if (App.BoardView && App.BoardView.mount) {
+        App.BoardView.mount(boardEl, { reduced: !!settings.reduced, sound: settings.sound !== false });
+        App.BoardView.setReduced(!!settings.reduced);
+        if (App.BoardView.setSound) App.BoardView.setSound(settings.sound !== false);
+        App.BoardView.setState(App.Flight.view(state, { reduced: !!settings.reduced }));
+      } else {
+        App.UI.toast("棋盘脚本还没载入");
+      }
+
+      function paintTurn() {
+        var color = state.colors[state.turn];
+        var dot = root.querySelector(".turn-dot");
+        var name = root.querySelector("[data-turn-name]");
+        if (dot) dot.style.background = INK[color] || "#fff";
+        if (name) name.textContent = (state.names[state.turn] || "") + " 的回合";
+        root.querySelector(".turn-pill").style.boxShadow = "0 0 0 1px " + (INK[color] || "#fff");
+      }
+
+      async function commit(ret) {
+        if (!ret || !ret.ok) {
+          App.UI.toast((ret && ret.error && ret.error.message) || "这步没有走成");
+          busy = false;
+          renderActions();
+          return;
+        }
+        state = ret.state;
+        if (state.phase === "playing") App.Store.saveSession(state);
+        busy = true;
+        renderActions();
+        try {
+          if (App.BoardView && App.BoardView.play) await App.BoardView.play(ret.events || []);
+          if (App.BoardView && App.BoardView.setState) App.BoardView.setState(App.Flight.view(state, { reduced: App.Store.getSettings().reduced }));
+        } catch (e) {
+          if (window.console) console.error("[table]", e);
+        }
+        busy = false;
+        if (state.phase === "ended" || state.phase === "safe-ended") {
+          var entry = App.Store.makeHistoryEntry(state);
+          App.Store.addHistory(entry);
           App.Store.clearSession();
-          App.Router.reset("foyer");
-        } else if (act === "nights") App.Router.go("nights");
-        else App.Router.reset("boot");
+          App.Router.reset("ledger", { id: entry.id });
+          return;
+        }
+        renderActions();
+      }
+
+      function renderActions() {
+        paintTurn();
+        cardHost.innerHTML = "";
+        actions.innerHTML = "";
+        actions.style.display = "";
+        if (busy) return;
+        var wait = state.awaiting || {};
+        if (wait.type === "prompt" || wait.type === "ending-prompt") {
+          actions.style.display = "none";
+          App.PromptCard.open(cardHost, wait.prompt, state, {
+            done: function () { commit(App.Flight.resolvePrompt(state, "done")); },
+            skipped: function () { commit(App.Flight.resolvePrompt(state, "skipped")); }
+          });
+          return;
+        }
+        if (wait.type === "minigame") {
+          actions.innerHTML =
+            '<p class="small" style="color:#fff8ee;text-align:center">落到了' +
+            (wait.kind === "thermo" ? "温度计" : (wait.kind === "truth-wheel" ? "真心话转盘" : "大冒险转盘")) +
+            '</p><button class="btn primary wide" data-act="mini-done" data-test="mini-done">玩过了，继续走棋</button>';
+          return;
+        }
+        if (wait.type === "choose-piece") {
+          var html = '<div class="piece-choices">';
+          (wait.pieceIds || []).forEach(function (id) {
+            var piece = state.pieces.filter(function (p) { return p.id === id; })[0];
+            var label = (piece ? ({ red: "红", yellow: "黄", blue: "蓝", green: "绿" })[piece.color] : "") + " " + id;
+            html += '<button class="btn soft" data-piece="' + id + '">' + label + "</button>";
+          });
+          html += "</div>";
+          actions.innerHTML = html;
+          return;
+        }
+        if (wait.type === "roll") {
+          actions.innerHTML = '<button class="btn primary wide" data-act="roll" data-test="roll">掷骰</button>';
+        }
+      }
+
+      actions.addEventListener("click", function (e) {
+        var roll = e.target.closest("[data-act=roll]");
+        var piece = e.target.closest("[data-piece]");
+        var mini = e.target.closest("[data-act=mini-done]");
+        if (roll) commit(App.Flight.roll(state));
+        else if (piece) commit(App.Flight.move(state, piece.getAttribute("data-piece")));
+        else if (mini) commit(App.Flight.resolveMinigame(state, {}));
       });
+      U.delegate(root, "[data-go]", "click", function (e, el) { App.Router.reset(el.getAttribute("data-go")); });
+
+      var off = App.Bus.on("settings", function (s) {
+        if (App.BoardView) {
+          App.BoardView.setReduced(!!s.reduced);
+          if (App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
+        }
+      });
+      renderActions();
+      return function () {
+        if (off) off();
+        if (App.BoardView && App.BoardView.unmount) App.BoardView.unmount();
+      };
+    }
+  };
+})();
+
+/* ===== src/ui/screens/ledger.js ===== */
+/* ===== 今晚棋谱 ===== */
+(function () {
+  var App = window.App;
+  var U = App.util;
+  var KIND = {
+    "cell-truth": "真心话", "cell-dare": "大冒险", "cell-touch": "靠近",
+    capture: "击落", "stack-duo": "叠机", "home-entry": "进终点", ending: "收尾",
+    "minigame-thermo": "温度计", "minigame-wheel": "转盘"
+  };
+  var SCALE = { gentle: "温柔", warm: "暧昧", hot: "热烈", open: "不设限" };
+  var COLOR = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
+
+  function find(id) {
+    var list = App.Store.getHistory();
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+    return list[0] || null;
+  }
+
+  App.Screens = App.Screens || {};
+  App.Screens.ledger = {
+    mount: function (root, params) {
+      params = params || {};
+      var entry = find(params.id);
+      var ledger = entry && entry.ledger;
+      var ending = "这页记下了今晚。";
+      if (entry && entry.safe) ending = "安全词收棋。做过的都留在这里。";
+      else if (ledger && ledger.ending === "win-a") ending = (ledger.names.a || "") + " 先把飞机送回家。";
+      else if (ledger && ledger.ending === "win-b") ending = (ledger.names.b || "") + " 先把飞机送回家。";
+      else if (entry && entry.note) ending = entry.note;
+      var prompts = (ledger && ledger.prompts) || [];
+      var lines = prompts.map(function (p) {
+        return '<li class="glass pad-16" style="margin-top:8px"><div class="small dim">' +
+          U.escape(KIND[p.kind] || p.kind || "") + " · " + (p.outcome === "skipped" ? "放过" : "做了") +
+          "</div><div>" + U.escape(p.text || "（这一笔没有句子）") + "</div></li>";
+      }).join("");
+      var moves = "";
+      if (ledger && ledger.moves && ledger.moves.length) {
+        moves = '<div class="small dim mt-16">走子</div><ul>' + ledger.moves.map(function (m) {
+          return "<li class='tiny dim'>" + U.escape((m.kind || "") + " " + (m.die || "") + " " + (m.from || "") + " " + (m.to || "")) + "</li>";
+        }).join("") + "</ul>";
+      }
+      root.innerHTML =
+        '<div class="page" data-test="ledger">' +
+          '<div class="topbar"><button class="back" data-go="boot">←</button><div class="tb-title">今晚棋谱</div></div>' +
+          '<h1 class="title-xl mt-12">' + U.escape(ending) + "</h1>" +
+          (ledger
+            ? '<p class="muted mt-12">' + U.escape(ledger.date || "") + " · " +
+              U.escape((ledger.names && ledger.names.a) || "") + " " + COLOR[(ledger.colors && ledger.colors.a) || ""] +
+              " / " + U.escape((ledger.names && ledger.names.b) || "") + " " + COLOR[(ledger.colors && ledger.colors.b) || ""] +
+              "<br>" + (SCALE[ledger.scale] || "") + " · " + (ledger.planeCount === 2 ? "快局两架" : "每人四架") +
+              (ledger.boundaries && ledger.boundaries.length ? "<br>今晚不做的：" + U.escape(ledger.boundaries.join("、")) : "") +
+              "</p>"
+            : '<p class="muted mt-12">' + U.escape((entry && entry.title) || "以前的一夜") + "</p>") +
+          '<ul>' + (lines || '<li class="small dim mt-16">这一页没有题目。</li>') + "</ul>" +
+          moves +
+          '<button class="btn primary wide mt-16" data-go="boot">回到开场</button>' +
+        "</div>";
+      U.delegate(root, "[data-go]", "click", function (e, el) { App.Router.reset(el.getAttribute("data-go")); });
     }
   };
 })();
@@ -3309,70 +3636,32 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   var App = window.App;
   var U = App.util;
 
-  function roomsOf(item) {
-    if (!item.rooms || !item.rooms.length) return item.kind === "voyage" ? "升温夜航" : "没有点亮的房间";
-    return item.rooms.map(function (r) { return r.name || r; }).join("、");
-  }
-
+  App.Screens = App.Screens || {};
   App.Screens.nights = {
     mount: function (root) {
-      function paint() {
-        var list = App.Store.getHistory();
-        root.innerHTML =
-          '<div class="page">' +
-            '<div class="topbar"><button class="back" data-act="back" aria-label="返回">←</button><div class="tb-title">以前的夜</div><div class="tb-right"></div></div>' +
-            (list.length ? list.map(function (item) {
-              var title = item.kind === "voyage" ? "以前的夜航" : "今晚在这间公寓";
-              return '<article class="glass pad-16 mt-12" data-test="night">' +
-                '<div class="tiny dim">' + U.escape(U.fmtDate(item.ts)) + "</div>" +
-                '<h2 class="title-md mt-8">' + U.escape(item.endingName || title) + "</h2>" +
-                '<p class="small muted mt-8">' + U.escape(roomsOf(item)) + (item.heat != null && item.kind !== "voyage" ? " · 温度 " + item.heat : "") + "</p>" +
-                (item.note ? '<p class="small mt-8">' + U.escape(item.note) + "</p>" : "") +
-                (item.line ? '<p class="small dim mt-8">' + U.escape(item.line) + "</p>" : "") +
-                '<button class="btn ghost sm mt-8" data-del="' + U.escape(item.id) + '">从这一页拿掉</button></article>';
-            }).join("") : '<p class="muted mt-20">还没有收起来的夜。</p>') +
-            '<div class="actions mt-20"><button class="btn soft wide" data-act="export" data-test="export">导出备份</button>' +
-            '<button class="btn ghost wide" data-act="import" data-test="import">导入备份</button></div>' +
-            '<input class="hidden" type="file" accept="application/json" data-file>' +
-          "</div>";
-      }
-      paint();
-      U.delegate(root, "[data-act=back]", "click", function () { App.Router.back(); });
-      U.delegate(root, "[data-del]", "click", function (e, el) {
-        App.Store.removeHistory(el.getAttribute("data-del"));
-        paint();
-      });
-      U.delegate(root, "[data-act=export]", "click", function () {
-        var blob = new Blob([JSON.stringify(App.Store.exportAll(), null, 2)], { type: "application/json" });
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "apartment-nights.json";
-        a.click();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      });
-      U.delegate(root, "[data-act=import]", "click", function () {
-        var file = root.querySelector("[data-file]");
-        if (file) file.click();
-      });
-      U.delegate(root, "[data-file]", "change", function (e, el) {
-        var f = el.files && el.files[0];
-        if (!f) return;
-        var reader = new FileReader();
-        reader.onload = function () {
-          try {
-            var res = App.Store.importAll(JSON.parse(reader.result));
-            App.UI.toast(res.ok ? "已恢复" : res.msg);
-            paint();
-          } catch (err) { App.UI.toast("这个文件读不了"); }
-        };
-        reader.readAsText(f);
+      var list = App.Store.getHistory();
+      var html = list.map(function (item) {
+        return '<button class="glass pad-16 wide" style="text-align:left;margin-top:8px" data-id="' + U.escape(item.id) + '">' +
+          '<div class="small dim">' + U.escape(item.title || "一夜") + "</div>" +
+          '<div>' + U.escape(item.endingName || "") + "</div>" +
+          (item.note ? '<div class="tiny dim">' + U.escape(item.note) + "</div>" : "") +
+          "</button>";
+      }).join("");
+      root.innerHTML =
+        '<div class="page" data-test="nights">' +
+          '<div class="topbar"><button class="back" data-go="boot">←</button><div class="tb-title">以前的夜</div></div>' +
+          (html || '<p class="muted mt-16">还没有收起来的夜。</p>') +
+        "</div>";
+      U.delegate(root, "[data-go]", "click", function () { App.Router.reset("boot"); });
+      U.delegate(root, "[data-id]", "click", function (e, el) {
+        App.Router.go("ledger", { id: el.getAttribute("data-id") });
       });
     }
   };
 })();
 
 /* ===== src/ui/screens/settings.js ===== */
-/* ===== 设置：声音、备份、关于 ===== */
+/* ===== 设置 ===== */
 (function () {
   var App = window.App;
   var U = App.util;
@@ -3381,56 +3670,220 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     return '<div class="switch"><span>' + label + '</span><button class="btn sm" data-key="' + key + '" data-test="toggle-' + key + '" aria-pressed="' + (on ? "true" : "false") + '">' + (on ? "开" : "关") + "</button></div>";
   }
 
+  App.Screens = App.Screens || {};
   App.Screens.settings = {
     mount: function (root) {
       function paint() {
         var s = App.Store.getSettings();
         root.innerHTML =
-          '<div class="page">' +
-            '<div class="topbar"><button class="back" data-act="back" aria-label="返回">←</button><div class="tb-title">设置</div><div class="tb-right"></div></div>' +
+          '<div class="page" data-test="settings">' +
+            '<div class="topbar"><button class="back" data-go="boot">←</button><div class="tb-title">设置</div></div>' +
             '<div class="glass pad-16">' +
               row("sound", "声音", s.sound) +
               row("haptics", "震动", s.haptics) +
-              row("reduced", "减少动效", s.reduced) +
-              row("gentleOnly", "再柔一点（最高到暧昧）", s.gentleOnly) +
+              row("reduced", "减弱动画", s.reduced) +
             "</div>" +
             '<div class="actions mt-16">' +
               '<button class="btn soft wide" data-act="install" data-test="pwa">装到主屏幕</button>' +
-              '<button class="btn ghost wide" data-act="clear" data-test="clear">清除这台手机上的夜</button>' +
+              '<button class="btn soft wide" data-act="export" data-test="export">导出以前的夜</button>' +
+              '<label class="btn ghost wide" data-test="import">导入<input type="file" accept="application/json" data-file hidden style="display:none"></label>' +
+              '<button class="btn ghost wide" data-act="clear" data-test="clear">清除这台手机上的棋</button>' +
             "</div>" +
-            '<p class="small dim mt-16">安全词是右上角的「先回去关灯」。按住约两秒，灯会自己暗下去。已经做过的都留在记忆页上，不扣、不评判。</p>' +
-            '<p class="tiny dim mt-12">数据只在这台手机里。尺度和纸条上的边界，整晚都生效。</p>' +
+            '<p class="small dim mt-16">安全词在棋局右上角，按住约一秒半。已经做过的都留着，不扣、不评判。</p>' +
+            '<p class="tiny dim mt-12">数据只在这台手机里。尺度和「今晚不做的」，开局时写进这一盘。</p>' +
           "</div>";
       }
       paint();
-      U.delegate(root, "[data-act=back]", "click", function () { App.Router.back(); });
+      U.delegate(root, "[data-go]", "click", function () { App.Router.back(); });
       U.delegate(root, "[data-key]", "click", function (e, el) {
         var key = el.getAttribute("data-key");
         var cur = App.Store.getSettings();
         var patch = {};
         patch[key] = !cur[key];
         App.Store.saveSettings(patch);
-        if (key === "gentleOnly") {
-          var live = App.Store.getSession();
-          if (live && live.settings) {
-            live.settings.gentleOnly = patch.gentleOnly;
-            App.Store.saveSession(live);
-          }
-        }
         App.UI.syncSettings();
         paint();
       });
       U.delegate(root, "[data-act=install]", "click", function () {
         if (App.PWA && App.PWA.showInstall) App.PWA.showInstall();
-        else App.UI.toast("用浏览器的「添加到主屏幕」");
+      });
+      U.delegate(root, "[data-act=export]", "click", function () {
+        var blob = new Blob([JSON.stringify(App.Store.exportAll(), null, 2)], { type: "application/json" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "tonight-flight.json";
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
       U.delegate(root, "[data-act=clear]", "click", function () {
-        App.UI.confirm({ title: "清除全部", text: "这台手机上的夜晚、设置和备份索引都会清掉。", ok: "清除", cancel: "留下" }).then(function (yes) {
+        App.UI.confirm({ title: "清除", text: "这台手机上的棋局和以前的夜会清掉。已经导出的文件还在。", ok: "清除" }).then(function (yes) {
           if (!yes) return;
           App.Store.resetAll();
-          App.Night.paint(null);
-          App.Router.reset("boot");
+          App.UI.toast("清掉了");
+          paint();
         });
+      });
+      root.addEventListener("change", function (e) {
+        var input = e.target.closest("[data-file]");
+        if (!input || !input.files || !input.files[0]) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var res = App.Store.importAll(JSON.parse(String(reader.result || "")));
+            App.UI.toast(res.ok ? "已恢复" : (res.msg || "没能恢复"));
+          } catch (err) { App.UI.toast("文件读不出来"); }
+          paint();
+        };
+        reader.readAsText(input.files[0]);
+      });
+    }
+  };
+})();
+
+/* ===== src/ui/screens/minigame.js ===== */
+/* ===== 温度计 / 真心话转盘 / 大冒险转盘，以及小游戏门厅 ===== */
+(function () {
+  var App = window.App;
+  var U = App.util;
+
+  function settings() { return App.Store.getSettings(); }
+
+  function load() {
+    var s = App.Store.getStandalone();
+    return s && s.kind === "standalone" ? s : null;
+  }
+  function save(state) { App.Store.saveStandalone(state); }
+
+  function shell(title, body) {
+    return '<div class="page" data-test="minigame">' +
+      '<div class="topbar"><button class="back" data-go="boot">←</button><div class="tb-title">' + title + "</div></div>" +
+      body + "</div>";
+  }
+
+  function hall() {
+    return shell("小游戏",
+      '<p class="muted mt-12">温度计、真心话转盘、大冒险转盘可以单独玩。飞行棋只有桌上这一盘。</p>' +
+      '<div class="actions mt-16">' +
+        '<button class="btn primary wide" data-game="thermo" data-test="play-thermo">温度计</button>' +
+        '<button class="btn soft wide" data-game="truth" data-test="play-truth">真心话转盘</button>' +
+        '<button class="btn soft wide" data-game="dare" data-test="play-dare">大冒险转盘</button>' +
+        '<button class="btn ghost wide" data-go="boot">回飞行棋</button>' +
+      "</div>");
+  }
+
+  function thermoView(state) {
+    var t = state.thermo || {};
+    var labels = t.labels || [];
+    if (!t.a) {
+      return shell("温度计",
+        '<p class="muted mt-12">' + U.escape(state.names.a) + " 先把自己的位置和猜的对方标出来。</p>" +
+        slider("place", "我在这", labels) + slider("guess", "我猜对方", labels) +
+        '<button class="btn primary wide mt-16" data-act="lock-a">标好了</button>');
+    }
+    if (!t.passing) {
+      return shell("温度计", '<p class="muted mt-16">把手机递给 ' + U.escape(state.names.b) + "。</p>" +
+        '<button class="btn primary wide mt-16" data-act="pass">递过去</button>');
+    }
+    if (!t.b) {
+      return shell("温度计",
+        '<p class="muted mt-12">' + U.escape(state.names.b) + " 的位置和猜测。</p>" +
+        slider("place", "我在这", labels) + slider("guess", "我猜对方", labels) +
+        '<button class="btn primary wide mt-16" data-act="lock-b">标好了</button>');
+    }
+    if (!t.revealed) {
+      return shell("温度计", '<button class="btn primary wide mt-16" data-act="reveal">揭晓</button>');
+    }
+    return shell("温度计",
+      '<h1 class="title-xl mt-12">猜近了 ' + Math.round((t.closeness || 0) * 100) + "</h1>" +
+      '<p class="muted mt-12">这一页只记你们标过。没有要扣的。</p>' +
+      '<button class="btn primary wide mt-16" data-act="again">再量一次</button>');
+  }
+
+  function slider(key, label, labels) {
+    var max = Math.max(0, labels.length - 1);
+    return '<label class="small dim mt-12" style="display:block">' + label + "</label>" +
+      '<input data-slider="' + key + '" type="range" min="0" max="' + max + '" value="0" style="width:100%" />' +
+      '<div class="tiny" data-label="' + key + '">' + U.escape(labels[0] || "") + "</div>";
+  }
+
+  function wheelView(state) {
+    var w = state.wheel || { slots: [] };
+    var title = state.game === "truth" ? "真心话转盘" : "大冒险转盘";
+    var card = w.spun ? w.slots[w.index] : null;
+    var slots = (w.slots || []).map(function (c, i) {
+      return '<li class="' + (w.index === i ? "gold" : "dim") + '">' + U.escape(c.text) + "</li>";
+    }).join("");
+    return shell(title,
+      '<ul class="mt-12">' + slots + "</ul>" +
+      (card ? '<div class="glass pad-16 mt-12">' + U.escape(card.text) + "</div>" : "") +
+      '<div class="actions mt-16">' +
+        (w.spun ? "" : '<button class="btn primary wide" data-act="spin" data-test="spin">转</button>') +
+        '<button class="btn soft wide" data-act="hand" data-test="hand">交给对方说</button>' +
+        '<button class="btn ghost wide" data-act="reroll">换一组</button>' +
+        '<button class="btn ghost wide" data-act="again">重开</button>' +
+      "</div>" +
+      (state.prompt && state.prompt.who ? '<p class="small dim mt-12">这张交给' + (state.prompt.who === "other" ? "对方" : "自己") + "</p>" : ""));
+  }
+
+  App.Screens = App.Screens || {};
+  App.Screens.minigame = {
+    mount: function (root, params) {
+      params = params || {};
+      var game = params.game || null;
+      if (params.hall || !game) {
+        root.innerHTML = hall();
+        U.delegate(root, "[data-game]", "click", function (e, el) {
+          App.Router.go("minigame", { game: el.getAttribute("data-game") });
+        });
+        U.delegate(root, "[data-go]", "click", function () { App.Router.reset("boot"); });
+        return;
+      }
+      var existing = load();
+      var state = existing && existing.game === game ? existing : null;
+      if (!state) {
+        var made = App.Minigames.newStandalone(game, settings());
+        if (!made.ok) { App.UI.toast("没能打开"); App.Router.reset("boot"); return; }
+        state = made.state;
+        save(state);
+      }
+
+      function draw() {
+        root.innerHTML = game === "thermo" ? thermoView(state) : wheelView(state);
+        U.qsa("[data-slider]", root).forEach(function (input) {
+          input.addEventListener("input", function () {
+            var labels = (state.thermo && state.thermo.labels) || [];
+            var lab = root.querySelector('[data-label="' + input.getAttribute("data-slider") + '"]');
+            if (lab) lab.textContent = labels[Number(input.value)] || "";
+          });
+        });
+      }
+      function readSlider(key) {
+        var el = root.querySelector('[data-slider="' + key + '"]');
+        return el ? Number(el.value) : 0;
+      }
+      function apply(ret) {
+        if (!ret || !ret.ok) { App.UI.toast((ret && ret.error && ret.error.message) || "还不能这样做"); return; }
+        state = ret.state;
+        save(state);
+        draw();
+      }
+      draw();
+      U.delegate(root, "[data-go]", "click", function () { App.Router.reset("boot"); });
+      root.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-act]");
+        if (!btn) return;
+        var act = btn.getAttribute("data-act");
+        if (act === "lock-a") apply(App.Minigames.thermoSet(state, "a", readSlider("place"), readSlider("guess")));
+        if (act === "pass") apply(App.Minigames.thermoPass(state));
+        if (act === "lock-b") apply(App.Minigames.thermoSet(state, "b", readSlider("place"), readSlider("guess")));
+        if (act === "reveal") apply(App.Minigames.thermoReveal(state));
+        if (act === "spin") apply(App.Minigames.spinWheel(state));
+        if (act === "hand") apply(App.Minigames.handTruth(state, "other"));
+        if (act === "reroll") apply(App.Minigames.rerollWheel(state));
+        if (act === "again") {
+          var made = App.Minigames.newStandalone(game, settings());
+          if (made.ok) { state = made.state; save(state); draw(); }
+        }
       });
     }
   };
@@ -3642,7 +4095,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
       return [
         '点 Chrome 右上角的 <em>⋮</em> 菜单',
         '选 <em>「安装应用」</em>（部分机型叫「添加到主屏幕」）',
-        '确认后桌面会出现 <em>「升温夜航」</em> 图标'
+        '确认后桌面会出现 <em>「今晚飞行棋」</em> 图标'
       ];
     }
     return [
@@ -3664,7 +4117,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     try {
       ref = App.UI.sheet({
         title: "装到桌面",
-        subtitle: "像 App 一样全屏打开 · 没有地址栏 · 离线也能继续夜航",
+        subtitle: "像 App 一样全屏打开 · 没有地址栏 · 离线也能继续这盘棋",
         cls: "pwa-sheet",
         html:
           '<div class="pwa-steps" data-test="pwa-install-sheet">' + list + "</div>" +
@@ -3748,7 +4201,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     window.addEventListener("offline", function () {
       if (STATE.online === false) return;
       STATE.online = false;
-      toast("📴 已离线 · 夜航仍可继续");
+      toast("📴 已离线 · 这盘棋仍可继续");
     });
 
     window.addEventListener("online", function () {
@@ -3792,38 +4245,39 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
 })();
 
 /* ===== src/app.js ===== */
-/* ===== V3 app.js：启动入口 ===== */
+/* ===== 今晚飞行棋 · 启动 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "4.0.0";
+  App.version = "5.0.0";
 
   function hashRoute() {
     var h = String(location.hash || "").replace(/^#\/?/, "");
-    var m = /^door(?:\/(thermo|truth|dare|stroll))?$/.exec(h);
-    if (!m) return null;
-    return { name: "door", params: { game: m[1] || null } };
+    var door = /^door(?:\/(thermo|truth|dare|stroll|flight))?$/.exec(h);
+    if (door) {
+      var g = door[1] || "";
+      if (g === "stroll" || g === "flight") return { name: "boot", params: { resumeFlight: true } };
+      if (!g) return { name: "minigame", params: { hall: true } };
+      return { name: "minigame", params: { game: g } };
+    }
+    return null;
   }
 
   function boot() {
     App.UI.syncSettings();
     App.Router.init(document.getElementById("screen"));
-
-    // 路由联动
     App.Bus.on("route", function (e) {
       document.body.setAttribute("data-screen", e.name);
       document.getElementById("screen").scrollTop = 0;
       var s = App.Store.getSettings();
       App.Audio.setEnabled(s.sound !== false);
+      if (App.BoardView && App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
     });
     App.Bus.on("settings", function (s) {
       App.Audio.setEnabled(s.sound !== false);
       App.Motion.syncBodyClass();
-    });
-    App.Bus.on("session", function () {
-      App.Motion.syncBodyClass();
+      if (App.BoardView && App.BoardView.setReduced) App.BoardView.setReduced(!!s.reduced);
     });
 
-    // 首次交互解锁音频
     var unlocked = false;
     function unlock() {
       if (unlocked) return;
@@ -3832,19 +4286,10 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
       document.removeEventListener("pointerdown", unlock, true);
     }
     document.addEventListener("pointerdown", unlock, true);
-
-    // 全局错误：不静默
     window.addEventListener("error", function (e) {
       if (window.console) console.error("[app]", e.message);
     });
-    window.addEventListener("unhandledrejection", function (e) {
-      if (window.console) console.warn("[app] promise", e.reason);
-    });
-
-    // 全局安全词（长按 1.5s 温柔收尾；play 屏由 play.js 自带的安全词代替）
     try { if (App.Safe && App.Safe.init) App.Safe.init(); } catch (e) {}
-
-    // PWA（可选模块）
     try { if (App.PWA && App.PWA.register) App.PWA.register(); } catch (e) {}
 
     try { App.Store.getSession(); } catch (e) {}
@@ -3852,11 +4297,7 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     var route = hashRoute();
     if (route) App.Router.reset(route.name, route.params);
     else App.Router.reset("boot");
-    if (note) App.UI.toast("上一趟夜航已收进以前的夜");
-    try {
-      var live = App.Store.getSession();
-      if (App.Night && live) App.Night.paint(live);
-    } catch (e2) {}
+    if (note) App.UI.toast("以前的一局已收进以前的夜");
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
