@@ -1,7 +1,7 @@
 /* ===== V3 app.js：启动入口 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "3.0.0";
+  App.version = "4.0.0";
 
   function boot() {
     App.UI.syncSettings();

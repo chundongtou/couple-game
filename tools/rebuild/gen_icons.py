@@ -14,12 +14,13 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "icons"
 OUT.mkdir(parents=True, exist_ok=True)
 
-BG0 = (7, 4, 17)
-BG1 = (20, 13, 43)
-GOLD = (243, 200, 121)
-ROSE = (255, 95, 158)
-VIOLET = (154, 124, 255)
-TEAL = (79, 214, 200)
+BG0 = (246, 239, 228)
+BG1 = (232, 211, 154)
+GOLD = (224, 177, 90)
+ROSE = (196, 92, 74)
+VIOLET = (110, 122, 79)
+TEAL = (110, 122, 79)
+INK = (42, 36, 28)
 
 
 def gradient(size, stops=((0, 0), (0, 0), BG0, BG1)):
@@ -47,40 +48,13 @@ def add_glow(img, cx, cy, radius, color, alpha=90):
 def draw_scene(size, safe=0):
     w, h = size
     img = gradient((w, h)).convert("RGBA")
-    add_glow(img, w * 0.78, h * 0.22, w * 0.34, VIOLET, 70)
-    add_glow(img, w * 0.2, h * 0.8, w * 0.34, ROSE, 55)
-    rnd = random.Random(20261027 + w)
     d = ImageDraw.Draw(img)
-    for _ in range(26):
-        x, y = rnd.uniform(0, w), rnd.uniform(0, h)
-        r = rnd.uniform(0.6, max(1.2, w * 0.004))
-        a = rnd.randint(70, 190)
-        d.ellipse((x - r, y - r, x + r, y + r), fill=(255, 255, 255, a))
-    # 月牙（遮罩法：大圆减去偏移圆，真正透明缺口）
-    scale = 1 - safe
-    cx, cy = w * 0.5, h * 0.46
-    R = w * 0.235 * scale
-    off = R * 0.62
-    mask = Image.new("L", (w, h), 0)
-    md = ImageDraw.Draw(mask)
-    md.ellipse((cx - R, cy - R, cx + R, cy + R), fill=255)
-    md.ellipse((cx - R + off * 1.25, cy - R - R * 0.12, cx + R + off * 1.25, cy + R - R * 0.12), fill=0)
-    gold = Image.new("RGBA", (w, h), GOLD + (255,))
-    clear = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    img.alpha_composite(Image.composite(gold, clear, mask))
-    # 海面波线
-    wave = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    wd = ImageDraw.Draw(wave)
-    for k, col in ((0, GOLD), (1, ROSE)):
-        pts = []
-        base_y = h * (0.68 + k * 0.055) + h * 0.04 * (1 - scale)
-        for i in range(0, w * 2 + 1):
-            x = i / 2
-            y = base_y + math.sin(x / (w * 0.085) + k * 1.8) * h * 0.018
-            pts.append((x, y))
-        wd.line(pts, fill=col + (170 if k == 0 else 130,), width=max(2, int(w * 0.012)))
-    wave = wave.filter(ImageFilter.GaussianBlur(max(0, w * 0.001)))
-    img.alpha_composite(wave)
+    m = int(w * (0.16 + safe * 0.08))
+    d.rounded_rectangle((m, m, w - m, h - m), radius=int(w * 0.06), fill=(255, 253, 248, 255), outline=(226, 212, 192, 255), width=max(2, w // 80))
+    tape_w, tape_h = int(w * 0.28), int(h * 0.07)
+    d.rectangle((w * 0.36, m - tape_h * 0.45, w * 0.36 + tape_w, m + tape_h * 0.45), fill=GOLD + (230,))
+    d.rounded_rectangle((m + w * 0.08, h * 0.34, w - m - w * 0.12, h * 0.62), radius=int(w * 0.03), fill=(255, 253, 248, 255), outline=ROSE + (255,), width=max(3, w // 70))
+    d.ellipse((w * 0.62, h * 0.58, w * 0.86, h * 0.82), outline=ROSE + (255,), width=max(4, w // 50))
     return img
 
 
@@ -95,6 +69,8 @@ def rounded(img, radius_ratio=0.22):
 
 def font(size, bold=False):
     cands = [
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
         r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc",
         r"C:\Windows\Fonts\msyh.ttc",
         r"C:\Windows\Fonts\arial.ttf",
@@ -115,30 +91,14 @@ def save(img, name):
 def og_image():
     w, h = 1200, 630
     img = gradient((w, h)).convert("RGBA")
-    add_glow(img, w * 0.8, h * 0.2, 380, VIOLET, 80)
-    add_glow(img, w * 0.15, h * 0.9, 340, ROSE, 60)
-    rnd = random.Random(7)
     d = ImageDraw.Draw(img)
-    for _ in range(90):
-        x, y = rnd.uniform(0, w), rnd.uniform(0, h)
-        r = rnd.uniform(0.8, 2.0)
-        d.ellipse((x - r, y - r, x + r, y + r), fill=(255, 255, 255, rnd.randint(50, 170)))
-    # 月牙（遮罩法）
-    mask = Image.new("L", (w, h), 0)
-    md = ImageDraw.Draw(mask)
-    cx, cy, R = 900, 265, 130
-    md.ellipse((cx - R, cy - R, cx + R, cy + R), fill=255)
-    md.ellipse((cx - R + 78, cy - R - 16, cx + R + 78, cy + R - 16), fill=0)
-    gold = Image.new("RGBA", (w, h), GOLD + (255,))
-    clear = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    img.alpha_composite(Image.composite(gold, clear, mask))
-    # 文案
-    d = ImageDraw.Draw(img)
-    f1 = font(92, bold=True)
-    f2 = font(38)
-    d.text((94, 196), "升温夜航", font=f1, fill=(247, 241, 255))
-    d.text((98, 318), "双人叙事卡牌 · 三幕夜航 · 六种结局", font=f2, fill=(180, 166, 201))
-    d.text((98, 392), "COUPLE  VOYAGE", font=font(24, bold=True), fill=GOLD)
+    d.rounded_rectangle((70, 70, 1130, 560), radius=28, fill=(255, 253, 248, 255), outline=(226, 212, 192, 255), width=4)
+    d.rectangle((120, 48, 280, 92), fill=GOLD + (255,))
+    f1 = font(84, bold=True)
+    f2 = font(32)
+    d.text((120, 180), "今晚这一页", font=f1, fill=INK)
+    d.text((124, 300), "两人一本手帐 · 三页贴纸 · 封底海报", font=f2, fill=(107, 94, 78, 255))
+    d.ellipse((900, 250, 1060, 410), outline=ROSE + (255,), width=8)
     save(img, "og-image.png")
 
 

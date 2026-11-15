@@ -79,7 +79,7 @@
 
   function exportFileName() {
     var d = new Date();
-    return "升温夜航备份-" + d.getFullYear() + "-" + U.pad2(d.getMonth() + 1) + "-" + U.pad2(d.getDate()) + ".json";
+    return "今晚这一页备份-" + d.getFullYear() + "-" + U.pad2(d.getMonth() + 1) + "-" + U.pad2(d.getDate()) + ".json";
   }
 
   /* ---------------- 视图 ---------------- */
@@ -130,8 +130,8 @@
 
       '<div class="glass st-card st-safe settings-enter">' +
       '<div class="st-card-head">安全词</div>' +
-      '<p class="st-safe-text">任何时候说「<b>停</b>」，或长按屏幕上的「停」按钮 <b>2 秒</b>——今晚会直接温柔收尾。不扣数据，也不需要解释理由。</p>' +
-      '<div class="st-safe-line">⌁ 可以随时反悔，这不算扫兴。</div>' +
+      '<p class="st-safe-text">页角一直有「<b>合上本子</b>」。长按大约 <b>1.5 秒</b>，这一页会温柔合上。已经贴上的都留着，不扣，也不评。</p>' +
+      '<div class="st-safe-line">可以随时合上，这不算扫兴。</div>' +
       "</div>" +
 
       '<div class="glass st-card settings-enter">' +
@@ -150,7 +150,7 @@
       '<div class="st-meta"><span>版本</span><b data-test="settings-version">' + U.escape(versionText()) + "</b></div>" +
       '<div class="st-meta"><span>题库</span><b>' + cardCount() + " 张卡</b></div>" +
       '<div class="st-meta"><span>结局</span><b>' + endingCount() + " 种</b></div>" +
-      '<p class="st-note">升温夜航 · 一台手机，三幕夜航，六种结局。没有账号，不联网，数据归你们。</p>' +
+      '<p class="st-note">今晚这一页 · 一台手机，两人一本手帐。没有账号，不联网，数据归你们。</p>' +
       "</div>" +
 
       '<div class="settings-foot">' +

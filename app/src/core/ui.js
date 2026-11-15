@@ -11,7 +11,10 @@
     heart: { icon: "♥", label: "心动", cls: "res-heart" },
     tension: { icon: "✦", label: "张力", cls: "res-tension" },
     sync: { icon: "⌁", label: "默契", cls: "res-sync" },
-    coins: { icon: "◈", label: "星屑", cls: "res-coins" }
+    coins: { icon: "◈", label: "星屑", cls: "res-coins" },
+    heat: { icon: "温", label: "升温", cls: "res-heat" },
+    imprint: { icon: "印", label: "对页印", cls: "res-imprint" },
+    tape: { icon: "胶", label: "胶带", cls: "res-tape" }
   };
   var ICONS = {
     heart: "♥", tension: "✦", sync: "⌁", coin: "◈", star: "★", starEmpty: "☆",

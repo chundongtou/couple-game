@@ -90,8 +90,13 @@
     var date = fmtEntryDate(it);
     var note = String(it.note || "").trim();
     var flight = it.kind === "flight-wish";
+    var journal = it.kind === "journal";
     var meta = flight
       ? '<span class="mem-res heart"><i>👑</i><b>心愿券</b></span><span class="mem-dot"></span><span>飞行棋</span>'
+      : journal
+      ? "<span>升温 <b>" + U.round(it.heat) + "</b></span>" +
+        '<span class="mem-dot"></span><span>对页印 <b>' + U.round(it.imprint) + "</b></span>" +
+        '<span class="mem-dot"></span><span>贴上 ' + U.round(it.pastes) + " · 撕掉 " + U.round(it.peels) + "</span>"
       : '<span class="mem-res heart"><i>♥</i><b>' + U.round(it.heart) + "</b></span>" +
         '<span class="mem-res tension"><i>✦</i><b>' + U.round(it.tension) + "</b></span>" +
         '<span class="mem-res sync"><i>⌁</i><b>' + U.round(it.sync) + "</b></span>" +
@@ -166,7 +171,16 @@
     var note = String(it.note || "").trim();
     var aws = it.awards instanceof Array ? it.awards : [];
     var rows;
-    if (it.kind === "flight-wish") {
+    if (it.kind === "journal") {
+      rows = '<div class="rows">' +
+        "<span>日期 <b>" + U.escape(fmtEntryDate(it)) + "</b></span>" +
+        "<span>升温 <b>" + U.round(it.heat) + "</b></span>" +
+        "<span>对页印 <b>" + U.round(it.imprint) + "</b></span>" +
+        "<span>贴上 <b>" + U.round(it.pastes) + "</b></span>" +
+        "<span>撕掉 <b>" + U.round(it.peels) + "</b></span>" +
+        "<span>叠贴 <b>" + U.round(it.stacks) + "</b></span>" +
+        "</div>";
+    } else if (it.kind === "flight-wish") {
       rows = '<div class="rows">' +
         "<span>日期 <b>" + U.escape(fmtEntryDate(it)) + "</b></span>" +
         "<span>玩法 <b>飞行棋</b></span>" +
@@ -287,12 +301,12 @@
       '<div class="page memory" data-v3="memory">' +
         '<div class="topbar">' +
           '<button class="back" data-back aria-label="返回">←</button>' +
-          '<div class="tb-title">回忆册</div>' +
+          '<div class="tb-title">往期</div>' +
           '<div class="tb-right"></div>' +
         "</div>" +
         '<header class="mem-head">' +
-          '<h1 class="grad-text">回忆册</h1>' +
-          '<p class="sub">已经航行 <b data-mem-count>0</b> 晚 · 数据只保存在这台手机上<br>每一晚的结局、资源和奖项，都会留在这里。</p>' +
+          '<h1 class="grad-text">往期页</h1>' +
+          '<p class="sub">已经写下 <b data-mem-count>0</b> 页 · 数据只保存在这台手机上<br>新手帐和旧版夜航的一夜，都会留在这里。</p>' +
         "</header>" +
         '<div class="mem-tools">' +
           '<button class="btn soft" data-test="memory-export">导出全部</button>' +
