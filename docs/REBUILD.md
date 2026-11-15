@@ -1,7 +1,7 @@
-# 升温夜航 · V3 重制版 —— 构建、发布与维护手册
+# 今晚在这间公寓 —— 构建、发布与维护
 
-> 本文只讲「怎么构建 / 怎么发 / 怎么改」。规则与设计以 `app/DESIGN.md` 为唯一事实来源。
-> 旧版（V17 单文件 index.html）保留在 git 历史与 `v17/`、`v18/` 分支里，不再部署。
+> 本文只讲「怎么构建 / 怎么发 / 怎么改」。规则以 `app/DESIGN.md` 为准。
+> 旧版升温夜航不再是线上玩法。被拒绝的贴纸日记在另一条分支，不要把它合并进来。
 
 ---
 
@@ -121,8 +121,12 @@ python tools/rebuild/build_app.py --release --out dist/release-test
 ## 6. 测试
 
 ```bash
-# 重制版 E2E（boot→setup→…→finale，quick/classic/deep，三视口，离线）
-python qa/rebuild/e2e.py
+# 公寓引擎
+node qa/rebuild/engine.test.mjs
+
+# 浏览器：门厅、五间房、关灯、安全词、温柔、四个游戏门
+python tools/rebuild/build_app.py --out dist/rebuild
+python qa/rebuild/apartment_e2e.py --dist dist/rebuild
 ```
 
 - 报告与截图：`reports/rebuild/`（git 忽略）。
@@ -133,10 +137,8 @@ python qa/rebuild/e2e.py
 ## 7. PWA / 离线 / 装到桌面
 
 - **注册**：`app/src/app.js` 启动时调用 `App.PWA.register()`；只有 http/https 且支持 `serviceWorker` 才注册 `./sw.js`，`file://` 直接打开会静默跳过（不报错）。
-- **安装入口**：右下角小胶囊「装到桌面」（`data-test="pwa-install-pill"`）。只在两种情况下出现：
-  1. 浏览器触发了 `beforeinstallprompt`（Chrome/Edge/Android，可原生安装）；
-  2. iOS Safari（没有该事件，始终给出手动入口）。
-  已安装 / standalone 模式不显示；`play` 屏会隐藏（右下角是长按安全词按钮，安全词优先）。
+- **安装入口**：设置里的「装到主屏幕」，调用 `App.PWA.showInstall()`。浏览器给出安装事件时直接弹出；否则打开说明。
+- **安全词**：进行中的夜晚右上角「先回去关灯」，长按约 1.6 秒。不跟别的按钮抢同一个角。
 - **安装流程**：点击胶囊 → 有原生事件就 `prompt()`；否则打开说明抽屉（`data-test="pwa-install-sheet"`），按平台给出 iOS Safari / Android Chrome / 桌面地址栏三种步骤。其它屏幕也可以调用 `App.PWA.showInstall()`。
 - **状态查询**：`App.PWA.installed`（只读布尔）、`App.PWA.canPrompt()`、`App.PWA.platform()`。
 - **离线**：`sw.js` 预缓存 `./`、`./index.html`、`manifest.webmanifest` 与四个图标；导航 network-first（刷新永远先要新版本，失败回退缓存），静态资源 cache-first。所有数据在 `localStorage`（`couple2.*`），离线照常可玩。

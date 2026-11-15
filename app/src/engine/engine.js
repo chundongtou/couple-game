@@ -1,1248 +1,872 @@
 /* ==========================================================================
- * 升温夜航 · V3 重制版 —— 规则引擎（唯一规则权威）
- * app/src/engine/engine.js
- *
- * 约定：
- *  - window.App.Engine；纯逻辑，无 DOM、无 localStorage、无网络。
- *  - 所有动作返回新 state（不可变更新，内部 JSON 深拷贝）；不修改入参。
- *  - 两种返回形态：
- *      · 状态型动作（newSession / startRound / reroll / chooseCard / leaveAct）
- *        返回 state，并附带不可枚举的 `.events` 与 `.state`，因此
- *        `r = Engine.reroll(s); r.round` 与 `r.state.round`、`r.events` 都可用。
- *      · 结算型动作（complete / skip / escalate* / nextRound / chooseEvent /
- *        shopBuy / finish / safeWord / useShield）返回 `{state, events}`。
- *  - events 类型固定为：gain | skip | combo | actEnd | ending | token | shop | stage
- *    （被拒绝的动作也返回 stage 事件并带 blocked:true，UI 可 toast）。
- *  - 确定性：内部 RNG = mulberry32(seed)，状态里保存 `rng` 游标；
- *    newSession(settings, names, seed?) 的 seed 也可来自 settings.seed。
+ * 今晚在这间公寓 —— 规则引擎
+ * 纯逻辑：无 DOM、无 localStorage。UI 只派发动作。
+ * 两个人、一部手机、一枚「我们」。没有三选一，没有贴纸格。
  * ========================================================================== */
 (function (global) {
   'use strict';
 
   var root = global.App = global.App || {};
 
-  var EVENTS = ['gain', 'skip', 'combo', 'actEnd', 'ending', 'token', 'shop', 'stage'];
-  var PHASES = ['draft', 'play', 'resolve', 'escalate', 'event', 'act', 'shop', 'finale'];
-
   function B() { return root.Balance; }
-  function cardsRoot() { return global.CARDS || {}; }
-  function contentRoot() { return global.CONTENT || null; }
 
-  /* ---------------------------- 基础工具 ---------------------------- */
-  function clone(o) { return o === null || o === undefined ? o : JSON.parse(JSON.stringify(o)); }
-  function isArr(o) { return Object.prototype.toString.call(o) === '[object Array]'; }
-  function isObj(o) { return !!o && typeof o === 'object' && !isArr(o); }
-  function isNum(n) { return typeof n === 'number' && isFinite(n); }
-  function clamp(n, lo, hi) { n = Number(n); if (!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
-  function clampInt(n, lo, hi) { n = Math.round(Number(n)); if (!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
-  function intOr(n, d) { n = Math.round(Number(n)); return isFinite(n) ? n : d; }
-  function nowMs() { return Date.now(); }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
-  /* mulberry32：确定性 PRNG（DESIGN §4） */
-  function mulberry32(seed) {
-    var a = (Number(seed) >>> 0) || 0;
-    return function () {
-      a = (a + 0x6D2B79F5) >>> 0;
-      var t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function nextRand(state) {
-    var fn = mulberry32(state.rng);
-    var v = fn();
-    state.rng = (state.rng + 0x6D2B79F5) >>> 0;
-    return v;
-  }
-  function pickOne(state, arr) {
-    if (!arr || !arr.length) return null;
-    return arr[Math.floor(nextRand(state) * arr.length)];
-  }
-
-  /* ---------------------------- 卡牌索引 ---------------------------- */
-  var _cardsRef = null;
-  var _index = null;
-  var _fallback = null;
-
-  function fallbackMap() {
-    if (_fallback) return _fallback;
-    _fallback = {};
-    var list = (B() && B().FALLBACK_CARDS) || [];
-    for (var i = 0; i < list.length; i++) {
-      var c = list[i];
-      _fallback['fallback:' + c.id] = { key: 'fallback:' + c.id, pool: 'fallback', id: c.id, card: c };
-    }
-    return _fallback;
-  }
-
-  function ensureIndex() {
-    var C = cardsRoot();
-    if (_cardsRef === C && _index) return _index;
-    _cardsRef = C;
-    _index = { byKey: {}, byPool: {}, all: [] };
-    var pools = Object.keys(C || {});
-    for (var p = 0; p < pools.length; p++) {
-      var pool = pools[p];
-      var arr = C[pool] || [];
-      _index.byPool[pool] = _index.byPool[pool] || [];
-      for (var i = 0; i < arr.length; i++) {
-        var card = arr[i];
-        if (!card || !card.id) continue;
-        var key = pool + ':' + card.id;
-        if (_index.byKey[key]) continue;
-        var rec = { key: key, pool: pool, id: String(card.id), card: card };
-        _index.byKey[key] = rec;
-        _index.byPool[pool].push(rec);
-        _index.all.push(rec);
-      }
-    }
-    return _index;
-  }
-
-  function resolveCardKey(key) {
-    if (key === null || key === undefined) return null;
-    var fb = fallbackMap();
-    if (typeof key === 'string' && fb[key]) return fb[key];
-    var idx = ensureIndex();
-    if (typeof key === 'string') {
-      if (idx.byKey[key]) return idx.byKey[key];
-      /* 兼容裸 id：仅在唯一时可解析 */
-      if (key.indexOf(':') < 0) {
-        var found = null;
-        for (var pool in idx.byPool) {
-          if (!Object.prototype.hasOwnProperty.call(idx.byPool, pool)) continue;
-          var list = idx.byPool[pool];
-          for (var i = 0; i < list.length; i++) {
-            if (list[i].id === key) {
-              if (found) return null;
-              found = list[i];
-            }
-          }
-        }
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-
-  function recInfo(rec, overrideStar) {
-    if (!rec) return null;
-    var card = rec.card || {};
+  function createRng(seed) {
+    var a = (Number(seed) >>> 0) || 1;
     return {
-      key: rec.key,
-      id: rec.id,
-      pool: rec.pool,
-      type: rec.pool,
-      text: card.text || '',
-      star: Math.max(1, intOr(overrideStar, intOr(card.star, 1))),
-      tags: (card.tags || []).slice(),
-      src: card.src || ''
+      next: function () {
+        a |= 0;
+        a = (a + 0x6d2b79f5) | 0;
+        var t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      },
+      state: function () { return a >>> 0; }
     };
   }
 
-  /* ---------------------------- 设置与过滤 ---------------------------- */
-  function normalizeBlacklist(list) {
+  function rngOf(state) { return createRng(state.rng); }
+  function saveRng(state, rng) { state.rng = rng.state(); }
+
+  function pack(state, events) {
+    return { state: state, events: events || [] };
+  }
+  function blocked(state, reason) {
+    return pack(state, [{ type: 'blocked', reason: reason }]);
+  }
+
+  function norm(s) {
+    return String(s || '').toLowerCase().replace(/\s+/g, '');
+  }
+
+  function capOf(state) {
     var b = B();
-    var out = [];
-    if (!list) return out;
-    if (typeof list === 'string') list = [list];
-    if (!isArr(list)) return out;
-    for (var i = 0; i < list.length && out.length < b.BLACKLIST.maxEntries; i++) {
-      var v = String(list[i] === null || list[i] === undefined ? '' : list[i]).trim();
-      if (!v) continue;
-      if (v.length > b.BLACKLIST.maxLen) v = v.slice(0, b.BLACKLIST.maxLen);
-      if (out.indexOf(v) < 0) out.push(v);
+    var c = clamp(parseInt(state && state.settings && state.settings.maxStar, 10) || 1, 1, 4);
+    if (state && state.settings && state.settings.gentleOnly) c = Math.min(c, 2);
+    return c;
+  }
+
+  function explicitRe() { return new RegExp(B().EXPLICIT_SRC); }
+  function gentleExtraRe() { return new RegExp(B().GENTLE_EXTRA_SRC); }
+
+  function band(state, opts) {
+    opts = opts || {};
+    var b = B();
+    var cap = capOf(state);
+    var heat = clamp((state && state.heat) || 0, 0, b.HEAT_MAX);
+    var spec = b.BAND[cap] || b.BAND[1];
+    var maxStar = heat >= spec.hotAt ? spec.hotMax : spec.baseMax;
+    var minPrefer = spec.prefer;
+    if (spec.preferMidAt != null && heat >= spec.preferMidAt) minPrefer = spec.preferMid;
+    if (heat >= spec.preferHotAt) minPrefer = spec.preferHot;
+    if (opts.deeper && cap === 2) {
+      maxStar = Math.max(maxStar, 3);
+      minPrefer = Math.min(maxStar, minPrefer + 1);
+    } else if (opts.deeper && cap >= 3) {
+      minPrefer = Math.min(maxStar, minPrefer + 1);
     }
-    return out;
+    if (cap <= 1) { maxStar = 1; minPrefer = 1; }
+    if (minPrefer > maxStar) minPrefer = maxStar;
+    return { cap: cap, maxStar: maxStar, minPrefer: minPrefer, heat: heat };
   }
 
-  function normalizeSettings(input) {
-    var b = B();
-    var s = isObj(input) ? input : {};
-    var def = b.DEFAULT_SETTINGS;
-    var out = {
-      maxStar: clampInt(s.maxStar === undefined ? def.maxStar : s.maxStar, b.MAX_STAR_MIN, b.MAX_STAR_MAX),
-      length: b.LENGTHS[s.length] ? s.length : def.length,
-      sound: s.sound === undefined ? def.sound : !!s.sound,
-      haptics: s.haptics === undefined ? def.haptics : !!s.haptics,
-      reduced: s.reduced === undefined ? def.reduced : !!s.reduced,
-      safeHold: clamp(s.safeHold === undefined ? def.safeHold : s.safeHold, 1, 10),
-      blacklist: normalizeBlacklist(s.blacklist),
-      gentleOnly: s.gentleOnly === undefined ? def.gentleOnly : !!s.gentleOnly
-    };
-    if (s.seed !== undefined) out.seed = (Number(s.seed) >>> 0);
-    if (s.volume !== undefined) out.volume = clamp(s.volume, 0, 1);
-    if (isNum(s.hapticsStrength)) out.hapticsStrength = clamp(s.hapticsStrength, 0, 1);
-    return out;
-  }
-
-  function effectiveMaxStar(state) {
-    var b = B();
-    var s = state && state.settings ? state.settings : {};
-    var maxS = clampInt(s.maxStar, b.MAX_STAR_MIN, b.MAX_STAR_MAX);
-    if (s.gentleOnly) maxS = Math.min(maxS, b.GENTLE_ONLY.maxStar);
-    return maxS;
-  }
-
-  function isBlacklisted(card, blacklist) {
-    if (!blacklist || !blacklist.length) return false;
-    var text = String(card.text || '');
-    var tags = card.tags || [];
-    for (var i = 0; i < blacklist.length; i++) {
-      var kw = blacklist[i];
-      if (!kw) continue;
-      if (text.indexOf(kw) >= 0) return true;
-      if (tags.indexOf(kw) >= 0) return true;
+  function hitsBoundary(card, state) {
+    var list = ((state.settings && state.settings.blacklist) || []).map(norm).filter(Boolean);
+    if (!list.length) return false;
+    var tags = (card.tags || []).map(norm);
+    var text = norm(card.text);
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      if (tags.indexOf(item) >= 0) return true;
+      if (item && text.indexOf(item) >= 0) return true;
     }
     return false;
   }
 
-  function isAllowed(state, rec) {
-    var b = B();
-    var card = rec.card || {};
-    var star = intOr(card.star, 1);
-    if (star < 1) return false;
-    if (star > effectiveMaxStar(state)) return false;
-    if (state.settings && state.settings.gentleOnly) {
-      if (star > b.GENTLE_ONLY.maxStar) return false;
+  function cardAllowed(card, state, bandOpt) {
+    if (!card || !card.text) return false;
+    if (card.pool === 'punish' || card.type === 'punish') return false;
+    var bd = bandOpt || band(state);
+    var star = Number(card.star) || 1;
+    if (star > bd.maxStar) return false;
+    if (hitsBoundary(card, state)) return false;
+    if (bd.cap <= 2 && explicitRe().test(card.text)) return false;
+    if (bd.cap <= 1) {
+      if (star > 1) return false;
+      if (gentleExtraRe().test(card.text)) return false;
+      var block = B().GENTLE_BLOCK_TAGS;
       var tags = card.tags || [];
-      var block = b.GENTLE_ONLY.blockTags || [];
-      for (var i = 0; i < block.length; i++) if (tags.indexOf(block[i]) >= 0) return false;
+      for (var i = 0; i < tags.length; i++) if (block.indexOf(tags[i]) >= 0) return false;
     }
-    if (isBlacklisted(card, state.settings ? state.settings.blacklist : null)) return false;
     return true;
   }
 
-  /* ---------------------------- 洗牌袋 ---------------------------- */
-  function isUsed(state, pool, id) {
-    return !!(state.usedCards && state.usedCards[pool] && state.usedCards[pool][id]);
-  }
-  function markUsed(state, pool, id) {
-    state.usedCards = state.usedCards || {};
-    state.usedCards[pool] = state.usedCards[pool] || {};
-    state.usedCards[pool][id] = true;
-  }
-  function unmarkUsed(state, key) {
-    var rec = resolveCardKey(key);
-    if (!rec || rec.pool === 'fallback') return;
-    if (state.usedCards && state.usedCards[rec.pool]) delete state.usedCards[rec.pool][rec.id];
-  }
-  function resetUsed(state, pools) {
-    state.usedCards = state.usedCards || {};
-    var list = pools || (B().DRAW_POOLS || []);
-    for (var i = 0; i < list.length; i++) state.usedCards[list[i]] = {};
+  function isQuestion(card) {
+    return /[？?]|吗|什么|哪|为什么|有没有|想不想|敢不敢|还是/.test(card.text || '');
   }
 
-  /* ---------------------------- 抽牌 ---------------------------- */
-  function pickStarForAct(state) {
-    var b = B();
-    var maxS = effectiveMaxStar(state);
-    var act = clampInt(state.act, 1, 3);
-    var weights = b.DRAW.starWeights[act] || b.DRAW.starWeights[3];
-    var bag = [];
-    for (var s = 1; s <= maxS; s++) {
-      var w = intOr(weights[s], 0);
-      for (var i = 0; i < w; i++) bag.push(s);
-    }
-    if (!bag.length) for (var j = 1; j <= maxS; j++) bag.push(j);
-    var star = bag[Math.floor(nextRand(state) * bag.length)] || 1;
-    star = clamp(star + intOr(state.drawBias, 0), b.ADAPT.minStar, maxS);
-    return star;
+  function usable(card, state, bd, opts) {
+    if (!cardAllowed(card, state, bd)) return false;
+    if ((card.pool === 'spark' || card.type === 'spark') && bd.maxStar < 4) return false;
+    if (opts && opts.talk && (card.pool === 'spark' || card.type === 'spark') && !isQuestion(card)) return false;
+    return true;
   }
 
-  function collectCandidates(state, opt) {
-    opt = opt || {};
-    var b = B();
-    var idx = ensureIndex();
-    var out = [];
-    var pools = opt.pools || b.DRAW_POOLS;
-    var maxS = effectiveMaxStar(state);
+  function eachCard(fn) {
+    var C = global.CARDS || {};
+    var pools = ['truth', 'dare', 'touch', 'sync', 'spark', 'punish'];
     for (var p = 0; p < pools.length; p++) {
-      var pool = pools[p];
-      if (pool === 'spark' && !opt.allowSpark && maxS < b.DRAW.sparkMinMaxStar) continue;
-      if (opt.excludeTypes && opt.excludeTypes.indexOf(pool) >= 0) continue;
-      var list = idx.byPool[pool] || [];
-      for (var i = 0; i < list.length; i++) {
-        var rec = list[i];
-        if (!isAllowed(state, rec)) continue;
-        var star = intOr(rec.card.star, 1);
-        if (opt.star && !opt.ignoreStar && star !== opt.star) continue;
-        if (!opt.ignoreUsed && isUsed(state, rec.pool, rec.id)) continue;
-        out.push(rec);
-      }
+      var list = C[pools[p]] || [];
+      for (var i = 0; i < list.length; i++) fn(list[i], pools[p]);
     }
-    return out;
   }
 
-  function weightedPick(state, recs) {
-    var b = B();
-    if (!recs || !recs.length) return null;
+  function weightOf(card, bd) {
+    var s = Number(card.star) || 1;
+    var w = 1;
+    if (s >= bd.minPrefer) w = 6 + (s - bd.minPrefer) * 4;
+    else if (s >= bd.minPrefer - 1) w = 2;
+    if (bd.cap >= 4 && s >= 4) w += 6;
+    else if (bd.cap === 3 && s >= 4) w += 3;
+    return w;
+  }
+
+  function pickWeighted(items, rng) {
     var total = 0;
-    var weights = [];
-    for (var i = 0; i < recs.length; i++) {
-      var w = (b.DRAW.typeWeights[recs[i].pool] || 1);
-      weights.push(w);
-      total += w;
+    for (var i = 0; i < items.length; i++) total += items[i].w;
+    if (total <= 0) return items[0].card;
+    var t = rng.next() * total;
+    for (var j = 0; j < items.length; j++) {
+      t -= items[j].w;
+      if (t < 0) return items[j].card;
     }
-    var r = nextRand(state) * total;
-    for (var j = 0; j < recs.length; j++) {
-      r -= weights[j];
-      if (r <= 0) return recs[j];
-    }
-    return recs[recs.length - 1];
+    return items[items.length - 1].card;
   }
 
-  /* 抽一张；带 6 级放宽，保证不崩 */
-  function drawOne(state, opt) {
-    opt = opt || {};
-    var b = B();
-    var maxS = effectiveMaxStar(state);
-    var allowSpark = opt.allowSpark;
-    if (allowSpark === undefined) allowSpark = maxS >= b.DRAW.sparkMinMaxStar;
-    var base = {
-      star: opt.star || null,
-      excludeTypes: opt.excludeTypes || null,
-      allowSpark: allowSpark,
-      pools: opt.pools || null
+  function fallbackCard(state) {
+    var list = B().FALLBACK_CARDS;
+    var rng = rngOf(state);
+    var card = list[Math.floor(rng.next() * list.length)];
+    saveRng(state, rng);
+    return {
+      id: card.id, text: card.text, star: 1, tags: [], pool: card.pool || 'truth',
+      type: card.pool || 'truth', fallback: true, src: 'apartment'
     };
-    /* 若所有资格卡都被 used 标记，视为本池用尽 -> 重洗 */
-    var withUsed = collectCandidates(state, base);
-    if (!withUsed.length) {
-      var ignoring = collectCandidates(state, {
-        star: base.star, excludeTypes: null, allowSpark: allowSpark, pools: base.pools, ignoreUsed: true
-      });
-      if (ignoring.length) resetUsed(state, base.pools || b.DRAW_POOLS);
-    }
-    var attempts = [
-      base,
-      { star: base.star, excludeTypes: null, allowSpark: allowSpark, pools: base.pools },
-      { star: null, excludeTypes: null, allowSpark: allowSpark, pools: base.pools, ignoreStar: true },
-      { star: null, excludeTypes: null, allowSpark: true, pools: null, ignoreStar: true }
-    ];
-    for (var a = 0; a < attempts.length; a++) {
-      var rec = weightedPick(state, collectCandidates(state, attempts[a]));
-      if (rec) {
-        markUsed(state, rec.pool, rec.id);
-        return rec;
-      }
-    }
-    return null;
   }
 
-  function drawIntoHand(state) {
-    var b = B();
-    var size = b.DRAW.handSize;
-    state.hand = [];
-    for (var i = 0; i < size; i++) {
-      var counts = {};
-      for (var h = 0; h < state.hand.length; h++) {
-        var r0 = resolveCardKey(state.hand[h]);
-        if (!r0) continue;
-        counts[r0.pool] = (counts[r0.pool] || 0) + 1;
-      }
-      var exclude = [];
-      for (var t in counts) {
-        if (Object.prototype.hasOwnProperty.call(counts, t) && counts[t] >= b.DRAW.maxSameType) exclude.push(t);
-      }
-      var rec = drawOne(state, { star: pickStarForAct(state), excludeTypes: exclude });
-      if (!rec) break;
-      if (state.hand.indexOf(rec.key) >= 0) continue; /* 同手不重复；极端小池时由兜底补位 */
-      state.hand.push(rec.key);
-    }
-    /* 兜底：题库空 / 过滤过严时保证 3 张 */
-    var guard = 0;
-    while (state.hand.length < size && guard < size * 3) {
-      guard++;
-      var fbList = b.FALLBACK_CARDS || [];
-      var fb = fbList[state.hand.length % fbList.length];
-      var key = 'fallback:' + fb.id;
-      if (state.hand.indexOf(key) >= 0) break;
-      state.hand.push(key);
-    }
-    return state.hand;
+  function collect(state, pools, bd, opts, ignoreUsed) {
+    var want = {};
+    for (var i = 0; i < pools.length; i++) want[pools[i]] = true;
+    var used = state.used || {};
+    var items = [];
+    eachCard(function (raw, pool) {
+      if (!want[pool]) return;
+      if (!ignoreUsed && used[pool] && used[pool][raw.id]) return;
+      var card = {
+        id: raw.id, text: raw.text, star: raw.star, tags: raw.tags || [],
+        pool: pool, type: pool, src: raw.src || ''
+      };
+      if (!usable(card, state, bd, opts)) return;
+      items.push({ card: card, w: weightOf(card, bd) });
+    });
+    return items;
   }
 
-  /* ---------------------------- 状态骨架 ---------------------------- */
-  function blankState(settings, names, seed) {
-    var b = B();
-    var namesObj = { a: '你', b: 'TA' };
-    if (isArr(names)) {
-      namesObj = { a: String(names[0] || namesObj.a), b: String(names[1] || namesObj.b) };
-    } else if (isObj(names)) {
-      namesObj = { a: String(names.a || namesObj.a), b: String(names.b || namesObj.b) };
+  function clearUsed(state, pools) {
+    state.used = state.used || {};
+    for (var i = 0; i < pools.length; i++) state.used[pools[i]] = {};
+  }
+
+  function takeCard(state, pools, bd, opts) {
+    var items = collect(state, pools, bd, opts, false);
+    if (!items.length) {
+      clearUsed(state, pools);
+      items = collect(state, pools, bd, opts, false);
     }
-    var settingsNorm = normalizeSettings(settings);
-    var seedNum = (seed === undefined || seed === null || seed === '') ? null : (Number(seed) >>> 0);
-    if (seedNum === null && settingsNorm.seed !== undefined) seedNum = settingsNorm.seed >>> 0;
-    if (seedNum === null) seedNum = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
-    seedNum = seedNum >>> 0;
+    if (!items.length) return fallbackCard(state);
+    var rng = rngOf(state);
+    var card = pickWeighted(items, rng);
+    saveRng(state, rng);
+    state.used = state.used || {};
+    state.used[card.pool] = state.used[card.pool] || {};
+    state.used[card.pool][card.id] = true;
+    return card;
+  }
+
+  function nextId(state) {
+    state.seq = (state.seq || 0) + 1;
+    return 'n' + state.seq;
+  }
+
+  function pushLog(state, prompt, outcome) {
+    var card = (prompt && prompt.card) || {};
+    state.log.push({
+      id: nextId(state),
+      room: (prompt && prompt.room) || state.room || '',
+      game: (prompt && (prompt.mode || prompt.role)) || state.game || state.room || '',
+      text: card.text || prompt.text || '',
+      star: card.star || 0,
+      tags: card.tags || [],
+      outcome: outcome || 'done',
+      who: (prompt && prompt.who) || '',
+      via: (prompt && prompt.via) || ''
+    });
+  }
+
+  function heatGain(state, base) {
+    var mult = B().HEAT_MULT[capOf(state)] || 1;
+    return Math.max(1, Math.round((Number(base) || 1) * mult));
+  }
+
+  function addHeat(state, amount) {
+    var b = B();
+    var next = clamp((state.heat || 0) + (amount || 0), 0, b.HEAT_MAX);
+    var delta = next - (state.heat || 0);
+    state.heat = next;
+    return delta;
+  }
+
+  function blankLit() {
+    return { living: false, kitchen: false, balcony: false, bathroom: false, bedroom: false };
+  }
+  function blankVisits() {
+    return { living: 0, kitchen: 0, balcony: 0, bathroom: 0, bedroom: 0 };
+  }
+
+  function normalizeSettings(settings) {
+    var d = B().DEFAULT_SETTINGS;
+    settings = settings || {};
+    var names = settings.names || d.names;
+    var blacklist = Array.isArray(settings.blacklist) ? settings.blacklist : [];
+    blacklist = blacklist.map(function (x) { return String(x || '').trim(); }).filter(Boolean).slice(0, 24);
+    return {
+      maxStar: clamp(parseInt(settings.maxStar, 10) || d.maxStar, 1, 4),
+      sound: settings.sound !== false,
+      haptics: settings.haptics !== false,
+      reduced: !!settings.reduced,
+      gentleOnly: !!settings.gentleOnly,
+      blacklist: blacklist,
+      names: {
+        a: (names.a && String(names.a).trim()) || d.names.a,
+        b: (names.b && String(names.b).trim()) || d.names.b
+      }
+    };
+  }
+
+  function newSession(settings, names, seed) {
+    var b = B();
+    var merged = normalizeSettings(settings || {});
+    if (names) {
+      if (names.a) merged.names.a = String(names.a).trim() || merged.names.a;
+      if (names.b) merged.names.b = String(names.b).trim() || merged.names.b;
+    }
+    var cap = merged.gentleOnly ? Math.min(merged.maxStar, 2) : merged.maxStar;
+    var heat = b.HEAT_START[cap] || b.HEAT_START[1];
+    var now = Date.now();
     return {
       v: b.SESSION_VERSION,
-      id: 's' + seedNum.toString(36),
-      ts: nowMs(),
-      names: namesObj,
-      settings: settingsNorm,
-      act: 1,
-      round: 1,
-      host: 'a',
-      resources: { heart: b.RESOURCE_START.heart, tension: b.RESOURCE_START.tension, sync: b.RESOURCE_START.sync, coins: b.RESOURCE_START.coins },
-      gentle: 0,
-      combo: 0,
-      maxCombo: 0,
-      skips: 0,
-      completes: 0,
-      maxStarSeen: 0,
-      tokens: { shield: b.TOKEN_START.shield, reroll: b.TOKEN_START.reroll, escalate: b.TOKEN_START.escalate },
-      hand: [],
-      current: null,
-      currentStar: null,
-      phase: 'draft',
-      usedCards: {},
-      events: {},
-      flags: {},
+      kind: 'apartment',
+      mode: 'night',
+      game: null,
+      id: 'apt-' + now.toString(36) + '-' + ((Number(seed) >>> 0) || (now % 100000)).toString(36),
+      ts: now,
+      names: { a: merged.names.a, b: merged.names.b },
+      settings: merged,
+      phase: 'plan',
+      room: null,
+      at: 'foyer',
+      heat: heat,
+      heatBase: heat,
+      minutes: b.START_MINUTES,
+      lit: blankLit(),
+      visits: blankVisits(),
       log: [],
+      used: {},
+      truthRerolls: b.REROLLS.truth,
+      dareRerolls: b.REROLLS.dare,
+      prompt: null,
+      wheel: null,
+      thermo: null,
+      stroll: null,
+      bedroomMode: null,
+      flags: {},
+      pasted: {},
+      seq: 0,
+      rng: (Number(seed) >>> 0) || ((now % 2147483646) + 1),
       result: null,
-      rng: seedNum,
-      drawBias: 0,
-      gentleUsed: 0,
-      escalated: false,
-      escalatedDone: false,
-      actScores: [],
-      pendingActEnd: false,
-      lastAct: false,
-      seed: seedNum
+      archived: false
     };
   }
 
-  /* 把「动作产生的 UI 事件」挂到 state 上（不可枚举，不污染存档）。
-   * 注意：state.events 是 DESIGN §3.3 的「事件选择表」，两者不能同名，
-   * 因此动作事件挂在 .outEvents / .actionEvents。 */
-  function emit(state, events) {
-    var list = events || [];
-    try {
-      Object.defineProperty(state, 'outEvents', { value: list, enumerable: false, configurable: true, writable: true });
-      Object.defineProperty(state, 'actionEvents', { value: list, enumerable: false, configurable: true, writable: true });
-      Object.defineProperty(state, 'state', { get: function () { return state; }, enumerable: false, configurable: true });
-    } catch (e) {
-      state.outEvents = list;
-      state.actionEvents = list;
-      state.state = state;
-    }
-    return state;
+  function isLegacy(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (state.kind === 'apartment') return false;
+    if (state.hand || state.act || state.tokens || state.resources) return true;
+    var ph = state.phase;
+    return !!(ph && ['draft', 'play', 'resolve', 'escalate', 'event', 'act', 'shop', 'finale'].indexOf(ph) >= 0);
   }
 
-  function blocked(state, action, reason) {
-    var ev = [{ type: 'stage', phase: state.phase, blocked: true, action: action, reason: reason || 'action_not_allowed' }];
-    return { state: emit(clone(state), ev), events: ev };
-  }
-  function blockedState(state, action, reason) {
-    var ev = [{ type: 'stage', phase: state.phase, blocked: true, action: action, reason: reason || 'action_not_allowed' }];
-    return emit(clone(state), ev);
-  }
-
-  /* ---------------------------- 资源/日志 ---------------------------- */
-  function addRes(state, deltas) {
-    var applied = {};
-    if (!deltas) return applied;
-    var keys = B().RES_KEYS;
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (!isNum(deltas[k]) || deltas[k] === 0) continue;
-      var before = state.resources[k] || 0;
-      state.resources[k] = clamp(before + deltas[k], 0, B().RESOURCE_MAX);
-      applied[k] = state.resources[k] - before;
-    }
-    if (isNum(deltas.coins) && deltas.coins !== 0) {
-      var cBefore = state.resources.coins || 0;
-      state.resources.coins = clamp(cBefore + deltas.coins, 0, B().RESOURCE_MAX);
-      applied.coins = state.resources.coins - cBefore;
-    }
-    if (isNum(deltas.gentle) && deltas.gentle !== 0) {
-      state.gentle = clamp(state.gentle + deltas.gentle, 0, 99);
-    }
-    return applied;
-  }
-
-  function pushLog(state, entry) {
-    state.log = state.log || [];
-    state.log.push(entry);
-    if (state.log.length > 200) state.log.shift();
-  }
-
-  function cardEventData(info) {
-    if (!info) return null;
-    return { key: info.key, id: info.id, pool: info.pool, type: info.type, text: info.text, star: info.star, tags: info.tags };
-  }
-
-  function grantComboToken(state, events) {
-    var b = B();
-    if (!state.combo || state.combo % b.COMBO.tokenEvery !== 0) return null;
-    var tk = b.TOKEN_ROLLPOOL[Math.floor(nextRand(state) * b.TOKEN_ROLLPOOL.length)];
-    state.tokens[tk] = clampInt((state.tokens[tk] || 0) + 1, 0, b.TOKEN_MAX);
-    events.push({ type: 'token', token: tk, name: b.TOKEN_META[tk].name, delta: 1, combo: state.combo, reason: 'combo' });
-    return tk;
-  }
-
-  /* ---------------------------- 生命周期 ---------------------------- */
-  function newSession(settings, names, seed) {
-    var s = blankState(settings, names, seed);
-    s.phase = 'draft';
-    drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
-  }
-
-  function startRound(state) {
-    var s = clone(state);
-    if (s.phase === 'finale') return emit(s, [{ type: 'stage', phase: 'finale' }]);
-    if (s.phase !== 'draft') return emit(s, [{ type: 'stage', phase: s.phase, resumed: true }]);
-    if (!s.hand || s.hand.length !== B().DRAW.handSize) drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
-  }
-
-  function reroll(state) {
-    var s = clone(state);
-    if (s.phase !== 'draft') return blockedState(s, 'reroll', 'wrong_phase');
-    if (!s.tokens || (s.tokens.reroll || 0) <= 0) return blockedState(s, 'reroll', 'no_token');
-    s.tokens.reroll = Math.max(0, (s.tokens.reroll || 0) - 1);
-    for (var i = 0; i < (s.hand || []).length; i++) unmarkUsed(s, s.hand[i]);
-    drawIntoHand(s);
-    pushLog(s, { round: s.round, type: 'reroll' });
-    return emit(s, [
-      { type: 'token', token: 'reroll', name: B().TOKEN_META.reroll.name, delta: -1 },
-      { type: 'stage', phase: 'draft', rerolled: true, hand: s.hand.slice(), round: s.round, act: s.act, host: s.host }
-    ]);
-  }
-
-  function chooseCard(state, cardId) {
-    var s = clone(state);
-    if (s.phase !== 'draft') return blockedState(s, 'chooseCard', 'wrong_phase');
-    var hand = s.hand || [];
-    var key = null;
-    if (typeof cardId === 'number' && cardId >= 0 && cardId < hand.length) {
-      key = hand[Math.floor(cardId)];
-    } else if (hand.indexOf(cardId) >= 0) {
-      key = cardId;
-    } else {
-      for (var i = 0; i < hand.length; i++) {
-        var rec = resolveCardKey(hand[i]);
-        if (rec && (rec.id === cardId || rec.key === cardId)) { key = hand[i]; break; }
-      }
-    }
-    var chosen = resolveCardKey(key);
-    if (!chosen) return blockedState(s, 'chooseCard', 'card_not_in_hand');
-    s.current = chosen.key;
-    s.currentStar = null;
-    s.escalated = false;
-    s.phase = 'play';
-    var info = recInfo(chosen, null);
-    pushLog(s, { round: s.round, type: 'choose', cardId: chosen.key, text: info.text, star: info.star });
-    return emit(s, [{ type: 'stage', phase: 'play', round: s.round, act: s.act, host: s.host, card: cardEventData(info) }]);
-  }
-
-  function currentCard(state) {
-    if (!state || !state.current) return null;
-    var rec = resolveCardKey(state.current);
-    if (!rec) return null;
-    var star = state.currentStar === null || state.currentStar === undefined ? rec.card.star : state.currentStar;
-    return recInfo(rec, star);
-  }
-
-  function complete(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'complete', 'wrong_phase');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'complete', 'no_current_card');
-    var b = B();
-    s.combo = (s.combo || 0) + b.COMPLETE.combo;
-    s.maxCombo = Math.max(s.maxCombo || 0, s.combo);
-    s.completes = (s.completes || 0) + 1;
-    s.maxStarSeen = Math.max(s.maxStarSeen || 0, info.star);
-    var gain = b.yieldFor(info.pool, info.star);
-    var coins = b.coinsFor(info.star, s.combo);
-    gain.coins = coins;
-    var applied = addRes(s, gain);
-    s.phase = 'resolve';
-    s.escalated = false;
-    s.escalatedDone = false;
-    pushLog(s, { round: s.round, type: 'complete', cardId: info.key, text: info.text, star: info.star, deltas: applied });
-    var events = [
-      { type: 'gain', reason: 'complete', res: applied, combo: s.combo, card: cardEventData(info) }
-    ];
-    if (s.combo > 0 && s.combo % b.COMBO.coinEvery === 0) events.push({ type: 'combo', n: s.combo, coinBonus: true });
-    grantComboToken(s, events);
-    events.push({ type: 'stage', phase: 'resolve', canEscalate: canEscalate(s) });
-    return { state: emit(s, events), events: events };
-  }
-
-  function canEscalate(state) {
-    if (!state || state.phase !== 'resolve' || !state.current || state.escalated) return false;
-    var info = currentCard(state);
-    if (!info) return false;
-    var maxS = effectiveMaxStar(state);
-    if (info.star < maxS) return true;
-    if (info.star >= maxS && (state.tokens.escalate || 0) > 0) return true;
-    return false;
-  }
-
-  function escalate(state) {
-    var s = clone(state);
-    if (!canEscalate(s)) return blocked(s, 'escalate', 'not_allowed');
-    var b = B();
-    var info = currentCard(s);
-    var maxS = effectiveMaxStar(s);
-    var target = clamp(info.star + b.ESCALATE.starStep, 1, maxS);
-    var usedToken = info.star >= maxS;
-    if (usedToken) s.tokens.escalate = Math.max(0, (s.tokens.escalate || 0) - 1);
-    var preferPools = b.DRAW.deepPreferPools;
-    var rec = drawOne(s, { star: target, allowSpark: true, pools: preferPools });
-    if (!rec) rec = drawOne(s, { star: target, allowSpark: true });
-    if (!rec) return blocked(s, 'escalate', 'no_card');
-    s.escalated = true;
-    s.current = rec.key;
-    s.currentStar = intOr(rec.card.star, target);
-    s.phase = 'escalate';
-    var deepInfo = recInfo(rec, s.currentStar);
-    pushLog(s, { round: s.round, type: 'escalate', cardId: deepInfo.key, text: deepInfo.text, star: deepInfo.star });
-    var events = [
-      { type: 'stage', phase: 'escalate', card: cardEventData(deepInfo), tokenUsed: usedToken }
-    ];
-    if (usedToken) events.push({ type: 'token', token: 'escalate', name: b.TOKEN_META.escalate.name, delta: -1, reason: 'max_star_deep' });
-    return { state: emit(s, events), events: events };
-  }
-
-  function escalateComplete(state) {
-    var s = clone(state);
-    if (s.phase !== 'escalate') return blocked(s, 'escalateComplete', 'wrong_phase');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'escalateComplete', 'no_current_card');
-    var b = B();
-    s.combo = (s.combo || 0) + b.COMPLETE.combo;
-    s.maxCombo = Math.max(s.maxCombo || 0, s.combo);
-    s.completes = (s.completes || 0) + 1;
-    s.maxStarSeen = Math.max(s.maxStarSeen || 0, info.star);
-    s.flags = s.flags || {};
-    s.flags.deepDone = true;
-    var baseGain = b.yieldFor(info.pool, info.star);
-    var gain = {};
-    for (var i = 0; i < b.RES_KEYS.length; i++) {
-      var k = b.RES_KEYS[i];
-      if (baseGain[k]) gain[k] = baseGain[k] * b.ESCALATE.multiplier;
-    }
-    gain.coins = b.coinsFor(info.star, s.combo) * b.ESCALATE.multiplier;
-    var applied = addRes(s, gain);
-    s.phase = 'resolve';
-    s.escalatedDone = true;
-    pushLog(s, { round: s.round, type: 'escalateComplete', cardId: info.key, text: info.text, star: info.star, deltas: applied, mult: b.ESCALATE.multiplier });
-    var events = [
-      { type: 'gain', reason: 'escalateComplete', mult: b.ESCALATE.multiplier, res: applied, combo: s.combo, card: cardEventData(info) }
-    ];
-    if (s.combo > 0 && s.combo % b.COMBO.coinEvery === 0) events.push({ type: 'combo', n: s.combo, coinBonus: true });
-    grantComboToken(s, events);
-    events.push({ type: 'stage', phase: 'resolve', escalatedDone: true });
-    return { state: emit(s, events), events: events };
-  }
-
-  function escalateSkip(state) {
-    var s = clone(state);
-    if (s.phase !== 'escalate') return blocked(s, 'escalateSkip', 'wrong_phase');
-    var info = currentCard(s);
-    var b = B();
-    var applied = addRes(s, { heart: b.ESCALATE_SKIP.heart });
-    s.combo = 0;
-    s.skips = (s.skips || 0) + 1;
-    s.phase = 'resolve';
-    s.escalatedDone = true;
-    pushLog(s, { round: s.round, type: 'escalateSkip', cardId: info ? info.key : null, deltas: applied });
-    var events = [
-      { type: 'skip', reason: 'escalateSkip', res: applied, gentle: 0, card: cardEventData(info) },
-      { type: 'stage', phase: 'resolve' }
-    ];
-    return { state: emit(s, events), events: events };
-  }
-
-  function skip(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'skip', 'wrong_phase');
-    var info = currentCard(s);
-    var b = B();
-    var applied = addRes(s, { tension: b.SKIP.tension, gentle: b.SKIP.gentle });
-    s.combo = 0;
-    s.skips = (s.skips || 0) + 1;
-    s.phase = 'resolve';
-    pushLog(s, { round: s.round, type: 'skip', cardId: info ? info.key : null, deltas: applied });
-    var events = [
-      { type: 'skip', reason: 'skip', res: applied, combo: 0, gentle: s.gentle, card: cardEventData(info) },
-      { type: 'stage', phase: 'resolve', canEscalate: canEscalate(s) }
-    ];
-    return { state: emit(s, events), events: events };
-  }
-
-  function gentleDown(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'gentleDown', 'wrong_phase');
-    var b = B();
-    if ((s.gentleUsed || 0) >= b.GENTLE.maxUses) return blocked(s, 'gentleDown', 'no_uses_left');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'gentleDown', 'no_current_card');
-    var next = info.star + b.GENTLE.starStep;
-    s.gentleUsed = (s.gentleUsed || 0) + 1;
-    s.gentle = clamp((s.gentle || 0) + 1, 0, 99);
-    if (next <= 0) {
-      var applied = addRes(s, { tension: b.SKIP.tension });
-      s.combo = 0;
-      s.skips = (s.skips || 0) + 1;
-      s.phase = 'resolve';
-      pushLog(s, { round: s.round, type: 'gentleSkip', cardId: info.key, deltas: applied });
-      var evs = [
-        { type: 'skip', reason: 'gentleToZero', gentle: s.gentle, res: applied },
-        { type: 'stage', phase: 'resolve' }
-      ];
-      return { state: emit(s, evs), events: evs };
-    }
-    s.currentStar = next;
-    pushLog(s, { round: s.round, type: 'gentleDown', cardId: info.key, star: next });
-    var events = [{ type: 'stage', phase: 'play', gentleDown: true, star: next, usesLeft: b.GENTLE.maxUses - s.gentleUsed, card: cardEventData(info) }];
-    return { state: emit(s, events), events: events };
-  }
-
-  /* ---------------------------- 幕末 / 事件 / 商店 ---------------------------- */
-  function actInfo(state) {
-    var b = B();
-    var c = contentRoot();
-    var act = clampInt(state && state.act, 1, 3);
-    var cfg = b.LENGTHS[(state && state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var actMeta = null;
-    if (c && c.acts && c.acts[act - 1]) actMeta = c.acts[act - 1];
+  function archiveLegacy(state) {
+    var res = (state && state.resources) || {};
+    var result = (state && state.result) || {};
+    var done = state && state.phase === 'finale';
     return {
-      act: act,
-      index: act - 1,
-      name: (actMeta && actMeta.name) || ('第 ' + act + ' 幕'),
-      sub: (actMeta && actMeta.sub) || '',
-      accent: (actMeta && actMeta.accent) || '',
-      intro: (actMeta && actMeta.intro) || [],
-      outtro: (actMeta && actMeta.outtro) || null,
-      length: actMeta ? actMeta.length : cfg.acts[act - 1],
-      rounds: cfg.acts[act - 1],
-      threshold: b.actThreshold(act, cfg.rounds)
+      id: (state && state.id) || ('legacy-' + ((state && state.ts) || 0)),
+      ts: (state && state.ts) || Date.now(),
+      kind: 'voyage',
+      title: '以前的夜航',
+      endingName: result.endingName || (done ? '已靠岸' : '未走完的夜航'),
+      note: '这是升温夜航的记录，已收进以前的夜，不会在这间公寓里继续。',
+      heart: res.heart || 0,
+      tension: res.tension || 0,
+      sync: res.sync || 0,
+      rounds: (state && state.round) || 0,
+      safe: !!(state && state.flags && state.flags.safeWord),
+      imported: true,
+      rooms: [],
+      names: (state && state.names) || null
     };
   }
 
-  function actEndRoundOf(state) {
+  function knownRoom(id) { return B().ROOMS.indexOf(id) >= 0; }
+
+  function roomOpen(state, roomId) {
+    if (!knownRoom(roomId)) return { ok: false, locked: false, reason: 'unknown' };
+    /* 卧室从第一分钟就开着，不做成夜末锁。 */
+    return { ok: true, locked: false, reason: 'open' };
+  }
+
+  function enterRoom(state, roomId) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    if (state.phase === 'done') return blocked(state, 'done');
+    var gate = roomOpen(state, roomId);
+    if (!gate.ok) return blocked(state, gate.reason);
     var b = B();
-    var cfg = b.LENGTHS[(state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    return b.actEndRound(cfg.id, clampInt(state.act, 1, 3));
-  }
-
-  function applyActEnd(state) {
-    var b = B();
-    var info = actInfo(state);
-    var score = b.actScore(state);
-    var good = score >= info.threshold;
-    var reward = null;
-    var events = [];
-    if (good) {
-      reward = { coins: b.ACT_REWARD.coins };
-      state.resources.coins = clamp((state.resources.coins || 0) + b.ACT_REWARD.coins, 0, b.RESOURCE_MAX);
-      events.push({ type: 'gain', reason: 'actReward', res: { coins: b.ACT_REWARD.coins } });
-      if (b.ACT_REWARD.token) {
-        var tk = b.TOKEN_ROLLPOOL[Math.floor(nextRand(state) * b.TOKEN_ROLLPOOL.length)];
-        state.tokens[tk] = clampInt((state.tokens[tk] || 0) + 1, 0, b.TOKEN_MAX);
-        reward.token = tk;
-        events.push({ type: 'token', token: tk, name: b.TOKEN_META[tk].name, delta: 1, reason: 'actReward' });
-      }
-    } else {
-      state.drawBias = Math.max(b.ADAPT.biasFloor, intOr(state.drawBias, 0) + b.ADAPT.starBias);
-      events.push({ type: 'stage', phase: state.phase, adaptive: true, drawBias: state.drawBias, reason: 'actBelowThreshold' });
-    }
-    state.actScores = state.actScores || [];
-    state.actScores.push({ act: info.act, score: score, threshold: info.threshold, good: good });
-    var ev = { type: 'actEnd', act: info.act, score: score, threshold: info.threshold, good: good, reward: reward };
-    return { event: ev, events: events };
-  }
-
-  function eventForAct(state, act) {
-    var c = contentRoot();
-    if (!c || !c.events) return null;
-    for (var i = 0; i < c.events.length; i++) {
-      var e = c.events[i];
-      if (!e || !e.id) continue;
-      if (intOr(e.afterAct, act) !== act) continue;
-      if (state.events && state.events[e.id]) continue;
-      if (state.flags && state.flags['event_' + e.id]) continue;
-      return e;
-    }
-    return null;
-  }
-
-  function nextRound(state) {
     var s = clone(state);
-    if (s.phase !== 'resolve') return blocked(s, 'nextRound', 'wrong_phase');
-    var b = B();
-    var cfg = b.LENGTHS[(s.settings && s.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var total = cfg.rounds;
-    var events = [];
-    var lastRound = s.round >= total;
-    var atActEnd = !lastRound && s.round === actEndRoundOf(s);
-    if (!lastRound && !atActEnd) {
-      s.round = s.round + 1;
-      s.host = s.host === 'a' ? 'b' : 'a';
-      s.phase = 'draft';
-      s.current = null;
-      s.currentStar = null;
-      s.escalated = false;
-      s.escalatedDone = false;
-      drawIntoHand(s);
-      events.push({ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() });
-      return { state: emit(s, events), events: events };
+    var cap = capOf(s);
+    if (s.mode !== 'standalone') {
+      var gain = Math.max(1, Math.round((b.VISIT_HEAT[roomId] || 8) * (b.HEAT_MULT[cap] || 1)));
+      if ((s.visits[roomId] || 0) > 0) gain = Math.max(1, Math.round(gain * b.REVISIT_RATIO));
+      s.visits[roomId] = (s.visits[roomId] || 0) + 1;
+      s.lit[roomId] = true;
+      addHeat(s, gain);
+      s.minutes = (s.minutes || b.START_MINUTES) + (b.ROOM_MINUTES[roomId] || 12);
     }
-    /* 幕末 */
-    var ae = applyActEnd(s);
-    events.push(ae.event);
-    events = events.concat(ae.events);
-    if (lastRound) {
-      s.phase = 'act';
-      s.lastAct = true;
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'act', lastAct: true });
-      return { state: emit(s, events), events: events };
-    }
-    var ev = eventForAct(s, s.act);
-    if (ev) {
-      s.phase = 'event';
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'event', eventId: ev.id, title: ev.title || '', afterAct: s.act });
-    } else {
-      s.phase = 'act';
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'act', afterAct: s.act });
-    }
-    return { state: emit(s, events), events: events };
+    s.phase = 'room';
+    s.room = roomId;
+    s.at = roomId;
+    s.prompt = null;
+    s.wheel = null;
+    s.thermo = null;
+    s.bedroomMode = null;
+    s.stroll = null;
+    return pack(s, [{ type: 'enter', room: roomId, heat: s.heat, lit: true }]);
   }
 
-  function chooseEvent(state, eventId, optionId) {
+  function leaveRoom(state) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    if (state.phase === 'done') return pack(state, []);
     var s = clone(state);
-    if (s.phase !== 'event') return blocked(s, 'chooseEvent', 'wrong_phase');
-    var c = contentRoot();
-    var ev = null;
-    if (c && c.events) {
-      for (var i = 0; i < c.events.length; i++) {
-        if (c.events[i] && c.events[i].id === eventId) { ev = c.events[i]; break; }
-      }
-      if (!ev) {
-        for (var j = 0; j < c.events.length; j++) {
-          if (c.events[j] && intOr(c.events[j].afterAct, s.act) === s.act) { ev = c.events[j]; break; }
-        }
-      }
-    }
-    if (!ev) return blocked(s, 'chooseEvent', 'event_not_found');
-    if (s.events && s.events[ev.id] !== undefined) return blocked(s, 'chooseEvent', 'event_already_chosen');
-    var opt = null;
-    var opts = ev.options || [];
-    for (var k = 0; k < opts.length; k++) if (opts[k] && opts[k].id === optionId) { opt = opts[k]; break; }
-    if (!opt) return blocked(s, 'chooseEvent', 'option_not_found');
-    var effects = opt.effects || {};
-    var applied = addRes(s, effects);
-    if (opt.flag) {
-      s.flags = s.flags || {};
-      s.flags[opt.flag] = true;
-    }
-    s.flags = s.flags || {};
-    s.flags['event_' + ev.id] = true;
-    s.events = s.events || {};
-    s.events[ev.id] = opt.id;
-    s.phase = 'act';
-    pushLog(s, { round: s.round, type: 'event', eventId: ev.id, optionId: opt.id, deltas: applied });
-    var events = [
-      { type: 'gain', reason: 'event', eventId: ev.id, optionId: opt.id, res: applied, flag: opt.flag || null },
-      { type: 'stage', phase: 'act', afterAct: s.act }
-    ];
-    return { state: emit(s, events), events: events };
+    s.at = s.room || s.at || 'foyer';
+    s.phase = 'plan';
+    s.prompt = null;
+    s.wheel = null;
+    s.thermo = null;
+    s.bedroomMode = null;
+    s.stroll = null;
+    return pack(s, [{ type: 'leave', at: s.at }]);
   }
 
-  function leaveAct(state) {
+  function drawPrompt(state, opts) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    opts = opts || {};
     var s = clone(state);
-    if (s.phase !== 'act' && s.phase !== 'shop') return blockedState(s, 'leaveAct', 'wrong_phase');
-    var b = B();
-    var cfg = b.LENGTHS[(s.settings && s.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    if (s.lastAct || s.act >= 3 || s.round >= cfg.rounds) {
-      s.phase = 'finale';
-      return emit(s, [{ type: 'stage', phase: 'finale', act: s.act }]);
-    }
-    s.act = s.act + 1;
-    s.round = s.round + 1;
-    s.host = s.host === 'a' ? 'b' : 'a';
-    s.phase = 'draft';
-    s.current = null;
-    s.currentStar = null;
-    s.escalated = false;
-    s.escalatedDone = false;
-    s.pendingActEnd = false;
-    drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
+    var bd = band(s, opts);
+    var pools = (opts.pools || ['truth']).slice();
+    pools = pools.filter(function (p) {
+      if (p === 'punish') return false;
+      if (p === 'spark' && bd.maxStar < 4) return false;
+      return true;
+    });
+    if (!pools.length) pools = ['truth'];
+    var card = takeCard(s, pools, bd, opts);
+    s.prompt = {
+      card: card,
+      room: opts.room || s.room,
+      pools: pools,
+      who: opts.who || null,
+      role: opts.role || null,
+      mode: opts.mode || null,
+      deeper: !!opts.deeper,
+      talk: !!opts.talk
+    };
+    return pack(s, [{ type: 'prompt', card: card, band: bd }]);
   }
 
-  function shopOffers(state) {
-    var list = (B() && B().SHOP) || [];
-    var coins = state && state.resources ? state.resources.coins || 0 : 0;
-    var out = [];
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      out.push({ id: it.id, name: it.name, icon: it.icon, price: it.price, desc: it.desc, affordable: coins >= it.price });
-    }
-    return out;
+  function livingOffer(state, opts) {
+    opts = opts || {};
+    if (!state || state.room !== 'living') return blocked(state, 'not-living');
+    return drawPrompt(state, {
+      pools: ['truth', 'sync'],
+      room: 'living',
+      who: opts.who || 'a',
+      role: opts.role || 'ask',
+      talk: true,
+      deeper: false
+    });
   }
 
-  function shopBuy(state, itemId) {
+  function pushDeeper(state) {
+    if (!state || !state.prompt) return blocked(state, 'no-prompt');
+    var prev = state.prompt;
+    var pools = (prev.pools || ['truth']).slice();
+    var bd = band(state, { deeper: true });
+    if (bd.maxStar >= 4 && pools.indexOf('spark') < 0 && (prev.room === 'living' || prev.room === 'bedroom' || prev.talk)) {
+      pools.push('spark');
+    }
+    var ret = drawPrompt(state, {
+      pools: pools,
+      room: prev.room,
+      who: prev.who,
+      role: prev.role,
+      mode: prev.mode,
+      talk: !!prev.talk || prev.room === 'living' || prev.room === 'bathroom',
+      deeper: true
+    });
+    var s = ret.state;
+    var gain = heatGain(s, bd.cap >= 3 ? 4 : 2);
+    if (bd.cap <= 1) gain = heatGain(s, 1);
+    var delta = addHeat(s, gain);
+    pushLog(s, prev, 'deeper');
+    ret.events.push({ type: 'heat', delta: delta, heat: s.heat });
+    return ret;
+  }
+
+  function settlePrompt(state, outcome) {
+    if (!state || !state.prompt) return blocked(state, 'no-prompt');
     var s = clone(state);
-    if (s.phase !== 'act' && s.phase !== 'shop') return blocked(s, 'shopBuy', 'wrong_phase');
-    var list = (B() && B().SHOP) || [];
-    var item = null;
-    for (var i = 0; i < list.length; i++) if (list[i].id === itemId) { item = list[i]; break; }
-    if (!item) return blocked(s, 'shopBuy', 'item_not_found');
-    if ((s.resources.coins || 0) < item.price) return blocked(s, 'shopBuy', 'not_enough_coins');
-    s.resources.coins = clamp(s.resources.coins - item.price, 0, B().RESOURCE_MAX);
-    var effect = {};
-    if (item.id === 'heart') {
-      effect = addRes(s, { heart: 1 });
-    } else if (B().TOKEN_KEYS.indexOf(item.id) >= 0) {
-      s.tokens[item.id] = clampInt((s.tokens[item.id] || 0) + 1, 0, B().TOKEN_MAX);
-      effect[item.id] = 1;
-    }
-    if (s.phase === 'act') s.phase = 'shop';
-    pushLog(s, { round: s.round, type: 'shop', itemId: item.id, price: item.price });
-    var events = [
-      { type: 'shop', itemId: item.id, name: item.name, price: item.price, effect: effect, coins: s.resources.coins },
-      { type: 'gain', reason: 'shop', res: { coins: -item.price } }
-    ];
-    return { state: emit(s, events), events: events };
+    var card = s.prompt.card || {};
+    var how = outcome || 'done';
+    var delta = 0;
+    if (how === 'done') delta = addHeat(s, heatGain(s, Math.max(2, (card.star || 1) * 2)));
+    else if (how === 'hold') delta = addHeat(s, heatGain(s, 1));
+    pushLog(s, s.prompt, how);
+    if (s.mode !== 'standalone' && s.prompt.room && s.lit && s.prompt.room in s.lit) s.lit[s.prompt.room] = true;
+    s.prompt = null;
+    return pack(s, [{ type: 'settle', outcome: how, delta: delta, heat: s.heat }]);
   }
 
-  /* ---------------------------- 结局 / 奖项 ---------------------------- */
-  function contentEndingList() {
-    var c = contentRoot();
-    if (c && isArr(c.endings) && c.endings.length) return c.endings;
-    return null;
+  function dealWheelMut(s, kind) {
+    var bd = band(s);
+    var talk = kind === 'truth';
+    var pools = talk ? ['truth'] : ['dare', 'touch'];
+    if (!talk && bd.maxStar >= 4) pools.push('spark');
+    if (talk && bd.cap >= 3 && bd.maxStar >= 4) pools.push('spark');
+    var slots = [];
+    for (var i = 0; i < 6; i++) slots.push(takeCard(s, pools, bd, { talk: talk }));
+    s.wheel = { kind: kind, slots: slots, index: null, spun: false, pools: pools };
+    s.prompt = null;
+    return pack(s, [{ type: 'deal', kind: kind, slots: slots.length }]);
   }
 
-  function pickEnding(state, forceId) {
+  function dealWheel(state, kind) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    if (kind !== 'truth' && kind !== 'dare') return blocked(state, 'kind');
+    return dealWheelMut(clone(state), kind);
+  }
+
+  function spinWheel(state) {
+    if (!state || !state.wheel || !state.wheel.slots || !state.wheel.slots.length) return blocked(state, 'no-wheel');
+    var s = clone(state);
+    var rng = rngOf(s);
+    var idx = Math.floor(rng.next() * s.wheel.slots.length);
+    saveRng(s, rng);
+    s.wheel.index = idx;
+    s.wheel.spun = true;
+    var card = s.wheel.slots[idx];
+    s.prompt = {
+      card: card,
+      room: s.room,
+      pools: s.wheel.pools,
+      who: null,
+      role: 'wheel',
+      mode: s.wheel.kind,
+      talk: s.wheel.kind === 'truth'
+    };
+    return pack(s, [{ type: 'spin', index: idx, card: card }]);
+  }
+
+  function rerollWheel(state) {
+    if (!state || !state.wheel) return blocked(state, 'no-wheel');
+    var key = state.wheel.kind === 'truth' ? 'truthRerolls' : 'dareRerolls';
+    if ((state[key] || 0) <= 0) return blocked(state, 'no-reroll');
+    var s = clone(state);
+    s[key] = (s[key] || 0) - 1;
+    var kind = s.wheel.kind;
+    return dealWheelMut(s, kind);
+  }
+
+  function handTruth(state, who) {
+    if (!state || !state.prompt) return blocked(state, 'no-prompt');
+    var s = clone(state);
+    s.prompt.who = who === 'other' ? 'other' : 'self';
+    s.prompt.hand = s.prompt.who;
+    return pack(s, [{ type: 'hand', who: s.prompt.who }]);
+  }
+
+  function thermoMax(cap) {
+    var labels = B().THERMO_LABELS[cap] || B().THERMO_LABELS[1];
+    return labels.length - 1;
+  }
+
+  function thermoBegin(state) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    var s = clone(state);
+    var cap = capOf(s);
+    s.thermo = { max: thermoMax(cap), a: null, b: null, passing: false, revealed: false, delta: 0, err: null, closeness: null };
+    return pack(s, [{ type: 'thermo', max: s.thermo.max }]);
+  }
+
+  function thermoSet(state, player, place, guess) {
+    if (!state) return blocked(state, 'no-session');
+    if (player !== 'a' && player !== 'b') return blocked(state, 'player');
+    var s = clone(state);
+    if (!s.thermo) s.thermo = { max: thermoMax(capOf(s)), a: null, b: null, passing: false, revealed: false };
+    if (s.thermo.revealed) return blocked(state, 'revealed');
+    var max = s.thermo.max;
+    s.thermo[player] = {
+      place: clamp(Math.round(Number(place) || 0), 0, max),
+      guess: clamp(Math.round(Number(guess) || 0), 0, max)
+    };
+    return pack(s, [{ type: 'lock', player: player }]);
+  }
+
+  function thermoPass(state) {
+    if (!state || !state.thermo || !state.thermo.a) return blocked(state, 'no-a');
+    var s = clone(state);
+    s.thermo.passing = true;
+    return pack(s, [{ type: 'pass-phone' }]);
+  }
+
+  function thermoReveal(state) {
+    if (!state || !state.thermo) return blocked(state, 'no-thermo');
+    if (!state.thermo.a || !state.thermo.b) return blocked(state, 'incomplete');
+    if (state.thermo.revealed) return pack(state, []);
+    var s = clone(state);
+    var t = s.thermo;
+    var err = Math.abs(t.a.guess - t.b.place) + Math.abs(t.b.guess - t.a.place);
+    var maxErr = t.max * 2;
+    var closeness = maxErr === 0 ? 1 : 1 - err / maxErr;
+    var mult = B().HEAT_MULT[capOf(s)] || 1;
+    var delta = Math.round(closeness * 16 * mult);
+    var avg = (t.a.place + t.b.place) / 2;
+    delta += Math.round((avg / Math.max(1, t.max)) * 6 * mult);
+    delta = addHeat(s, delta);
+    t.revealed = true;
+    t.err = err;
+    t.closeness = Math.round(closeness * 100) / 100;
+    t.delta = delta;
+    var names = s.names || { a: '他', b: '她' };
+    pushLog(s, {
+      card: { text: names.a + ' 和 ' + names.b + ' 在阳台上对了温度。猜近了 ' + Math.round(closeness * 100) + '。', star: 0, tags: [] },
+      room: 'balcony',
+      role: 'thermo',
+      mode: 'thermo'
+    }, 'reveal');
+    if (s.mode !== 'standalone' && s.lit) s.lit.balcony = true;
+    return pack(s, [{ type: 'reveal', delta: delta, closeness: t.closeness, err: err, heat: s.heat }]);
+  }
+
+  function bedroomMode(state, mode) {
+    if (!state || state.room !== 'bedroom') return blocked(state, 'not-bedroom');
+    var s = clone(state);
+    s.bedroomMode = mode === 'act' ? 'act' : 'talk';
+    s.prompt = null;
+    return pack(s, [{ type: 'mode', mode: s.bedroomMode }]);
+  }
+
+  function bedroomDraw(state) {
+    if (!state || state.room !== 'bedroom') return blocked(state, 'not-bedroom');
+    var mode = state.bedroomMode || 'talk';
+    var pools = mode === 'act' ? ['touch', 'dare'] : ['truth', 'sync'];
+    var bd = band(state);
+    if (bd.maxStar >= 4) pools.push('spark');
+    return drawPrompt(state, {
+      pools: pools,
+      room: 'bedroom',
+      mode: mode,
+      talk: mode !== 'act',
+      role: mode
+    });
+  }
+
+  function strollStart(state) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    if (state.phase === 'done') return blocked(state, 'done');
+    var s = clone(state);
+    s.phase = 'stroll';
+    s.room = null;
+    s.prompt = null;
+    s.wheel = null;
+    s.thermo = null;
+    s.stroll = { pos: 0, pending: null, turns: 0, lastDie: 0 };
+    return pack(s, [{ type: 'stroll', pos: 0 }]);
+  }
+
+  function poolsFor(room, bd) {
+    var map = {
+      living: ['truth', 'sync'],
+      kitchen: ['dare', 'touch'],
+      balcony: ['truth', 'sync'],
+      bathroom: ['truth'],
+      bedroom: ['touch', 'dare', 'truth']
+    };
+    var pools = (map[room] || ['truth']).slice();
+    if (bd.maxStar >= 4 && (room === 'bedroom' || room === 'kitchen')) pools.push('spark');
+    if (bd.maxStar >= 4 && room === 'bathroom') pools.push('spark');
+    return pools;
+  }
+
+  function strollRoll(state) {
+    if (!state || state.phase !== 'stroll' || !state.stroll) return blocked(state, 'not-stroll');
+    if (state.stroll.pending) return blocked(state, 'pending');
+    var s = clone(state);
+    var rng = rngOf(s);
+    var die = 1 + Math.floor(rng.next() * 3);
+    saveRng(s, rng);
+    var tiles = B().STROLL_TILES;
+    var pos = (s.stroll.pos + die) % tiles.length;
+    var tile = tiles[pos];
+    s.stroll.pos = pos;
+    s.stroll.lastDie = die;
+    s.stroll.turns += 1;
+    var bd = band(s);
+    var pools = poolsFor(tile.room, bd);
+    var talk = tile.room === 'living' || tile.room === 'bathroom' || tile.room === 'balcony';
+    var card = takeCard(s, pools, bd, { talk: talk });
+    s.stroll.pending = { tile: { id: tile.id, room: tile.room, name: tile.name }, card: card };
+    if (s.mode !== 'standalone' && s.lit && tile.room in s.lit) s.lit[tile.room] = true;
+    return pack(s, [{ type: 'land', die: die, tile: s.stroll.pending.tile, card: card }]);
+  }
+
+  function strollSettle(state, outcome) {
+    if (!state || !state.stroll || !state.stroll.pending) return blocked(state, 'no-pending');
+    var s = clone(state);
+    var pending = s.stroll.pending;
+    var how = outcome === 'pass' ? 'pass' : 'done';
+    var delta = 0;
+    if (how === 'done') delta = addHeat(s, heatGain(s, Math.max(2, (pending.card.star || 1) * 2)));
+    pushLog(s, { card: pending.card, room: pending.tile.room, role: 'stroll', mode: 'stroll', who: '我们' }, how);
+    if (s.mode !== 'standalone' && s.lit) s.lit[pending.tile.room] = true;
+    s.stroll.pending = null;
+    return pack(s, [{ type: 'settle', outcome: how, delta: delta, heat: s.heat, room: pending.tile.room }]);
+  }
+
+  function clockLabel(state) {
+    var m = (state && state.minutes) || B().START_MINUTES;
+    var h = Math.floor(m / 60) % 24;
+    var min = m % 60;
+    return pad2(h) + ':' + pad2(min);
+  }
+
+  function buildMemory(state) {
     var b = B();
-    var list = contentEndingList();
-    if (list) {
-      if (forceId) {
-        for (var f = 0; f < list.length; f++) {
-          if (list[f] && (list[f].id === forceId || list[f].kind === forceId)) return list[f];
-        }
-        if (forceId === 'safe') return list[0];
-      }
-      for (var i = 0; i < list.length; i++) {
-        var e = list[i];
-        if (!e) continue;
-        if (typeof e.cond === 'function') {
-          var ok = false;
-          try { ok = !!e.cond(state.resources, state, state.flags); } catch (err) { ok = false; }
-          if (ok) return e;
-        }
-      }
-      return list[list.length - 1];
-    }
-    if (forceId) return b.endingById(forceId);
-    for (var j = 0; j < b.ENDING_RULES.length; j++) {
-      var rule = b.ENDING_RULES[j];
-      var hit = false;
-      try { hit = !!rule.test(state); } catch (e2) { hit = false; }
-      if (hit) return b.endingById(rule.id);
-    }
-    return b.endingById('each');
-  }
-
-  function pickAwards(state) {
-    var b = B();
-    var out = [];
-    var seen = {};
-    var c = contentRoot();
-    var contentAwards = c && isArr(c.awards) ? c.awards : null;
-    function push(id, name, icon, desc) {
-      if (!id || seen[id]) return;
-      seen[id] = true;
-      out.push({ id: id, name: name, icon: icon, desc: desc });
-    }
-    if (contentAwards) {
-      for (var i = 0; i < contentAwards.length && out.length < b.AWARDS_MAX; i++) {
-        var a = contentAwards[i];
-        if (!a || !a.id) continue;
-        var hit = true;
-        if (typeof a.cond === 'function') {
-          try { hit = !!a.cond(state.resources, state, state.flags); } catch (e) { hit = false; }
-        }
-        if (hit) push(a.id, a.name, a.icon, a.desc);
-      }
-    }
-    for (var j = 0; j < b.AWARDS.length && out.length < b.AWARDS_MAX; j++) {
-      var fa = b.AWARDS[j];
-      var ok = false;
-      try { ok = !!fa.test(state); } catch (e2) { ok = false; }
-      if (ok) push(fa.id, fa.name, fa.icon, fa.desc);
-    }
-    var pad = b.AWARDS[b.AWARDS.length - 1];
-    while (out.length < b.AWARDS_MIN) push(pad.id + '_' + out.length, pad.name, pad.icon, pad.desc);
-    return out.slice(0, b.AWARDS_MAX);
-  }
-
-  function buildResult(state, forceEndingId) {
-    var b = B();
-    var e = pickEnding(state, forceEndingId) || b.ENDING_RULES[b.ENDING_RULES.length - 1];
-    var endingId = (e && e.id) || 'each';
-    var endingName = (e && e.name) || b.endingById(endingId).name;
-    var awards = pickAwards(state);
-    var cfg = b.LENGTHS[(state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
+    var lit = state.lit || {};
+    var visits = state.visits || {};
+    var rooms = [];
+    b.ROOMS.forEach(function (id) {
+      if (lit[id]) rooms.push({ id: id, name: b.ROOM_META[id].name, visits: visits[id] || 0 });
+    });
+    var safe = !!(state.flags && state.flags.safeWord);
+    var line = b.MEMORY_LINES.warm;
+    if (safe) line = b.MEMORY_LINES.safe;
+    else if (!rooms.length && !(state.log || []).length) line = b.MEMORY_LINES.empty;
+    else if ((state.heat || 0) >= b.HEAT_CHARGED) line = b.MEMORY_LINES.deep;
+    var cap = capOf(state);
     return {
-      v: 1,
-      endingId: endingId,
-      endingName: endingName,
-      quote: (e && e.quote) || ((e && e.text) ? '' : b.endingById(endingId).desc || ''),
-      awards: awards,
-      ts: nowMs(),
-      stats: {
-        length: cfg.id,
-        rounds: cfg.rounds,
-        round: state.round,
-        act: state.act,
-        heart: state.resources.heart,
-        tension: state.resources.tension,
-        sync: state.resources.sync,
-        coins: state.resources.coins,
-        gentle: state.gentle,
-        combo: state.combo,
-        maxCombo: state.maxCombo,
-        skips: state.skips,
-        completes: state.completes,
-        maxStarSeen: state.maxStarSeen,
-        maxCombo: state.maxCombo,
-        actScores: (state.actScores || []).slice(),
-        safeWord: !!(state.flags && state.flags.safeWord)
-      }
+      title: b.MEMORY_TITLE,
+      names: state.names || { a: '他', b: '她' },
+      heat: state.heat || 0,
+      stage: b.stageOf(state.heat || 0),
+      intensity: cap,
+      intensityName: (b.INTENSITY[cap] && b.INTENSITY[cap].name) || '',
+      rooms: rooms,
+      moments: (state.log || []).slice(),
+      safe: safe,
+      line: line,
+      clock: clockLabel(state),
+      shamed: false
     };
   }
 
-  function finish(state) {
+  function finish(state, safe) {
+    if (!state || state.kind !== 'apartment') return blocked(state, 'no-session');
+    if (state.phase === 'done' && state.result) return pack(state, [{ type: 'ending', safe: !!state.result.safe }]);
     var s = clone(state);
-    if (!s.result || !s.result.endingId) s.result = buildResult(s, null);
-    s.phase = 'finale';
-    var events = [{ type: 'ending', endingId: s.result.endingId, endingName: s.result.endingName, awards: s.result.awards, stats: s.result.stats }];
-    return { state: emit(s, events), events: events };
+    if (safe) s.flags = Object.assign({}, s.flags, { safeWord: true });
+    s.phase = 'done';
+    s.result = buildMemory(s);
+    return pack(s, [{ type: safe ? 'safe' : 'close', heat: s.heat, result: s.result }]);
   }
 
   function safeWord(state) {
-    var s = clone(state);
-    s.flags = s.flags || {};
-    s.flags.safeWord = true;
-    s.result = buildResult(s, 'safe');
-    s.phase = 'finale';
-    var events = [{
-      type: 'ending',
-      endingId: s.result.endingId,
-      endingName: s.result.endingName,
-      awards: s.result.awards,
-      stats: s.result.stats,
-      safe: true
-    }];
-    pushLog(s, { round: s.round, type: 'safeWord' });
-    return { state: emit(s, events), events: events };
-  }
-
-  function useShield(state) {
-    var s = clone(state);
-    if ((s.tokens.shield || 0) <= 0) return blocked(s, 'useShield', 'no_token');
-    s.tokens.shield = Math.max(0, s.tokens.shield - 1);
-    var events = [{ type: 'token', token: 'shield', name: B().TOKEN_META.shield.name, delta: -1, reason: 'useShield' }];
-    pushLog(s, { round: s.round, type: 'shield' });
-    return { state: emit(s, events), events: events };
-  }
-
-  /* ---------------------------- 只读辅助 ---------------------------- */
-  function eligibleCards(state) {
-    var out = [];
-    var recs = collectCandidates(state, { ignoreUsed: true });
-    for (var i = 0; i < recs.length; i++) out.push(recInfo(recs[i], null));
-    return out;
-  }
-
-  function handCards(state) {
-    var out = [];
-    var hand = (state && state.hand) || [];
-    for (var i = 0; i < hand.length; i++) {
-      var rec = resolveCardKey(hand[i]);
-      if (rec) out.push(recInfo(rec, null));
+    if (!state) return blocked(state, 'no-session');
+    var beforeHeat = state.heat;
+    var beforeLog = (state.log || []).length;
+    var ret = finish(state, true);
+    /* 安全词不改热度、不改已经发生的记录。 */
+    if (ret.state && ret.state !== state) {
+      ret.state.heat = beforeHeat;
+      if (ret.state.result) ret.state.result.heat = beforeHeat;
     }
-    return out;
+    if (ret.state && (ret.state.log || []).length !== beforeLog) {
+      ret.state.log = clone(state.log || []);
+    }
+    return ret;
   }
 
-  function progress(state) {
-    var b = B();
-    var cfg = b.LENGTHS[(state && state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var act = clampInt(state && state.act, 1, 3);
-    var actEnd = b.actEndRound(cfg.id, act);
-    var actStart = b.actEndRound(cfg.id, act - 1) + 1;
-    var round = clampInt(state && state.round, 1, cfg.rounds);
-    var actRound = clampInt(round - actStart + 1, 1, cfg.acts[act - 1]);
+  function closeNight(state) { return finish(state, false); }
+
+  var GAME_ROOM = { thermo: 'balcony', truth: 'bathroom', dare: 'kitchen', stroll: null };
+
+  function newStandalone(game, settings, seed) {
+    if (GAME_ROOM[game] === undefined && game !== 'stroll') game = 'dare';
+    var names = settings && settings.names;
+    var s = newSession(settings || {}, names, seed);
+    s.mode = 'standalone';
+    s.game = game;
+    s.id = 'door-' + s.id;
+    s.heatBase = s.heat;
+    if (game === 'stroll') {
+      var st = strollStart(s);
+      st.state.mode = 'standalone';
+      st.state.game = 'stroll';
+      return st.state;
+    }
+    var entered = enterRoom(s, GAME_ROOM[game]);
+    entered.state.mode = 'standalone';
+    entered.state.game = game;
+    entered.state.heat = s.heatBase;
+    entered.state.heatBase = s.heatBase;
+    entered.state.lit = blankLit();
+    entered.state.visits = blankVisits();
+    return entered.state;
+  }
+
+  function standalonePack(state) {
+    if (!state) return null;
+    var rooms = [];
+    (state.log || []).forEach(function (m) {
+      if (m.room && rooms.indexOf(m.room) < 0) rooms.push(m.room);
+    });
+    if (!rooms.length && state.room) rooms.push(state.room);
     return {
-      round: round,
-      total: cfg.rounds,
-      percent: Math.round(round / cfg.rounds * 100),
-      remaining: cfg.rounds - round,
-      act: act,
-      actRound: actRound,
-      actLength: cfg.acts[act - 1],
-      actPercent: Math.round(actRound / cfg.acts[act - 1] * 100),
-      host: (state && state.host) || 'a',
-      phase: (state && state.phase) || 'draft'
+      id: state.id,
+      game: state.game || state.room,
+      room: state.room,
+      heatDelta: Math.max(0, (state.heat || 0) - (state.heatBase || 0)),
+      moments: clone(state.log || []),
+      rooms: rooms
     };
   }
 
-  /* ---------------------------- 存档校验 ---------------------------- */
-  function validate(input) {
-    if (!isObj(input)) return null;
+  function pasteStandalone(night, payload) {
+    if (!night || night.kind !== 'apartment' || night.mode === 'standalone') return blocked(night, 'no-night');
+    if (!payload || !payload.id) return blocked(night, 'no-pack');
+    if (night.phase === 'done') return blocked(night, 'done');
+    var s = clone(night);
+    s.pasted = s.pasted || {};
+    if (s.pasted[payload.id]) return pack(s, [{ type: 'paste', already: true, id: payload.id }]);
+    s.pasted[payload.id] = true;
+    var delta = addHeat(s, Math.max(0, Math.round(payload.heatDelta || 0)));
+    (payload.moments || []).forEach(function (m) {
+      s.log.push({
+        id: nextId(s),
+        room: m.room || payload.room || '',
+        game: m.game || payload.game || 'door',
+        text: m.text || '',
+        star: m.star || 0,
+        tags: m.tags || [],
+        outcome: m.outcome || 'done',
+        who: m.who || '',
+        via: 'door'
+      });
+    });
+    var rooms = payload.rooms || [];
+    if (!rooms.length && payload.room) rooms = [payload.room];
+    rooms.forEach(function (r) {
+      if (s.lit && Object.prototype.hasOwnProperty.call(s.lit, r)) s.lit[r] = true;
+    });
+    return pack(s, [{ type: 'paste', already: false, id: payload.id, delta: delta, heat: s.heat }]);
+  }
+
+  function validate(state) {
+    if (!state || typeof state !== 'object') return null;
+    if (isLegacy(state)) return null;
+    if (state.kind !== 'apartment') return null;
     var b = B();
-    var s = clone(input);
-    /* 版本迁移：v0/缺失 -> v1 */
-    if (!s.v || !isNum(s.v) || s.v < 1) s.v = b.SESSION_VERSION;
-    if (s.v > b.SESSION_VERSION) s.v = b.SESSION_VERSION; /* 未来版本降级保护 */
-    s.names = isObj(s.names) ? { a: String(s.names.a || '你'), b: String(s.names.b || 'TA') } : { a: '你', b: 'TA' };
+    var s = clone(state);
     s.settings = normalizeSettings(s.settings);
-    var cfg = b.LENGTHS[s.settings.length] || b.LENGTHS.classic;
-    s.round = clampInt(s.round, 1, cfg.rounds);
-    s.act = b.actOfRound(cfg.id, s.round);
-    if (s.phase === 'event' || s.phase === 'act' || s.phase === 'shop') {
-      s.act = clampInt(s.act, 1, 3);
-    }
-    s.host = s.host === 'b' ? 'b' : 'a';
-    var def = b.RESOURCE_START;
-    s.resources = isObj(s.resources) ? s.resources : {};
-    for (var i = 0; i < b.RES_KEYS.length; i++) {
-      var k = b.RES_KEYS[i];
-      s.resources[k] = clampInt(isNum(s.resources[k]) ? s.resources[k] : def[k], 0, b.RESOURCE_MAX);
-    }
-    s.resources.coins = clampInt(isNum(s.resources.coins) ? s.resources.coins : 0, 0, b.RESOURCE_MAX);
-    s.gentle = clampInt(isNum(s.gentle) ? s.gentle : 0, 0, 99);
-    s.combo = clampInt(isNum(s.combo) ? s.combo : 0, 0, 999);
-    s.maxCombo = clampInt(isNum(s.maxCombo) ? s.maxCombo : s.combo, s.combo, 999);
-    s.skips = clampInt(isNum(s.skips) ? s.skips : 0, 0, 9999);
-    s.completes = clampInt(isNum(s.completes) ? s.completes : 0, 0, 9999);
-    s.maxStarSeen = clampInt(isNum(s.maxStarSeen) ? s.maxStarSeen : 0, 0, b.MAX_STAR_MAX);
-    s.tokens = isObj(s.tokens) ? s.tokens : {};
-    for (var t = 0; t < b.TOKEN_KEYS.length; t++) {
-      var tk = b.TOKEN_KEYS[t];
-      s.tokens[tk] = clampInt(isNum(s.tokens[tk]) ? s.tokens[tk] : (b.TOKEN_START[tk] || 0), 0, b.TOKEN_MAX);
-    }
-    s.usedCards = isObj(s.usedCards) ? s.usedCards : {};
-    var usedPools = Object.keys(s.usedCards);
-    for (var p = 0; p < usedPools.length; p++) {
-      if (!isObj(s.usedCards[usedPools[p]])) s.usedCards[usedPools[p]] = {};
-    }
-    s.events = isObj(s.events) ? s.events : {};
-    s.flags = isObj(s.flags) ? s.flags : {};
-    s.actScores = isArr(s.actScores) ? s.actScores.slice(0, 3) : [];
-    s.drawBias = clampInt(isNum(s.drawBias) ? s.drawBias : 0, b.ADAPT.biasFloor, 0);
-    s.gentleUsed = clampInt(isNum(s.gentleUsed) ? s.gentleUsed : 0, 0, b.GENTLE.maxUses);
-    s.escalated = !!s.escalated;
-    s.escalatedDone = !!s.escalatedDone;
-    s.pendingActEnd = !!s.pendingActEnd;
-    s.lastAct = !!s.lastAct;
-    s.rng = isNum(s.rng) ? (s.rng >>> 0) : ((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0;
-    /* phase 合法性 */
-    if (PHASES.indexOf(s.phase) < 0) s.phase = 'draft';
-    /* hand / current 修复 */
-    var hand = isArr(s.hand) ? s.hand : [];
-    var fixedHand = [];
-    for (var h = 0; h < hand.length; h++) {
-      var recH = resolveCardKey(hand[h]);
-      if (!recH) continue;
-      if (fixedHand.indexOf(recH.key) >= 0) continue;
-      fixedHand.push(recH.key);
-    }
-    s.hand = fixedHand.slice(0, b.DRAW.handSize);
-    var curRec = resolveCardKey(s.current);
-    s.current = curRec ? curRec.key : null;
-    s.currentStar = curRec && isNum(s.currentStar) ? clampInt(s.currentStar, 1, effectiveMaxStar(s)) : null;
-    if (s.currentStar !== null && curRec && s.currentStar > intOr(curRec.card.star, 1)) s.currentStar = intOr(curRec.card.star, 1);
-    if (s.phase === 'play' || s.phase === 'escalate') {
-      if (!s.current) s.phase = 'draft';
-    }
-    if (s.phase === 'resolve' && !s.current) s.phase = 'draft';
-    if (s.phase === 'draft' && s.hand.length !== b.DRAW.handSize) {
-      if (!s.hand.length) s.hand = [];
-      drawIntoHand(s);
-    }
-    s.log = isArr(s.log) ? s.log.slice(-200) : [];
-    if (!s.result || !isObj(s.result) || !s.result.endingId) {
-      s.result = null;
-    } else {
-      var er = b.endingById(s.result.endingId);
-      s.result.endingId = s.result.endingId || er.id;
-      s.result.endingName = s.result.endingName || er.name;
-      if (!isArr(s.result.awards)) s.result.awards = [];
-      if (!isObj(s.result.stats)) s.result.stats = {};
-    }
-    if (s.phase === 'finale' && !s.result) {
-      /* 不在这里生成结局（避免 validate 依赖 CONTENT 副作用）；UI 调 finish() */
-      s.result = null;
-    }
-    s.ts = isNum(s.ts) ? s.ts : nowMs();
-    s.id = typeof s.id === 'string' && s.id ? s.id : ('s' + s.rng.toString(36));
+    s.names = s.names || s.settings.names;
+    s.heat = clamp(Number(s.heat) || 0, 0, b.HEAT_MAX);
+    s.heatBase = clamp(Number(s.heatBase) || s.heat, 0, b.HEAT_MAX);
+    s.lit = Object.assign(blankLit(), s.lit || {});
+    s.visits = Object.assign(blankVisits(), s.visits || {});
+    b.ROOMS.forEach(function (r) {
+      s.lit[r] = !!s.lit[r];
+      s.visits[r] = Math.max(0, parseInt(s.visits[r], 10) || 0);
+    });
+    if (['plan', 'room', 'stroll', 'done'].indexOf(s.phase) < 0) s.phase = 'plan';
+    s.log = Array.isArray(s.log) ? s.log : [];
+    s.truthRerolls = clamp(s.truthRerolls == null ? b.REROLLS.truth : s.truthRerolls, 0, 6);
+    s.dareRerolls = clamp(s.dareRerolls == null ? b.REROLLS.dare : s.dareRerolls, 0, 6);
+    s.pasted = s.pasted || {};
+    s.flags = s.flags || {};
+    s.minutes = s.minutes || b.START_MINUTES;
+    if (s.phase === 'done' && !s.result) s.result = buildMemory(s);
     return s;
   }
 
-  /* ---------------------------- 导出 ---------------------------- */
-  var Engine = {
-    version: '1.0.0',
-    EVENT_TYPES: EVENTS.slice(),
-    PHASES: PHASES.slice(),
-    /* 生命周期 */
+  function heatStage(state) { return B().stageOf(state && state.heat); }
+
+  root.Engine = {
     newSession: newSession,
     validate: validate,
-    /* 抽牌 */
-    startRound: startRound,
-    reroll: reroll,
-    chooseCard: chooseCard,
-    /* 结算 */
-    complete: complete,
-    escalate: escalate,
-    escalateComplete: escalateComplete,
-    escalateSkip: escalateSkip,
-    skip: skip,
-    gentleDown: gentleDown,
-    /* 幕与事件 */
-    nextRound: nextRound,
-    chooseEvent: chooseEvent,
-    leaveAct: leaveAct,
-    shopBuy: shopBuy,
-    finish: finish,
+    isLegacy: isLegacy,
+    archiveLegacy: archiveLegacy,
+    band: band,
+    capOf: capOf,
+    cardAllowed: cardAllowed,
+    heatStage: heatStage,
+    roomOpen: roomOpen,
+    enterRoom: enterRoom,
+    leaveRoom: leaveRoom,
+    drawPrompt: drawPrompt,
+    livingOffer: livingOffer,
+    pushDeeper: pushDeeper,
+    settlePrompt: settlePrompt,
+    dealWheel: dealWheel,
+    spinWheel: spinWheel,
+    rerollWheel: rerollWheel,
+    handTruth: handTruth,
+    thermoBegin: thermoBegin,
+    thermoSet: thermoSet,
+    thermoPass: thermoPass,
+    thermoReveal: thermoReveal,
+    bedroomMode: bedroomMode,
+    bedroomDraw: bedroomDraw,
+    strollStart: strollStart,
+    strollRoll: strollRoll,
+    strollSettle: strollSettle,
     safeWord: safeWord,
-    /* 扩展动作 */
-    useShield: useShield,
-    /* 只读辅助 */
-    eligibleCards: eligibleCards,
-    drawHand: function (state) { var s = clone(state); drawIntoHand(s); return s.hand; },
-    actInfo: actInfo,
-    progress: progress,
-    canEscalate: canEscalate,
-    shopOffers: shopOffers,
-    currentCard: currentCard,
-    handCards: handCards,
-    /* 供单测/工具使用 */
-    __test: {
-      mulberry32: mulberry32,
-      actThreshold: function (act, rounds) { return B().actThreshold(act, rounds); },
-      yieldFor: function (type, star) { return B().yieldFor(type, star); },
-      coinsFor: function (star, combo) { return B().coinsFor(star, combo); },
-      effectiveMaxStar: effectiveMaxStar,
-      isBlacklisted: isBlacklisted,
-      cardKey: function (pool, id) { return pool + ':' + id; },
-      zeroState: function (settings, names, seed) { var s = blankState(settings, names, seed); drawIntoHand(s); return s; }
-    }
+    closeNight: closeNight,
+    buildMemory: buildMemory,
+    newStandalone: newStandalone,
+    standalonePack: standalonePack,
+    pasteStandalone: pasteStandalone,
+    clockLabel: clockLabel
   };
-
-  root.Engine = Engine;
-  if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
 })(typeof window !== 'undefined' ? window : this);

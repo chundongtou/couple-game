@@ -1,7 +1,14 @@
 /* ===== V3 app.js：启动入口 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "3.0.0";
+  App.version = "4.0.0";
+
+  function hashRoute() {
+    var h = String(location.hash || "").replace(/^#\/?/, "");
+    var m = /^door(?:\/(thermo|truth|dare|stroll))?$/.exec(h);
+    if (!m) return null;
+    return { name: "door", params: { game: m[1] || null } };
+  }
 
   function boot() {
     App.UI.syncSettings();
@@ -46,7 +53,16 @@
     // PWA（可选模块）
     try { if (App.PWA && App.PWA.register) App.PWA.register(); } catch (e) {}
 
-    App.Router.reset("boot");
+    try { App.Store.getSession(); } catch (e) {}
+    var note = App.Store.takeLegacyNote && App.Store.takeLegacyNote();
+    var route = hashRoute();
+    if (route) App.Router.reset(route.name, route.params);
+    else App.Router.reset("boot");
+    if (note) App.UI.toast("上一趟夜航已收进以前的夜");
+    try {
+      var live = App.Store.getSession();
+      if (App.Night && live) App.Night.paint(live);
+    } catch (e2) {}
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
