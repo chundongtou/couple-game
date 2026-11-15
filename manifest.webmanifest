@@ -1,14 +1,14 @@
 {
-  "name": "升温夜航 · 情侣升温游戏",
-  "short_name": "升温夜航",
+  "name": "今晚在这间公寓",
+  "short_name": "这间公寓",
   "lang": "zh-CN",
-  "description": "一款双人叙事卡牌游戏：一台手机，三幕夜航，六种结局。",
+  "description": "两个人，一部手机，一枚「我们」。在夜里的公寓里一间间走。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#070411",
-  "theme_color": "#0a0616",
+  "background_color": "#140c09",
+  "theme_color": "#1a100c",
   "icons": [
     {
       "src": "icons/icon-192.png",

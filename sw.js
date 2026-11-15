@@ -12,7 +12,7 @@
  * 发版注意：改了 app/ 或静态资源后，把 CACHE 版本号 +1（v24 → v25），
  * 老用户下次打开会拿到新 SW 并提示「新版本已就绪」。
  */
-var CACHE = 'couple-voyage-v32';
+var CACHE = 'couple-apartment-v1';
 
 /* 预缓存清单：相对路径，dev 服务根目录 = 构建产物目录，GitHub Pages 子路径同样可用 */
 var PRECACHE = [
@@ -46,11 +46,11 @@ function offlinePage(what) {
   return new Response(
     '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">'
       + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-      + '<title>离线</title></head><body style="font-family:sans-serif;text-align:center;padding:48px 20px;background:#070411;color:#f7f1ff">'
-      + '<div style="font-size:40px">☾</div>'
+      + '<title>离线</title></head><body style="font-family:sans-serif;text-align:center;padding:48px 20px;background:#140c09;color:#f6efe4">'
+      + '<div style="font-size:40px">⌂</div>'
       + '<h2>' + (what || '这一页') + '现在没有网络</h2>'
-      + '<p style="color:#b3a6c9">联网后再打开一次，之后就能离线玩了</p></body></html>',
-    { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      + '<p style="color:#d9c3ae">联网后再打开一次，之后就能离线玩了</p></body></html>',
+    { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 200 }
   );
 }
 

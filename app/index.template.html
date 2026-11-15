@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>升温夜航 · 情侣升温游戏</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>">
-<meta name="theme-color" content="#0a0616">
-<meta name="description" content="升温夜航：一款双人叙事卡牌游戏。一台手机，三幕夜航，六种结局。">
+<title>今晚在这间公寓</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23140c09' width='100' height='100'/><rect x='18' y='16' width='64' height='40' rx='4' fill='%231c2a44'/><rect x='22' y='44' width='56' height='8' fill='%23f0b56a'/></svg>">
+<meta name="theme-color" content="#1a100c">
+<meta name="description" content="今晚在这间公寓：两个人，一部手机，从门厅走到卧室。灯会随着夜里越来越热。">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="升温夜航">
+<meta name="apple-mobile-web-app-title" content="这间公寓">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="升温夜航 · 情侣升温游戏">
-<meta property="og:description" content="一款双人叙事卡牌游戏：一台手机，三幕夜航，六种结局。">
+<meta property="og:title" content="今晚在这间公寓">
+<meta property="og:description" content="两个人，一部手机，一枚「我们」。客厅、厨房、阳台、浴室、卧室，各自有自己的玩法。">
 <meta property="og:url" content="https://chundongtou.github.io/couple-game/">
 <meta property="og:image" content="https://chundongtou.github.io/couple-game/icons/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -26,14 +26,14 @@
 <body>
 <div id="app">
   <div id="bg" aria-hidden="true">
-    <div class="bg-aurora a1"></div>
-    <div class="bg-aurora a2"></div>
-    <div class="bg-aurora a3"></div>
-    <div class="bg-stars"></div>
+    <div class="win-sky"></div>
+    <div class="win-rain"></div>
+    <div class="lamp-glow"></div>
+    <div class="wood-floor"></div>
     <div class="bg-grain"></div>
   </div>
   <main id="screen" role="main" aria-live="polite"></main>
-  <div id="overlay" aria-hidden="false"></div>
+  <div id="overlay"></div>
   <div id="toasts" aria-live="assertive"></div>
 </div>
 <script>

@@ -38,7 +38,8 @@
     if (prev) {
       var prevEl = prev.el;
       prevEl.style.pointerEvents = "none";
-      M.leave(prevEl, { dur: 200 }).then(function () { try { prevEl.remove(); } catch (e) {} });
+      prevEl.style.opacity = "0";
+      setTimeout(function () { try { prevEl.remove(); } catch (e) {} }, 240);
     }
     // 离场动画结束后再卸载旧屏，避免它依赖的 DOM 被提前拆掉
     var toUnmount = prev;

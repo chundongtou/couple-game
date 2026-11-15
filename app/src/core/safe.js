@@ -1,45 +1,41 @@
-/* ===== V3 core/safe.js：全局安全词（长按 1.5s 温柔收尾） ===== */
+/* ===== 安全词：长按「先回去关灯」 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  var U = App.util;
   var el = null;
-  var pressTimer = null;
-  var rafId = null;
   var pressing = false;
-  var HOLD = 1500;
+  var rafId = null;
+  var HOLD = 1600;
+  var SHOW = { plan: 1, room: 1, door: 1 };
 
   var CSS = [
-    ".global-safe { position: fixed; left: 16px; bottom: calc(16px + var(--safe-b)); z-index: 380;",
-    "  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 10px;",
-    "  border-radius: 999px; border: 1px solid rgba(255,95,109,.38);",
-    "  background: rgba(24,10,22,.72); color: #ffc9cf; font-size: 12.5px; font-weight: 700; letter-spacing: .14em;",
-    "  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);",
-    "  opacity: 0; transform: translateY(14px); pointer-events: none; transition: opacity .3s var(--ease), transform .3s var(--ease);",
-    "  user-select: none; -webkit-user-select: none; touch-action: none; }",
-    ".global-safe.show { opacity: .92; transform: none; pointer-events: auto; }",
-    "body[data-screen='play'] .global-safe, body[data-screen='setup'] .global-safe, body[data-screen='boot'] .global-safe,",
-    "body[data-screen='finale'] .global-safe, body[data-screen='memory'] .global-safe, body[data-screen='settings'] .global-safe { display: none; }",
-    ".global-safe .gs-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 12px rgba(255,95,109,.7); }",
-    ".global-safe .gs-ring { position: absolute; inset: -3px; border-radius: 999px; pointer-events: none;",
-    "  background: conic-gradient(rgba(255,95,109,.85) calc(var(--p, 0) * 1%), transparent 0);",
-    "  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));",
-    "  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); opacity: 0; }",
-    ".global-safe.pressing .gs-ring { opacity: 1; }",
-    ".global-safe.pressing { color: #fff; border-color: rgba(255,95,109,.85); background: rgba(60,12,24,.9); }"
+    ".global-safe{position:fixed;top:calc(8px + var(--safe-t));right:10px;z-index:380;",
+    "display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 10px;",
+    "border-radius:999px;border:1px solid rgba(224,112,112,.45);",
+    "background:rgba(36,16,12,.82);color:#f3d2c8;font-size:12px;font-weight:700;letter-spacing:.08em;",
+    "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);",
+    "opacity:0;transform:translateY(-8px);pointer-events:none;",
+    "transition:opacity .25s var(--ease),transform .25s var(--ease);",
+    "user-select:none;-webkit-user-select:none;touch-action:none;}",
+    ".global-safe.show{opacity:1;transform:none;pointer-events:auto;}",
+    ".global-safe .gs-dot{width:8px;height:8px;border-radius:50%;background:#e07070;box-shadow:0 0 10px rgba(224,112,112,.8);}",
+    ".global-safe .gs-ring{position:absolute;inset:-3px;border-radius:999px;pointer-events:none;",
+    "background:conic-gradient(rgba(224,112,112,.9) calc(var(--p,0) * 1%), transparent 0);",
+    "-webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));",
+    "mask:radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));opacity:0;}",
+    ".global-safe.pressing .gs-ring{opacity:1;}",
+    ".global-safe.pressing{color:#fff;background:rgba(90,28,24,.92);}"
   ].join("\n");
 
-  function active() {
+  function nightOn() {
     try {
       var s = App.Store.getSession();
-      return !!(s && s.phase && s.phase !== "finale" && s.phase !== "done");
+      return !!(s && s.phase && s.phase !== "done" && s.mode !== "standalone");
     } catch (e) { return false; }
   }
 
   function visible() {
     var scr = document.body.getAttribute("data-screen");
-    if (!scr) return false;
-    if (["play", "setup", "boot", "finale", "memory", "settings"].indexOf(scr) >= 0) return false;
-    return active();
+    return !!(SHOW[scr] && nightOn());
   }
 
   function sync() {
@@ -53,26 +49,38 @@
 
   function stopPress() {
     pressing = false;
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     if (el) { el.classList.remove("pressing"); setProgress(0); }
+  }
+
+  function archive(state) {
+    if (!state || state.archived) return state;
+    try {
+      App.Store.addHistory(App.Store.makeHistoryEntry(state));
+      state.archived = true;
+      App.Store.saveSession(state);
+    } catch (e) {}
+    return state;
   }
 
   function trigger() {
     stopPress();
     var s = null;
     try { s = App.Store.getSession(); } catch (e) {}
-    if (!s) { App.UI.toast("现在没有进行中的夜晚", { kind: "rose" }); return; }
+    if (!s || s.mode === "standalone" || s.phase === "done") {
+      App.UI.toast("现在没有进行中的夜晚");
+      return;
+    }
     try {
       var ret = App.Engine.safeWord(s);
-      var next = ret && ret.state ? ret.state : ret;
-      App.Store.saveSession(next);
-      App.Audio.play("soft");
+      var next = archive(ret.state);
+      if (App.Audio) App.Audio.play("soft");
       App.UI.haptic("heavy");
-      App.UI.toast("🚩 已温柔收尾", { kind: "rose" });
-      App.Router.go("finale", { state: next }, { replace: true });
+      App.Night.paint(null);
+      App.UI.toast("灯先关了。做过的都还在。");
+      App.Router.reset("close", { state: next });
     } catch (e) {
-      App.UI.toast("安全词触发失败，请直接退出游戏", { kind: "rose" });
+      App.UI.toast("没能关灯，可以先退出页面");
     }
   }
 
@@ -81,18 +89,15 @@
     if (e && e.preventDefault) e.preventDefault();
     pressing = true;
     if (el) el.classList.add("pressing");
-    var t0 = 0;
-    try { t0 = performance.now(); } catch (err) { t0 = Date.now(); }
+    var t0 = performance.now();
     function step() {
       if (!pressing) return;
-      var now = 0;
-      try { now = performance.now(); } catch (err) { now = Date.now(); }
+      var now = performance.now();
       setProgress((now - t0) / HOLD);
       if (now - t0 >= HOLD) { trigger(); return; }
       rafId = requestAnimationFrame(step);
     }
     rafId = requestAnimationFrame(step);
-    pressTimer = setTimeout(trigger, HOLD + 30);
     if (App.Audio && App.Audio.play) App.Audio.play("tick");
   }
 
@@ -102,8 +107,9 @@
     el = document.createElement("button");
     el.type = "button";
     el.className = "global-safe";
-    el.setAttribute("aria-label", "安全词：长按 1.5 秒，立刻温柔收尾");
-    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span class="gs-txt">停</span>';
+    el.setAttribute("data-test", "safety-word");
+    el.setAttribute("aria-label", "安全词：按住「先回去关灯」，灯会自己暗下去，已经发生的都留着");
+    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span>先回去关灯</span>';
     document.getElementById("app").appendChild(el);
     el.addEventListener("pointerdown", startPress);
     el.addEventListener("pointerup", stopPress);

@@ -1,10 +1,6 @@
 /* ==========================================================================
- * 升温夜航 · V3 重制版 —— 数值与规则常量（唯一数值权威）
- * app/src/engine/balance.js
- * 纯数据 + 纯函数；无 DOM、无 localStorage、无副作用。
- * UI 可读：App.Balance.SHOP / LENGTHS / ENDINGS …
- * 引擎可读：App.Balance.YIELD / DRAW / ACT_THRESHOLDS …
- * 修改数值只改这里；engine.js 不写死收益数字。
+ * 今晚在这间公寓 —— 数值与规则常量
+ * 纯数据。引擎只读这里，不写死收益。
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -12,203 +8,130 @@
   var root = global.App = global.App || {};
 
   var Balance = {
-    VERSION: 1,
-    SESSION_VERSION: 1,
+    VERSION: 2,
+    SESSION_VERSION: 2,
 
-    /* ---------- 长度：回合数与三幕切分（DESIGN §1.4） ---------- */
-    LENGTHS: {
-      quick: { id: 'quick', name: '短夜', rounds: 9, acts: [3, 3, 3], desc: '9 回合 · 约 20 分钟' },
-      classic: { id: 'classic', name: '整夜', rounds: 14, acts: [5, 5, 4], desc: '14 回合 · 约 40 分钟' },
-      deep: { id: 'deep', name: '深潜', rounds: 18, acts: [6, 6, 6], desc: '18 回合 · 约 60 分钟' }
+    ROOMS: ['living', 'kitchen', 'balcony', 'bathroom', 'bedroom'],
+    ROOM_META: {
+      living: { id: 'living', name: '客厅', play: 'talk', hint: '沙发上的话' },
+      kitchen: { id: 'kitchen', name: '厨房', play: 'dare', hint: '做到的事' },
+      balcony: { id: 'balcony', name: '阳台', play: 'thermo', hint: '今晚的温度' },
+      bathroom: { id: 'bathroom', name: '浴室', play: 'truth', hint: '要说的真话' },
+      bedroom: { id: 'bedroom', name: '卧室', play: 'close', hint: '更近的话或动作' }
     },
-    DEFAULT_LENGTH: 'classic',
-    LENGTH_ORDER: ['quick', 'classic', 'deep'],
 
-    /* ---------- 设置默认值（DESIGN §2 setup） ---------- */
+    /* 1 温柔 / 2 暧昧 / 3 热烈 / 4 不设限 */
+    INTENSITY: {
+      1: { id: 1, name: '温柔', key: 'tender' },
+      2: { id: 2, name: '暧昧', key: 'flirt' },
+      3: { id: 3, name: '热烈', key: 'hot' },
+      4: { id: 4, name: '不设限', key: 'open' }
+    },
+
+    /* 开场热度。热烈 / 不设限一进门就已经带电。 */
+    HEAT_START: { 1: 4, 2: 14, 3: 28, 4: 40 },
+    /* 走路与完成时的热度倍率。 */
+    HEAT_MULT: { 1: 0.55, 2: 1, 3: 1.55, 4: 1.8 },
+    VISIT_HEAT: { living: 8, kitchen: 12, balcony: 9, bathroom: 10, bedroom: 14 },
+    REVISIT_RATIO: 0.35,
+    HEAT_MAX: 100,
+    /* quiet < 22 <= warm < 48 <= charged < 72 <= burning */
+    HEAT_WARM: 22,
+    HEAT_CHARGED: 48,
+    HEAT_BURNING: 72,
+
+    ROOM_MINUTES: { living: 16, kitchen: 14, balcony: 12, bathroom: 12, bedroom: 22 },
+    START_MINUTES: 21 * 60 + 40,
+
+    REROLLS: { truth: 2, dare: 2 },
+
+    /* 尺度封顶（卡面星级 1–5）。温柔锁在 1；暧昧最多到 3（热了或再深一点）；
+       热烈开场就能到 4，热起来开放 5；不设限从第一句就是 5。 */
+    BAND: {
+      1: { baseMax: 1, hotMax: 1, hotAt: 999, prefer: 1, preferHot: 1, preferHotAt: 999 },
+      2: { baseMax: 2, hotMax: 3, hotAt: 46, prefer: 1, preferHot: 2, preferHotAt: 32 },
+      3: { baseMax: 4, hotMax: 5, hotAt: 34, prefer: 2, preferMid: 3, preferMidAt: 22, preferHot: 4, preferHotAt: 48 },
+      4: { baseMax: 5, hotMax: 5, hotAt: 0, prefer: 3, preferHot: 4, preferHotAt: 55 }
+    },
+
+    GENTLE_BLOCK_TAGS: ['束缚', '露出', '道具', '蒙眼'],
+
+    /* 露骨词：温柔与暧昧抽牌时排除（星级打漏的也排除）。热烈 / 不设限不使用这条。 */
+    EXPLICIT_SRC: '口交|插入|高潮|射精|射了|射在|全裸|裸体|自慰|肉棒|抽插|后入|骑乘|乳头|乳房|私处|下体|做爱|口爆|内射|调教|绑住|束缚|脱光|肛|潮吹|吞精|被口|口对方|口你|口我|阴茎|阴道|阴蒂|精液|深喉|坐脸',
+
+    /* 只对温柔再收一层，避免星级打成 1 的直球漏进来。 */
+    GENTLE_EXTRA_SRC: '做几次|做多少次|一天做|下不了床|叫出来|内裤|内衣|胸口|臀部|大腿内侧|舌吻|伸进|摸进|敏感部位|打屁股|湿了|硬了|喘给|呻吟',
+
+    THERMO_LABELS: {
+      1: ['还想聊天', '坐近一点', '靠着肩', '牵着手', '想被抱一下', '额头碰额头', '轻声说喜欢'],
+      2: ['看着就好', '靠得很近', '吻在嘴角', '手停在腰上', '吻得更深', '衣领会松', '想被碰到衣服里', '今晚别只是抱'],
+      3: ['还在说话', '吻深一点', '手放进来', '压近一点', '想被要', '别停在前戏', '去更暗的地方', '看着我做', '再狠一点', '现在就继续', '做到出汗'],
+      4: ['还能等', '想被吻狠一点', '手不要停', '衣服可以脱掉', '想听你的声音', '别只是磨', '换到更近的地方', '照你想的来', '做到腿软', '今晚不用收着', '你想要到哪']
+    },
+
+    STROLL_TILES: [
+      { id: 'sofa', room: 'living', name: '沙发' },
+      { id: 'record', room: 'living', name: '唱片机' },
+      { id: 'glass', room: 'kitchen', name: '杯沿' },
+      { id: 'counter', room: 'kitchen', name: '台面' },
+      { id: 'rain', room: 'balcony', name: '窗边的雨' },
+      { id: 'rail', room: 'balcony', name: '栏杆' },
+      { id: 'mirror', room: 'bathroom', name: '镜子' },
+      { id: 'steam', room: 'bathroom', name: '热水' },
+      { id: 'bed', room: 'bedroom', name: '床沿' },
+      { id: 'lamp', room: 'bedroom', name: '床头灯' },
+      { id: 'rug', room: 'living', name: '地毯' },
+      { id: 'hall', room: 'kitchen', name: '过道' }
+    ],
+
+    MEMORY_TITLE: '今晚在这间公寓',
+    MEMORY_LINES: {
+      safe: '你们先回去把灯关了。已经做过的、说过的，都留在这页上。没有要扣的，也没有要道歉的。',
+      empty: '灯还没在房间里停久。这一页很短，也算今晚。',
+      warm: '有几间房亮过。谁问了，谁做了，都写在这里，不打分。',
+      deep: '房间一间间热起来。这一页只记你们真的走过的，不评价。'
+    },
+
+    FALLBACK_CARDS: [
+      { id: 'fb1', text: '用一个词，说你现在看见对方的样子。', star: 1, tags: [], pool: 'truth' },
+      { id: 'fb2', text: '看着对方的眼睛，说一件你一直记得的小事。', star: 1, tags: [], pool: 'truth' },
+      { id: 'fb3', text: '把手放在对方手背上，停十秒，再说一句实话。', star: 1, tags: [], pool: 'sync' },
+      { id: 'fb4', text: '问对方：此刻你更想说话，还是先靠着？', star: 1, tags: [], pool: 'truth' },
+      { id: 'fb5', text: '坐近一点，说你今晚想把灯留到多晚。', star: 1, tags: [], pool: 'truth' }
+    ],
+
+    BOUNDARIES: [
+      { id: '束缚', name: '束缚' },
+      { id: '露出', name: '露出' },
+      { id: '道具', name: '道具' },
+      { id: '喝酒', name: '喝酒' },
+      { id: '蒙眼', name: '蒙眼' },
+      { id: '角色', name: '角色' }
+    ],
+
     DEFAULT_SETTINGS: {
-      maxStar: 3,          /* 1 温柔 / 2 暧昧 / 3 热烈 / 4 不设限 */
-      length: 'classic',
+      maxStar: 3,
       sound: true,
       haptics: true,
       reduced: false,
-      safeHold: 2,         /* 安全词长按秒数 */
-      blacklist: [],       /* 文本关键词或标签名 */
-      gentleOnly: false    /* 缓和开关：封顶 2 星并屏蔽高强度标签 */
+      gentleOnly: false,
+      blacklist: [],
+      names: { a: '他', b: '她' }
     },
-    MAX_STAR_MIN: 1,
-    MAX_STAR_MAX: 4,
 
-    /* ---------- 资源（DESIGN §1.3） ---------- */
-    RES_KEYS: ['heart', 'tension', 'sync'],
-    RES_LABEL: { heart: '心动', tension: '张力', sync: '默契', coins: '星屑' },
-    RESOURCE_START: { heart: 0, tension: 0, sync: 0, coins: 0 },
-    RESOURCE_MAX: 999,
-
-    /* ---------- 类型基础收益（DESIGN §1.2） ----------
-     * 收益 = round(base * star / 2)，每种资源最低 1（若该资源有 base）。
-     * 星屑 coins = star + floor(combo / 3)，加码完成时整体 ×2。
-     */
-    TYPE_YIELD: {
-      truth: { sync: 1.5, heart: 0.5 },   /* 💬 真心话 */
-      dare: { tension: 1.5, heart: 0.5 },   /* ⚡ 大冒险 */
-      touch: { heart: 1.5, tension: 1 },   /* 🫧 触碰 */
-      sync: { sync: 2, heart: 1 },        /* 🪢 共鸣 */
-      spark: { tension: 2, heart: 1.5 },   /* 🌟 心跳（深潜专属） */
-      punish: {}                            /* 🚫 惩罚（仅事件/风险，不给常规收益） */
+    stageOf: function (heat) {
+      var h = Number(heat) || 0;
+      if (h >= Balance.HEAT_BURNING) return 'burning';
+      if (h >= Balance.HEAT_CHARGED) return 'charged';
+      if (h >= Balance.HEAT_WARM) return 'warm';
+      return 'quiet';
     },
-    TYPE_META: {
-      truth: { icon: '💬', name: '真心话' },
-      dare: { icon: '⚡', name: '大冒险' },
-      touch: { icon: '🫧', name: '触碰' },
-      sync: { icon: '🪢', name: '共鸣' },
-      spark: { icon: '🌟', name: '心跳' },
-      punish: { icon: '🚫', name: '惩罚' }
-    },
-    DRAW_POOLS: ['truth', 'dare', 'touch', 'sync', 'spark'],
-    NEVER_ON_HAND: ['punish'],
-
-    YIELD: { starHalf: 2, min: 1 },
-    COINS: { perStar: 1, comboDiv: 3 },
-    ESCALATE: { multiplier: 2, starStep: 1 },
-
-    /* ---------- 完成 / 跳过 / 缓一缓 ---------- */
-    COMPLETE: { combo: 1 },
-    SKIP: { tension: -1, comboReset: true, gentle: 1 },
-    ESCALATE_SKIP: { heart: -1, comboReset: true, gentle: 0 },
-    GENTLE: { maxUses: 2, starStep: -1 },
-    COMBO: { tokenEvery: 5, coinEvery: 3 },
-
-    TOKEN_KEYS: ['shield', 'reroll', 'escalate'],
-    TOKEN_START: { shield: 0, reroll: 1, escalate: 0 },
-    TOKEN_META: {
-      shield: { icon: '🛡️', name: '护身符', desc: '抵消一次惩罚/负面结算' },
-      reroll: { icon: '🔄', name: '换牌券', desc: '重抽整手 3 张手牌' },
-      escalate: { icon: '🌊', name: '加码券', desc: '已到最高星时仍可深潜一次' }
-    },
-    TOKEN_MAX: 99,
-    TOKEN_ROLLPOOL: ['shield', 'reroll', 'escalate'],
-
-    /* ---------- 商店（3–4 件，DESIGN §2 shop） ---------- */
-    SHOP: [
-      { id: 'shield', name: '护身符', icon: '🛡️', price: 6, desc: '抵消一次惩罚/负面结算' },
-      { id: 'reroll', name: '换牌券', icon: '🔄', price: 4, desc: '立刻重抽整手' },
-      { id: 'escalate', name: '加码券', icon: '🌊', price: 8, desc: '满星时也能深潜一次' },
-      { id: 'heart', name: '心糖', icon: '❤️', price: 5, desc: '立即 +1 心动' }
-    ],
-
-    /* ---------- 幕末共鸣检定（DESIGN §1.4） ---------- */
-    ACT_THRESHOLDS: { 1: 12, 2: 26, 3: 42 },  /* classic 14 回合基准 */
-    THRESHOLD_REF_ROUNDS: 14,
-    ACT_SCORE_WEIGHT: { heart: 1, sync: 1.2, tension: 0.8, gentle: 2 },
-    ACT_REWARD: { coins: 5, token: true },
-    ADAPT: { starBias: -1, minStar: 1, biasFloor: -2 },
-
-    /* ---------- 抽牌（DESIGN §1.1 / §1.5） ---------- */
-    DRAW: {
-      handSize: 3,
-      maxSameType: 2,
-      /* 幕强度 → 星级权重（会被 maxStar / 自适应 bias 裁剪） */
-      starWeights: {
-        1: { 1: 46, 2: 30, 3: 15, 4: 7, 5: 2 },
-        2: { 1: 20, 2: 31, 3: 28, 4: 15, 5: 6 },
-        3: { 1: 10, 2: 20, 3: 29, 4: 25, 5: 16 }
-      },
-      typeWeights: { truth: 30, dare: 25, touch: 20, sync: 12, spark: 13 },
-      sparkMinMaxStar: 4,
-      deepPreferPools: ['spark', 'touch', 'dare', 'truth', 'sync'],
-      usedResetOnEmpty: true
-    },
-    GENTLE_ONLY: { maxStar: 2, blockTags: ['束缚', '露出', '道具', '喝酒', '蒙眼'] },
-
-    /* ---------- 黑名单 ---------- */
-    BLACKLIST: { maxEntries: 100, maxLen: 40 },
-
-    /* ---------- 结局（DESIGN §1.4，6 结局；CONTENT.endings 优先） ---------- */
-    ENDINGS: [
-      { id: 'safe', name: '海面下的拥抱', kind: 'safe', desc: '安全词响起时，船把你们轻轻放回浅水。' },
-      { id: 'slow', name: '慢一点，也很靠近', kind: 'slow', desc: '温柔值足够，心动也在。' },
-      { id: 'frequency', name: '同一个频率', kind: 'frequency', desc: '默契与心动一起亮起来。' },
-      { id: 'undercurrent', name: '不眠的暗涌', kind: 'undercurrent', desc: '张力把夜拉得很长。' },
-      { id: 'dawn', name: '天亮之前', kind: 'dawn', desc: '心动够了，天还没亮。' },
-      { id: 'each', name: '各自听见的海', kind: 'each', desc: '兜底：也有各自的海。' }
-    ],
-    /* 内置结局判定（CONTENT 缺失/无命中时使用；顺序即优先级） */
-    ENDING_RULES: [
-      { id: 'safe', test: function (s) { return !!(s.flags && s.flags.safeWord); } },
-      { id: 'slow', test: function (s) { return s.gentle >= 3 && s.resources.heart >= 6; } },
-      { id: 'frequency', test: function (s) { return s.resources.sync >= 15 && s.resources.heart >= 8; } },
-      { id: 'undercurrent', test: function (s) { return s.resources.tension >= 18; } },
-      { id: 'dawn', test: function (s) { return s.resources.heart >= 14; } },
-      { id: 'each', test: function () { return true; } }
-    ],
-
-    /* ---------- 奖项（≥2；CONTENT.awards 优先，缺额用内置补齐） ---------- */
-    AWARDS_MIN: 2,
-    AWARDS_MAX: 3,
-    AWARDS: [
-      { id: 'combo', name: '连击王', icon: '⚡', desc: '最大连击最高', test: function (s) { return s.maxCombo >= 3; } },
-      { id: 'deep', name: '深潜者', icon: '🌊', desc: '完成过加码深潜', test: function (s) { return !!s.flags.deepDone; } },
-      { id: 'gentle', name: '温柔守护', icon: '🕯️', desc: '温柔值 ≥3', test: function (s) { return s.gentle >= 3; } },
-      { id: 'brave', name: '最高星', icon: '🌟', desc: '见过 ★4 以上', test: function (s) { return s.maxStarSeen >= 4; } },
-      { id: 'together', name: '一起走完', icon: '🪢', desc: '完成整晚', test: function () { return true; } }
-    ],
-
-    /* ---------- 兜底卡（题库空/过滤过严时保证 3 张手牌） ---------- */
-    FALLBACK_CARDS: [
-      { id: 'fb1', text: '用一个词形容此刻的对方。', star: 1, tags: [], src: 'ENGINE' },
-      { id: 'fb2', text: '和对方对视十秒，先笑的人先说一句话。', star: 1, tags: [], src: 'ENGINE' },
-      { id: 'fb3', text: '告诉对方：今晚你最想记住的一个瞬间。', star: 1, tags: [], src: 'ENGINE' }
-    ],
-
-    /* ---------- 数值纯函数（可供 UI 展示“预期收益”） ---------- */
-    yieldFor: function (type, star) {
-      var base = Balance.TYPE_YIELD[type] || {};
-      var s = Math.max(1, Number(star) || 1);
-      var out = {};
-      for (var i = 0; i < Balance.RES_KEYS.length; i++) {
-        var k = Balance.RES_KEYS[i];
-        if (base[k]) out[k] = Math.max(Balance.YIELD.min, Math.round(base[k] * s / Balance.YIELD.starHalf));
-      }
-      return out;
-    },
-    coinsFor: function (star, combo) {
-      var s = Math.max(1, Number(star) || 1);
-      var c = Math.max(0, Number(combo) || 0);
-      return s * Balance.COINS.perStar + Math.floor(c / Balance.COINS.comboDiv);
-    },
-    actThreshold: function (act, rounds) {
-      var base = Balance.ACT_THRESHOLDS[act] || Balance.ACT_THRESHOLDS[3];
-      var ref = Balance.THRESHOLD_REF_ROUNDS;
-      var r = Math.max(1, Number(rounds) || ref);
-      return Math.max(1, Math.round(base * r / ref));
-    },
-    actScore: function (state) {
-      var w = Balance.ACT_SCORE_WEIGHT;
-      var r = (state && state.resources) || {};
-      return Math.round(((r.heart || 0) * w.heart + (r.sync || 0) * w.sync + (r.tension || 0) * w.tension + ((state && state.gentle) || 0) * w.gentle) * 10) / 10;
-    },
-    totalRounds: function (length) {
-      var cfg = Balance.LENGTHS[length] || Balance.LENGTHS[Balance.DEFAULT_LENGTH];
-      return cfg.rounds;
-    },
-    actEndRound: function (length, act) {
-      var cfg = Balance.LENGTHS[length] || Balance.LENGTHS[Balance.DEFAULT_LENGTH];
-      var n = 0;
-      for (var i = 0; i < act && i < cfg.acts.length; i++) n += cfg.acts[i];
-      return n;
-    },
-    actOfRound: function (length, round) {
-      var cfg = Balance.LENGTHS[length] || Balance.LENGTHS[Balance.DEFAULT_LENGTH];
-      var acc = 0;
-      for (var i = 0; i < cfg.acts.length; i++) {
-        acc += cfg.acts[i];
-        if (round <= acc) return i + 1;
-      }
-      return cfg.acts.length;
-    },
-    endingById: function (id) {
-      for (var i = 0; i < Balance.ENDINGS.length; i++) if (Balance.ENDINGS[i].id === id) return Balance.ENDINGS[i];
-      return Balance.ENDINGS[Balance.ENDINGS.length - 1];
+    stageLabel: function (heat) {
+      var s = Balance.stageOf(heat);
+      if (s === 'burning') return '很深了';
+      if (s === 'charged') return '已经烫';
+      if (s === 'warm') return '热起来了';
+      return '还轻';
     }
   };
 

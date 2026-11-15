@@ -1,48 +1,11 @@
-# 经典游戏厅（独立窗口）
+# 游戏门
 
-新版「升温夜航」之外的经典玩法 + 新做的「温度计」，单独放在这个目录，互不影响：
+温度、真话、动作、走一走都在主应用里。
 
-- 入口：`/arcade/`
-- 内容：🌡️ 温度计（新） / 真心话转盘 / 大冒险转盘 / 飞行棋
-- 直达：`?game=truth|dare|flight`；温度计：`/arcade/thermometer.html`
-- 温度计是一个独立单文件页：12 格、掷骰前进、温柔/大胆两种说法、2 次跳过、随时可停、进度自动保存（`thermo.*` 键）。
-- 经典三款来源：V17 旧版单文件（git `98f56c4:index.html`），由 `tools/arcade/patch_legacy.py` 包装：
-  - **已换新版皮肤**：`arcade/skin.css`（暗夜玻璃/金玫瑰配色）在旧版 CSS 最后注入，只改视觉不改布局与逻辑
-  - 转盘/玩家颜色常量同步换成夜航调色；旧版顶部三条 HUD 隐藏
-  - **工具条收纳**：底部只留「完成 / 重抽 / 跳过 / 更多」；道具、撤销、重置、大厅、缓一缓进「更多」底部抽屉
-  - **转盘**：canvas 换成 DOM/CSS 转盘（文字水平、扇区可点、点哪转哪、GO 随机），结果卡为新版大标题 + 标签 chips
-  - **飞行棋**：双道/环岛都换成卡片式棋盘，格子改轻量玻璃色块，类型色只做淡染
-  - **飞行棋开局**：长表单收成「基础 / 节奏与强度 / 边界」三组折叠，底部固定大「开局！」；设置页隐藏底部工具条
-- **飞行棋**：支持保存/继续棋局（每回合自动存 + 开局页「继续上次棋局」）、暂停/收起、心愿券直接存进「升温夜航」回忆册
-- **飞行棋棋盘**：专用 7 键工具条（暂停/记录/朗读/音色/重设/大厅/遮屏）、三段式强度、追赶「风向」、互写一格、自定义称呼、落点提示、自动聚焦
-- **飞行棋 DIY 预设**：内置日常/微醺/派对/温柔 4 套；棋盘比例（喝酒/脱衣/刺激/双人/事件 0–3）+ 自定义卡（类型/文本/次数）；支持另存、切换、删除，下一局自动生效
-- **飞行棋骰子**：底部实体骰子卡、1.15s 翻滚 + 落定回弹；完成任务强制清理转盘/骰子遮罩与 _flRolled，修复下一位点骰无反应
-  - **本局记录 / 已答回顾**：本局记录进入「更多」抽屉，用新版底部 sheet 展示；已答回顾改成新版底部面板
-  - 去掉旧版 PWA 注册与 manifest 引用（避免 `/arcade/` 下 404）
-  - 预置 `couple-onboarded` / `couple-night` 跳过开场弹窗
-  - 注入「经典游戏厅」首页与返回钩子（旧版返回/大厅按钮回到游戏厅）
-  - 支持 `?embed=1`：内嵌进新版时隐藏重复标题，返回用 postMessage 交给新版
-- 数据：旧版使用 `couple-*`、温度计使用 `thermo.*`、新版使用 `couple2.*`，完全隔离。
+这个目录只保留旧地址的跳转：
 
-## 重新生成
+- `/arcade/` → 游戏门
+- `/arcade/?game=truth|dare|flight` → 对应玩法
+- `/arcade/thermometer.html` → 阳台温度
 
-```bash
-python tools/arcade/patch_legacy.py
-```
-
-## 部署
-
-与仓库一同发布到 GitHub Pages；根 `index.html`（新版）不受影响。
-
-- https://chundongtou.github.io/couple-game/arcade/
-- https://chundongtou.github.io/couple-game/arcade/?game=truth
-- https://chundongtou.github.io/couple-game/arcade/?game=dare
-- https://chundongtou.github.io/couple-game/arcade/?game=flight
-
-
-
-
-
-
-
-
+数据跟公寓共用 `couple2.*`。独立一局可以「带回今晚」。
