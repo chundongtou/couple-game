@@ -10,9 +10,9 @@ export const COLORS = {
   green: 0x2fa36a
 };
 
-export const RING_RADIUS = 8.35;
-const HOME_RADIUS = [6.55, 5.05, 3.6, 2.25, 1.05];
-const HANGAR_RADIUS = 11.15;
+export const RING_RADIUS = 8.15;
+const HOME_RADIUS = [6.25, 4.85, 3.5, 2.2, 1.02];
+const HANGAR_RADIUS = 10.15;
 
 const TAKEOFF_N = { red: 0, yellow: 13, blue: 26, green: 39 };
 const ENTRY_N = { red: 50, yellow: 11, blue: 24, green: 37 };
@@ -44,8 +44,8 @@ export function squareXZ(id) {
     const rx = Math.sin(theta);
     const rz = Math.cos(theta);
     return [
-      center[0] + tx * col * 0.72 + rx * row * 0.62,
-      center[1] + tz * col * 0.72 + rz * row * 0.62
+      center[0] + tx * col * 0.78 + rx * row * 0.58,
+      center[1] + tz * col * 0.78 + rz * row * 0.58
     ];
   }
   return [0, 0];

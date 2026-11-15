@@ -227,23 +227,20 @@ export function hangarTexture(color, name) {
   roundRect(g, 28, 28, 456, 456, 36);
   g.stroke();
   g.fillStyle = "#fff8ee";
-  g.font = "700 72px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
+  g.font = "700 210px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillText(name + "机坪", 256, 92);
-  g.fillStyle = "rgba(255,248,236,0.9)";
-  drawWheel(g, 256, 250, 78);
-  g.fillStyle = DEEP[color];
-  g.beginPath();
-  g.arc(256, 250, 28, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = "#fff8ee";
+  g.fillText(name, 256, 210);
+  g.font = "700 78px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
+  g.fillText("机坪", 256, 360);
+  g.strokeStyle = "rgba(255,248,236,0.55)";
+  g.lineWidth = 8;
   for (let i = 0; i < 4; i++) {
-    const x = 130 + (i % 2) * 252;
-    const y = 360 + Math.floor(i / 2) * 90;
+    const x = 150 + (i % 2) * 212;
+    const y = 430 + Math.floor(i / 2) * 8;
     g.beginPath();
-    g.ellipse(x, y, 46, 28, 0, 0, Math.PI * 2);
-    g.fill();
+    g.ellipse(x, y, 54, 22, 0, 0, Math.PI * 2);
+    g.stroke();
   }
   return finishTexture(c);
 }
