@@ -1,34 +1,23 @@
 /* ==========================================================================
- * 升温夜航 · V3 重制版 —— 规则引擎（唯一规则权威）
- * app/src/engine/engine.js
+ * 今晚这一页 · 规则引擎
+ * 纯逻辑：无 DOM、无 localStorage、无网络。
+ * 动作入参不变，返回 { state, events }。newSession / openArcade / previewDraw
+ * 直接返回 state 或卡面数组。
  *
- * 约定：
- *  - window.App.Engine；纯逻辑，无 DOM、无 localStorage、无网络。
- *  - 所有动作返回新 state（不可变更新，内部 JSON 深拷贝）；不修改入参。
- *  - 两种返回形态：
- *      · 状态型动作（newSession / startRound / reroll / chooseCard / leaveAct）
- *        返回 state，并附带不可枚举的 `.events` 与 `.state`，因此
- *        `r = Engine.reroll(s); r.round` 与 `r.state.round`、`r.events` 都可用。
- *      · 结算型动作（complete / skip / escalate* / nextRound / chooseEvent /
- *        shopBuy / finish / safeWord / useShield）返回 `{state, events}`。
- *  - events 类型固定为：gain | skip | combo | actEnd | ending | token | shop | stage
- *    （被拒绝的动作也返回 stage 事件并带 blocked:true，UI 可 toast）。
- *  - 确定性：内部 RNG = mulberry32(seed)，状态里保存 `rng` 游标；
- *    newSession(settings, names, seed?) 的 seed 也可来自 settings.seed。
+ * 一晚三页（热身 / 升温 / 靠近），每页六个贴纸位。
+ * 自选贴与对贴交替；对贴的两张落在同一格。
+ * 叠贴不是每回合都有。撕掉留下胶痕，不扣升温、不卡关。
+ * 页间用胶带段买贴纸店的三件小东西。三页之后是封底海报。
  * ========================================================================== */
 (function (global) {
   'use strict';
 
   var root = global.App = global.App || {};
 
-  var EVENTS = ['gain', 'skip', 'combo', 'actEnd', 'ending', 'token', 'shop', 'stage'];
-  var PHASES = ['draft', 'play', 'resolve', 'escalate', 'event', 'act', 'shop', 'finale'];
-
   function B() { return root.Balance; }
   function cardsRoot() { return global.CARDS || {}; }
   function contentRoot() { return global.CONTENT || null; }
 
-  /* ---------------------------- 基础工具 ---------------------------- */
   function clone(o) { return o === null || o === undefined ? o : JSON.parse(JSON.stringify(o)); }
   function isArr(o) { return Object.prototype.toString.call(o) === '[object Array]'; }
   function isObj(o) { return !!o && typeof o === 'object' && !isArr(o); }
@@ -36,9 +25,7 @@
   function clamp(n, lo, hi) { n = Number(n); if (!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
   function clampInt(n, lo, hi) { n = Math.round(Number(n)); if (!isFinite(n)) n = lo; return Math.max(lo, Math.min(hi, n)); }
   function intOr(n, d) { n = Math.round(Number(n)); return isFinite(n) ? n : d; }
-  function nowMs() { return Date.now(); }
 
-  /* mulberry32：确定性 PRNG（DESIGN §4） */
   function mulberry32(seed) {
     var a = (Number(seed) >>> 0) || 0;
     return function () {
@@ -55,9 +42,11 @@
     state.rng = (state.rng + 0x6D2B79F5) >>> 0;
     return v;
   }
-  function pickOne(state, arr) {
-    if (!arr || !arr.length) return null;
-    return arr[Math.floor(nextRand(state) * arr.length)];
+  function otherOf(who) { return who === 'a' ? 'b' : 'a'; }
+
+  function ok(state, events) { return { state: state, events: events || [] }; }
+  function blocked(state, reason) {
+    return { state: state ? clone(state) : state, events: [{ type: 'stage', blocked: true, reason: reason || 'blocked' }] };
   }
 
   /* ---------------------------- 卡牌索引 ---------------------------- */
@@ -80,12 +69,12 @@
     var C = cardsRoot();
     if (_cardsRef === C && _index) return _index;
     _cardsRef = C;
-    _index = { byKey: {}, byPool: {}, all: [] };
+    _index = { byKey: {}, byPool: {} };
     var pools = Object.keys(C || {});
     for (var p = 0; p < pools.length; p++) {
       var pool = pools[p];
       var arr = C[pool] || [];
-      _index.byPool[pool] = _index.byPool[pool] || [];
+      _index.byPool[pool] = [];
       for (var i = 0; i < arr.length; i++) {
         var card = arr[i];
         if (!card || !card.id) continue;
@@ -94,54 +83,53 @@
         var rec = { key: key, pool: pool, id: String(card.id), card: card };
         _index.byKey[key] = rec;
         _index.byPool[pool].push(rec);
-        _index.all.push(rec);
       }
     }
     return _index;
   }
 
-  function resolveCardKey(key) {
+  function resolveKey(key) {
     if (key === null || key === undefined) return null;
     var fb = fallbackMap();
     if (typeof key === 'string' && fb[key]) return fb[key];
     var idx = ensureIndex();
-    if (typeof key === 'string') {
-      if (idx.byKey[key]) return idx.byKey[key];
-      /* 兼容裸 id：仅在唯一时可解析 */
-      if (key.indexOf(':') < 0) {
-        var found = null;
-        for (var pool in idx.byPool) {
-          if (!Object.prototype.hasOwnProperty.call(idx.byPool, pool)) continue;
-          var list = idx.byPool[pool];
-          for (var i = 0; i < list.length; i++) {
-            if (list[i].id === key) {
-              if (found) return null;
-              found = list[i];
-            }
-          }
-        }
-        if (found) return found;
-      }
-    }
+    if (typeof key === 'string' && idx.byKey[key]) return idx.byKey[key];
     return null;
   }
 
-  function recInfo(rec, overrideStar) {
+  function cardInfoFromRec(rec) {
     if (!rec) return null;
     var card = rec.card || {};
+    var pool = rec.pool === 'fallback' ? 'truth' : rec.pool;
     return {
       key: rec.key,
-      id: rec.id,
-      pool: rec.pool,
-      type: rec.pool,
-      text: card.text || '',
-      star: Math.max(1, intOr(overrideStar, intOr(card.star, 1))),
+      text: String(card.text || ''),
+      star: Math.max(1, intOr(card.star, 1)),
+      pool: pool,
       tags: (card.tags || []).slice(),
-      src: card.src || ''
+      typeName: B().typeName(pool)
     };
   }
 
-  /* ---------------------------- 设置与过滤 ---------------------------- */
+  function cardByKey(key) {
+    return cardInfoFromRec(resolveKey(key));
+  }
+
+  function infoOf(entry) {
+    if (!entry) return null;
+    if (typeof entry === 'string') return cardByKey(entry);
+    if (entry.key && entry.text) return {
+      key: entry.key,
+      text: entry.text,
+      star: entry.star || 1,
+      pool: entry.pool || 'truth',
+      tags: (entry.tags || []).slice(),
+      typeName: entry.typeName || B().typeName(entry.pool || 'truth')
+    };
+    return null;
+  }
+
+  /* ---------------------------- 设置 ---------------------------- */
   function normalizeBlacklist(list) {
     var b = B();
     var out = [];
@@ -163,7 +151,6 @@
     var def = b.DEFAULT_SETTINGS;
     var out = {
       maxStar: clampInt(s.maxStar === undefined ? def.maxStar : s.maxStar, b.MAX_STAR_MIN, b.MAX_STAR_MAX),
-      length: b.LENGTHS[s.length] ? s.length : def.length,
       sound: s.sound === undefined ? def.sound : !!s.sound,
       haptics: s.haptics === undefined ? def.haptics : !!s.haptics,
       reduced: s.reduced === undefined ? def.reduced : !!s.reduced,
@@ -172,21 +159,32 @@
       gentleOnly: s.gentleOnly === undefined ? def.gentleOnly : !!s.gentleOnly
     };
     if (s.seed !== undefined) out.seed = (Number(s.seed) >>> 0);
-    if (s.volume !== undefined) out.volume = clamp(s.volume, 0, 1);
-    if (isNum(s.hapticsStrength)) out.hapticsStrength = clamp(s.hapticsStrength, 0, 1);
     return out;
   }
 
-  function effectiveMaxStar(state) {
+  function normName(v, d) {
+    var s = String(v === null || v === undefined ? '' : v).trim();
+    if (!s) return d;
+    return s.slice(0, B().NAME_MAX);
+  }
+
+  function normNames(names) {
+    if (isArr(names)) names = { a: names[0], b: names[1] };
+    names = isObj(names) ? names : {};
+    return { a: normName(names.a, '他'), b: normName(names.b, '她') };
+  }
+
+  function effectiveMax(state) {
     var b = B();
     var s = state && state.settings ? state.settings : {};
-    var maxS = clampInt(s.maxStar, b.MAX_STAR_MIN, b.MAX_STAR_MAX);
+    var maxS = clampInt(s.maxStar === undefined ? 3 : s.maxStar, b.MAX_STAR_MIN, b.MAX_STAR_MAX);
     if (s.gentleOnly) maxS = Math.min(maxS, b.GENTLE_ONLY.maxStar);
+    maxS = Math.max(1, maxS - (state.soften || 0));
     return maxS;
   }
 
   function isBlacklisted(card, blacklist) {
-    if (!blacklist || !blacklist.length) return false;
+    if (!blacklist || !blacklist.length || !card) return false;
     var text = String(card.text || '');
     var tags = card.tags || [];
     for (var i = 0; i < blacklist.length; i++) {
@@ -198,1051 +196,1148 @@
     return false;
   }
 
-  function isAllowed(state, rec) {
-    var b = B();
-    var card = rec.card || {};
-    var star = intOr(card.star, 1);
-    if (star < 1) return false;
-    if (star > effectiveMaxStar(state)) return false;
-    if (state.settings && state.settings.gentleOnly) {
-      if (star > b.GENTLE_ONLY.maxStar) return false;
-      var tags = card.tags || [];
-      var block = b.GENTLE_ONLY.blockTags || [];
-      for (var i = 0; i < block.length; i++) if (tags.indexOf(block[i]) >= 0) return false;
-    }
-    if (isBlacklisted(card, state.settings ? state.settings.blacklist : null)) return false;
-    return true;
-  }
-
-  /* ---------------------------- 洗牌袋 ---------------------------- */
-  function isUsed(state, pool, id) {
-    return !!(state.usedCards && state.usedCards[pool] && state.usedCards[pool][id]);
-  }
-  function markUsed(state, pool, id) {
-    state.usedCards = state.usedCards || {};
-    state.usedCards[pool] = state.usedCards[pool] || {};
-    state.usedCards[pool][id] = true;
-  }
-  function unmarkUsed(state, key) {
-    var rec = resolveCardKey(key);
-    if (!rec || rec.pool === 'fallback') return;
-    if (state.usedCards && state.usedCards[rec.pool]) delete state.usedCards[rec.pool][rec.id];
-  }
-  function resetUsed(state, pools) {
-    state.usedCards = state.usedCards || {};
-    var list = pools || (B().DRAW_POOLS || []);
-    for (var i = 0; i < list.length; i++) state.usedCards[list[i]] = {};
-  }
-
-  /* ---------------------------- 抽牌 ---------------------------- */
-  function pickStarForAct(state) {
-    var b = B();
-    var maxS = effectiveMaxStar(state);
-    var act = clampInt(state.act, 1, 3);
-    var weights = b.DRAW.starWeights[act] || b.DRAW.starWeights[3];
-    var bag = [];
-    for (var s = 1; s <= maxS; s++) {
-      var w = intOr(weights[s], 0);
-      for (var i = 0; i < w; i++) bag.push(s);
-    }
-    if (!bag.length) for (var j = 1; j <= maxS; j++) bag.push(j);
-    var star = bag[Math.floor(nextRand(state) * bag.length)] || 1;
-    star = clamp(star + intOr(state.drawBias, 0), b.ADAPT.minStar, maxS);
-    return star;
-  }
-
-  function collectCandidates(state, opt) {
-    opt = opt || {};
-    var b = B();
-    var idx = ensureIndex();
-    var out = [];
-    var pools = opt.pools || b.DRAW_POOLS;
-    var maxS = effectiveMaxStar(state);
-    for (var p = 0; p < pools.length; p++) {
-      var pool = pools[p];
-      if (pool === 'spark' && !opt.allowSpark && maxS < b.DRAW.sparkMinMaxStar) continue;
-      if (opt.excludeTypes && opt.excludeTypes.indexOf(pool) >= 0) continue;
-      var list = idx.byPool[pool] || [];
-      for (var i = 0; i < list.length; i++) {
-        var rec = list[i];
-        if (!isAllowed(state, rec)) continue;
-        var star = intOr(rec.card.star, 1);
-        if (opt.star && !opt.ignoreStar && star !== opt.star) continue;
-        if (!opt.ignoreUsed && isUsed(state, rec.pool, rec.id)) continue;
-        out.push(rec);
-      }
-    }
-    return out;
-  }
-
-  function weightedPick(state, recs) {
-    var b = B();
-    if (!recs || !recs.length) return null;
-    var total = 0;
-    var weights = [];
-    for (var i = 0; i < recs.length; i++) {
-      var w = (b.DRAW.typeWeights[recs[i].pool] || 1);
-      weights.push(w);
-      total += w;
-    }
-    var r = nextRand(state) * total;
-    for (var j = 0; j < recs.length; j++) {
-      r -= weights[j];
-      if (r <= 0) return recs[j];
-    }
-    return recs[recs.length - 1];
-  }
-
-  /* 抽一张；带 6 级放宽，保证不崩 */
-  function drawOne(state, opt) {
-    opt = opt || {};
-    var b = B();
-    var maxS = effectiveMaxStar(state);
-    var allowSpark = opt.allowSpark;
-    if (allowSpark === undefined) allowSpark = maxS >= b.DRAW.sparkMinMaxStar;
-    var base = {
-      star: opt.star || null,
-      excludeTypes: opt.excludeTypes || null,
-      allowSpark: allowSpark,
-      pools: opt.pools || null
-    };
-    /* 若所有资格卡都被 used 标记，视为本池用尽 -> 重洗 */
-    var withUsed = collectCandidates(state, base);
-    if (!withUsed.length) {
-      var ignoring = collectCandidates(state, {
-        star: base.star, excludeTypes: null, allowSpark: allowSpark, pools: base.pools, ignoreUsed: true
-      });
-      if (ignoring.length) resetUsed(state, base.pools || b.DRAW_POOLS);
-    }
-    var attempts = [
-      base,
-      { star: base.star, excludeTypes: null, allowSpark: allowSpark, pools: base.pools },
-      { star: null, excludeTypes: null, allowSpark: allowSpark, pools: base.pools, ignoreStar: true },
-      { star: null, excludeTypes: null, allowSpark: true, pools: null, ignoreStar: true }
-    ];
-    for (var a = 0; a < attempts.length; a++) {
-      var rec = weightedPick(state, collectCandidates(state, attempts[a]));
-      if (rec) {
-        markUsed(state, rec.pool, rec.id);
-        return rec;
-      }
-    }
-    return null;
-  }
-
-  function drawIntoHand(state) {
-    var b = B();
-    var size = b.DRAW.handSize;
-    state.hand = [];
-    for (var i = 0; i < size; i++) {
-      var counts = {};
-      for (var h = 0; h < state.hand.length; h++) {
-        var r0 = resolveCardKey(state.hand[h]);
-        if (!r0) continue;
-        counts[r0.pool] = (counts[r0.pool] || 0) + 1;
-      }
-      var exclude = [];
-      for (var t in counts) {
-        if (Object.prototype.hasOwnProperty.call(counts, t) && counts[t] >= b.DRAW.maxSameType) exclude.push(t);
-      }
-      var rec = drawOne(state, { star: pickStarForAct(state), excludeTypes: exclude });
-      if (!rec) break;
-      if (state.hand.indexOf(rec.key) >= 0) continue; /* 同手不重复；极端小池时由兜底补位 */
-      state.hand.push(rec.key);
-    }
-    /* 兜底：题库空 / 过滤过严时保证 3 张 */
-    var guard = 0;
-    while (state.hand.length < size && guard < size * 3) {
-      guard++;
-      var fbList = b.FALLBACK_CARDS || [];
-      var fb = fbList[state.hand.length % fbList.length];
-      var key = 'fallback:' + fb.id;
-      if (state.hand.indexOf(key) >= 0) break;
-      state.hand.push(key);
-    }
-    return state.hand;
-  }
-
-  /* ---------------------------- 状态骨架 ---------------------------- */
-  function blankState(settings, names, seed) {
-    var b = B();
-    var namesObj = { a: '你', b: 'TA' };
-    if (isArr(names)) {
-      namesObj = { a: String(names[0] || namesObj.a), b: String(names[1] || namesObj.b) };
-    } else if (isObj(names)) {
-      namesObj = { a: String(names.a || namesObj.a), b: String(names.b || namesObj.b) };
-    }
-    var settingsNorm = normalizeSettings(settings);
-    var seedNum = (seed === undefined || seed === null || seed === '') ? null : (Number(seed) >>> 0);
-    if (seedNum === null && settingsNorm.seed !== undefined) seedNum = settingsNorm.seed >>> 0;
-    if (seedNum === null) seedNum = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
-    seedNum = seedNum >>> 0;
-    return {
-      v: b.SESSION_VERSION,
-      id: 's' + seedNum.toString(36),
-      ts: nowMs(),
-      names: namesObj,
-      settings: settingsNorm,
-      act: 1,
-      round: 1,
-      host: 'a',
-      resources: { heart: b.RESOURCE_START.heart, tension: b.RESOURCE_START.tension, sync: b.RESOURCE_START.sync, coins: b.RESOURCE_START.coins },
-      gentle: 0,
-      combo: 0,
-      maxCombo: 0,
-      skips: 0,
-      completes: 0,
-      maxStarSeen: 0,
-      tokens: { shield: b.TOKEN_START.shield, reroll: b.TOKEN_START.reroll, escalate: b.TOKEN_START.escalate },
-      hand: [],
-      current: null,
-      currentStar: null,
-      phase: 'draft',
-      usedCards: {},
-      events: {},
-      flags: {},
-      log: [],
-      result: null,
-      rng: seedNum,
-      drawBias: 0,
-      gentleUsed: 0,
-      escalated: false,
-      escalatedDone: false,
-      actScores: [],
-      pendingActEnd: false,
-      lastAct: false,
-      seed: seedNum
-    };
-  }
-
-  /* 把「动作产生的 UI 事件」挂到 state 上（不可枚举，不污染存档）。
-   * 注意：state.events 是 DESIGN §3.3 的「事件选择表」，两者不能同名，
-   * 因此动作事件挂在 .outEvents / .actionEvents。 */
-  function emit(state, events) {
-    var list = events || [];
-    try {
-      Object.defineProperty(state, 'outEvents', { value: list, enumerable: false, configurable: true, writable: true });
-      Object.defineProperty(state, 'actionEvents', { value: list, enumerable: false, configurable: true, writable: true });
-      Object.defineProperty(state, 'state', { get: function () { return state; }, enumerable: false, configurable: true });
-    } catch (e) {
-      state.outEvents = list;
-      state.actionEvents = list;
-      state.state = state;
-    }
-    return state;
-  }
-
-  function blocked(state, action, reason) {
-    var ev = [{ type: 'stage', phase: state.phase, blocked: true, action: action, reason: reason || 'action_not_allowed' }];
-    return { state: emit(clone(state), ev), events: ev };
-  }
-  function blockedState(state, action, reason) {
-    var ev = [{ type: 'stage', phase: state.phase, blocked: true, action: action, reason: reason || 'action_not_allowed' }];
-    return emit(clone(state), ev);
-  }
-
-  /* ---------------------------- 资源/日志 ---------------------------- */
-  function addRes(state, deltas) {
-    var applied = {};
-    if (!deltas) return applied;
-    var keys = B().RES_KEYS;
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (!isNum(deltas[k]) || deltas[k] === 0) continue;
-      var before = state.resources[k] || 0;
-      state.resources[k] = clamp(before + deltas[k], 0, B().RESOURCE_MAX);
-      applied[k] = state.resources[k] - before;
-    }
-    if (isNum(deltas.coins) && deltas.coins !== 0) {
-      var cBefore = state.resources.coins || 0;
-      state.resources.coins = clamp(cBefore + deltas.coins, 0, B().RESOURCE_MAX);
-      applied.coins = state.resources.coins - cBefore;
-    }
-    if (isNum(deltas.gentle) && deltas.gentle !== 0) {
-      state.gentle = clamp(state.gentle + deltas.gentle, 0, 99);
-    }
-    return applied;
-  }
-
-  function pushLog(state, entry) {
-    state.log = state.log || [];
-    state.log.push(entry);
-    if (state.log.length > 200) state.log.shift();
-  }
-
-  function cardEventData(info) {
-    if (!info) return null;
-    return { key: info.key, id: info.id, pool: info.pool, type: info.type, text: info.text, star: info.star, tags: info.tags };
-  }
-
-  function grantComboToken(state, events) {
-    var b = B();
-    if (!state.combo || state.combo % b.COMBO.tokenEvery !== 0) return null;
-    var tk = b.TOKEN_ROLLPOOL[Math.floor(nextRand(state) * b.TOKEN_ROLLPOOL.length)];
-    state.tokens[tk] = clampInt((state.tokens[tk] || 0) + 1, 0, b.TOKEN_MAX);
-    events.push({ type: 'token', token: tk, name: b.TOKEN_META[tk].name, delta: 1, combo: state.combo, reason: 'combo' });
-    return tk;
-  }
-
-  /* ---------------------------- 生命周期 ---------------------------- */
-  function newSession(settings, names, seed) {
-    var s = blankState(settings, names, seed);
-    s.phase = 'draft';
-    drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
-  }
-
-  function startRound(state) {
-    var s = clone(state);
-    if (s.phase === 'finale') return emit(s, [{ type: 'stage', phase: 'finale' }]);
-    if (s.phase !== 'draft') return emit(s, [{ type: 'stage', phase: s.phase, resumed: true }]);
-    if (!s.hand || s.hand.length !== B().DRAW.handSize) drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
-  }
-
-  function reroll(state) {
-    var s = clone(state);
-    if (s.phase !== 'draft') return blockedState(s, 'reroll', 'wrong_phase');
-    if (!s.tokens || (s.tokens.reroll || 0) <= 0) return blockedState(s, 'reroll', 'no_token');
-    s.tokens.reroll = Math.max(0, (s.tokens.reroll || 0) - 1);
-    for (var i = 0; i < (s.hand || []).length; i++) unmarkUsed(s, s.hand[i]);
-    drawIntoHand(s);
-    pushLog(s, { round: s.round, type: 'reroll' });
-    return emit(s, [
-      { type: 'token', token: 'reroll', name: B().TOKEN_META.reroll.name, delta: -1 },
-      { type: 'stage', phase: 'draft', rerolled: true, hand: s.hand.slice(), round: s.round, act: s.act, host: s.host }
-    ]);
-  }
-
-  function chooseCard(state, cardId) {
-    var s = clone(state);
-    if (s.phase !== 'draft') return blockedState(s, 'chooseCard', 'wrong_phase');
-    var hand = s.hand || [];
-    var key = null;
-    if (typeof cardId === 'number' && cardId >= 0 && cardId < hand.length) {
-      key = hand[Math.floor(cardId)];
-    } else if (hand.indexOf(cardId) >= 0) {
-      key = cardId;
-    } else {
-      for (var i = 0; i < hand.length; i++) {
-        var rec = resolveCardKey(hand[i]);
-        if (rec && (rec.id === cardId || rec.key === cardId)) { key = hand[i]; break; }
-      }
-    }
-    var chosen = resolveCardKey(key);
-    if (!chosen) return blockedState(s, 'chooseCard', 'card_not_in_hand');
-    s.current = chosen.key;
-    s.currentStar = null;
-    s.escalated = false;
-    s.phase = 'play';
-    var info = recInfo(chosen, null);
-    pushLog(s, { round: s.round, type: 'choose', cardId: chosen.key, text: info.text, star: info.star });
-    return emit(s, [{ type: 'stage', phase: 'play', round: s.round, act: s.act, host: s.host, card: cardEventData(info) }]);
-  }
-
-  function currentCard(state) {
-    if (!state || !state.current) return null;
-    var rec = resolveCardKey(state.current);
-    if (!rec) return null;
-    var star = state.currentStar === null || state.currentStar === undefined ? rec.card.star : state.currentStar;
-    return recInfo(rec, star);
-  }
-
-  function complete(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'complete', 'wrong_phase');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'complete', 'no_current_card');
-    var b = B();
-    s.combo = (s.combo || 0) + b.COMPLETE.combo;
-    s.maxCombo = Math.max(s.maxCombo || 0, s.combo);
-    s.completes = (s.completes || 0) + 1;
-    s.maxStarSeen = Math.max(s.maxStarSeen || 0, info.star);
-    var gain = b.yieldFor(info.pool, info.star);
-    var coins = b.coinsFor(info.star, s.combo);
-    gain.coins = coins;
-    var applied = addRes(s, gain);
-    s.phase = 'resolve';
-    s.escalated = false;
-    s.escalatedDone = false;
-    pushLog(s, { round: s.round, type: 'complete', cardId: info.key, text: info.text, star: info.star, deltas: applied });
-    var events = [
-      { type: 'gain', reason: 'complete', res: applied, combo: s.combo, card: cardEventData(info) }
-    ];
-    if (s.combo > 0 && s.combo % b.COMBO.coinEvery === 0) events.push({ type: 'combo', n: s.combo, coinBonus: true });
-    grantComboToken(s, events);
-    events.push({ type: 'stage', phase: 'resolve', canEscalate: canEscalate(s) });
-    return { state: emit(s, events), events: events };
-  }
-
-  function canEscalate(state) {
-    if (!state || state.phase !== 'resolve' || !state.current || state.escalated) return false;
-    var info = currentCard(state);
-    if (!info) return false;
-    var maxS = effectiveMaxStar(state);
-    if (info.star < maxS) return true;
-    if (info.star >= maxS && (state.tokens.escalate || 0) > 0) return true;
+  function gentleBlocked(card, settings) {
+    if (!settings || !settings.gentleOnly) return false;
+    var tags = (card && card.tags) || [];
+    var block = B().GENTLE_ONLY.blockTags;
+    for (var i = 0; i < block.length; i++) if (tags.indexOf(block[i]) >= 0) return true;
     return false;
   }
 
-  function escalate(state) {
-    var s = clone(state);
-    if (!canEscalate(s)) return blocked(s, 'escalate', 'not_allowed');
+  /* ---------------------------- 抽取 ---------------------------- */
+  function defaultPools(state) {
     var b = B();
-    var info = currentCard(s);
-    var maxS = effectiveMaxStar(s);
-    var target = clamp(info.star + b.ESCALATE.starStep, 1, maxS);
-    var usedToken = info.star >= maxS;
-    if (usedToken) s.tokens.escalate = Math.max(0, (s.tokens.escalate || 0) - 1);
-    var preferPools = b.DRAW.deepPreferPools;
-    var rec = drawOne(s, { star: target, allowSpark: true, pools: preferPools });
-    if (!rec) rec = drawOne(s, { star: target, allowSpark: true });
-    if (!rec) return blocked(s, 'escalate', 'no_card');
-    s.escalated = true;
-    s.current = rec.key;
-    s.currentStar = intOr(rec.card.star, target);
-    s.phase = 'escalate';
-    var deepInfo = recInfo(rec, s.currentStar);
-    pushLog(s, { round: s.round, type: 'escalate', cardId: deepInfo.key, text: deepInfo.text, star: deepInfo.star });
-    var events = [
-      { type: 'stage', phase: 'escalate', card: cardEventData(deepInfo), tokenUsed: usedToken }
-    ];
-    if (usedToken) events.push({ type: 'token', token: 'escalate', name: b.TOKEN_META.escalate.name, delta: -1, reason: 'max_star_deep' });
-    return { state: emit(s, events), events: events };
+    var pools = b.DRAW_POOLS.slice();
+    if (effectiveMax(state) < b.DRAW.sparkMinMaxStar) pools = pools.filter(function (p) { return p !== 'spark'; });
+    return pools;
   }
 
-  function escalateComplete(state) {
-    var s = clone(state);
-    if (s.phase !== 'escalate') return blocked(s, 'escalateComplete', 'wrong_phase');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'escalateComplete', 'no_current_card');
-    var b = B();
-    s.combo = (s.combo || 0) + b.COMPLETE.combo;
-    s.maxCombo = Math.max(s.maxCombo || 0, s.combo);
-    s.completes = (s.completes || 0) + 1;
-    s.maxStarSeen = Math.max(s.maxStarSeen || 0, info.star);
-    s.flags = s.flags || {};
-    s.flags.deepDone = true;
-    var baseGain = b.yieldFor(info.pool, info.star);
-    var gain = {};
-    for (var i = 0; i < b.RES_KEYS.length; i++) {
-      var k = b.RES_KEYS[i];
-      if (baseGain[k]) gain[k] = baseGain[k] * b.ESCALATE.multiplier;
-    }
-    gain.coins = b.coinsFor(info.star, s.combo) * b.ESCALATE.multiplier;
-    var applied = addRes(s, gain);
-    s.phase = 'resolve';
-    s.escalatedDone = true;
-    pushLog(s, { round: s.round, type: 'escalateComplete', cardId: info.key, text: info.text, star: info.star, deltas: applied, mult: b.ESCALATE.multiplier });
-    var events = [
-      { type: 'gain', reason: 'escalateComplete', mult: b.ESCALATE.multiplier, res: applied, combo: s.combo, card: cardEventData(info) }
-    ];
-    if (s.combo > 0 && s.combo % b.COMBO.coinEvery === 0) events.push({ type: 'combo', n: s.combo, coinBonus: true });
-    grantComboToken(s, events);
-    events.push({ type: 'stage', phase: 'resolve', escalatedDone: true });
-    return { state: emit(s, events), events: events };
+  function entryKey(entry) {
+    if (!entry) return '';
+    return typeof entry === 'string' ? entry : (entry.key || '');
   }
 
-  function escalateSkip(state) {
-    var s = clone(state);
-    if (s.phase !== 'escalate') return blocked(s, 'escalateSkip', 'wrong_phase');
-    var info = currentCard(s);
-    var b = B();
-    var applied = addRes(s, { heart: b.ESCALATE_SKIP.heart });
-    s.combo = 0;
-    s.skips = (s.skips || 0) + 1;
-    s.phase = 'resolve';
-    s.escalatedDone = true;
-    pushLog(s, { round: s.round, type: 'escalateSkip', cardId: info ? info.key : null, deltas: applied });
-    var events = [
-      { type: 'skip', reason: 'escalateSkip', res: applied, gentle: 0, card: cardEventData(info) },
-      { type: 'stage', phase: 'resolve' }
-    ];
-    return { state: emit(s, events), events: events };
-  }
-
-  function skip(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'skip', 'wrong_phase');
-    var info = currentCard(s);
-    var b = B();
-    var applied = addRes(s, { tension: b.SKIP.tension, gentle: b.SKIP.gentle });
-    s.combo = 0;
-    s.skips = (s.skips || 0) + 1;
-    s.phase = 'resolve';
-    pushLog(s, { round: s.round, type: 'skip', cardId: info ? info.key : null, deltas: applied });
-    var events = [
-      { type: 'skip', reason: 'skip', res: applied, combo: 0, gentle: s.gentle, card: cardEventData(info) },
-      { type: 'stage', phase: 'resolve', canEscalate: canEscalate(s) }
-    ];
-    return { state: emit(s, events), events: events };
-  }
-
-  function gentleDown(state) {
-    var s = clone(state);
-    if (s.phase !== 'play') return blocked(s, 'gentleDown', 'wrong_phase');
-    var b = B();
-    if ((s.gentleUsed || 0) >= b.GENTLE.maxUses) return blocked(s, 'gentleDown', 'no_uses_left');
-    var info = currentCard(s);
-    if (!info) return blocked(s, 'gentleDown', 'no_current_card');
-    var next = info.star + b.GENTLE.starStep;
-    s.gentleUsed = (s.gentleUsed || 0) + 1;
-    s.gentle = clamp((s.gentle || 0) + 1, 0, 99);
-    if (next <= 0) {
-      var applied = addRes(s, { tension: b.SKIP.tension });
-      s.combo = 0;
-      s.skips = (s.skips || 0) + 1;
-      s.phase = 'resolve';
-      pushLog(s, { round: s.round, type: 'gentleSkip', cardId: info.key, deltas: applied });
-      var evs = [
-        { type: 'skip', reason: 'gentleToZero', gentle: s.gentle, res: applied },
-        { type: 'stage', phase: 'resolve' }
-      ];
-      return { state: emit(s, evs), events: evs };
-    }
-    s.currentStar = next;
-    pushLog(s, { round: s.round, type: 'gentleDown', cardId: info.key, star: next });
-    var events = [{ type: 'stage', phase: 'play', gentleDown: true, star: next, usesLeft: b.GENTLE.maxUses - s.gentleUsed, card: cardEventData(info) }];
-    return { state: emit(s, events), events: events };
-  }
-
-  /* ---------------------------- 幕末 / 事件 / 商店 ---------------------------- */
-  function actInfo(state) {
-    var b = B();
-    var c = contentRoot();
-    var act = clampInt(state && state.act, 1, 3);
-    var cfg = b.LENGTHS[(state && state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var actMeta = null;
-    if (c && c.acts && c.acts[act - 1]) actMeta = c.acts[act - 1];
-    return {
-      act: act,
-      index: act - 1,
-      name: (actMeta && actMeta.name) || ('第 ' + act + ' 幕'),
-      sub: (actMeta && actMeta.sub) || '',
-      accent: (actMeta && actMeta.accent) || '',
-      intro: (actMeta && actMeta.intro) || [],
-      outtro: (actMeta && actMeta.outtro) || null,
-      length: actMeta ? actMeta.length : cfg.acts[act - 1],
-      rounds: cfg.acts[act - 1],
-      threshold: b.actThreshold(act, cfg.rounds)
-    };
-  }
-
-  function actEndRoundOf(state) {
-    var b = B();
-    var cfg = b.LENGTHS[(state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    return b.actEndRound(cfg.id, clampInt(state.act, 1, 3));
-  }
-
-  function applyActEnd(state) {
-    var b = B();
-    var info = actInfo(state);
-    var score = b.actScore(state);
-    var good = score >= info.threshold;
-    var reward = null;
-    var events = [];
-    if (good) {
-      reward = { coins: b.ACT_REWARD.coins };
-      state.resources.coins = clamp((state.resources.coins || 0) + b.ACT_REWARD.coins, 0, b.RESOURCE_MAX);
-      events.push({ type: 'gain', reason: 'actReward', res: { coins: b.ACT_REWARD.coins } });
-      if (b.ACT_REWARD.token) {
-        var tk = b.TOKEN_ROLLPOOL[Math.floor(nextRand(state) * b.TOKEN_ROLLPOOL.length)];
-        state.tokens[tk] = clampInt((state.tokens[tk] || 0) + 1, 0, b.TOKEN_MAX);
-        reward.token = tk;
-        events.push({ type: 'token', token: tk, name: b.TOKEN_META[tk].name, delta: 1, reason: 'actReward' });
-      }
-    } else {
-      state.drawBias = Math.max(b.ADAPT.biasFloor, intOr(state.drawBias, 0) + b.ADAPT.starBias);
-      events.push({ type: 'stage', phase: state.phase, adaptive: true, drawBias: state.drawBias, reason: 'actBelowThreshold' });
-    }
-    state.actScores = state.actScores || [];
-    state.actScores.push({ act: info.act, score: score, threshold: info.threshold, good: good });
-    var ev = { type: 'actEnd', act: info.act, score: score, threshold: info.threshold, good: good, reward: reward };
-    return { event: ev, events: events };
-  }
-
-  function eventForAct(state, act) {
-    var c = contentRoot();
-    if (!c || !c.events) return null;
-    for (var i = 0; i < c.events.length; i++) {
-      var e = c.events[i];
-      if (!e || !e.id) continue;
-      if (intOr(e.afterAct, act) !== act) continue;
-      if (state.events && state.events[e.id]) continue;
-      if (state.flags && state.flags['event_' + e.id]) continue;
-      return e;
-    }
-    return null;
-  }
-
-  function nextRound(state) {
-    var s = clone(state);
-    if (s.phase !== 'resolve') return blocked(s, 'nextRound', 'wrong_phase');
-    var b = B();
-    var cfg = b.LENGTHS[(s.settings && s.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var total = cfg.rounds;
-    var events = [];
-    var lastRound = s.round >= total;
-    var atActEnd = !lastRound && s.round === actEndRoundOf(s);
-    if (!lastRound && !atActEnd) {
-      s.round = s.round + 1;
-      s.host = s.host === 'a' ? 'b' : 'a';
-      s.phase = 'draft';
-      s.current = null;
-      s.currentStar = null;
-      s.escalated = false;
-      s.escalatedDone = false;
-      drawIntoHand(s);
-      events.push({ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() });
-      return { state: emit(s, events), events: events };
-    }
-    /* 幕末 */
-    var ae = applyActEnd(s);
-    events.push(ae.event);
-    events = events.concat(ae.events);
-    if (lastRound) {
-      s.phase = 'act';
-      s.lastAct = true;
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'act', lastAct: true });
-      return { state: emit(s, events), events: events };
-    }
-    var ev = eventForAct(s, s.act);
-    if (ev) {
-      s.phase = 'event';
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'event', eventId: ev.id, title: ev.title || '', afterAct: s.act });
-    } else {
-      s.phase = 'act';
-      s.pendingActEnd = true;
-      events.push({ type: 'stage', phase: 'act', afterAct: s.act });
-    }
-    return { state: emit(s, events), events: events };
-  }
-
-  function chooseEvent(state, eventId, optionId) {
-    var s = clone(state);
-    if (s.phase !== 'event') return blocked(s, 'chooseEvent', 'wrong_phase');
-    var c = contentRoot();
-    var ev = null;
-    if (c && c.events) {
-      for (var i = 0; i < c.events.length; i++) {
-        if (c.events[i] && c.events[i].id === eventId) { ev = c.events[i]; break; }
-      }
-      if (!ev) {
-        for (var j = 0; j < c.events.length; j++) {
-          if (c.events[j] && intOr(c.events[j].afterAct, s.act) === s.act) { ev = c.events[j]; break; }
-        }
-      }
-    }
-    if (!ev) return blocked(s, 'chooseEvent', 'event_not_found');
-    if (s.events && s.events[ev.id] !== undefined) return blocked(s, 'chooseEvent', 'event_already_chosen');
-    var opt = null;
-    var opts = ev.options || [];
-    for (var k = 0; k < opts.length; k++) if (opts[k] && opts[k].id === optionId) { opt = opts[k]; break; }
-    if (!opt) return blocked(s, 'chooseEvent', 'option_not_found');
-    var effects = opt.effects || {};
-    var applied = addRes(s, effects);
-    if (opt.flag) {
-      s.flags = s.flags || {};
-      s.flags[opt.flag] = true;
-    }
-    s.flags = s.flags || {};
-    s.flags['event_' + ev.id] = true;
-    s.events = s.events || {};
-    s.events[ev.id] = opt.id;
-    s.phase = 'act';
-    pushLog(s, { round: s.round, type: 'event', eventId: ev.id, optionId: opt.id, deltas: applied });
-    var events = [
-      { type: 'gain', reason: 'event', eventId: ev.id, optionId: opt.id, res: applied, flag: opt.flag || null },
-      { type: 'stage', phase: 'act', afterAct: s.act }
-    ];
-    return { state: emit(s, events), events: events };
-  }
-
-  function leaveAct(state) {
-    var s = clone(state);
-    if (s.phase !== 'act' && s.phase !== 'shop') return blockedState(s, 'leaveAct', 'wrong_phase');
-    var b = B();
-    var cfg = b.LENGTHS[(s.settings && s.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    if (s.lastAct || s.act >= 3 || s.round >= cfg.rounds) {
-      s.phase = 'finale';
-      return emit(s, [{ type: 'stage', phase: 'finale', act: s.act }]);
-    }
-    s.act = s.act + 1;
-    s.round = s.round + 1;
-    s.host = s.host === 'a' ? 'b' : 'a';
-    s.phase = 'draft';
-    s.current = null;
-    s.currentStar = null;
-    s.escalated = false;
-    s.escalatedDone = false;
-    s.pendingActEnd = false;
-    drawIntoHand(s);
-    return emit(s, [{ type: 'stage', phase: 'draft', round: s.round, act: s.act, host: s.host, hand: s.hand.slice() }]);
-  }
-
-  function shopOffers(state) {
-    var list = (B() && B().SHOP) || [];
-    var coins = state && state.resources ? state.resources.coins || 0 : 0;
+  function candidates(state, opt, chosenKeys, ignoreSeen) {
+    var max = effectiveMax(state);
+    var min = opt.starMin || 1;
+    var maxS = Math.min(opt.starMax || max, max);
+    if (maxS < min) min = maxS;
+    var pools = opt.pools || defaultPools(state);
+    var idx = ensureIndex();
+    var settings = state.settings || {};
     var out = [];
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      out.push({ id: it.id, name: it.name, icon: it.icon, price: it.price, desc: it.desc, affordable: coins >= it.price });
+    for (var p = 0; p < pools.length; p++) {
+      var pool = pools[p];
+      if (pool === 'spark' && max < B().DRAW.sparkMinMaxStar && !opt.allowSpark) continue;
+      if (pool === 'punish') continue;
+      var list = idx.byPool[pool] || [];
+      for (var i = 0; i < list.length; i++) {
+        var rec = list[i];
+        var star = intOr(rec.card.star, 1);
+        if (star < min || star > maxS) continue;
+        if (isBlacklisted(rec.card, settings.blacklist)) continue;
+        if (gentleBlocked(rec.card, settings)) continue;
+        if (!ignoreSeen && state.seen && state.seen.indexOf(rec.key) >= 0) continue;
+        if (chosenKeys.indexOf(rec.key) >= 0) continue;
+        out.push(rec.key);
+      }
     }
     return out;
   }
 
-  function shopBuy(state, itemId) {
-    var s = clone(state);
-    if (s.phase !== 'act' && s.phase !== 'shop') return blocked(s, 'shopBuy', 'wrong_phase');
-    var list = (B() && B().SHOP) || [];
-    var item = null;
-    for (var i = 0; i < list.length; i++) if (list[i].id === itemId) { item = list[i]; break; }
-    if (!item) return blocked(s, 'shopBuy', 'item_not_found');
-    if ((s.resources.coins || 0) < item.price) return blocked(s, 'shopBuy', 'not_enough_coins');
-    s.resources.coins = clamp(s.resources.coins - item.price, 0, B().RESOURCE_MAX);
-    var effect = {};
-    if (item.id === 'heart') {
-      effect = addRes(s, { heart: 1 });
-    } else if (B().TOKEN_KEYS.indexOf(item.id) >= 0) {
-      s.tokens[item.id] = clampInt((s.tokens[item.id] || 0) + 1, 0, B().TOKEN_MAX);
-      effect[item.id] = 1;
-    }
-    if (s.phase === 'act') s.phase = 'shop';
-    pushLog(s, { round: s.round, type: 'shop', itemId: item.id, price: item.price });
-    var events = [
-      { type: 'shop', itemId: item.id, name: item.name, price: item.price, effect: effect, coins: s.resources.coins },
-      { type: 'gain', reason: 'shop', res: { coins: -item.price } }
-    ];
-    return { state: emit(s, events), events: events };
+  function typeOfKey(key) {
+    var info = cardByKey(key);
+    return info ? info.pool : '';
   }
 
-  /* ---------------------------- 结局 / 奖项 ---------------------------- */
-  function contentEndingList() {
-    var c = contentRoot();
-    if (c && isArr(c.endings) && c.endings.length) return c.endings;
-    return null;
+  function countType(keys, pool) {
+    var n = 0;
+    for (var i = 0; i < keys.length; i++) if (typeOfKey(keys[i]) === pool) n++;
+    return n;
   }
 
-  function pickEnding(state, forceId) {
-    var b = B();
-    var list = contentEndingList();
-    if (list) {
-      if (forceId) {
-        for (var f = 0; f < list.length; f++) {
-          if (list[f] && (list[f].id === forceId || list[f].kind === forceId)) return list[f];
-        }
-        if (forceId === 'safe') return list[0];
-      }
-      for (var i = 0; i < list.length; i++) {
-        var e = list[i];
-        if (!e) continue;
-        if (typeof e.cond === 'function') {
-          var ok = false;
-          try { ok = !!e.cond(state.resources, state, state.flags); } catch (err) { ok = false; }
-          if (ok) return e;
-        }
-      }
-      return list[list.length - 1];
+  function preferStar(state, opt) {
+    if (opt.prefer) return opt.prefer;
+    var max = effectiveMax(state);
+    if (state.spread <= 1) return 1;
+    if (state.spread === 2) return Math.min(2, max);
+    return Math.min(3, max);
+  }
+
+  function pickWeighted(state, keys, prefer) {
+    var bag = [];
+    for (var i = 0; i < keys.length; i++) {
+      var star = (cardByKey(keys[i]) || {}).star || 1;
+      var w = star === prefer ? 4 : (Math.abs(star - prefer) === 1 ? 2 : 1);
+      for (var k = 0; k < w; k++) bag.push(keys[i]);
     }
-    if (forceId) return b.endingById(forceId);
-    for (var j = 0; j < b.ENDING_RULES.length; j++) {
-      var rule = b.ENDING_RULES[j];
-      var hit = false;
-      try { hit = !!rule.test(state); } catch (e2) { hit = false; }
-      if (hit) return b.endingById(rule.id);
+    if (!bag.length) return null;
+    return bag[Math.floor(nextRand(state) * bag.length)];
+  }
+
+  function pickOneKey(state, opt, chosen) {
+    var list = candidates(state, opt, chosen, false);
+    var filtered = [];
+    var cap = B().DRAW.maxSameType;
+    for (var i = 0; i < list.length; i++) {
+      if (countType(chosen, typeOfKey(list[i])) >= cap) continue;
+      filtered.push(list[i]);
     }
-    return b.endingById('each');
+    if (!filtered.length) filtered = list;
+    if (!filtered.length) return null;
+    return pickWeighted(state, filtered, preferStar(state, opt));
+  }
+
+  function drawKeys(state, n, opt) {
+    opt = Object.assign({}, opt || {});
+    var keys = [];
+    var relaxed = false;
+    var guard = 0;
+    while (keys.length < n && guard++ < n * 20) {
+      var key = pickOneKey(state, opt, keys);
+      if (!key && !relaxed) {
+        relaxed = true;
+        opt = Object.assign({}, opt, { starMin: 1, starMax: effectiveMax(state) });
+        var keep = keys.slice();
+        state.seen = (state.seen || []).filter(function (k) { return keep.indexOf(k) >= 0; });
+        continue;
+      }
+      if (!key) break;
+      keys.push(key);
+    }
+    var fb = B().FALLBACK_CARDS;
+    var f = 0;
+    while (keys.length < n) {
+      keys.push('fallback:' + fb[f % fb.length].id);
+      f++;
+    }
+    for (var i = 0; i < keys.length; i++) {
+      if (state.seen.indexOf(keys[i]) < 0) state.seen.push(keys[i]);
+    }
+    return keys;
+  }
+
+  function drawInfos(state, n, opt) {
+    return drawKeys(state, n, opt).map(cardByKey);
+  }
+
+  function dareWindow(state) {
+    var max = effectiveMax(state);
+    var target = clampInt(1 + Math.floor((state.heat || 0) / 8), 1, max);
+    return { starMin: Math.max(1, target - 1), starMax: target, prefer: target, pools: B().DARE_POOLS };
+  }
+
+  /* ---------------------------- 关系 / 热度 ---------------------------- */
+  function pairRelation(a, b) {
+    a = infoOf(a);
+    b = infoOf(b);
+    if (!a || !b) return 'apart';
+    var d = Math.abs((a.star || 1) - (b.star || 1));
+    var same = a.pool && a.pool === b.pool;
+    if (same || d <= 1) return 'close';
+    if (d >= 3) return 'far';
+    return 'apart';
+  }
+
+  function cleanNote(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/\s+/g, ' ').trim().slice(0, B().NOTE_MAX);
+  }
+
+  function tiltOf(state) {
+    return Math.round((nextRand(state) * 70 - 35)) / 10;
+  }
+
+  function applyHeat(state, delta, events, reason) {
+    delta = Math.round(Number(delta) || 0);
+    if (!delta) return 0;
+    var before = state.heat || 0;
+    state.heat = clamp(before + delta, 0, B().HEAT_MAX);
+    var got = state.heat - before;
+    if (events && got) events.push({ type: 'heat', delta: got, heat: state.heat, reason: reason || '' });
+    return got;
+  }
+
+  function applyTape(state, delta, events, reason) {
+    delta = Math.round(Number(delta) || 0);
+    if (!delta) return;
+    var before = state.tape || 0;
+    state.tape = clamp(before + delta, 0, B().TAPE_MAX);
+    if (events) events.push({ type: 'tape', delta: state.tape - before, tape: state.tape, reason: reason || '' });
+  }
+
+  function applyImprint(state, delta, events) {
+    delta = Math.round(Number(delta) || 0);
+    if (!delta) return;
+    var before = state.imprint || 0;
+    state.imprint = clamp(before + delta, 0, B().IMPRINT_MAX);
+    if (events) events.push({ type: 'imprint', delta: state.imprint - before, imprint: state.imprint });
+  }
+
+  function logLine(state, text) {
+    state.log = state.log || [];
+    state.log.push({ t: state.turn || 0, text: String(text || '').slice(0, 80) });
+    if (state.log.length > 40) state.log.shift();
+  }
+
+  function curPage(state) {
+    return state.pages[clampInt(state.spread, 1, 3) - 1];
+  }
+
+  function firstEmpty(page) {
+    var slots = page && page.slots || [];
+    for (var i = 0; i < slots.length; i++) if (!slots[i] || slots[i].kind === 'empty') return i;
+    return -1;
+  }
+
+  function specialAt(spread, slot) {
+    var row = B().SPECIAL_SLOTS[spread];
+    if (!row) return null;
+    return row[slot] || null;
+  }
+
+  function emptySlot(i) { return { i: i, kind: 'empty' }; }
+
+  function makePages() {
+    return B().SPREADS.map(function (def) {
+      var slots = [];
+      for (var i = 0; i < B().SLOTS_PER_SPREAD; i++) slots.push(emptySlot(i));
+      return { id: def.id, name: def.name, sub: def.sub, slots: slots, extras: [] };
+    });
+  }
+
+  /* ---------------------------- 结局 ---------------------------- */
+  function callCond(fn, state) {
+    if (typeof fn !== 'function') return false;
+    try { return !!fn(state, state); } catch (e) { return false; }
+  }
+
+  function textOf(v) {
+    if (isArr(v)) return v.join('\n');
+    return v ? String(v) : '';
+  }
+
+  function pickEnding(state) {
+    var content = contentRoot();
+    var list = content && content.endings || [];
+    for (var i = 0; i < list.length; i++) {
+      if (callCond(list[i].cond, state)) return list[i];
+    }
+    var rules = B().ENDING_RULES;
+    for (var j = 0; j < rules.length; j++) {
+      try { if (rules[j].test(state)) return B().endingById(rules[j].id); } catch (e) {}
+    }
+    return B().endingById('gentle');
   }
 
   function pickAwards(state) {
-    var b = B();
+    var content = contentRoot();
+    var list = (content && content.awards) || [];
     var out = [];
     var seen = {};
-    var c = contentRoot();
-    var contentAwards = c && isArr(c.awards) ? c.awards : null;
-    function push(id, name, icon, desc) {
-      if (!id || seen[id]) return;
-      seen[id] = true;
-      out.push({ id: id, name: name, icon: icon, desc: desc });
+    function push(a) {
+      if (!a || seen[a.id] || out.length >= 3) return;
+      seen[a.id] = true;
+      out.push({ id: a.id, name: a.name, icon: a.icon || '' });
     }
-    if (contentAwards) {
-      for (var i = 0; i < contentAwards.length && out.length < b.AWARDS_MAX; i++) {
-        var a = contentAwards[i];
-        if (!a || !a.id) continue;
-        var hit = true;
-        if (typeof a.cond === 'function') {
-          try { hit = !!a.cond(state.resources, state, state.flags); } catch (e) { hit = false; }
-        }
-        if (hit) push(a.id, a.name, a.icon, a.desc);
-      }
+    for (var i = 0; i < list.length; i++) if (callCond(list[i].cond, state)) push(list[i]);
+    var fb = B().AWARDS;
+    for (var j = 0; j < fb.length && out.length < 2; j++) {
+      try { if (fb[j].test(state)) push(fb[j]); } catch (e) {}
     }
-    for (var j = 0; j < b.AWARDS.length && out.length < b.AWARDS_MAX; j++) {
-      var fa = b.AWARDS[j];
-      var ok = false;
-      try { ok = !!fa.test(state); } catch (e2) { ok = false; }
-      if (ok) push(fa.id, fa.name, fa.icon, fa.desc);
-    }
-    var pad = b.AWARDS[b.AWARDS.length - 1];
-    while (out.length < b.AWARDS_MIN) push(pad.id + '_' + out.length, pad.name, pad.icon, pad.desc);
-    return out.slice(0, b.AWARDS_MAX);
+    return out;
   }
 
-  function buildResult(state, forceEndingId) {
-    var b = B();
-    var e = pickEnding(state, forceEndingId) || b.ENDING_RULES[b.ENDING_RULES.length - 1];
-    var endingId = (e && e.id) || 'each';
-    var endingName = (e && e.name) || b.endingById(endingId).name;
-    var awards = pickAwards(state);
-    var cfg = b.LENGTHS[(state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    return {
-      v: 1,
-      endingId: endingId,
-      endingName: endingName,
-      quote: (e && e.quote) || ((e && e.text) ? '' : b.endingById(endingId).desc || ''),
-      awards: awards,
-      ts: nowMs(),
+  function finishInto(state, events, asSafe) {
+    if (asSafe) {
+      state.flags = state.flags || {};
+      state.flags.safeWord = true;
+    }
+    state.phase = 'poster';
+    state.mode = 'done';
+    state.game = null;
+    var ending = pickEnding(state);
+    state.result = {
+      endingId: ending.id,
+      endingName: ending.name,
+      stamp: ending.stamp || ending.name,
+      quote: ending.quote || '',
+      text: textOf(ending.text || ending.desc),
+      awards: pickAwards(state),
       stats: {
-        length: cfg.id,
-        rounds: cfg.rounds,
-        round: state.round,
-        act: state.act,
-        heart: state.resources.heart,
-        tension: state.resources.tension,
-        sync: state.resources.sync,
-        coins: state.resources.coins,
-        gentle: state.gentle,
-        combo: state.combo,
-        maxCombo: state.maxCombo,
-        skips: state.skips,
-        completes: state.completes,
-        maxStarSeen: state.maxStarSeen,
-        maxCombo: state.maxCombo,
-        actScores: (state.actScores || []).slice(),
-        safeWord: !!(state.flags && state.flags.safeWord)
-      }
+        heat: state.heat || 0,
+        imprint: state.imprint || 0,
+        tape: state.tape || 0,
+        pastes: state.pastes || 0,
+        peels: state.peels || 0,
+        stacks: state.stacks || 0
+      },
+      safe: !!(state.flags && state.flags.safeWord)
     };
+    if (events) events.push({ type: 'ending', endingId: ending.id, endingName: ending.name, safe: state.result.safe, awards: state.result.awards });
+    logLine(state, '封底 · ' + ending.name);
+  }
+
+  /* ---------------------------- 开局 ---------------------------- */
+  function createBase(settings, names, seed) {
+    var b = B();
+    var cfg = normalizeSettings(settings);
+    var sd = seed === undefined || seed === null || seed === '' ? cfg.seed : (Number(seed) >>> 0);
+    if (!isNum(sd)) sd = (Date.now() >>> 0);
+    sd = sd >>> 0;
+    if (!sd) sd = 1;
+    return {
+      v: b.SESSION_VERSION,
+      kind: 'journal',
+      id: 'j' + sd.toString(36) + (Date.now() % 2176782336).toString(36),
+      ts: Date.now(),
+      names: normNames(names),
+      settings: cfg,
+      spread: 1,
+      slot: 0,
+      turn: 0,
+      stickerTurn: 0,
+      host: 'a',
+      mode: 'pick',
+      phase: 'choose',
+      hand: [],
+      hands: { a: [], b: [] },
+      picks: { a: null, b: null },
+      secretWho: 'a',
+      pairMark: null,
+      current: null,
+      stackCard: null,
+      stackBase: 1,
+      stackSnooze: false,
+      turnsSinceStack: 0,
+      pages: makePages(),
+      heat: 0,
+      imprint: 0,
+      tape: b.TAPE_START,
+      pastes: 0,
+      peels: 0,
+      stacks: 0,
+      peek: 0,
+      soften: 0,
+      stackCharges: 0,
+      seen: [],
+      maxStarSeen: 1,
+      flags: { safeWord: false },
+      game: null,
+      standalone: false,
+      arcadePaste: null,
+      result: null,
+      archived: false,
+      log: [],
+      rng: sd
+    };
+  }
+
+  function noteStar(state, star) {
+    if ((star || 1) > (state.maxStarSeen || 1)) state.maxStarSeen = star;
+  }
+
+  function placeSlot(state, slotObj) {
+    var page = curPage(state);
+    slotObj.i = state.slot;
+    page.slots[state.slot] = slotObj;
+  }
+
+  function pushExtra(state, extra) {
+    var page = curPage(state);
+    page.extras = page.extras || [];
+    if (page.extras.length >= B().EXTRAS_MAX) page.extras.shift();
+    page.extras.push(extra);
+  }
+
+  /* ---------------------------- 回合推进 ---------------------------- */
+  function startGame(state, kind, events) {
+    state.phase = 'minigame';
+    state.mode = 'game';
+    state.current = null;
+    if (kind === 'thermo') {
+      var max = effectiveMax(state);
+      var n = clampInt(max + 2, 3, B().THERMO_BANDS.length);
+      var bands = [];
+      for (var i = 0; i < n; i++) bands.push({ id: i, label: B().THERMO_BANDS[i] });
+      state.game = { kind: 'thermo', step: 'a', bands: bands, a: null, b: null, gain: 0, dist: null, exact: 0, imprint: false };
+    } else if (kind === 'truth') {
+      state.game = {
+        kind: 'truth',
+        step: 'ready',
+        segments: drawInfos(state, B().WHEEL_SEGMENTS, { pools: B().TRUTH_POOLS }),
+        index: -1,
+        who: null,
+        rerolls: 0
+      };
+    } else if (kind === 'dare') {
+      var w = dareWindow(state);
+      state.game = {
+        kind: 'dare',
+        step: 'ready',
+        segments: drawInfos(state, B().WHEEL_SEGMENTS, w),
+        index: -1,
+        who: null,
+        rerolls: 0,
+        targetStar: w.prefer
+      };
+    } else {
+      state.game = {
+        kind: 'map',
+        step: 'walk',
+        tiles: drawInfos(state, B().MAP_TILES, { pools: B().MAP_POOLS }),
+        pos: -1,
+        moves: 0,
+        maxMoves: B().MAP_MOVES,
+        log: [],
+        lastStep: 0
+      };
+    }
+    if (events) events.push({ type: 'game', kind: kind, step: state.game.step });
+  }
+
+  function beginTurn(state, events) {
+    var page = curPage(state);
+    var idx = firstEmpty(page);
+    if (idx < 0) {
+      if (state.spread >= 3) { finishInto(state, events, false); return; }
+      state.phase = 'shop';
+      state.mode = 'shop';
+      state.game = null;
+      if (events) events.push({ type: 'stage', phase: 'shop', spread: state.spread });
+      return;
+    }
+    state.slot = idx;
+    state.turn += 1;
+    state.host = (state.turn % 2 === 1) ? 'a' : 'b';
+    state.current = null;
+    state.stackCard = null;
+    state.pairMark = null;
+    state.picks = { a: null, b: null };
+    state.game = null;
+    var spec = specialAt(state.spread, idx);
+    if (spec) {
+      startGame(state, spec, events);
+      if (events) events.push({ type: 'stage', phase: 'minigame', mode: 'game', game: spec, host: state.host, slot: idx });
+      return;
+    }
+    state.stickerTurn += 1;
+    state.mode = (state.stickerTurn % 2 === 1) ? 'pick' : 'pair';
+    var extra = state.peek > 0 ? B().PEEK_EXTRA : 0;
+    if (extra) state.peek -= 1;
+    var n = B().HAND_SIZE + extra;
+    if (state.mode === 'pick') {
+      state.hand = drawInfos(state, n, {});
+      state.phase = 'choose';
+    } else {
+      state.hands = { a: drawInfos(state, n, {}), b: drawInfos(state, n, {}) };
+      state.secretWho = state.host;
+      state.phase = 'secret1';
+    }
+    if (events) events.push({ type: 'stage', phase: state.phase, mode: state.mode, host: state.host, slot: idx });
+  }
+
+  function afterFill(state, events) {
+    var page = curPage(state);
+    if (firstEmpty(page) < 0) {
+      if (state.spread >= 3) { finishInto(state, events, false); return; }
+      state.phase = 'shop';
+      state.mode = 'shop';
+      state.game = null;
+      if (events) events.push({ type: 'stage', phase: 'shop', spread: state.spread });
+      return;
+    }
+    beginTurn(state, events);
+  }
+
+  function considerStack(state, events, baseStar) {
+    state.turnsSinceStack += 1;
+    var periodic = state.turnsSinceStack >= B().STACK_EVERY;
+    var charge = (state.stackCharges || 0) > 0 && !state.stackSnooze;
+    if (periodic || charge) {
+      state.phase = 'stackOffer';
+      state.stackBase = baseStar || 1;
+      if (periodic) state.turnsSinceStack = 0;
+      state.stackSnooze = true;
+      if (events) events.push({ type: 'stage', phase: 'stackOffer' });
+      return;
+    }
+    afterFill(state, events);
+  }
+
+  function newSession(settings, names, seed) {
+    var state = createBase(settings, names, seed);
+    var events = [];
+    beginTurn(state, events);
+    return state;
+  }
+
+  /* ---------------------------- 自选贴 ---------------------------- */
+  function handList(state, which) {
+    if (which === 'a') return state.hands && state.hands.a || [];
+    if (which === 'b') return state.hands && state.hands.b || [];
+    return state.hand || [];
+  }
+
+  function resolvePick(hand, id) {
+    if (!hand || !hand.length) return null;
+    if (typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id))) {
+      var i = Number(id);
+      return hand[i] ? infoOf(hand[i]) : null;
+    }
+    var key = typeof id === 'object' && id ? id.key : id;
+    for (var k = 0; k < hand.length; k++) {
+      var info = infoOf(hand[k]);
+      if (info && info.key === key) return info;
+    }
+    return null;
+  }
+
+  function chooseSticker(state, cardId) {
+    if (!state || state.phase !== 'choose') return blocked(state, 'choose');
+    var card = resolvePick(state.hand, cardId);
+    if (!card) return blocked(state, 'card');
+    var next = clone(state);
+    var events = [];
+    next.current = card;
+    next.phase = 'do';
+    events.push({ type: 'stage', phase: 'do', card: card, host: next.host, to: otherOf(next.host) });
+    return ok(next, events);
+  }
+
+  function paste(state, note) {
+    if (!state || state.phase !== 'do' || !state.current) return blocked(state, 'paste');
+    var next = clone(state);
+    var events = [];
+    var card = infoOf(next.current);
+    noteStar(next, card.star);
+    var heat = B().heatForStar(card.star);
+    placeSlot(next, {
+      i: next.slot,
+      kind: 'sticker',
+      card: card,
+      note: cleanNote(note),
+      who: otherOf(next.host),
+      from: next.host,
+      title: card.typeName,
+      text: card.text,
+      tilt: tiltOf(next),
+      stack: null,
+      game: ''
+    });
+    next.pastes += 1;
+    applyHeat(next, heat, events, 'paste');
+    applyTape(next, B().TAPE_ON_PASTE, events, 'paste');
+    events.push({ type: 'paste', slot: next.slot, card: card });
+    logLine(next, card.typeName + ' · 贴上');
+    next.current = null;
+    considerStack(next, events, card.star);
+    return ok(next, events);
+  }
+
+  function peel(state) {
+    if (!state || state.phase !== 'do') return blocked(state, 'peel');
+    var next = clone(state);
+    var events = [];
+    placeSlot(next, {
+      i: next.slot,
+      kind: 'residue',
+      title: '胶痕',
+      text: '这里揭走过',
+      tilt: tiltOf(next),
+      stack: null,
+      game: ''
+    });
+    next.peels += 1;
+    next.current = null;
+    events.push({ type: 'peel', slot: next.slot });
+    logLine(next, '撕掉 · 留下胶痕');
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  /* ---------------------------- 对贴 ---------------------------- */
+  function lockSecret(state, cardId) {
+    if (!state || (state.phase !== 'secret1' && state.phase !== 'secret2')) return blocked(state, 'secret');
+    var who = state.secretWho;
+    var card = resolvePick(handList(state, who), cardId);
+    if (!card) return blocked(state, 'card');
+    var next = clone(state);
+    var events = [];
+    next.picks[who] = card;
+    if (next.phase === 'secret1') {
+      next.phase = 'secret2';
+      next.secretWho = otherOf(who);
+      events.push({ type: 'stage', phase: 'secret2', who: next.secretWho });
+    } else {
+      next.phase = 'reveal';
+      next.pairMark = pairRelation(next.picks.a, next.picks.b);
+      events.push({ type: 'stage', phase: 'reveal', mark: next.pairMark });
+    }
+    return ok(next, events);
+  }
+
+  function resolvePair(state, spec) {
+    if (!state || state.phase !== 'reveal') return blocked(state, 'reveal');
+    spec = spec || {};
+    var aStatus = spec.a === 'peel' ? 'peel' : 'paste';
+    var bStatus = spec.b === 'peel' ? 'peel' : 'paste';
+    var next = clone(state);
+    var events = [];
+    var ca = infoOf(next.picks.a);
+    var cb = infoOf(next.picks.b);
+    var mark = next.pairMark || pairRelation(ca, cb);
+    var pasted = (aStatus === 'paste' ? 1 : 0) + (bStatus === 'paste' ? 1 : 0);
+    var peeled = (aStatus === 'peel' ? 1 : 0) + (bStatus === 'peel' ? 1 : 0);
+    var heat = 0;
+    if (aStatus === 'paste') { heat += B().heatForStar(ca.star); noteStar(next, ca.star); }
+    if (bStatus === 'paste') { heat += B().heatForStar(cb.star); noteStar(next, cb.star); }
+    var slot;
+    if (pasted === 0) {
+      slot = { i: next.slot, kind: 'residue', title: '胶痕', text: '这一对被揭走了', tilt: tiltOf(next), stack: null, game: '', mark: mark };
+    } else {
+      var bits = [];
+      if (aStatus === 'paste') bits.push(next.names.a + '：' + ca.text);
+      if (bStatus === 'paste') bits.push(next.names.b + '：' + cb.text);
+      slot = {
+        i: next.slot,
+        kind: 'pair',
+        a: aStatus === 'paste' ? ca : null,
+        b: bStatus === 'paste' ? cb : null,
+        aStatus: aStatus,
+        bStatus: bStatus,
+        mark: mark,
+        note: cleanNote(spec.note),
+        title: '对贴 · ' + (B().MARKS[mark] ? B().MARKS[mark].name : ''),
+        text: bits.join('\n'),
+        tilt: tiltOf(next),
+        stack: null,
+        game: ''
+      };
+    }
+    placeSlot(next, slot);
+    next.pastes += pasted;
+    next.peels += peeled;
+    if (heat) applyHeat(next, heat, events, 'pair');
+    if (pasted) applyTape(next, B().TAPE_ON_PASTE, events, 'pair');
+    if (pasted === 2 && mark === 'close') applyImprint(next, 1, events);
+    events.push({ type: pasted ? 'paste' : 'peel', slot: next.slot, mark: mark, pasted: pasted, peeled: peeled });
+    logLine(next, '对贴 · ' + (B().MARKS[mark] ? B().MARKS[mark].name : mark));
+    var base = Math.max(aStatus === 'paste' ? ca.star : 1, bStatus === 'paste' ? cb.star : 1);
+    if (pasted) considerStack(next, events, base);
+    else afterFill(next, events);
+    return ok(next, events);
+  }
+
+  /* ---------------------------- 叠贴 ---------------------------- */
+  function acceptStack(state) {
+    if (!state || state.phase !== 'stackOffer') return blocked(state, 'stack');
+    var next = clone(state);
+    var events = [];
+    if (next.stackCharges > 0) next.stackCharges -= 1;
+    next.stackSnooze = next.stackCharges > 0 ? false : true;
+    var max = effectiveMax(next);
+    var base = next.stackBase || 1;
+    var want = Math.min(max, Math.max(1, base + 1));
+    var drawn = drawInfos(next, 1, {
+      starMin: Math.min(want, max),
+      starMax: max,
+      prefer: want,
+      pools: B().DEEP_POOLS
+    });
+    next.stackCard = drawn[0];
+    next.phase = 'stackDo';
+    events.push({ type: 'stage', phase: 'stackDo', card: next.stackCard });
+    return ok(next, events);
+  }
+
+  function declineStack(state) {
+    if (!state || state.phase !== 'stackOffer') return blocked(state, 'stack');
+    var next = clone(state);
+    var events = [];
+    next.stackSnooze = true;
+    next.stackCard = null;
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  function pasteStack(state) {
+    if (!state || state.phase !== 'stackDo' || !state.stackCard) return blocked(state, 'stack');
+    var next = clone(state);
+    var events = [];
+    var card = infoOf(next.stackCard);
+    var page = curPage(next);
+    var slot = page.slots[next.slot];
+    if (!slot || slot.kind === 'empty') return blocked(state, 'slot');
+    slot.stack = { card: card, status: 'paste', text: card.text };
+    noteStar(next, card.star);
+    next.pastes += 1;
+    next.stacks += 1;
+    next.flags.stacked = true;
+    applyHeat(next, B().heatForStar(card.star), events, 'stack');
+    applyTape(next, B().TAPE_ON_PASTE, events, 'stack');
+    events.push({ type: 'stack', slot: next.slot, card: card });
+    logLine(next, '叠贴 · ' + card.typeName);
+    next.stackCard = null;
+    next.phase = 'resolve';
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  function peelStack(state) {
+    if (!state || state.phase !== 'stackDo') return blocked(state, 'stack');
+    var next = clone(state);
+    var events = [];
+    var page = curPage(next);
+    var slot = page.slots[next.slot];
+    if (slot && slot.kind !== 'empty') {
+      slot.stack = { status: 'peel', text: '叠层揭走了' };
+    }
+    next.peels += 1;
+    next.stackCard = null;
+    events.push({ type: 'peel', slot: next.slot, stack: true });
+    logLine(next, '叠层撕掉');
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  /* ---------------------------- 贴纸店 ---------------------------- */
+  function findShop(id) {
+    var list = B().SHOP;
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function shopOffers(state) {
+    var tape = state && state.tape || 0;
+    return B().SHOP.map(function (item) {
+      var soldOut = item.id === 'soften' && state && (state.soften || 0) >= B().SOFTEN_MAX;
+      return {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        desc: item.desc,
+        affordable: tape >= item.price && !soldOut,
+        soldOut: !!soldOut
+      };
+    });
+  }
+
+  function shopBuy(state, itemId) {
+    if (!state || state.phase !== 'shop') return blocked(state, 'shop');
+    var item = findShop(itemId);
+    if (!item) return blocked(state, 'item');
+    if ((state.tape || 0) < item.price) return blocked(state, 'tape');
+    if (item.id === 'soften' && (state.soften || 0) >= B().SOFTEN_MAX) return blocked(state, 'soften');
+    var next = clone(state);
+    var events = [];
+    applyTape(next, -item.price, events, 'shop');
+    if (item.id === 'peek') next.peek += 1;
+    else if (item.id === 'soften') next.soften += 1;
+    else if (item.id === 'stack') { next.stackCharges += 1; next.stackSnooze = false; }
+    events.push({ type: 'shop', itemId: item.id, price: item.price, tape: next.tape });
+    logLine(next, '贴纸店 · ' + item.name);
+    return ok(next, events);
+  }
+
+  function leaveShop(state) {
+    if (!state || state.phase !== 'shop') return blocked(state, 'shop');
+    if (state.spread >= 3) return finish(state);
+    var next = clone(state);
+    var events = [];
+    next.spread += 1;
+    beginTurn(next, events);
+    events.push({ type: 'stage', phase: next.phase, spread: next.spread, turned: true });
+    return ok(next, events);
+  }
+
+  /* ---------------------------- 小游戏 ---------------------------- */
+  function gameOk(state, kind) {
+    return state && state.phase === 'minigame' && state.game && (!kind || state.game.kind === kind);
+  }
+
+  function thermoCommit(state, payload) {
+    if (!gameOk(state, 'thermo')) return blocked(state, 'thermo');
+    var step = state.game.step;
+    if (step !== 'a' && step !== 'b') return blocked(state, 'thermo');
+    payload = payload || {};
+    if (!isNum(payload.place) || !isNum(payload.guess)) return blocked(state, 'band');
+    var n = state.game.bands.length;
+    var place = Math.round(payload.place);
+    var guess = Math.round(payload.guess);
+    if (place < 0 || guess < 0 || place >= n || guess >= n) return blocked(state, 'band');
+    var next = clone(state);
+    var events = [];
+    next.game[step] = { place: place, guess: guess };
+    if (step === 'a') {
+      next.game.step = 'b';
+      events.push({ type: 'game', kind: 'thermo', step: 'b' });
+    } else {
+      var a = next.game.a;
+      var b = next.game.b;
+      var dist = Math.abs(a.place - b.place);
+      next.game.dist = dist;
+      next.game.gain = Math.max(1, B().THERMO_HEAT_MAX - dist);
+      next.game.exact = (a.guess === b.place ? 1 : 0) + (b.guess === a.place ? 1 : 0);
+      next.game.imprint = dist <= 1;
+      next.game.step = 'result';
+      events.push({ type: 'game', kind: 'thermo', step: 'result', dist: dist, gain: next.game.gain });
+    }
+    return ok(next, events);
+  }
+
+  function thermoKeep(state) {
+    if (!gameOk(state, 'thermo') || state.game.step !== 'result') return blocked(state, 'thermo');
+    var next = clone(state);
+    var events = [];
+    var g = next.game;
+    var la = g.bands[g.a.place].label;
+    var lb = g.bands[g.b.place].label;
+    var text = next.names.a + ' 贴在「' + la + '」，' + next.names.b + ' 贴在「' + lb + '」。';
+    if (g.exact) text += '有人猜中了。';
+    applyHeat(next, g.gain, events, 'thermo');
+    if (g.imprint) applyImprint(next, 1, events);
+    var slot = {
+      kind: 'thermo',
+      game: 'thermo',
+      title: '今晚的温度贴',
+      text: text,
+      a: g.a,
+      b: g.b,
+      bands: g.bands,
+      dist: g.dist,
+      tilt: tiltOf(next),
+      stack: null
+    };
+    placeSlot(next, slot);
+    next.pastes += 1;
+    applyTape(next, B().TAPE_ON_PASTE, events, 'thermo');
+    logLine(next, '温度贴 · 相差 ' + g.dist + ' 档');
+    if (next.standalone) return finishArcade(next, events, slot, g.gain);
+    next.game = null;
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  function wheelSpin(state, opts) {
+    opts = opts || {};
+    if (!gameOk(state) || (state.game.kind !== 'truth' && state.game.kind !== 'dare')) return blocked(state, 'wheel');
+    var reroll = !!opts.reroll;
+    if (state.game.step === 'spun' && !reroll) return blocked(state, 'spun');
+    if (state.game.step === 'ready' && reroll) return blocked(state, 'reroll');
+    if (reroll) {
+      if ((state.game.rerolls || 0) >= B().WHEEL_REROLLS) return blocked(state, 'reroll-max');
+      if ((state.tape || 0) < B().REROLL_COST) return blocked(state, 'tape');
+    }
+    var next = clone(state);
+    var events = [];
+    if (reroll) {
+      applyTape(next, -B().REROLL_COST, events, 'reroll');
+      next.game.rerolls += 1;
+    }
+    var n = next.game.segments.length || 1;
+    var idx = Math.floor(nextRand(next) * n);
+    var guard = 0;
+    while (reroll && n > 1 && idx === state.game.index && guard++ < 8) idx = Math.floor(nextRand(next) * n);
+    next.game.index = idx;
+    next.game.step = 'spun';
+    next.game.who = opts.who === 'other' ? 'other' : 'self';
+    var card = next.game.segments[idx];
+    events.push({ type: 'game', kind: next.game.kind, step: 'spun', index: idx, card: card, reroll: reroll });
+    return ok(next, events);
+  }
+
+  function wheelKeep(state) {
+    if (!gameOk(state) || state.game.step !== 'spun') return blocked(state, 'wheel');
+    if (state.game.kind !== 'truth' && state.game.kind !== 'dare') return blocked(state, 'wheel');
+    var next = clone(state);
+    var events = [];
+    var g = next.game;
+    var card = infoOf(g.segments[g.index]);
+    noteStar(next, card.star);
+    var stamp = g.kind === 'dare';
+    applyHeat(next, B().heatForStar(card.star), events, g.kind);
+    var who = g.who === 'other' ? otherOf(next.host) : next.host;
+    var slot = {
+      kind: stamp ? 'stamp' : 'sticker',
+      game: g.kind,
+      card: card,
+      title: stamp ? '印章 · ' + card.typeName : card.typeName,
+      text: card.text,
+      who: who,
+      from: next.host,
+      tilt: stamp ? -8 : tiltOf(next),
+      stack: null,
+      star: card.star
+    };
+    placeSlot(next, slot);
+    next.pastes += 1;
+    applyTape(next, B().TAPE_ON_PASTE, events, g.kind);
+    logLine(next, (stamp ? '印章' : '贴纸轮') + ' · ' + card.typeName);
+    if (next.standalone) return finishArcade(next, events, slot, B().heatForStar(card.star));
+    next.game = null;
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  function mapRoll(state) {
+    if (!gameOk(state, 'map') || state.game.step !== 'walk') return blocked(state, 'map');
+    if ((state.game.moves || 0) >= (state.game.maxMoves || B().MAP_MOVES)) return blocked(state, 'map');
+    if (state.game.pos >= state.game.tiles.length - 1) return blocked(state, 'map');
+    var next = clone(state);
+    var events = [];
+    var step = 1 + Math.floor(nextRand(next) * 3);
+    var dest = Math.min(next.game.tiles.length - 1, next.game.pos + step);
+    var card = infoOf(next.game.tiles[dest]);
+    next.game.pos = dest;
+    next.game.moves += 1;
+    next.game.lastStep = step;
+    next.game.log.push({ pos: dest, step: step, card: card });
+    if (next.game.moves >= next.game.maxMoves || dest >= next.game.tiles.length - 1) next.game.step = 'done';
+    events.push({ type: 'game', kind: 'map', step: next.game.step, pos: dest, roll: step, card: card, moves: next.game.moves });
+    return ok(next, events);
+  }
+
+  function mapKeep(state) {
+    if (!gameOk(state, 'map')) return blocked(state, 'map');
+    if (!state.game.log || !state.game.log.length) return blocked(state, 'map-empty');
+    var next = clone(state);
+    var events = [];
+    var lines = [];
+    for (var i = 0; i < next.game.log.length; i++) {
+      var row = next.game.log[i];
+      var card = infoOf(row.card);
+      lines.push(card.text);
+      pushExtra(next, { title: '地图第 ' + (row.pos + 1) + ' 格', text: card.text, game: 'map', star: card.star || 1 });
+      noteStar(next, card.star || 1);
+    }
+    applyHeat(next, 1, events, 'map');
+    var slot = {
+      kind: 'map',
+      game: 'map',
+      title: '手帐地图贴',
+      text: '我们一起走过 ' + next.game.log.length + ' 格。\n' + lines.join('\n'),
+      log: next.game.log,
+      tilt: tiltOf(next),
+      stack: null
+    };
+    placeSlot(next, slot);
+    next.pastes += 1;
+    applyTape(next, B().TAPE_ON_PASTE, events, 'map');
+    logLine(next, '地图 · 走了 ' + next.game.log.length + ' 格');
+    if (next.standalone) return finishArcade(next, events, slot, 1);
+    next.game = null;
+    afterFill(next, events);
+    return ok(next, events);
+  }
+
+  function finishArcade(state, events, slot, gain) {
+    state.phase = 'arcadeDone';
+    state.arcadePaste = {
+      title: slot.title || '贴纸',
+      text: slot.text || '',
+      star: (slot.card && slot.card.star) || 1,
+      game: slot.game || '',
+      heatGain: gain || 0
+    };
+    events.push({ type: 'stage', phase: 'arcadeDone', paste: state.arcadePaste });
+    return ok(state, events);
+  }
+
+  function openArcade(kind, settings, names, seed, extras) {
+    var known = B().GAMES[kind] ? kind : 'thermo';
+    var state = createBase(settings, names, seed);
+    state.standalone = true;
+    state.kind = 'arcade';
+    state.slot = 0;
+    state.spread = 1;
+    if (extras && isNum(extras.heat)) state.heat = clamp(extras.heat, 0, B().HEAT_MAX);
+    var events = [];
+    startGame(state, known, events);
+    return state;
+  }
+
+  function pasteExtra(state, paste) {
+    if (!state || !state.pages) return blocked(state, 'extra');
+    paste = paste || {};
+    var next = clone(state);
+    var events = [];
+    var idx = clampInt((next.spread || 1), 1, next.pages.length) - 1;
+    if (next.phase === 'poster') idx = next.pages.length - 1;
+    next.spread = idx + 1;
+    pushExtra(next, {
+      title: String(paste.title || '贴进来的').slice(0, 40),
+      text: String(paste.text || '').slice(0, 280),
+      game: paste.game || '',
+      star: paste.star || 1
+    });
+    if (paste.heatGain) applyHeat(next, paste.heatGain, events, 'extra');
+    events.push({ type: 'paste', extra: true });
+    logLine(next, '页边 · ' + (paste.title || '贴纸'));
+    return ok(next, events);
+  }
+
+  /* ---------------------------- 收尾 / 迁移 ---------------------------- */
+  function safeWord(state) {
+    if (!state || typeof state !== 'object') return blocked(state, 'safe');
+    if (state.phase === 'poster' && state.result) return ok(clone(state), []);
+    var next = clone(state);
+    var events = [];
+    finishInto(next, events, true);
+    return ok(next, events);
   }
 
   function finish(state) {
-    var s = clone(state);
-    if (!s.result || !s.result.endingId) s.result = buildResult(s, null);
-    s.phase = 'finale';
-    var events = [{ type: 'ending', endingId: s.result.endingId, endingName: s.result.endingName, awards: s.result.awards, stats: s.result.stats }];
-    return { state: emit(s, events), events: events };
+    if (!state || typeof state !== 'object') return blocked(state, 'finish');
+    if (state.phase === 'poster' && state.result) return ok(clone(state), []);
+    var next = clone(state);
+    var events = [];
+    finishInto(next, events, false);
+    return ok(next, events);
   }
 
-  function safeWord(state) {
-    var s = clone(state);
-    s.flags = s.flags || {};
-    s.flags.safeWord = true;
-    s.result = buildResult(s, 'safe');
-    s.phase = 'finale';
-    var events = [{
-      type: 'ending',
-      endingId: s.result.endingId,
-      endingName: s.result.endingName,
-      awards: s.result.awards,
-      stats: s.result.stats,
-      safe: true
-    }];
-    pushLog(s, { round: s.round, type: 'safeWord' });
-    return { state: emit(s, events), events: events };
+  function isLegacy(s) {
+    if (!s || typeof s !== 'object') return false;
+    if (s.kind === 'journal' || s.kind === 'arcade') return false;
+    if (isArr(s.pages) && s.pages[0] && isArr(s.pages[0].slots)) return false;
+    if (s.resources && !s.pages) return true;
+    return false;
   }
 
-  function useShield(state) {
-    var s = clone(state);
-    if ((s.tokens.shield || 0) <= 0) return blocked(s, 'useShield', 'no_token');
-    s.tokens.shield = Math.max(0, s.tokens.shield - 1);
-    var events = [{ type: 'token', token: 'shield', name: B().TOKEN_META.shield.name, delta: -1, reason: 'useShield' }];
-    pushLog(s, { round: s.round, type: 'shield' });
-    return { state: emit(s, events), events: events };
-  }
-
-  /* ---------------------------- 只读辅助 ---------------------------- */
-  function eligibleCards(state) {
-    var out = [];
-    var recs = collectCandidates(state, { ignoreUsed: true });
-    for (var i = 0; i < recs.length; i++) out.push(recInfo(recs[i], null));
-    return out;
-  }
-
-  function handCards(state) {
-    var out = [];
-    var hand = (state && state.hand) || [];
-    for (var i = 0; i < hand.length; i++) {
-      var rec = resolveCardKey(hand[i]);
-      if (rec) out.push(recInfo(rec, null));
-    }
-    return out;
-  }
-
-  function progress(state) {
-    var b = B();
-    var cfg = b.LENGTHS[(state && state.settings && state.settings.length) || b.DEFAULT_LENGTH] || b.LENGTHS.classic;
-    var act = clampInt(state && state.act, 1, 3);
-    var actEnd = b.actEndRound(cfg.id, act);
-    var actStart = b.actEndRound(cfg.id, act - 1) + 1;
-    var round = clampInt(state && state.round, 1, cfg.rounds);
-    var actRound = clampInt(round - actStart + 1, 1, cfg.acts[act - 1]);
+  function legacyEntry(s) {
+    s = s || {};
+    var r = s.resources || {};
+    var res = s.result || {};
+    var names = s.names || {};
     return {
-      round: round,
-      total: cfg.rounds,
-      percent: Math.round(round / cfg.rounds * 100),
-      remaining: cfg.rounds - round,
-      act: act,
-      actRound: actRound,
-      actLength: cfg.acts[act - 1],
-      actPercent: Math.round(actRound / cfg.acts[act - 1] * 100),
-      host: (state && state.host) || 'a',
-      phase: (state && state.phase) || 'draft'
+      id: s.id || ('legacy-' + (s.ts || Date.now())),
+      ts: s.ts || Date.now(),
+      names: { a: names.a || '他', b: names.b || '她' },
+      kind: 'voyage',
+      legacy: true,
+      ending: res.endingId || 'voyage',
+      endingName: res.endingName || '一段夜航',
+      heart: r.heart || 0,
+      tension: r.tension || 0,
+      sync: r.sync || 0,
+      heat: 0,
+      imprint: 0,
+      rounds: s.round || 0,
+      completes: s.completes || 0,
+      skips: s.skips || 0,
+      pastes: s.completes || 0,
+      peels: s.skips || 0,
+      maxCombo: s.maxCombo || 0,
+      maxStar: s.maxStarSeen || 0,
+      awards: (res.awards || []).map(function (a) { return a && a.name ? a.name : String(a || ''); }),
+      note: '从旧版升温夜航留下的一夜'
     };
   }
 
-  /* ---------------------------- 存档校验 ---------------------------- */
+  function repairPage(page, def, i) {
+    var slots = [];
+    var src = page && isArr(page.slots) ? page.slots : [];
+    for (var k = 0; k < B().SLOTS_PER_SPREAD; k++) {
+      var slot = src[k];
+      if (!slot || !slot.kind) slots.push(emptySlot(k));
+      else { slot.i = k; slots.push(slot); }
+    }
+    return {
+      id: def.id,
+      name: (page && page.name) || def.name,
+      sub: (page && page.sub) || def.sub,
+      slots: slots,
+      extras: page && isArr(page.extras) ? page.extras.slice(0, B().EXTRAS_MAX) : []
+    };
+  }
+
   function validate(input) {
-    if (!isObj(input)) return null;
-    var b = B();
+    if (!input || typeof input !== 'object') return null;
+    if (isLegacy(input)) return input;
+    if (!isArr(input.pages) || !input.phase) return null;
     var s = clone(input);
-    /* 版本迁移：v0/缺失 -> v1 */
-    if (!s.v || !isNum(s.v) || s.v < 1) s.v = b.SESSION_VERSION;
-    if (s.v > b.SESSION_VERSION) s.v = b.SESSION_VERSION; /* 未来版本降级保护 */
-    s.names = isObj(s.names) ? { a: String(s.names.a || '你'), b: String(s.names.b || 'TA') } : { a: '你', b: 'TA' };
+    s.v = B().SESSION_VERSION;
+    s.kind = s.kind || 'journal';
     s.settings = normalizeSettings(s.settings);
-    var cfg = b.LENGTHS[s.settings.length] || b.LENGTHS.classic;
-    s.round = clampInt(s.round, 1, cfg.rounds);
-    s.act = b.actOfRound(cfg.id, s.round);
-    if (s.phase === 'event' || s.phase === 'act' || s.phase === 'shop') {
-      s.act = clampInt(s.act, 1, 3);
-    }
-    s.host = s.host === 'b' ? 'b' : 'a';
-    var def = b.RESOURCE_START;
-    s.resources = isObj(s.resources) ? s.resources : {};
-    for (var i = 0; i < b.RES_KEYS.length; i++) {
-      var k = b.RES_KEYS[i];
-      s.resources[k] = clampInt(isNum(s.resources[k]) ? s.resources[k] : def[k], 0, b.RESOURCE_MAX);
-    }
-    s.resources.coins = clampInt(isNum(s.resources.coins) ? s.resources.coins : 0, 0, b.RESOURCE_MAX);
-    s.gentle = clampInt(isNum(s.gentle) ? s.gentle : 0, 0, 99);
-    s.combo = clampInt(isNum(s.combo) ? s.combo : 0, 0, 999);
-    s.maxCombo = clampInt(isNum(s.maxCombo) ? s.maxCombo : s.combo, s.combo, 999);
-    s.skips = clampInt(isNum(s.skips) ? s.skips : 0, 0, 9999);
-    s.completes = clampInt(isNum(s.completes) ? s.completes : 0, 0, 9999);
-    s.maxStarSeen = clampInt(isNum(s.maxStarSeen) ? s.maxStarSeen : 0, 0, b.MAX_STAR_MAX);
-    s.tokens = isObj(s.tokens) ? s.tokens : {};
-    for (var t = 0; t < b.TOKEN_KEYS.length; t++) {
-      var tk = b.TOKEN_KEYS[t];
-      s.tokens[tk] = clampInt(isNum(s.tokens[tk]) ? s.tokens[tk] : (b.TOKEN_START[tk] || 0), 0, b.TOKEN_MAX);
-    }
-    s.usedCards = isObj(s.usedCards) ? s.usedCards : {};
-    var usedPools = Object.keys(s.usedCards);
-    for (var p = 0; p < usedPools.length; p++) {
-      if (!isObj(s.usedCards[usedPools[p]])) s.usedCards[usedPools[p]] = {};
-    }
-    s.events = isObj(s.events) ? s.events : {};
-    s.flags = isObj(s.flags) ? s.flags : {};
-    s.actScores = isArr(s.actScores) ? s.actScores.slice(0, 3) : [];
-    s.drawBias = clampInt(isNum(s.drawBias) ? s.drawBias : 0, b.ADAPT.biasFloor, 0);
-    s.gentleUsed = clampInt(isNum(s.gentleUsed) ? s.gentleUsed : 0, 0, b.GENTLE.maxUses);
-    s.escalated = !!s.escalated;
-    s.escalatedDone = !!s.escalatedDone;
-    s.pendingActEnd = !!s.pendingActEnd;
-    s.lastAct = !!s.lastAct;
-    s.rng = isNum(s.rng) ? (s.rng >>> 0) : ((Date.now() >>> 0) ^ 0x9e3779b9) >>> 0;
-    /* phase 合法性 */
-    if (PHASES.indexOf(s.phase) < 0) s.phase = 'draft';
-    /* hand / current 修复 */
-    var hand = isArr(s.hand) ? s.hand : [];
-    var fixedHand = [];
-    for (var h = 0; h < hand.length; h++) {
-      var recH = resolveCardKey(hand[h]);
-      if (!recH) continue;
-      if (fixedHand.indexOf(recH.key) >= 0) continue;
-      fixedHand.push(recH.key);
-    }
-    s.hand = fixedHand.slice(0, b.DRAW.handSize);
-    var curRec = resolveCardKey(s.current);
-    s.current = curRec ? curRec.key : null;
-    s.currentStar = curRec && isNum(s.currentStar) ? clampInt(s.currentStar, 1, effectiveMaxStar(s)) : null;
-    if (s.currentStar !== null && curRec && s.currentStar > intOr(curRec.card.star, 1)) s.currentStar = intOr(curRec.card.star, 1);
-    if (s.phase === 'play' || s.phase === 'escalate') {
-      if (!s.current) s.phase = 'draft';
-    }
-    if (s.phase === 'resolve' && !s.current) s.phase = 'draft';
-    if (s.phase === 'draft' && s.hand.length !== b.DRAW.handSize) {
-      if (!s.hand.length) s.hand = [];
-      drawIntoHand(s);
-    }
-    s.log = isArr(s.log) ? s.log.slice(-200) : [];
-    if (!s.result || !isObj(s.result) || !s.result.endingId) {
-      s.result = null;
-    } else {
-      var er = b.endingById(s.result.endingId);
-      s.result.endingId = s.result.endingId || er.id;
-      s.result.endingName = s.result.endingName || er.name;
-      if (!isArr(s.result.awards)) s.result.awards = [];
-      if (!isObj(s.result.stats)) s.result.stats = {};
-    }
-    if (s.phase === 'finale' && !s.result) {
-      /* 不在这里生成结局（避免 validate 依赖 CONTENT 副作用）；UI 调 finish() */
-      s.result = null;
-    }
-    s.ts = isNum(s.ts) ? s.ts : nowMs();
-    s.id = typeof s.id === 'string' && s.id ? s.id : ('s' + s.rng.toString(36));
+    s.names = normNames(s.names);
+    s.spread = clampInt(s.spread || 1, 1, 3);
+    s.heat = clamp(s.heat || 0, 0, B().HEAT_MAX);
+    s.imprint = clamp(s.imprint || 0, 0, B().IMPRINT_MAX);
+    s.tape = clamp(s.tape || 0, 0, B().TAPE_MAX);
+    s.pastes = Math.max(0, intOr(s.pastes, 0));
+    s.peels = Math.max(0, intOr(s.peels, 0));
+    s.stacks = Math.max(0, intOr(s.stacks, 0));
+    s.pages = B().SPREADS.map(function (def, i) { return repairPage(s.pages[i], def, i); });
+    s.flags = s.flags || { safeWord: false };
+    s.seen = isArr(s.seen) ? s.seen : [];
+    s.hands = s.hands || { a: [], b: [] };
+    s.picks = s.picks || { a: null, b: null };
+    if (!isNum(s.rng)) s.rng = 1;
     return s;
   }
 
-  /* ---------------------------- 导出 ---------------------------- */
-  var Engine = {
-    version: '1.0.0',
-    EVENT_TYPES: EVENTS.slice(),
-    PHASES: PHASES.slice(),
-    /* 生命周期 */
-    newSession: newSession,
-    validate: validate,
-    /* 抽牌 */
-    startRound: startRound,
-    reroll: reroll,
-    chooseCard: chooseCard,
-    /* 结算 */
-    complete: complete,
-    escalate: escalate,
-    escalateComplete: escalateComplete,
-    escalateSkip: escalateSkip,
-    skip: skip,
-    gentleDown: gentleDown,
-    /* 幕与事件 */
-    nextRound: nextRound,
-    chooseEvent: chooseEvent,
-    leaveAct: leaveAct,
-    shopBuy: shopBuy,
-    finish: finish,
-    safeWord: safeWord,
-    /* 扩展动作 */
-    useShield: useShield,
-    /* 只读辅助 */
-    eligibleCards: eligibleCards,
-    drawHand: function (state) { var s = clone(state); drawIntoHand(s); return s.hand; },
-    actInfo: actInfo,
-    progress: progress,
-    canEscalate: canEscalate,
-    shopOffers: shopOffers,
-    currentCard: currentCard,
-    handCards: handCards,
-    /* 供单测/工具使用 */
-    __test: {
-      mulberry32: mulberry32,
-      actThreshold: function (act, rounds) { return B().actThreshold(act, rounds); },
-      yieldFor: function (type, star) { return B().yieldFor(type, star); },
-      coinsFor: function (star, combo) { return B().coinsFor(star, combo); },
-      effectiveMaxStar: effectiveMaxStar,
-      isBlacklisted: isBlacklisted,
-      cardKey: function (pool, id) { return pool + ':' + id; },
-      zeroState: function (settings, names, seed) { var s = blankState(settings, names, seed); drawIntoHand(s); return s; }
-    }
-  };
+  function handCards(state, which) {
+    return handList(state || {}, which).map(infoOf).filter(Boolean);
+  }
 
-  root.Engine = Engine;
-  if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
+  function previewDraw(settings, n, seed) {
+    var s = createBase(settings, { a: '甲', b: '乙' }, seed === undefined ? 1 : seed);
+    return drawInfos(s, n || B().HAND_SIZE, {});
+  }
+
+  function progress(state) {
+    if (!state) return null;
+    var page = state.pages && state.pages[clampInt(state.spread || 1, 1, 3) - 1];
+    var filled = 0;
+    if (page) for (var i = 0; i < page.slots.length; i++) if (page.slots[i].kind !== 'empty') filled++;
+    var sp = B().spreadById(state.spread || 1);
+    return {
+      spread: state.spread,
+      spreadName: sp.name,
+      phase: state.phase,
+      mode: state.mode,
+      host: state.host,
+      slot: state.slot,
+      filled: filled,
+      total: B().SLOTS_PER_SPREAD,
+      heat: state.heat || 0,
+      imprint: state.imprint || 0,
+      tape: state.tape || 0
+    };
+  }
+
+  root.Engine = {
+    version: '2.0.0',
+    newSession: newSession,
+    chooseSticker: chooseSticker,
+    lockSecret: lockSecret,
+    resolvePair: resolvePair,
+    paste: paste,
+    peel: peel,
+    acceptStack: acceptStack,
+    declineStack: declineStack,
+    pasteStack: pasteStack,
+    peelStack: peelStack,
+    shopOffers: shopOffers,
+    shopBuy: shopBuy,
+    leaveShop: leaveShop,
+    thermoCommit: thermoCommit,
+    thermoKeep: thermoKeep,
+    wheelSpin: wheelSpin,
+    wheelKeep: wheelKeep,
+    mapRoll: mapRoll,
+    mapKeep: mapKeep,
+    openArcade: openArcade,
+    pasteExtra: pasteExtra,
+    safeWord: safeWord,
+    finish: finish,
+    validate: validate,
+    isLegacy: isLegacy,
+    legacyEntry: legacyEntry,
+    handCards: handCards,
+    cardByKey: cardByKey,
+    pairRelation: pairRelation,
+    previewDraw: previewDraw,
+    progress: progress,
+    effectiveMax: effectiveMax
+  };
 })(typeof window !== 'undefined' ? window : this);

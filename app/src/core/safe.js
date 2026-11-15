@@ -1,44 +1,37 @@
-/* ===== V3 core/safe.js：全局安全词（长按 1.5s 温柔收尾） ===== */
+/* ===== 页角安全词：长按「合上本子」温柔收尾 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  var U = App.util;
   var el = null;
   var pressTimer = null;
   var rafId = null;
   var pressing = false;
+  var fired = false;
   var HOLD = 1500;
+  var HIDE = { boot: 1, setup: 1, finale: 1, memory: 1, settings: 1 };
 
   var CSS = [
-    ".global-safe { position: fixed; left: 16px; bottom: calc(16px + var(--safe-b)); z-index: 380;",
-    "  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 10px;",
-    "  border-radius: 999px; border: 1px solid rgba(255,95,109,.38);",
-    "  background: rgba(24,10,22,.72); color: #ffc9cf; font-size: 12.5px; font-weight: 700; letter-spacing: .14em;",
-    "  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);",
-    "  opacity: 0; transform: translateY(14px); pointer-events: none; transition: opacity .3s var(--ease), transform .3s var(--ease);",
+    ".global-safe { position: fixed; right: 14px; top: calc(12px + var(--safe-t)); z-index: 380;",
+    "  height: 40px; padding: 0 12px; border-radius: 4px 0 0 4px;",
+    "  border: 1px solid #e4d3b0; border-right: 0; background: var(--tape, #e8d39a); color: #2a241c;",
+    "  font-size: 12px; font-weight: 800; letter-spacing: .12em;",
+    "  box-shadow: 0 6px 14px rgba(80,50,20,.08); transform: rotate(2deg);",
+    "  opacity: 0; pointer-events: none; transition: opacity .25s ease;",
     "  user-select: none; -webkit-user-select: none; touch-action: none; }",
-    ".global-safe.show { opacity: .92; transform: none; pointer-events: auto; }",
-    "body[data-screen='play'] .global-safe, body[data-screen='setup'] .global-safe, body[data-screen='boot'] .global-safe,",
-    "body[data-screen='finale'] .global-safe, body[data-screen='memory'] .global-safe, body[data-screen='settings'] .global-safe { display: none; }",
-    ".global-safe .gs-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 12px rgba(255,95,109,.7); }",
-    ".global-safe .gs-ring { position: absolute; inset: -3px; border-radius: 999px; pointer-events: none;",
-    "  background: conic-gradient(rgba(255,95,109,.85) calc(var(--p, 0) * 1%), transparent 0);",
-    "  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));",
-    "  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px)); opacity: 0; }",
-    ".global-safe.pressing .gs-ring { opacity: 1; }",
-    ".global-safe.pressing { color: #fff; border-color: rgba(255,95,109,.85); background: rgba(60,12,24,.9); }"
+    ".global-safe.show { opacity: 1; pointer-events: auto; }",
+    ".global-safe .gs-ring { position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--p, 0) * 1%); background: var(--coral, #c45c4a); }",
+    ".global-safe.pressing { transform: rotate(0deg) scale(1.03); }"
   ].join("\n");
 
   function active() {
     try {
       var s = App.Store.getSession();
-      return !!(s && s.phase && s.phase !== "finale" && s.phase !== "done");
+      return !!(s && s.phase && s.phase !== "poster" && s.phase !== "done");
     } catch (e) { return false; }
   }
 
   function visible() {
     var scr = document.body.getAttribute("data-screen");
-    if (!scr) return false;
-    if (["play", "setup", "boot", "finale", "memory", "settings"].indexOf(scr) >= 0) return false;
+    if (!scr || HIDE[scr]) return false;
     return active();
   }
 
@@ -59,26 +52,30 @@
   }
 
   function trigger() {
+    if (fired) return;
+    if (!pressing && !pressTimer) return;
+    fired = true;
     stopPress();
     var s = null;
     try { s = App.Store.getSession(); } catch (e) {}
-    if (!s) { App.UI.toast("现在没有进行中的夜晚", { kind: "rose" }); return; }
+    if (!s) { App.UI.toast("现在没有翻开的手帐"); return; }
     try {
       var ret = App.Engine.safeWord(s);
       var next = ret && ret.state ? ret.state : ret;
       App.Store.saveSession(next);
-      App.Audio.play("soft");
+      try { App.Audio.play("soft"); } catch (err) {}
       App.UI.haptic("heavy");
-      App.UI.toast("🚩 已温柔收尾", { kind: "rose" });
-      App.Router.go("finale", { state: next }, { replace: true });
+      App.UI.toast("本子合上了。已经贴上的都还在。");
+      App.Router.go("finale", {}, { replace: true });
     } catch (e) {
-      App.UI.toast("安全词触发失败，请直接退出游戏", { kind: "rose" });
+      App.UI.toast("没能合上，可以先回到封面", { kind: "rose" });
     }
   }
 
   function startPress(e) {
     if (!visible() || pressing) return;
     if (e && e.preventDefault) e.preventDefault();
+    fired = false;
     pressing = true;
     if (el) el.classList.add("pressing");
     var t0 = 0;
@@ -92,8 +89,7 @@
       rafId = requestAnimationFrame(step);
     }
     rafId = requestAnimationFrame(step);
-    pressTimer = setTimeout(trigger, HOLD + 30);
-    if (App.Audio && App.Audio.play) App.Audio.play("tick");
+    pressTimer = setTimeout(trigger, HOLD + 40);
   }
 
   function mount() {
@@ -102,14 +98,15 @@
     el = document.createElement("button");
     el.type = "button";
     el.className = "global-safe";
-    el.setAttribute("aria-label", "安全词：长按 1.5 秒，立刻温柔收尾");
-    el.innerHTML = '<span class="gs-ring"></span><span class="gs-dot"></span><span class="gs-txt">停</span>';
+    el.setAttribute("data-test", "safe-close");
+    el.setAttribute("aria-label", "合上本子：长按约 1.5 秒，温柔收尾");
+    el.innerHTML = '<span class="gs-ring"></span><span>合上本子</span>';
     document.getElementById("app").appendChild(el);
     el.addEventListener("pointerdown", startPress);
     el.addEventListener("pointerup", stopPress);
     el.addEventListener("pointercancel", stopPress);
     el.addEventListener("pointerleave", stopPress);
-    el.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    el.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
     App.Bus.on("route", sync);
     App.Bus.on("session", sync);
     sync();
