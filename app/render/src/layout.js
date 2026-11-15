@@ -1,6 +1,6 @@
-/* 视觉坐标。规则落点只播引擎事件，这里不重算跳和飞。
- * three 精确版本 0.180.0，与 app3d/package-lock.json 的 resolved 一致。
- * 不引用 app3d / 3d 作为运行时。
+/* 视觉坐标：把锁死的 ring:0..51 排成圆环。
+ * 不重算跳、飞和进航格号。航线从各色进航格沿径向走入圆心。
+ * 红起飞在近侧，四色机坪在环外，彼此隔开四分之一圈。
  */
 
 export const COLORS = {
@@ -10,58 +10,51 @@ export const COLORS = {
   green: 0x2fa36a
 };
 
-const RING = [
-  [1.3, 7.3], [1.3, 6.1], [1.3, 4.9], [1.3, 3.7], [1.3, 2.5],
-  [2.5, 1.3], [3.7, 1.3], [4.9, 1.3], [6.1, 1.3], [7.3, 1.3],
-  [8.6, 1.3], [8.6, 0], [8.6, -1.3],
-  [7.3, -1.3], [6.1, -1.3], [4.9, -1.3], [3.7, -1.3], [2.5, -1.3],
-  [1.3, -2.5], [1.3, -3.7], [1.3, -4.9], [1.3, -6.1], [1.3, -7.3],
-  [1.3, -8.6], [0, -8.6], [-1.3, -8.6],
-  [-1.3, -7.3], [-1.3, -6.1], [-1.3, -4.9], [-1.3, -3.7], [-1.3, -2.5],
-  [-2.5, -1.3], [-3.7, -1.3], [-4.9, -1.3], [-6.1, -1.3], [-7.3, -1.3],
-  [-8.6, -1.3], [-8.6, 0], [-8.6, 1.3],
-  [-7.3, 1.3], [-6.1, 1.3], [-4.9, 1.3], [-3.7, 1.3], [-2.5, 1.3],
-  [-1.3, 2.5], [-1.3, 3.7], [-1.3, 4.9], [-1.3, 6.1], [-1.3, 7.3],
-  [-1.3, 8.6], [0, 8.6], [1.3, 8.6]
-];
+export const RING_RADIUS = 8.35;
+const HOME_RADIUS = [6.55, 5.05, 3.6, 2.25, 1.05];
+const HANGAR_RADIUS = 11.15;
 
-const HOME = {
-  red: [[0, 7.3], [0, 6.1], [0, 4.9], [0, 3.7], [0, 2.5], [0, 0]],
-  yellow: [[7.3, 0], [6.1, 0], [4.9, 0], [3.7, 0], [2.5, 0], [0, 0]],
-  blue: [[0, -7.3], [0, -6.1], [0, -4.9], [0, -3.7], [0, -2.5], [0, 0]],
-  green: [[-7.3, 0], [-6.1, 0], [-4.9, 0], [-3.7, 0], [-2.5, 0], [0, 0]]
-};
+const TAKEOFF_N = { red: 0, yellow: 13, blue: 26, green: 39 };
+const ENTRY_N = { red: 50, yellow: 11, blue: 24, green: 37 };
 
-const BASE = {
-  red: [4.7, 5.0],
-  yellow: [5.0, -4.7],
-  blue: [-4.7, -5.0],
-  green: [-5.0, 4.7]
-};
+function polar(n, radius) {
+  const theta = (n / 52) * Math.PI * 2;
+  return [Math.sin(theta) * radius, Math.cos(theta) * radius];
+}
 
 export function squareXZ(id) {
   if (!id) return [0, 0];
   const ring = /^ring:(\d+)$/.exec(id);
-  if (ring) return RING[Number(ring[1])] || [0, 0];
+  if (ring) return polar(Number(ring[1]), RING_RADIUS);
   const home = /^home:(red|yellow|blue|green):(?:(\d+)|goal)$/.exec(id);
   if (home) {
-    const path = HOME[home[1]];
-    if (home[2] == null) return path[5];
-    return path[Number(home[2])] || path[0];
+    if (home[2] == null) return [0, 0];
+    return polar(ENTRY_N[home[1]], HOME_RADIUS[Number(home[2])] || HOME_RADIUS[0]);
   }
   const hangar = /^hangar:(red|yellow|blue|green):(\d+)$/.exec(id);
   if (hangar) {
-    const c = BASE[hangar[1]];
+    const n = TAKEOFF_N[hangar[1]];
+    const center = polar(n, HANGAR_RADIUS);
+    const theta = (n / 52) * Math.PI * 2;
     const slot = Number(hangar[2]);
-    const ox = (slot % 2) * 1.15 - 0.55;
-    const oz = Math.floor(slot / 2) * 1.05 - 0.45;
-    return [c[0] + ox, c[1] + oz];
+    const col = (slot % 2) - 0.5;
+    const row = Math.floor(slot / 2) - 0.5;
+    const tx = Math.cos(theta);
+    const tz = -Math.sin(theta);
+    const rx = Math.sin(theta);
+    const rz = Math.cos(theta);
+    return [
+      center[0] + tx * col * 0.72 + rx * row * 0.62,
+      center[1] + tz * col * 0.72 + rz * row * 0.62
+    ];
   }
   return [0, 0];
 }
 
 export function hangarCenter(color) {
-  return BASE[color] || [0, 0];
+  return polar(TAKEOFF_N[color] || 0, HANGAR_RADIUS);
 }
 
-export { RING, HOME, BASE };
+export function ringAngle(n) {
+  return (n / 52) * Math.PI * 2;
+}

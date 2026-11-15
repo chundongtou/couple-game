@@ -167,12 +167,12 @@ export function cellTexture(mark, badge) {
   g.lineWidth = mark.hot ? 10 : 6;
   g.stroke();
   g.fillStyle = "#fff8ee";
-  glyph(g, mark.glyph, 128, 108);
+  glyph(g, mark.glyph, 128, 92);
   g.fillStyle = "#fff8ee";
-  g.font = "700 64px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
+  g.font = "700 78px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.fillText(mark.title, 128, 196);
+  g.fillText(mark.title, 128, 188);
   if (badge) {
     g.font = "700 28px sans-serif";
     g.textAlign = "left";
@@ -245,6 +245,43 @@ export function hangarTexture(color, name) {
     g.ellipse(x, y, 46, 28, 0, 0, Math.PI * 2);
     g.fill();
   }
+  return finishTexture(c);
+}
+
+export function medalTexture(title) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext("2d");
+  g.clearRect(0, 0, 512, 512);
+  g.fillStyle = "#1a120c";
+  g.beginPath();
+  g.arc(256, 256, 230, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = "#f3e2b0";
+  g.lineWidth = 16;
+  g.stroke();
+  g.strokeStyle = "rgba(243,226,176,0.45)";
+  g.lineWidth = 6;
+  g.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    g.moveTo(256, 256);
+    g.lineTo(256 + Math.cos(a) * 190, 256 + Math.sin(a) * 190);
+  }
+  g.stroke();
+  g.fillStyle = "#f6e7c4";
+  g.beginPath();
+  g.arc(256, 256, 78, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#2a160e";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const lines = String(title).split("\n");
+  g.font = "700 " + (lines.length > 1 ? 46 : 54) + "px 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif";
+  lines.forEach(function (line, i) {
+    g.fillText(line, 256, 256 + (i - (lines.length - 1) / 2) * 52);
+  });
   return finishTexture(c);
 }
 

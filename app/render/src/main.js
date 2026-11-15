@@ -3,8 +3,8 @@
  * three@0.180.0。程序化几何，不接 /3d/，不依赖 app3d 运行时。
  */
 import * as THREE from "three";
-import { COLORS, squareXZ, hangarCenter } from "./layout.js";
-import { ringMark, cellTexture, homeTexture, goalTexture, hangarTexture, feltNightTexture } from "./print.js";
+import { COLORS, squareXZ, hangarCenter, RING_RADIUS, ringAngle } from "./layout.js";
+import { ringMark, cellTexture, homeTexture, goalTexture, hangarTexture, feltNightTexture, medalTexture } from "./print.js";
 
 const BOARD_Y = 0.46;
 const PIECE_Y = 0.62;
@@ -172,7 +172,7 @@ function createBoardView() {
   let cup = null;
   let turnLamp = null;
   let playing = false;
-  const cam = { theta: 0.0, phi: 0.16, radius: 43, target: new THREE.Vector3(0, 0, 0) };
+  const cam = { theta: 0.0, phi: 0.08, radius: 58, target: new THREE.Vector3(0, 0, 0.15) };
   const pointers = new Map();
 
   function dur(ms) { return reduced ? Math.min(90, ms * 0.18) : ms; }
@@ -402,9 +402,9 @@ function createBoardView() {
     const die = ev.die;
     if (!dieMesh || !cup) return;
     blip("tick");
-    const cupHome = { x: 0.15, y: 2.7, z: 10.5 };
-    const rest = new THREE.Vector3(0.2, 0.78, 11.15);
-    dieMesh.position.set(0.1, 2.5, 10.6);
+    const cupHome = { x: 0.15, y: 2.7, z: 13.15 };
+    const rest = new THREE.Vector3(0.2, 0.9, 13.35);
+    dieMesh.position.set(0.1, 2.6, 12.9);
     dieMesh.visible = true;
     cup.position.set(cupHome.x, cupHome.y, cupHome.z);
     cup.rotation.set(0, 0, 0);
@@ -423,7 +423,7 @@ function createBoardView() {
       cup.rotation.x = -1.15 * e;
       cup.position.y = cupHome.y + e * 0.35;
       cup.position.z = cupHome.z - e * 0.35;
-      dieMesh.position.lerpVectors(new THREE.Vector3(0.1, 2.3, 10.6), rest, e);
+      dieMesh.position.lerpVectors(new THREE.Vector3(0.1, 2.4, 12.9), rest, e);
       dieMesh.quaternion.copy(tumbleQuat(die, 1 - e * 0.35)).slerp(finalQ, e);
     });
     await tween(reduced ? 40 : 460, function (k) {
@@ -539,7 +539,7 @@ function createBoardView() {
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       if (cam.pinch) {
         const ratio = dist / cam.pinch;
-        cam.radius = Math.max(18, Math.min(64, cam.radius / ratio));
+        cam.radius = Math.max(22, Math.min(110, cam.radius / ratio));
       }
       cam.pinch = dist;
       return;
@@ -557,7 +557,7 @@ function createBoardView() {
   }
   function onWheel(e) {
     e.preventDefault();
-    cam.radius = Math.max(18, Math.min(64, cam.radius + (e.deltaY > 0 ? 1.4 : -1.4)));
+    cam.radius = Math.max(22, Math.min(110, cam.radius + (e.deltaY > 0 ? 1.4 : -1.4)));
     applyCamera();
   }
 
@@ -603,14 +603,22 @@ function createBoardView() {
     felt.receiveShadow = true;
     scene.add(felt);
 
-    const boardGeo = new THREE.ExtrudeGeometry(crossShape(), { depth: 0.38, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.06, bevelSegments: 2 });
-    const boardMat = new THREE.MeshStandardMaterial({ color: 0x24160f, roughness: 0.55, metalness: 0.08 });
-    const board = new THREE.Mesh(boardGeo, boardMat);
-    board.rotation.x = -Math.PI / 2;
-    board.position.y = 0.04;
+    const board = new THREE.Mesh(
+      new THREE.CylinderGeometry(12.15, 12.35, 0.36, 72),
+      new THREE.MeshStandardMaterial({ color: 0x24160f, roughness: 0.62, metalness: 0.08 })
+    );
+    board.position.y = 0.2;
     board.receiveShadow = true;
     board.castShadow = true;
     scene.add(board);
+    const track = new THREE.Mesh(
+      new THREE.RingGeometry(RING_RADIUS - 0.62, RING_RADIUS + 0.62, 80),
+      new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.7, metalness: 0.05 })
+    );
+    track.rotation.x = -Math.PI / 2;
+    track.position.y = BOARD_Y - 0.02;
+    track.receiveShadow = true;
+    scene.add(track);
 
     function addPrint(tex, x, z, w, h, y) {
       const tile = new THREE.Mesh(
@@ -626,20 +634,21 @@ function createBoardView() {
     for (let n = 0; n < 52; n++) {
       const xz = squareXZ("ring:" + n);
       const mark = ringMark(n);
-      addPrint(cellTexture(mark, n), xz[0], xz[1], 1.08, 1.08, BOARD_Y + 0.03);
+      addPrint(cellTexture(mark, n), xz[0], xz[1], 0.94, 0.94, BOARD_Y + 0.03);
     }
     const hangarName = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
     ["red", "yellow", "blue", "green"].forEach(function (color) {
       for (let step = 0; step < 5; step++) {
         const xz = squareXZ("home:" + color + ":" + step);
-        addPrint(homeTexture(color, step), xz[0], xz[1], 0.96, 0.96, BOARD_Y + 0.045);
+        addPrint(homeTexture(color, step), xz[0], xz[1], 0.86, 0.86, BOARD_Y + 0.05);
       }
       const base = hangarCenter(color);
       const pad = new THREE.Mesh(
-        new THREE.BoxGeometry(3.35, 0.16, 3.15),
+        new THREE.BoxGeometry(2.55, 0.14, 2.35),
         new THREE.MeshStandardMaterial({ map: hangarTexture(color, hangarName[color]), roughness: 0.5, metalness: 0.08 })
       );
       pad.position.set(base[0], 0.18, base[1]);
+      pad.rotation.y = ringAngle({ red: 0, yellow: 13, blue: 26, green: 39 }[color]);
       pad.castShadow = true;
       pad.receiveShadow = true;
       scene.add(pad);
@@ -649,9 +658,34 @@ function createBoardView() {
       new THREE.MeshStandardMaterial({ map: goalTexture(), roughness: 0.42, metalness: 0.2 })
     );
     goal.rotation.x = -Math.PI / 2;
-    goal.position.y = BOARD_Y + 0.05;
+    goal.position.y = BOARD_Y + 0.06;
     goal.receiveShadow = true;
     scene.add(goal);
+    [
+      { n: 4.5, title: "真话\n转盘", size: 1.85 },
+      { n: 17.5, title: "冒险\n转盘", size: 1.85 },
+      { n: 30.5, title: "今夜", size: 1.2 },
+      { n: 43.5, title: "心", size: 1.2 }
+    ].forEach(function (medal) {
+      const theta = ringAngle(medal.n);
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(medal.size, 40),
+        new THREE.MeshStandardMaterial({ map: medalTexture(medal.title), roughness: 0.45, metalness: 0.12 })
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(Math.sin(theta) * 4.15, BOARD_Y + 0.02, Math.cos(theta) * 4.15);
+      disc.receiveShadow = true;
+      scene.add(disc);
+    });
+    [[20, 32, 0xc4474e], [33, 45, 0xd7a02a], [46, 6, 0x3c6fd0], [7, 19, 0x2f9a68]].forEach(function (chord) {
+      const a = squareXZ("ring:" + chord[0]);
+      const b = squareXZ("ring:" + chord[1]);
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(a[0], BOARD_Y + 0.01, a[1]),
+        new THREE.Vector3(b[0], BOARD_Y + 0.01, b[1])
+      ]);
+      scene.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: chord[2] })));
+    });
 
     const pipMats = [1, 2, 3, 4, 5, 6].map(function (n) {
       return new THREE.MeshStandardMaterial({ map: paintPips(n), roughness: 0.35, metalness: 0.05 });
@@ -661,7 +695,7 @@ function createBoardView() {
       pipMats[2], pipMats[3], pipMats[0], pipMats[5], pipMats[1], pipMats[4]
     ]);
     dieMesh.castShadow = true;
-    dieMesh.position.set(0.2, 0.78, 11.15);
+    dieMesh.position.set(0.2, 0.9, 13.35);
     dieMesh.quaternion.copy(faceQuat(1));
     scene.add(dieMesh);
 
@@ -728,7 +762,7 @@ function createBoardView() {
     partial = partial || {};
     if (typeof partial.theta === "number") cam.theta = partial.theta;
     if (typeof partial.phi === "number") cam.phi = Math.max(0.2, Math.min(1.15, partial.phi));
-    if (typeof partial.radius === "number") cam.radius = Math.max(18, Math.min(64, partial.radius));
+    if (typeof partial.radius === "number") cam.radius = Math.max(22, Math.min(110, partial.radius));
     if (partial.target && typeof partial.target.x === "number") {
       cam.target.set(partial.target.x, partial.target.y || 0, partial.target.z || 0);
     }
