@@ -16,7 +16,8 @@
     ".hud-btn{pointer-events:auto}",
     ".table-actions{position:absolute;left:12px;right:12px;bottom:calc(18px + var(--safe-b));z-index:6;",
     "display:flex;flex-direction:column;gap:8px}",
-    ".piece-choices{display:flex;flex-wrap:wrap;gap:8px}",
+    ".piece-choices{display:flex;flex-direction:column;gap:8px}",
+    ".piece-hint{color:#fff8ee;text-align:center;margin:0}",
     ".table-root .prompt-dock{z-index:8}"
   ].join("");
 
@@ -87,13 +88,18 @@
         renderActions();
       }
 
+      var COLOR_NAME = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
+
       function renderActions() {
         paintTurn();
         cardHost.innerHTML = "";
         actions.innerHTML = "";
         actions.style.display = "";
-        if (busy) return;
         var wait = state.awaiting || {};
+        if (App.BoardView && App.BoardView.setChoices) {
+          App.BoardView.setChoices(!busy && wait.type === "choose-piece" ? (wait.pieceIds || []) : []);
+        }
+        if (busy) return;
         if (wait.type === "prompt" || wait.type === "ending-prompt") {
           actions.style.display = "none";
           App.PromptCard.open(cardHost, wait.prompt, state, {
@@ -110,11 +116,14 @@
           return;
         }
         if (wait.type === "choose-piece") {
-          var html = '<div class="piece-choices">';
+          var html = '<p class="piece-hint">点亮着的飞机，或点下面一架</p><div class="piece-choices">';
           (wait.pieceIds || []).forEach(function (id) {
             var piece = state.pieces.filter(function (p) { return p.id === id; })[0];
-            var label = (piece ? ({ red: "红", yellow: "黄", blue: "蓝", green: "绿" })[piece.color] : "") + " " + id;
-            html += '<button class="btn soft" data-piece="' + id + '">' + label + "</button>";
+            var slot = id.split(":")[1];
+            var name = piece ? (COLOR_NAME[piece.color] || "") : "";
+            var where = piece && String(piece.squareId).indexOf("hangar:") === 0 ? "从机坪起飞" : "沿航线走";
+            var label = name + " · 第" + (Number(slot) + 1) + "架 · " + where;
+            html += '<button class="btn soft wide" data-piece="' + id + '">' + label + "</button>";
           });
           html += "</div>";
           actions.innerHTML = html;
@@ -125,6 +134,12 @@
         }
       }
 
+      boardEl.addEventListener("board-pick", function (e) {
+        if (busy) return;
+        var id = e.detail && e.detail.pieceId;
+        if (!id || !state.awaiting || state.awaiting.type !== "choose-piece") return;
+        commit(App.Flight.move(state, id));
+      });
       actions.addEventListener("click", function (e) {
         var roll = e.target.closest("[data-act=roll]");
         var piece = e.target.closest("[data-piece]");

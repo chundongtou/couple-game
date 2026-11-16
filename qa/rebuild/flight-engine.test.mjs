@@ -212,11 +212,17 @@ section('2. 棋盘表钉死');
   });
   const kinds = { truth: [], dare: [], touch: [], thermo: [], wheel: [] };
   rings.forEach((sq) => { if (kinds[sq.kind]) kinds[sq.kind].push(sq.id); });
-  eq(kinds.truth.sort(), ['ring:16', 'ring:2', 'ring:28', 'ring:42'].sort(), '10 真心话格');
-  eq(kinds.dare.sort(), ['ring:18', 'ring:30', 'ring:4', 'ring:44'].sort(), '10 大冒险格');
-  eq(kinds.touch.sort(), ['ring:21', 'ring:34', 'ring:47', 'ring:8'].sort(), '10 靠近格');
+  eq(kinds.truth.sort(), ['ring:1', 'ring:2', 'ring:5', 'ring:9', 'ring:12', 'ring:16', 'ring:17', 'ring:23', 'ring:25', 'ring:28', 'ring:31', 'ring:38', 'ring:42', 'ring:43', 'ring:51'].sort(), '10 真心话格');
+  eq(kinds.dare.sort(), ['ring:4', 'ring:6', 'ring:15', 'ring:18', 'ring:19', 'ring:22', 'ring:27', 'ring:30', 'ring:32', 'ring:35', 'ring:41', 'ring:44', 'ring:45', 'ring:48', 'ring:49'].sort(), '10 大冒险格');
+  eq(kinds.touch.sort(), ['ring:3', 'ring:8', 'ring:21', 'ring:29', 'ring:34', 'ring:47'].sort(), '10 靠近格');
   eq(kinds.thermo.sort(), ['ring:10', 'ring:36'], '10 温度计 2');
   eq(kinds.wheel.sort(), ['ring:14', 'ring:40'], '10 转盘 2');
+  const asking = kinds.truth.length + kinds.dare.length + kinds.touch.length + kinds.thermo.length + kinds.wheel.length;
+  eq(asking, 40, '10 主路线出题格数');
+  ok(Math.abs(asking / 52 - 0.8) <= 0.04, '10 约 80%，实际 ' + asking + '/52');
+  ['0', '13', '26', '39'].forEach((n) => ok(Board.square('ring:' + n).kind === 'ring', '10 起飞格不出普通题 ' + n));
+  ['7', '20', '33', '46'].forEach((n) => ok(Board.square('ring:' + n).kind === 'ring' && Board.square('ring:' + n).isFly === true, '10 飞点仍是飞点且不出普通题 ' + n));
+  ['11', '24', '37', '50'].forEach((n) => ok(Board.square('ring:' + n).kind === 'ring', '10 进航格不出普通题 ' + n));
   ok(Board.square('ring:14').wheel === 'truth-wheel', '10 真话转盘');
   ok(Board.square('ring:40').wheel === 'dare-wheel', '10 大冒险转盘');
 }
@@ -426,9 +432,9 @@ section('5. 击落与叠机');
     'a:0': { squareId: 'ring:1' },
     'b:0': { squareId: 'ring:2' }
   });
-  const passed = F.roll(passFoe, 2);
-  ok(at(passed.state, 'b:0').squareId === 'ring:2' && at(passed.state, 'a:0').squareId === 'ring:3', '32 途经对方不击落');
-  ok(!passed.state.awaiting.prompt, '32 途经不出题');
+  const passed = F.roll(passFoe, 6);
+  ok(at(passed.state, 'b:0').squareId === 'ring:2' && at(passed.state, 'a:0').squareId === 'ring:7', '32 途经对方不击落');
+  ok(!passed.state.awaiting.prompt && passed.state.awaiting.type !== 'minigame', '32 途经题格不出题，只有落定才出');
 }
 
 section('6. 终点航线与收尾');
@@ -510,7 +516,7 @@ section('7. 题格、跳过不退回、安全词');
 {
   let plain = place(stateOf({}, 30), 'a', { 'a:0': { squareId: 'ring:6' } });
   const quiet = F.roll(plain, 1);
-  ok(at(quiet.state, 'a:0').squareId === 'ring:7' && !quiet.state.awaiting.prompt && quiet.state.awaiting.type !== 'minigame', '42 普通格只走棋');
+  ok(at(quiet.state, 'a:0').squareId === 'ring:7' && !quiet.state.awaiting.prompt && quiet.state.awaiting.type !== 'minigame', '42 飞点不出普通题');
 
   let truth = place(stateOf({ scale: 'gentle', boundaries: ['束缚'] }, 31), 'a', { 'a:0': { squareId: 'ring:1' } });
   const t = F.roll(truth, 1);
@@ -839,6 +845,71 @@ section('11. 错误码、事件、快照、待确认反相');
   ok(at(held.state, 'b:0').squareId === 'ring:1' && at(held.state, 'b:1').squareId === 'ring:1', '75 待确认：单机击不落更大的叠');
   ok(at(held.state, 'a:0').squareId.indexOf('hangar:') === 0, '75 待确认：落子较少的一方回停机坪');
   ok(!(held.state.awaiting.prompt && held.state.awaiting.prompt.kind === 'capture'), '75 待确认：反相不按默认击落出题');
+}
+
+section('12. 双方都能起飞并在航线上走');
+{
+  const pairs = [
+    ['red', 'yellow'],
+    ['yellow', 'blue'],
+    ['blue', 'green'],
+    ['green', 'red']
+  ];
+  function settle(state) {
+    let s = state;
+    for (let i = 0; i < 8; i++) {
+      if (!s || !s.awaiting) break;
+      if (s.awaiting.type === 'prompt') s = F.resolvePrompt(s, 'done').state;
+      else if (s.awaiting.type === 'minigame') s = F.resolveMinigame(s).state;
+      else break;
+    }
+    return s;
+  }
+  pairs.forEach(([ca, cb]) => {
+    let s = stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 9);
+    const parked = F.roll(s, 4);
+    ok(parked.state.turn === 'b'
+      && at(parked.state, 'a:0').squareId.indexOf('hangar:' + ca) === 0
+      && at(parked.state, 'b:0').squareId.indexOf('hangar:' + cb) === 0, '76 ' + ca + '/' + cb + ' 非 6 双方都不起飞');
+    s = stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 9);
+    let rolled = F.roll(s, 6);
+    ok(rolled.state.awaiting.type === 'choose-piece'
+      && rolled.state.awaiting.pieceIds.indexOf('a:0') >= 0
+      && rolled.state.awaiting.pieceIds.every((id) => id.startsWith('a:')), '76 ' + ca + ' 掷 6 只列出己方');
+    let moved = F.move(rolled.state, 'a:0');
+    ok(at(moved.state, 'a:0').squareId === 'ring:' + Board.TAKEOFF[ca], '76 ' + ca + ' 到自己的起飞格');
+    ok(at(moved.state, 'b:0').squareId === 'hangar:' + cb + ':0', '76 ' + cb + ' 仍在自己的机坪');
+    s = settle(moved.state);
+    ok(s.awaiting.type === 'roll' && s.turn === 'a', '76 ' + ca + ' 起飞后可再掷');
+    s = settle(F.roll(s, 1).state);
+    ok(s.turn === 'b', '76 换到 ' + cb);
+    ok(at(s, 'a:0').squareId.indexOf('hangar:') !== 0, '76 ' + ca + ' 已离开机坪 ' + at(s, 'a:0').squareId);
+    const bLow = F.roll(s, 3);
+    ok(at(bLow.state, 'b:0').squareId.indexOf('hangar:') === 0 && bLow.state.turn === 'a', '76 ' + cb + ' 非 6 不起飞');
+    s = bLow.state;
+    if (s.awaiting.type === 'roll' && s.turn === 'a') {
+      s = F.roll(s, 2).state;
+      s = settle(s);
+      if (s.awaiting.type === 'choose-piece') {
+        const id = s.awaiting.pieceIds.filter((x) => x.startsWith('a:'))[0];
+        s = settle(F.move(s, id).state);
+      }
+    }
+    ok(s.turn === 'b' && s.awaiting.type === 'roll', '76 再次轮到 ' + cb);
+    rolled = F.roll(s, 6);
+    ok(rolled.ok && rolled.state.awaiting.type === 'choose-piece'
+      && rolled.state.awaiting.pieceIds.indexOf('b:0') >= 0
+      && rolled.state.awaiting.pieceIds.every((id) => id.startsWith('b:')), '76 ' + cb + ' 掷 6 可以选自己的飞机');
+    moved = F.move(rolled.state, 'b:0');
+    ok(at(moved.state, 'b:0').squareId === 'ring:' + Board.TAKEOFF[cb], '76 ' + cb + ' 到自己的起飞格');
+    ok(at(moved.state, 'a:0').squareId.indexOf('hangar:') !== 0, '76 ' + ca + ' 没有被送回机坪');
+    s = settle(moved.state);
+    ok(s.turn === 'b' && s.awaiting.type === 'roll', '76 ' + cb + ' 起飞后可再掷');
+    s = settle(F.roll(s, 2).state);
+    if (s.awaiting.type === 'choose-piece') s = settle(F.move(s, 'b:0').state);
+    const spot = at(s, 'b:0').squareId;
+    ok(spot.indexOf('hangar:') !== 0, '76 ' + cb + ' 在航线上 ' + spot);
+  });
 }
 
 console.log('\n' + passed + ' passed, ' + failed.length + ' failed');

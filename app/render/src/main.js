@@ -173,6 +173,9 @@ function createBoardView() {
   let cup = null;
   let turnLamp = null;
   let playing = false;
+  let choiceIds = [];
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
   const cam = { theta: 0.0, phi: 0.16, radius: 86, target: new THREE.Vector3(0, 0, 0) };
   const pointers = new Map();
 
@@ -263,10 +266,12 @@ function createBoardView() {
   function ensurePiece(snapPiece) {
     if (pieces[snapPiece.id]) {
       pieces[snapPiece.id].visible = true;
+      pieces[snapPiece.id].userData.pieceId = snapPiece.id;
       return pieces[snapPiece.id];
     }
     const mesh = makePlane(COLORS[snapPiece.color] || 0xffffff);
     mesh.userData.colorName = snapPiece.color;
+    mesh.userData.pieceId = snapPiece.id;
     scene.add(mesh);
     pieces[snapPiece.id] = mesh;
     const sh = new THREE.Mesh(
@@ -582,8 +587,67 @@ function createBoardView() {
     playing = false;
   }
 
+  function setChoices(ids) {
+    choiceIds = (ids || []).slice();
+    const on = {};
+    choiceIds.forEach(function (id) { on[id] = true; });
+    Object.keys(pieces).forEach(function (id) {
+      const mesh = pieces[id];
+      if (!mesh) return;
+      const lit = !!on[id];
+      mesh.scale.setScalar(lit ? 1.42 : 1.18);
+      mesh.traverse(function (obj) {
+        if (!obj.material || !obj.material.emissive) return;
+        obj.material.emissive.setHex(lit ? 0xfff1c9 : 0x000000);
+        obj.material.emissiveIntensity = lit ? 0.65 : 1;
+      });
+    });
+  }
+
+  function pieceScreen(id, rect) {
+    const mesh = pieces[id];
+    if (!mesh) return null;
+    const v = mesh.position.clone().project(camera);
+    if (v.z > 1) return null;
+    return {
+      id: id,
+      x: (v.x * 0.5 + 0.5) * rect.width + rect.left,
+      y: (-v.y * 0.5 + 0.5) * rect.height + rect.top
+    };
+  }
+
+  function pickPlane(clientX, clientY) {
+    if (!renderer || !camera || !choiceIds.length || playing) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerNdc, camera);
+    const targets = choiceIds.map(function (id) { return pieces[id]; }).filter(Boolean);
+    let pieceId = null;
+    const hits = raycaster.intersectObjects(targets, true);
+    if (hits.length) {
+      let obj = hits[0].object;
+      while (obj && !obj.userData.pieceId) obj = obj.parent;
+      if (obj && choiceIds.indexOf(obj.userData.pieceId) >= 0) pieceId = obj.userData.pieceId;
+    }
+    if (!pieceId) {
+      let best = null;
+      let bestD = 72;
+      choiceIds.forEach(function (id) {
+        const p = pieceScreen(id, rect);
+        if (!p) return;
+        const d = Math.hypot(p.x - clientX, p.y - clientY);
+        if (d < bestD) { bestD = d; best = id; }
+      });
+      pieceId = best;
+    }
+    if (!pieceId || !rootEl) return;
+    rootEl.dispatchEvent(new CustomEvent("board-pick", { detail: { pieceId: pieceId } }));
+  }
+
   function onPointerDown(e) {
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, ox: e.clientX, oy: e.clientY });
     if (rootEl.setPointerCapture) {
       try { rootEl.setPointerCapture(e.pointerId); } catch (err) {}
     }
@@ -613,8 +677,13 @@ function createBoardView() {
     applyCamera();
   }
   function onPointerUp(e) {
+    const prev = pointers.get(e.pointerId);
     pointers.delete(e.pointerId);
     if (pointers.size < 2) cam.pinch = 0;
+    if (!prev) return;
+    const dist = Math.hypot(e.clientX - prev.ox, e.clientY - prev.oy);
+    if (dist > 12) return;
+    pickPlane(e.clientX, e.clientY);
   }
   function onWheel(e) {
     e.preventDefault();
@@ -695,7 +764,7 @@ function createBoardView() {
     for (let n = 0; n < 52; n++) {
       const xz = squareXZ("ring:" + n);
       const mark = ringMark(n);
-      addPrint(cellTexture(mark, n), xz[0], xz[1], 0.86, 0.86, BOARD_Y + 0.03);
+      addPrint(cellTexture(mark, mark.badge || ""), xz[0], xz[1], 0.86, 0.86, BOARD_Y + 0.03);
     }
     const hangarName = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
     ["red", "yellow", "blue", "green"].forEach(function (color) {
@@ -855,6 +924,7 @@ function createBoardView() {
   return {
     mount: mount,
     setState: setState,
+    setChoices: setChoices,
     play: play,
     setCamera: setCamera,
     setReduced: setReduced,

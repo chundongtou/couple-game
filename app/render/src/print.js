@@ -17,15 +17,17 @@ const DEEP = {
   green: "#146444"
 };
 
-const TRUTH = { 2: 1, 16: 1, 28: 1, 42: 1 };
-const DARE = { 4: 1, 18: 1, 30: 1, 44: 1 };
-const TOUCH = { 8: 1, 21: 1, 34: 1, 47: 1 };
+/* 与 flight-board.js 的 CELL_KIND 对齐。功能格短字优先，题只做角标。 */
+const TRUTH = { 1: 1, 2: 1, 5: 1, 9: 1, 12: 1, 16: 1, 17: 1, 23: 1, 25: 1, 28: 1, 31: 1, 38: 1, 42: 1, 43: 1, 51: 1 };
+const DARE = { 4: 1, 6: 1, 15: 1, 18: 1, 19: 1, 22: 1, 27: 1, 30: 1, 32: 1, 35: 1, 41: 1, 44: 1, 45: 1, 48: 1, 49: 1 };
+const TOUCH = { 3: 1, 8: 1, 21: 1, 29: 1, 34: 1, 47: 1 };
 const THERMO = { 10: 1, 36: 1 };
 const WHEEL = { 14: "真话", 40: "冒险" };
 const TAKEOFF = { 0: 1, 13: 1, 26: 1, 39: 1 };
 const FLY = { 20: 1, 33: 1, 46: 1, 7: 1 };
 const ENTRY = { 50: 1, 11: 1, 24: 1, 37: 1 };
 const STOP = { 48: 1, 9: 1, 22: 1, 35: 1 };
+const JUMP = { 36: 1, 49: 1, 10: 1, 23: 1 };
 
 function roundRect(g, x, y, w, h, r) {
   g.beginPath();
@@ -132,25 +134,29 @@ function finishTexture(canvas) {
   return tex;
 }
 
+function askOf(n) {
+  if (TRUTH[n]) return { badge: "真", glyph: "heart" };
+  if (DARE[n]) return { badge: "险", glyph: "star" };
+  if (TOUCH[n]) return { badge: "近", glyph: "heart" };
+  if (THERMO[n]) return { badge: "温", glyph: "thermo" };
+  if (WHEEL[n]) return { badge: "盘", glyph: "wheel" };
+  return null;
+}
+
 export function ringMark(n) {
   const color = ["red", "yellow", "blue", "green"][n % 4];
-  if (TAKEOFF[n]) return { color: color, title: "起飞", glyph: "plane", hot: true };
-  if (FLY[n]) return { color: color, title: "飞", glyph: "plane", hot: true };
-  if (ENTRY[n]) return { color: color, title: "进", glyph: "arrow", hot: true };
-  if (STOP[n]) return { color: color, title: "停", glyph: "moon", hot: false };
-  if (TRUTH[n]) return { color: color, title: "真心", glyph: "heart", hot: true };
-  if (DARE[n]) return { color: color, title: "冒险", glyph: "star", hot: true };
-  if (TOUCH[n]) return { color: color, title: "靠近", glyph: "heart", hot: true };
-  if (THERMO[n]) return { color: color, title: "温度", glyph: "thermo", hot: true };
-  if (WHEEL[n]) return { color: color, title: WHEEL[n], glyph: "wheel", hot: true };
-  const moods = [
-    { title: "跳", glyph: "arrow" },
-    { title: "月", glyph: "moon" },
-    { title: "星", glyph: "star" },
-    { title: "心", glyph: "heart" }
-  ];
-  const mood = moods[n % moods.length];
-  return { color: color, title: mood.title, glyph: mood.glyph, hot: false };
+  const ask = askOf(n);
+  if (TAKEOFF[n]) return { color: color, title: "起飞", glyph: "plane", hot: true, badge: "" };
+  if (FLY[n]) return { color: color, title: "飞", glyph: "plane", hot: true, badge: "" };
+  if (ENTRY[n]) return { color: color, title: "进", glyph: "arrow", hot: true, badge: "" };
+  if (STOP[n]) return { color: color, title: "停", glyph: ask ? ask.glyph : "moon", hot: true, badge: ask ? ask.badge : "" };
+  if (JUMP[n]) return { color: color, title: "跳", glyph: ask ? ask.glyph : "arrow", hot: true, badge: ask ? ask.badge : "" };
+  if (TRUTH[n]) return { color: color, title: "真心", glyph: "heart", hot: true, badge: "" };
+  if (DARE[n]) return { color: color, title: "冒险", glyph: "star", hot: true, badge: "" };
+  if (TOUCH[n]) return { color: color, title: "靠近", glyph: "heart", hot: true, badge: "" };
+  if (THERMO[n]) return { color: color, title: "温度", glyph: "thermo", hot: true, badge: "" };
+  if (WHEEL[n]) return { color: color, title: WHEEL[n], glyph: "wheel", hot: true, badge: "" };
+  return { color: color, title: "·", glyph: "star", hot: false, badge: "" };
 }
 
 export function cellTexture(mark, badge) {
