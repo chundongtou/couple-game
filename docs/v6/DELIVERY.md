@@ -53,6 +53,18 @@
 - **P1 未做**：连击里程碑「双人选卡」、3D 回滚开关（`boardView:"3d"` 预留字段）。
 - **真机未验**：iOS Safari 字体回退/安全区/长按、低端安卓玻璃性能；本地 Edge + Playwright 已验。
 
+## 5.5 发布前 Pages 子路径模拟（2026-11-16 19:15）
+
+为确认部署到 `https://chundongtou.github.io/couple-game/`（子路径，不是域名根）后不会出现绝对路径 404，本地把发布产物放进 `dist/site/couple-game/`，用 `http://127.0.0.1:8902/couple-game/` 模拟 Pages：
+
+- 门厅/主桌/题库/清单全部 200，**0 个 4xx/5xx，0 pageerror/console error**；
+- `manifest` 解析到 `/couple-game/manifest.webmanifest`，`start_url/scope="./"` 正确；
+- SW 注册 scope = `http://127.0.0.1:8902/couple-game/`，controller 已接管；断网刷新仍可开门厅、题库在、可开局；
+- 主桌 `[data-square]=92`，棋盘/棋子/暂停/掷骰正常；
+- 截图：`shots/pages-sim/{boot,table,offline}.png`。
+
+结论：V6 产物可直接由 GitHub Pages 子路径发布，无需改任何路径。
+
 ## 6. 发布（待执行）
 
 > 本机没有 GitHub 凭据，`git push` 需要你提供 token，或你本机执行。用户已选择「提供 token」，但对话中尚未收到 token 字符串。
