@@ -1,9 +1,9 @@
 # 今晚飞行棋 V6 · 交付报告
 
 - 交付日期：2026-11-16
-- 提交：`e8bca04`（本地 `main`，**尚未 push**；等 GitHub token / 或由你执行 `git push origin main`）
-- 线上地址（发布后）：https://chundongtou.github.io/couple-game/
-- 本地预览：`http://127.0.0.1:8900/`（命令：`cd couple-game && <DSH python> -m http.server 8900 --bind 127.0.0.1`）
+- 提交：`0ec5a4b`（已推送到 `main`，2026-11-16 19:19；GitHub Actions run 133 部署成功）
+- 线上地址：https://chundongtou.github.io/couple-game/ （已发布 V6）
+- 本地预览（可选）：`http://127.0.0.1:8900/`（命令：`cd couple-game && <DSH python> -m http.server 8900 --bind 127.0.0.1`）
 
 ## 1. 一句话
 
@@ -65,31 +65,21 @@
 
 结论：V6 产物可直接由 GitHub Pages 子路径发布，无需改任何路径。
 
-## 6. 发布（待执行）
+## 6. 发布（已完成）
 
-> 本机没有 GitHub 凭据，`git push` 需要你提供 token，或你本机执行。用户已选择「提供 token」，但对话中尚未收到 token 字符串。
-
-**方式 A（推荐，你执行）**：
-
-```powershell
-cd E:\DSH研发\.agents\worktrees\dsh-bf954628-7cd3\couple-game
-git push origin main
-```
-
-首次会由 Git Credential Manager 弹出 GitHub 登录；成功后 GitHub Actions「Deploy to GitHub Pages」自动部署（1–2 分钟）。
-
-**方式 B（把 token 发给 Lead）**：细粒度 PAT，仅 `chundongtou/couple-game` 的 Contents: Read/Write；Lead 用一次性凭据推送，不写入文件/日志。
-
-**发布后验证**：
-
-```powershell
-# 用 Edge/浏览器打开
-https://chundongtou.github.io/couple-game/
-# 期望：标题「今晚飞行棋 V6」、门厅可见、无 board.js 请求、SW CACHE=couple-flight-v6-d4a5a966
-```
+- 推送：`git push origin main` → `382ebf4..0ec5a4b  main -> main`（本机直连 GitHub 443 不通，经本机代理 `127.0.0.1:26800` 完成）
+- GitHub Actions：run 133「Deploy to GitHub Pages」`completed / success`
+- 线上地址：https://chundongtou.github.io/couple-game/
+- 线上冒烟（2026-11-16 19:22，Playwright + Edge，430×932）：
+  - `title = 今晚飞行棋 V6`、`App.version = 6.0.0`、`CARDS` 6 池加载
+  - 门厅 → 主桌：`[data-square]=92`、`.bv-piece[data-piece]=4`、规则按钮存在、状态条「第 0/4 张」
+  - 暂停层 `data-screen=pause` 可开/继续；`__V6_TEST__.forceDie(6)` → 「掷出 6 · 再掷一次」
+  - SW：scope `https://chundongtou.github.io/couple-game/`、active、controller 接管；`caches.keys()` = `couple-flight-v6-d4a5a966`
+  - **无 board.js 请求**、0 个 4xx/5xx、0 pageerror、0 console error
+  - 截图：`shots/live-v6/{boot,table,pause}.png`
 
 ## 7. 回滚
 
-- 最快：GitHub 上 revert 本次 commit（`e8bca04`），Pages 自动回到 V5。
+- 最快：GitHub 上 revert 本次 commit（`0ec5a4b`），Pages 自动回到 V5。
 - 整套回滚：`git checkout <old-commit> -- index.html manifest.webmanifest sw.js assets/ icons/`（index/assets/sw 必须同一构建）。
 - 旧 3D 资源 `assets/board.js`、`assets/cards.js` 与 `app/render/` 仍在仓库，作为回滚参考；V6 首屏与主桌都不加载它们。
