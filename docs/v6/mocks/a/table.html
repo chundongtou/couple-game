@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今晚飞行棋 · 方向 A · table</title>
+<style>
+  :root{
+    --ink:#FBF3E7;
+    --ink-dim:#CDBBD2;
+    --ink-mute:#9380A4;
+    --amber:#F3C077;
+    --amber-deep:#E2965E;
+    --rose:#E9887A;
+    --c-red:#F08C80;
+    --c-yellow:#F0C877;
+    --c-blue:#8FA6E8;
+    --c-green:#7FC9A8;
+    --paper:#F7EAD6;
+    --paper-2:#F1DFC4;
+    --paper-ink:#2C1C15;
+    --paper-soft:#8A6A50;
+    --line:rgba(255,226,196,.13);
+    --glass:rgba(35,25,56,.55);
+    --serif:"Noto Serif SC","Songti SC","STSong",serif;
+    --sans:"Noto Sans SC","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:932px;overflow:hidden;background:#07050E}
+  body{font-family:var(--sans);color:var(--ink)}
+  .stage{
+    position:relative;width:430px;height:932px;margin:0 auto;overflow:hidden;
+    background:
+      radial-gradient(120% 60% at 50% -10%,#251743 0%,#150F2A 44%,#0A0717 100%),
+      linear-gradient(180deg,#0A0717,#07050E);
+  }
+  .nebula{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(42% 30% at 86% 2%, rgba(233,136,122,.20), transparent 70%),
+      radial-gradient(56% 40% at 8% 12%, rgba(130,96,224,.22), transparent 74%),
+      radial-gradient(66% 34% at 50% 82%, rgba(243,192,119,.16), transparent 76%);
+  }
+  .sky{position:absolute;inset:0;width:430px;height:932px;display:block}
+  .grain{
+    position:absolute;inset:0;opacity:.14;mix-blend-mode:overlay;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+  .vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 82% at 50% 42%,transparent 54%,rgba(4,3,10,.55) 100%)}
+  .table{
+    position:relative;z-index:3;height:100%;display:flex;flex-direction:column;
+    padding:24px 16px 22px;
+  }
+  /* ---------------- HUD ---------------- */
+  .hud-top{display:flex;align-items:center;justify-content:space-between;padding:0 2px}
+  .round{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:var(--ink-mute)}
+  .round b{color:#E8D8C2;font-weight:500;letter-spacing:.08em}
+  .round i{width:1px;height:10px;background:rgba(255,226,196,.2)}
+  .safe{
+    display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;
+    border-radius:999px;border:1px solid rgba(243,192,119,.28);
+    background:linear-gradient(180deg,rgba(243,192,119,.14),rgba(243,192,119,.05));
+    color:#F0D6B4;font-family:var(--sans);font-size:12px;letter-spacing:.12em;cursor:pointer;
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  }
+  .safe svg{width:12px;height:12px;opacity:.85}
+  .turnbar{
+    margin-top:12px;display:flex;align-items:center;gap:6px;
+    padding:7px;border-radius:22px;
+    background:var(--glass);border:1px solid var(--line);
+    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+    box-shadow:0 14px 34px rgba(3,2,10,.35);
+  }
+  .p{flex:1;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:16px}
+  .p .dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .p .dot.red{background:var(--c-red);box-shadow:0 0 12px 2px rgba(240,140,128,.55)}
+  .p .dot.yellow{background:var(--c-yellow);box-shadow:0 0 10px 2px rgba(240,200,119,.25);opacity:.75}
+  .p .nm{font-size:15px;font-weight:600;letter-spacing:.04em}
+  .p .clr{font-size:10px;color:var(--ink-mute);letter-spacing:.1em}
+  .p.on{
+    background:linear-gradient(180deg,rgba(240,140,128,.17),rgba(240,140,128,.05));
+    border:1px solid rgba(240,140,128,.30);
+    box-shadow:0 0 24px rgba(240,140,128,.14) inset;
+  }
+  .p.on .nm{color:#FFF3E6}
+  .p.on .clr{color:#E4B9B0}
+  .p .turn{margin-left:auto;font-size:10px;letter-spacing:.14em;color:#E7B7A8}
+  .p.off .turn{color:var(--ink-mute)}
+  .kick{width:1px;height:26px;background:linear-gradient(180deg,transparent,rgba(255,226,196,.18),transparent)}
+  /* ---------------- 棋盘 ---------------- */
+  .board-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+  .board{
+    position:relative;width:398px;height:398px;border-radius:50%;
+    margin-top:-2px;
+  }
+  .board::before{
+    content:"";position:absolute;inset:-6px;border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%,rgba(94,66,160,.16),transparent 72%);
+    pointer-events:none;
+  }
+  .disc{display:none}
+  .track{position:absolute;inset:0;width:398px;height:398px;pointer-events:none}
+  .ring{position:absolute;inset:0}
+  .cell{
+    position:absolute;width:23px;height:23px;border-radius:6px;
+    background:rgba(18,12,30,.72);border:1px solid rgba(255,226,196,.10);
+    display:flex;align-items:center;justify-content:center;
+    font-size:8px;line-height:1;
+  }
+  .cell.t{background:rgba(240,140,128,.16);border-color:rgba(240,140,128,.42)}
+  .cell.y{background:rgba(240,200,119,.14);border-color:rgba(240,200,119,.38)}
+  .cell.b{background:rgba(143,166,232,.14);border-color:rgba(143,166,232,.38)}
+  .cell.g{background:rgba(127,201,168,.13);border-color:rgba(127,201,168,.36)}
+  .cell .mk{opacity:.85}
+  .cell.t .mk{color:#FFC2B6}
+  .cell.y .mk{color:#FFE0A8}
+  .cell.b .mk{color:#C2D0FF}
+  .cell.g .mk{color:#B6EBD4}
+  .cell.here{
+    background:rgba(240,140,128,.3);border-color:#F7A998;
+    box-shadow:0 0 18px 3px rgba(240,140,128,.5),0 0 0 3px rgba(240,140,128,.12);
+  }
+  /* 起飞区 */
+  .pad{
+    position:absolute;width:72px;height:56px;border-radius:16px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    background:rgba(18,12,30,.5);border:1px solid var(--pc,var(--line));
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  }
+  .pad .pn{font-size:10px;letter-spacing:.05em;color:var(--pt,#fff);display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .pad .pn i{width:6px;height:6px;border-radius:50%;background:var(--pt,#fff);box-shadow:0 0 8px 1px var(--pg,transparent)}
+  .pad .pl{display:flex;gap:5px;align-items:center}
+  .pad .pl svg{width:13px;height:13px;opacity:.85}
+  .pad.p-red{--pc:rgba(240,140,128,.4);--pt:#F6A99E;--pg:rgba(240,140,128,.5);right:8px;top:8px}
+  .pad.p-yellow{--pc:rgba(240,200,119,.38);--pt:#F5D28F;--pg:rgba(240,200,119,.5);right:8px;bottom:8px}
+  .pad.p-blue{--pc:rgba(143,166,232,.38);--pt:#AEBDF6;--pg:rgba(143,166,232,.5);left:8px;bottom:8px}
+  .pad.p-green{--pc:rgba(127,201,168,.36);--pt:#9FE0C2;--pg:rgba(127,201,168,.5);left:8px;top:8px}
+  /* 中心 */
+  .hub{
+    position:absolute;left:50%;top:50%;width:176px;height:176px;margin:-88px 0 0 -88px;
+    border-radius:50%;
+    background:radial-gradient(72% 72% at 50% 32%,rgba(78,52,116,.78),rgba(18,11,32,.92));
+    border:1px solid rgba(255,226,196,.12);
+    box-shadow:0 0 44px rgba(120,80,180,.22) inset,0 18px 40px rgba(3,2,10,.4);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .hub .goal{font-size:9.5px;letter-spacing:.34em;color:rgba(243,192,119,.9);text-indent:.34em}
+  .hub .temp{font-family:var(--serif);font-size:32px;line-height:1;color:#FFF0DA;
+    text-shadow:0 0 22px rgba(243,192,119,.35)}
+  .hub .temp span{font-size:16px;color:var(--amber);margin-left:1px}
+  .hub .tlabel{font-size:8.5px;letter-spacing:.26em;color:var(--ink-mute);text-indent:.26em}
+  .tempring{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;pointer-events:none}
+  /* 棋子 */
+  .token{
+    position:absolute;width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    transform:translate(-50%,-50%);z-index:5;
+  }
+  .token svg{width:16px;height:16px;display:block}
+  .token.red{background:linear-gradient(160deg,#F8A99C,#D9635C);
+    box-shadow:0 0 0 2px rgba(255,244,235,.85),0 0 20px 4px rgba(240,140,128,.45),0 6px 12px rgba(3,2,10,.5)}
+  .token.yellow{background:linear-gradient(160deg,#F7DCA4,#D9A34F);
+    box-shadow:0 0 0 2px rgba(255,244,235,.6),0 0 14px 3px rgba(240,200,119,.3),0 6px 12px rgba(3,2,10,.5)}
+  .token .halo{
+    position:absolute;width:46px;height:46px;border-radius:50%;
+    border:1px solid rgba(240,140,128,.35);animation:none;
+  }
+  .token.red .halo{box-shadow:0 0 0 6px rgba(240,140,128,.08) inset}
+  .gain{
+    position:absolute;transform:translate(-50%,-50%);
+    padding:3px 8px;border-radius:999px;
+    background:rgba(240,140,128,.18);border:1px solid rgba(240,140,128,.4);
+    color:#FFC6BA;font-size:9.5px;letter-spacing:.08em;white-space:nowrap;
+  }
+  /* ---------------- 题卡 dock ---------------- */
+  .dock{
+    position:relative;margin-top:12px;border-radius:24px;padding:16px 16px 14px;
+    background:
+      radial-gradient(120% 90% at 18% 0%,#FDF5E7 0%,var(--paper) 52%,var(--paper-2) 100%);
+    color:var(--paper-ink);
+    box-shadow:0 18px 44px rgba(3,2,10,.45),0 0 0 1px rgba(255,226,196,.25) inset;
+    overflow:hidden;
+  }
+  .dock::after{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23p)' opacity='0.24'/%3E%3C/svg%3E");
+  }
+  .dock-top{position:relative;display:flex;align-items:center;gap:12px}
+  .die{
+    width:46px;height:46px;border-radius:12px;flex:none;
+    background:linear-gradient(160deg,#3A2418,#24150E);
+    box-shadow:0 1px 0 rgba(255,226,196,.25) inset,0 6px 12px rgba(60,30,20,.35);
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    padding:8px;gap:2px;
+  }
+  .die i{width:6px;height:6px;border-radius:50%;background:#FBEBD2;align-self:center;justify-self:center;
+    box-shadow:0 0 6px rgba(251,235,210,.4)}
+  .die i.off{background:transparent;box-shadow:none}
+  .dock-kick{min-width:0;flex:1}
+  .dock-kick .kk{font-size:10.5px;letter-spacing:.16em;color:#9A6A46;font-weight:700}
+  .dock-kick .kk b{color:#7C2A3A;letter-spacing:.06em}
+  .dock-kick .sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10.5px;color:#8A6A50;letter-spacing:.04em}
+  .stars{color:#C8902F;font-size:12px;letter-spacing:.14em}
+  .q{
+    position:relative;margin:12px 0 0;font-family:var(--serif);font-weight:600;
+    font-size:20px;line-height:1.6;letter-spacing:.02em;color:#2B1A12;
+  }
+  .acts{position:relative;display:flex;gap:10px;margin-top:14px}
+  .btn{
+    flex:1;height:46px;border-radius:999px;border:0;cursor:pointer;
+    font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:.16em;
+  }
+  .btn.primary{
+    background:linear-gradient(180deg,#362117,#241410);color:#FFF4E4;
+    box-shadow:0 1px 0 rgba(255,226,196,.2) inset,0 8px 18px rgba(60,30,20,.30);
+  }
+  .btn.ghost{
+    background:transparent;border:1px solid rgba(60,35,24,.28);color:#6E4A33;
+  }
+  .dock-foot{position:relative;margin-top:10px;font-size:9.5px;letter-spacing:.06em;color:#A98A6C;text-align:center}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="nebula"></div>
+  <svg class="sky" id="sky" viewBox="0 0 430 932" aria-hidden="true"></svg>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+
+  <main class="table">
+    <header class="hud">
+      <div class="hud-top">
+        <div class="round">
+          <b>第 3 回合</b><i></i><span>22:46 · 2 / 4 架在飞</span>
+        </div>
+        <button class="safe" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="M9.2 12.2l2 2 3.6-4"/>
+          </svg>
+          先收棋
+        </button>
+      </div>
+      <div class="turnbar">
+        <div class="p on">
+          <span class="dot red"></span>
+          <span class="nm">他</span>
+          <span class="clr">红方</span>
+          <span class="turn">的回合</span>
+        </div>
+        <span class="kick"></span>
+        <div class="p off">
+          <span class="dot yellow"></span>
+          <span class="nm">她</span>
+          <span class="clr">黄方</span>
+          <span class="turn">下一手</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="board-wrap">
+      <div class="board" id="board">
+        <div class="disc" aria-hidden="true"></div>
+        <svg class="track" viewBox="0 0 398 398" aria-hidden="true">
+          <circle cx="199" cy="199" r="156" fill="none" stroke="rgba(255,226,196,.07)" stroke-width="1" stroke-dasharray="1 8" stroke-linecap="round"/>
+          <circle cx="199" cy="199" r="139" fill="none" stroke="rgba(240,140,128,.16)" stroke-width="9" stroke-dasharray="218 660" transform="rotate(-90 199 199)"/>
+          <circle cx="199" cy="199" r="139" fill="none" stroke="rgba(240,200,119,.14)" stroke-width="9" stroke-dasharray="218 660"/>
+          <circle cx="199" cy="199" r="139" fill="none" stroke="rgba(143,166,232,.15)" stroke-width="9" stroke-dasharray="218 660" transform="rotate(90 199 199)"/>
+          <circle cx="199" cy="199" r="139" fill="none" stroke="rgba(127,201,168,.14)" stroke-width="9" stroke-dasharray="218 660" transform="rotate(180 199 199)"/>
+          <circle cx="199" cy="199" r="129" fill="none" stroke="rgba(255,226,196,.05)" stroke-width=".8"/>
+        </svg>
+        <div class="ring" id="ring" aria-hidden="true"></div>
+
+        <div class="pad p-red" aria-hidden="true">
+          <div class="pn"><i></i>红 · 起飞</div>
+          <div class="pl">
+            <svg viewBox="0 0 24 24" fill="#F6A99E"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#F6A99E" opacity=".55"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+          </div>
+        </div>
+        <div class="pad p-yellow" aria-hidden="true">
+          <div class="pn"><i></i>黄 · 起飞</div>
+          <div class="pl">
+            <svg viewBox="0 0 24 24" fill="#F5D28F"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#F5D28F" opacity=".55"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+          </div>
+        </div>
+        <div class="pad p-blue" aria-hidden="true">
+          <div class="pn"><i></i>蓝 · 起飞</div>
+          <div class="pl">
+            <svg viewBox="0 0 24 24" fill="#AEBDF6"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#AEBDF6" opacity=".55"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+          </div>
+        </div>
+        <div class="pad p-green" aria-hidden="true">
+          <div class="pn"><i></i>绿 · 起飞</div>
+          <div class="pl">
+            <svg viewBox="0 0 24 24" fill="#9FE0C2"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="#9FE0C2" opacity=".55"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+          </div>
+        </div>
+
+        <svg class="tempring" viewBox="0 0 200 200" aria-hidden="true">
+          <defs>
+            <linearGradient id="tg" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#F3C077"/>
+              <stop offset=".62" stop-color="#EDA57E"/>
+              <stop offset="1" stop-color="#E9887A"/>
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,226,196,.09)" stroke-width="5"/>
+          <circle cx="100" cy="100" r="92" fill="none" stroke="url(#tg)" stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="358 220" transform="rotate(-90 100 100)" opacity=".92"/>
+          <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,226,196,.05)" stroke-width="15" opacity=".35"/>
+          <circle cx="37" cy="167" r="3.4" fill="#FFE9D2"/>
+          <circle cx="37" cy="167" r="8" fill="rgba(255,233,210,.14)"/>
+        </svg>
+
+        <div class="hub" aria-hidden="true">
+          <div class="goal">终 点</div>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path d="M12 20s-7.4-4.6-7.4-10A4.2 4.2 0 0 1 12 7.2 4.2 4.2 0 0 1 19.4 10c0 5.4-7.4 10-7.4 10z"
+              fill="rgba(233,136,122,.24)" stroke="#F0A394" stroke-width="1.2"/>
+          </svg>
+          <div class="temp">62<span>°</span></div>
+          <div class="tlabel">心动温度</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dock">
+      <div class="dock-top">
+        <div class="die" aria-hidden="true">
+          <i></i><i class="off"></i><i></i>
+          <i class="off"></i><i></i><i class="off"></i>
+          <i></i><i class="off"></i><i></i>
+        </div>
+        <div class="dock-kick">
+          <div class="kk">他 掷骰 <b>5</b> · 落到「真心话」</div>
+          <div class="sub"><span class="stars">★★☆</span> 这张给走到的人 · 慢慢说</div>
+        </div>
+      </div>
+      <p class="q">今晚的哪一个瞬间，<br>你最想被对方记住？</p>
+      <div class="acts">
+        <button class="btn primary" type="button">做了</button>
+        <button class="btn ghost" type="button">放过</button>
+      </div>
+      <div class="dock-foot">长按右上「先收棋」可以随时停，这张不算数</div>
+    </section>
+  </main>
+</div>
+<script>
+  (function () {
+    var sky = document.getElementById('sky');
+    var seed = 771126;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    var frag = '';
+    for (var i = 0; i < 58; i++) {
+      var x = (rnd() * 430).toFixed(1), y = (rnd() * 932).toFixed(1);
+      var r = (0.3 + rnd() * 0.9).toFixed(2), o = (0.12 + rnd() * 0.5).toFixed(2);
+      frag += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFE9D2" opacity="' + o + '"/>';
+    }
+    sky.innerHTML = frag;
+
+    var ring = document.getElementById('ring');
+    var N = 36, R = 156, C = 199, CELL = 23;
+    var cls = ['t', 'y', 'b', 'g'];
+    var marks = { 5: '♥', 14: '✦', 23: '♥', 32: '✦' };
+    var html = '';
+    for (var k = 0; k < N; k++) {
+      var a = (-90 + k * 10) * Math.PI / 180;
+      var x = C + R * Math.cos(a) - CELL / 2;
+      var y = C + R * Math.sin(a) - CELL / 2;
+      var q = cls[Math.floor(k / 9)];
+      var here = (k === 7) ? ' here' : '';
+      html += '<div class="cell ' + q + here + '" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px">' +
+              (marks[k] ? '<span class="mk">' + marks[k] + '</span>' : '') + '</div>';
+    }
+    ring.innerHTML = html;
+
+    var positions = {};
+    for (var m = 0; m < N; m++) {
+      var aa = (-90 + m * 10) * Math.PI / 180;
+      positions[m] = { x: C + R * Math.cos(aa), y: C + R * Math.sin(aa) };
+    }
+    var board = document.getElementById('board');
+    function token(idx, color) {
+      var pos = positions[idx];
+      var el = document.createElement('div');
+      el.className = 'token ' + color;
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      el.innerHTML = '<span class="halo"></span>' +
+        '<svg viewBox="0 0 24 24" fill="#FFF6EA" aria-hidden="true"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>';
+      board.appendChild(el);
+      return pos;
+    }
+    var p1 = token(7, 'red');
+    token(16, 'yellow');
+    var gain = document.createElement('div');
+    gain.className = 'gain';
+    gain.textContent = '+5 格';
+    gain.style.left = (p1.x - 6) + 'px';
+    gain.style.top = (p1.y - 30) + 'px';
+    board.appendChild(gain);
+  })();
+</script>
+</body>
+</html>

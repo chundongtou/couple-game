@@ -1,7 +1,14 @@
 /* ==========================================================================
- * 今晚飞行棋 · 对局状态机
+ * 今晚飞行棋 · 对局状态机（V6）
  * 纯函数：不改入参，无 DOM，无 localStorage。
- * 跳 / 飞 / 航线只读 FlightBoard。A1/A2/A3 与叠机击落开关均为待确认。
+ * 跳 / 飞 / 航线只读 FlightBoard；抽题只读 FlightDraw；热度/连击只读 FlightMeta。
+ *
+ * V6 语义（docs/v6/impl-freeze.md，覆盖 api-contract 冲突处）：
+ *   - 合作收尾：无输赢；cardsProcessed/targetCards 或 meta.heat/targetHeat 或
+ *     （长夜且任一棋进终点）→ 两张收尾卡各给一人，都可放过。
+ *   - 放过不惩罚：进航题放过仍进军，叠机题放过仍得奖励步（规则开关见 flight-rules）。
+ *   - meta 在 resolvePrompt / resolveMinigame 结算点更新，随 state 落盘。
+ *   - state.v = 2；v:1 旧档读入补默认、不丢档（validate）。
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -11,13 +18,19 @@
   var SCALES = { gentle: 1, warm: 2, hot: 3, open: 4 };
   var PROMPT_KINDS = {
     'cell-truth': 1, 'cell-dare': 1, 'cell-touch': 1,
-    capture: 1, 'stack-duo': 1, 'home-entry': 1, ending: 1,
+    capture: 1, 'stack-duo': 1, 'home-entry': 1, ending: 1, fate: 1,
     'minigame-thermo': 1, 'minigame-wheel': 1
+  };
+  /* 计入「目标题卡数」的普通题卡（收尾卡 / 命运格 / 小游戏不计）。 */
+  var TARGET_KINDS = {
+    'cell-truth': 1, 'cell-dare': 1, 'cell-touch': 1,
+    capture: 1, 'stack-duo': 1, 'home-entry': 1
   };
 
   function board() { return root.FlightBoard; }
   function drawApi() { return root.FlightDraw; }
   function rulesApi() { return root.FlightRules; }
+  function metaApi() { return root.FlightMeta; }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -35,6 +48,63 @@
       if (typeof over[k] === 'boolean') base[k] = over[k];
     });
     return base;
+  }
+
+  function modeOf(planeCount) { return planeCount === 2 ? 'quick' : 'long'; }
+
+  function targetsFor(mode) {
+    return mode === 'quick'
+      ? { targetCards: 4, targetHeat: 40 }
+      : { targetCards: 8, targetHeat: 80 };
+  }
+
+  /* 缺 meta 时补初始值；已有 meta 时容错归一（heat 只夹不降）。 */
+  function ensureMeta(s) {
+    var M = metaApi();
+    s.meta = M ? M.normalize(s.meta) : (s.meta || {
+      heat: 0, stage: 'cold', streak: 0, streakBest: 0, milestones: [], updatedAt: 0
+    });
+    return s.meta;
+  }
+
+  /* 结算点统一入口：更新 state.meta 并把 heat/streak/milestone 事件追加进本次 Result。 */
+  function applyMeta(s, kind, outcome, events) {
+    var M = metaApi();
+    if (!M) return;
+    var got = M.applyPrompt(s.meta, kind, outcome);
+    s.meta = got.meta;
+    (got.events || []).forEach(function (ev) { events.push(ev); });
+  }
+
+  function processedFromLog(log) {
+    var n = 0;
+    (Array.isArray(log) ? log : []).forEach(function (entry) {
+      if (!entry || !entry.outcome) return;
+      if (TARGET_KINDS[entry.kind]) n++;
+    });
+    return n;
+  }
+
+  function arrivedCount(s) {
+    return (s.pieces || []).filter(function (p) { return !!p.arrived; }).length;
+  }
+
+  function anyArrived(s) {
+    return arrivedCount(s) > 0;
+  }
+
+  /* 收尾触发（冻结单 §2.2）：三条件任一满足。 */
+  function shouldEnd(s) {
+    if (!s || s.phase !== 'playing') return false;
+    var cards = Number(s.cardsProcessed) || 0;
+    var targetCards = Number(s.targetCards) || 0;
+    if (targetCards > 0 && cards >= targetCards) return true;
+    var heat = Number(s.meta && s.meta.heat) || 0;
+    var targetHeat = Number(s.targetHeat) || 0;
+    if (targetHeat > 0 && heat >= targetHeat) return true;
+    var mode = s.mode || modeOf(s.planeCount);
+    if (mode === 'long' && anyArrived(s)) return true;
+    return false;
   }
 
   function shanghaiDate(ts) {
@@ -311,6 +381,60 @@
     return prompt;
   }
 
+  /* 命运格：两个不同池各抽一张，prompt.options 二选一（P1 接口，UI 由 fe-cards 接）。
+   * 抽卡按尺度决定池（FlightDraw.fatePools）：温柔/暧昧 真话+靠近；
+   * 热烈 大冒险+真话；不设限 spark+真话。边界与星级过滤仍走 FlightDraw.allowed。 */
+  function makeFatePrompt(s, actorId, pieceIds) {
+    var D = drawApi();
+    var cap = s.maxStarCap || 2;
+    if (D.band) {
+      try { cap = D.band(s).cap || cap; } catch (e) { /* 保持 cap */ }
+    }
+    var pools = D.fatePools ? D.fatePools(cap) : ['cell-touch', 'cell-truth'];
+    var options = [];
+    pools.forEach(function (purpose) {
+      var got = D.take(s, purpose);
+      s.usedCards = got.state.usedCards;
+      s.rng = got.state.rng;
+      if (got.card && !options.some(function (c) { return c && got.card && c.id === got.card.id; })) {
+        options.push(got.card);
+      }
+    });
+    if (options.length < 2) {
+      var fb = D.take(s, 'ending');
+      s.usedCards = fb.state.usedCards;
+      s.rng = fb.state.rng;
+      if (fb.card) options.push(fb.card);
+    }
+    var prompt = {
+      id: nextId(s, 'pr'),
+      kind: 'fate',
+      card: options[0],
+      options: options,
+      actorId: actorId,
+      targetId: actorId,
+      pieceIds: pieceIds.slice()
+    };
+    s.awaiting = { type: 'prompt', prompt: prompt };
+    return { type: 'prompt', prompt: prompt };
+  }
+
+  /* 「另一张放回池子」：把未选中的卡从 usedCards 里释放，后续还能抽到。 */
+  function releaseCard(s, card) {
+    if (!card || !s.usedCards) return;
+    var pool = card.pool || card.type;
+    var bucket = s.usedCards[pool];
+    if (bucket && bucket[card.id]) delete bucket[card.id];
+  }
+
+  function releaseFateOptions(s, prompt, chosenIndex) {
+    var opts = (prompt && prompt.options) || [];
+    opts.forEach(function (card, i) {
+      if (chosenIndex !== null && i === chosenIndex) return;
+      releaseCard(s, card);
+    });
+  }
+
   function occupantPrompt(s, plan, movers) {
     var rules = s.rules;
     var dest = plan.dest;
@@ -344,6 +468,9 @@
     }
     var sq = board().square(dest);
     if (!sq || plan.dest.indexOf(':goal') >= 0) return null;
+    if (sq.kind === 'fate') {
+      return makeFatePrompt(s, s.turn, moverIds);
+    }
     if (sq.kind === 'truth' || sq.kind === 'dare' || sq.kind === 'touch') {
       var key = sq.kind === 'truth' ? 'cell-truth' : (sq.kind === 'dare' ? 'cell-dare' : 'cell-touch');
       var cellPrompt = makeCardPrompt(s, key, s.turn, s.turn, moverIds);
@@ -446,23 +573,33 @@
     return { waiting: false };
   }
 
-  function allHome(s, pid) {
-    var mine = (s.pieces || []).filter(function (p) { return p.playerId === pid; });
-    return mine.length > 0 && mine.every(function (p) { return p.arrived; });
+  /* 合作收尾：两张收尾卡，各给一人；从 ending 池 mild 权重抽（同池允许）。
+   * 冻结单 §2.2：事件 [{type:'prompt'}, {type:'ending-start'}]。 */
+  function endingPrompt(s, pid) {
+    var got = drawApi().take(s, 'ending');
+    s.usedCards = got.state.usedCards;
+    s.rng = got.state.rng;
+    return {
+      id: nextId(s, 'pr'),
+      kind: 'ending',
+      card: got.card,
+      actorId: pid,
+      targetId: pid,
+      pieceIds: []
+    };
   }
 
-  function checkWin(s, events) {
-    /* 只在刚走完的这一方把最后一架送回家时判胜。对方若早已全部到家，应在对方那一步结束。 */
-    if (!allHome(s, s.turn)) return false;
-    var w = s.turn;
-    s.winnerId = w;
-    s.rollContext = null;
+  function enterEnding(s, events) {
+    if (!s || s.phase !== 'playing') return false;
+    if (s.awaiting && s.awaiting.type === 'ending-prompt') return false;
+    var queue = [endingPrompt(s, 'a'), endingPrompt(s, 'b')];
+    s.endingQueue = queue;
+    s.endingIndex = 0;
     s.pendingMove = null;
-    var other = otherOf(w);
-    var prompt = makeCardPrompt(s, 'ending', other, other, s.pieces.filter(function (p) { return p.playerId === w; }).map(function (p) { return p.id; }));
-    s.awaiting = { type: 'ending-prompt', prompt: prompt };
-    events.push({ type: 'win', playerId: w });
-    events.push({ type: 'prompt', prompt: prompt });
+    s.rollContext = null;
+    s.awaiting = { type: 'ending-prompt', prompt: queue[0] };
+    events.push({ type: 'prompt', prompt: queue[0] });
+    events.push({ type: 'ending-start' });
     return true;
   }
 
@@ -482,7 +619,8 @@
 
   function afterAction(s, events) {
     if (s.awaiting && (s.awaiting.type === 'prompt' || s.awaiting.type === 'minigame' || s.awaiting.type === 'ending-prompt')) return;
-    if (checkWin(s, events)) return;
+    /* V6：先检查合作收尾（到达目标题卡数 / 心动值 / 长夜进终点），不再判输赢。 */
+    if (shouldEnd(s) && enterEnding(s, events)) return;
     finishTurn(s, events);
   }
 
@@ -527,11 +665,23 @@
     var aColor = colors.a;
     var bColor = colors.b;
     var scale = setup.scale;
-    var count = setup.planeCount == null ? 4 : setup.planeCount;
-    var known = board().COLORS;
-    if (!aName || !bName || !aColor || !bColor || aColor === bColor || known.indexOf(aColor) < 0 || known.indexOf(bColor) < 0 || (count !== 2 && count !== 4) || !SCALES[scale]) {
+    var modeIn = setup.mode;
+    if (modeIn != null && modeIn !== 'quick' && modeIn !== 'long') {
       return fail(null, 'INVALID_SETUP', '名字、颜色、尺度或飞机架数不完整');
     }
+    var count = setup.planeCount == null ? (modeIn === 'quick' ? 2 : 4) : setup.planeCount;
+    var known = board().COLORS;
+    if (!aName || !bName || !aColor || !bColor || aColor === bColor || known.indexOf(aColor) < 0 || known.indexOf(bColor) < 0 || (count !== 2 && count !== 4) || !SCALES[scale] ||
+        (modeIn === 'quick' && count !== 2) || (modeIn === 'long' && count !== 4)) {
+      return fail(null, 'INVALID_SETUP', '名字、颜色、尺度或飞机架数不完整');
+    }
+    var mode = modeOf(count);
+    var targets = targetsFor(mode);
+    /* 只增多可选入参（fe-shell 门厅会按模式传同一组数字）；不传则用冻结单默认值。 */
+    var customCards = Number(setup.targetCards);
+    var customHeat = Number(setup.targetHeat);
+    var targetCards = isFinite(customCards) && customCards > 0 ? Math.floor(customCards) : targets.targetCards;
+    var targetHeat = isFinite(customHeat) && customHeat > 0 ? Math.floor(customHeat) : targets.targetHeat;
     var now = Date.now();
     var rng = (seed === undefined || seed === null) ? ((now % 2147483646) + 1) : ((Number(seed) >>> 0) || 1);
     var boundaries = [];
@@ -554,7 +704,7 @@
       }
     });
     var state = {
-      v: 1,
+      v: 2,
       kind: 'flight',
       id: 'flight-' + now.toString(36) + '-' + rng.toString(36),
       ts: now,
@@ -564,6 +714,10 @@
       maxStarCap: SCALES[scale],
       boundaries: boundaries,
       planeCount: count,
+      mode: mode,
+      targetCards: targetCards,
+      targetHeat: targetHeat,
+      cardsProcessed: 0,
       rules: mergeRules(setup.rules),
       phase: 'playing',
       turn: 'a',
@@ -577,7 +731,12 @@
       result: null,
       pendingMove: null,
       rollContext: null,
-      seq: 0
+      seq: 0,
+      meta: metaApi()
+        ? metaApi().init({ ts: now })
+        : { heat: 0, stage: 'cold', streak: 0, streakBest: 0, milestones: [], updatedAt: now },
+      endingQueue: null,
+      endingIndex: 0
     };
     return pass(state, []);
   }
@@ -585,7 +744,8 @@
   function validate(raw) {
     try {
       if (!raw || typeof raw !== 'object') return null;
-      if (raw.kind !== 'flight' || raw.v !== 1) return null;
+      /* V6：同时接受 v:1（V5 旧档）与 v:2；不得拒绝 v1（api-contract §9.3）。 */
+      if (raw.kind !== 'flight' || (raw.v !== 1 && raw.v !== 2)) return null;
       if (['setup', 'playing', 'ended', 'safe-ended'].indexOf(raw.phase) < 0) return null;
       if (!raw.names || !String(raw.names.a || '').trim() || !String(raw.names.b || '').trim()) return null;
       if (!raw.colors || raw.colors.a === raw.colors.b) return null;
@@ -600,6 +760,35 @@
       if (!Array.isArray(s.boundaries)) s.boundaries = [];
       if (!Array.isArray(s.log)) s.log = [];
       if (!s.usedCards) s.usedCards = {};
+      /* ---- V6 迁移：只补可选默认，永不新增必填项（architecture §7.2） ---- */
+      s.v = 2;
+      s.mode = modeOf(s.planeCount);
+      var targets = targetsFor(s.mode);
+      if (!(Number(s.targetCards) > 0)) s.targetCards = targets.targetCards;
+      if (!(Number(s.targetHeat) > 0)) s.targetHeat = targets.targetHeat;
+      if (!(Number(s.cardsProcessed) >= 0)) s.cardsProcessed = processedFromLog(s.log);
+      var M = metaApi();
+      if (M) {
+        s.meta = (s.meta && typeof s.meta === 'object' && typeof s.meta.heat === 'number')
+          ? M.normalize(s.meta)
+          : M.fromLog(s.log);
+      } else {
+        ensureMeta(s);
+      }
+      if (Array.isArray(s.endingQueue)) {
+        s.endingQueue = s.endingQueue.filter(function (p) { return p && typeof p === 'object'; });
+        if (!s.endingQueue.length) s.endingQueue = null;
+      }
+      if (s.endingQueue) {
+        s.endingIndex = Math.max(0, Math.min(s.endingQueue.length - 1, Math.floor(Number(s.endingIndex) || 0)));
+      } else {
+        s.endingQueue = null;
+        s.endingIndex = 0;
+        /* V5 在旧「赢家收尾」途中存档：保留已发的那张，按单卡收束，不丢档。 */
+        if (s.awaiting && s.awaiting.type === 'ending-prompt' && s.awaiting.prompt) {
+          s.endingQueue = [s.awaiting.prompt];
+        }
+      }
       return s;
     } catch (e) {
       return null;
@@ -717,22 +906,32 @@
     return pass(s, events);
   }
 
-  function pushPromptLog(s, prompt, outcome) {
-    s.log.push({
+  function pushPromptLog(s, prompt, outcome, cardOverride) {
+    var hasOverride = arguments.length > 3;
+    var card = hasOverride ? cardOverride : (prompt ? prompt.card : null);
+    var entry = {
       id: nextId(s, 'log'),
       ts: Date.now(),
-      kind: prompt.kind,
+      kind: prompt ? prompt.kind : 'cell-truth',
       outcome: outcome,
-      card: prompt.card ? {
-        id: prompt.card.id,
-        text: prompt.card.text,
-        star: prompt.card.star,
-        tags: prompt.card.tags || [],
-        pool: prompt.card.pool || prompt.card.type
-      } : undefined,
-      actorId: prompt.targetId === 'both' ? 'both' : prompt.actorId,
-      pieceId: prompt.pieceIds && prompt.pieceIds[0]
-    });
+      actorId: prompt && prompt.targetId === 'both' ? 'both' : (prompt ? prompt.actorId : undefined),
+      pieceId: prompt && prompt.pieceIds ? prompt.pieceIds[0] : undefined
+    };
+    if (card) {
+      entry.card = {
+        id: card.id,
+        text: card.text,
+        star: card.star,
+        tags: card.tags || [],
+        pool: card.pool || card.type,
+        src: card.src || ''
+      };
+    }
+    s.log.push(entry);
+  }
+
+  function bumpCardsProcessed(s) {
+    s.cardsProcessed = (Number(s.cardsProcessed) || 0) + 1;
   }
 
   function runPending(s, pending, events) {
@@ -746,7 +945,7 @@
     return { waiting: false };
   }
 
-  function resolvePrompt(state, outcome) {
+  function resolvePrompt(state, outcome, opts) {
     var blocked = guard(state);
     if (blocked) return blocked;
     var awaiting = state.awaiting || {};
@@ -755,16 +954,50 @@
     }
     var how = outcome === 'skipped' ? 'skipped' : (outcome === 'done' ? 'done' : null);
     if (!how) return fail(state, 'AWAITING_OTHER', '只能做了或放过');
-    var prompt = awaiting.prompt;
     if (awaiting.type === 'ending-prompt' && how === 'skipped' && state.rules && state.rules.endingPromptSkippable === false) {
       return fail(state, 'PROMPT_NOT_SKIPPABLE', '这张收尾先做完');
     }
     var s = clone(state);
-    prompt = s.awaiting.prompt;
-    pushPromptLog(s, prompt, how);
+    var prompt = s.awaiting.prompt;
     var events = [];
 
+    /* ---- 命运格（P1）：两张不同池的卡二选一；opts.cardIndex 选定 ----
+     * 未选 = 都不选：回主桌，不记题、不动热度、不算失败（spec §5.3 / AC-E5-3）。
+     * 命运格不计入目标题卡数（AC-E5-4）。 */
+    if (prompt.kind === 'fate') {
+      var cardIndex = null;
+      if (opts && (opts.cardIndex === 0 || opts.cardIndex === 1)) {
+        var picked = (prompt.options || [])[opts.cardIndex];
+        if (picked) cardIndex = opts.cardIndex;
+      }
+      releaseFateOptions(s, prompt, cardIndex);
+      if (cardIndex === null) {
+        s.awaiting = { type: 'roll' };
+        afterAction(s, events);
+        return pass(s, events);
+      }
+      var chosen = prompt.options[cardIndex];
+      pushPromptLog(s, prompt, how, chosen);
+      applyMeta(s, 'fate', how, events);
+      s.awaiting = { type: 'roll' };
+      afterAction(s, events);
+      return pass(s, events);
+    }
+
+    pushPromptLog(s, prompt, how);
+    applyMeta(s, prompt.kind, how, events);
+
+    /* ---- 收尾卡：两张各给一人，依次结算；第二张后结束并出棋谱（无输赢） ---- */
     if (awaiting.type === 'ending-prompt') {
+      var queue = Array.isArray(s.endingQueue) && s.endingQueue.length ? s.endingQueue : [prompt];
+      var next = Math.floor(Number(s.endingIndex) || 0) + 1;
+      if (next < queue.length) {
+        s.endingIndex = next;
+        s.awaiting = { type: 'ending-prompt', prompt: queue[next] };
+        events.push({ type: 'prompt', prompt: queue[next] });
+        return pass(s, events);
+      }
+      s.endingIndex = queue.length;
       s.phase = 'ended';
       s.awaiting = { type: 'none' };
       s.pendingMove = null;
@@ -774,12 +1007,13 @@
       return pass(s, events);
     }
 
+    /* ---- 普通题卡：进航题 / 叠机题「放过」按 V6 规则保留进军与奖励步 ---- */
     if (prompt.kind === 'home-entry') {
       var pending = s.pendingMove;
-      /* 待确认 A2：默认跳过则停在进入前的格子。反相为跳过仍进入。 */
       var enter = how === 'done' || (how === 'skipped' && s.rules.skipHomeEntryBlocksEntry === false);
       s.awaiting = { type: 'roll' };
       s.pendingMove = null;
+      bumpCardsProcessed(s);
       if (enter && pending && pending.type === 'enter-home') {
         runPending(s, pending, events);
       }
@@ -791,7 +1025,7 @@
       var bonus = s.pendingMove;
       s.awaiting = { type: 'roll' };
       s.pendingMove = null;
-      /* 待确认 A2：默认跳过叠机题不再多走一步。反相仍多走一步。 */
+      bumpCardsProcessed(s);
       var step = how === 'done' || (how === 'skipped' && s.rules.skipStackKeepsBonusStep === true);
       if (step && bonus && bonus.type === 'bonus') {
         var applied = runPending(s, bonus, events);
@@ -802,28 +1036,32 @@
     }
 
     s.awaiting = { type: 'roll' };
+    bumpCardsProcessed(s);
     afterAction(s, events);
     return pass(s, events);
   }
 
-  function resolveMinigame(state) {
+  function resolveMinigame(state, outcomeOpt) {
     var blocked = guard(state);
     if (blocked) return blocked;
     if (!state.awaiting || state.awaiting.type !== 'minigame') return fail(state, 'AWAITING_OTHER', '现在没有小游戏');
     var s = clone(state);
     var kind = s.awaiting.kind;
+    var how = outcomeOpt === 'skipped' ? 'skipped' : 'done';
     var logKind = kind === 'thermo' ? 'minigame-thermo' : 'minigame-wheel';
     s.log.push({
       id: nextId(s, 'log'),
       ts: Date.now(),
       kind: logKind,
-      outcome: 'done',
+      outcome: how,
       minigame: kind,
       actorId: s.turn,
       pieceId: s.awaiting.pieceIds && s.awaiting.pieceIds[0]
     });
-    s.awaiting = { type: 'roll' };
     var events = [];
+    /* 小游戏完成 +5；跳过 +0（跳过不扣心动，只记录）。 */
+    applyMeta(s, logKind, how, events);
+    s.awaiting = { type: 'roll' };
     afterAction(s, events);
     return pass(s, events);
   }
@@ -831,37 +1069,67 @@
   function buildLedger(state) {
     if (!state || (state.phase !== 'ended' && state.phase !== 'safe-ended')) return null;
     var endedAt = Date.now();
+    var startedAt = Number(state.ts) || endedAt;
+    var meta = metaApi() ? metaApi().normalize(state.meta) : ensureMeta(state);
     var prompts = [];
+    var minigames = [];
+    var cardsDone = 0;
+    var cardsSkipped = 0;
     (state.log || []).forEach(function (entry) {
-      if (!entry || !entry.outcome || !PROMPT_KINDS[entry.kind]) return;
-      prompts.push({
+      if (!entry || typeof entry !== 'object') return;
+      if (entry.kind === 'minigame-thermo' || entry.kind === 'minigame-wheel') {
+        minigames.push({
+          kind: entry.minigame || (entry.kind === 'minigame-thermo' ? 'thermo' : 'truth-wheel'),
+          outcome: entry.outcome === 'skipped' ? 'skipped' : 'done',
+          actorId: entry.actorId || 'a'
+        });
+        return;
+      }
+      if (!entry.outcome || !PROMPT_KINDS[entry.kind]) return;
+      var item = {
         kind: entry.kind,
         outcome: entry.outcome,
-        pool: entry.card ? entry.card.pool : undefined,
-        text: entry.card ? entry.card.text : undefined,
-        star: entry.card ? entry.card.star : undefined
-      });
+        actorId: entry.actorId || 'a'
+      };
+      if (entry.card) {
+        item.cardId = entry.card.id;
+        item.text = entry.card.text;
+        item.star = entry.card.star;
+        item.pool = entry.card.pool || entry.card.type;
+        item.source = entry.card.src || entry.card.pool || entry.card.type || '';
+      }
+      prompts.push(item);
+      /* 回顾统计（spec §5.4「今晚一起完成 N 张 / 放过 M 张」）含收尾卡；
+       * 收尾卡仍不计入目标进度 cardsProcessed。 */
+      if (entry.outcome === 'done') cardsDone++;
+      else cardsSkipped++;
     });
-    var ending = 'win-a';
-    var winnerId = state.winnerId || null;
-    if (state.phase === 'safe-ended') {
-      ending = 'safe';
-      winnerId = null;
-    } else if (state.winnerId === 'b') ending = 'win-b';
-    else if (state.winnerId === 'a') ending = 'win-a';
     var ledger = {
+      v: 2,
       date: shanghaiDate(endedAt),
+      startedAt: startedAt,
       endedAt: endedAt,
+      durationMs: Math.max(0, endedAt - startedAt),
       names: { a: state.names.a, b: state.names.b },
       colors: { a: state.colors.a, b: state.colors.b },
       scale: state.scale,
-      boundaries: (state.boundaries || []).slice(),
+      mode: state.mode || modeOf(state.planeCount),
       planeCount: state.planeCount,
-      ending: ending,
-      winnerId: winnerId,
-      prompts: prompts
+      boundaries: (state.boundaries || []).slice(),
+      /* V6 合作收尾：无输赢；安全词收记为 safe（冻结单 §2.1 / §2.5）。 */
+      ending: state.phase === 'safe-ended' ? 'safe' : 'shared',
+      winnerId: null,
+      stats: {
+        cardsDone: cardsDone,
+        cardsSkipped: cardsSkipped,
+        heat: Number(meta.heat) || 0,
+        bestStreak: Number(meta.streakBest) || 0,
+        minigames: minigames.length,
+        planesHome: arrivedCount(state)
+      },
+      prompts: prompts,
+      minigames: minigames
     };
-    /* 待确认 A3：默认不写逐步走子。 */
     if (state.rules && state.rules.ledgerIncludeMoveReplay) {
       ledger.moves = (state.log || []).filter(function (entry) {
         return entry && (entry.kind === 'roll' || entry.kind === 'move');
@@ -893,6 +1161,11 @@
 
   function view(state, opts) {
     opts = opts || {};
+    var awaiting = state && state.awaiting ? clone(state.awaiting) : { type: 'none' };
+    var M = metaApi();
+    var meta = M ? M.view(state && state.meta) : (state && state.meta) || null;
+    var mode = state && (state.mode || modeOf(state.planeCount));
+    var queue = state && Array.isArray(state.endingQueue) ? state.endingQueue : [];
     return {
       pieces: ((state && state.pieces) || []).map(function (p) {
         return {
@@ -905,7 +1178,27 @@
       }),
       turn: state && state.turn,
       colors: state && state.colors ? { a: state.colors.a, b: state.colors.b } : { a: 'red', b: 'yellow' },
-      reduced: !!opts.reduced
+      reduced: !!opts.reduced,
+      /* 【V6 新增】api-contract §5 允许追加，视图必须容忍缺失。 */
+      names: state && state.names ? { a: state.names.a, b: state.names.b } : undefined,
+      awaiting: awaiting,
+      choices: awaiting.type === 'choose-piece' ? (awaiting.pieceIds || []).slice() : [],
+      pending: state && state.pendingMove ? {
+        type: state.pendingMove.type,
+        pieceIds: (state.pendingMove.pieceIds || []).slice(),
+        steps: state.pendingMove.steps,
+        from: state.pendingMove.from
+      } : null,
+      meta: meta,
+      /* V6 进度投影：状态条「第 N/目标 张」「心动值」「连击」只读这里。 */
+      progress: {
+        mode: mode,
+        cardsProcessed: Number(state && state.cardsProcessed) || 0,
+        targetCards: Number(state && state.targetCards) || 0,
+        targetHeat: Number(state && state.targetHeat) || 0,
+        endingIndex: Number(state && state.endingIndex) || 0,
+        endingTotal: queue.length
+      }
     };
   }
 

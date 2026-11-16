@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>V6 棋盘自测 · SVG 2.5D（不进构建）</title>
+<style>
+  :root{
+    --bg0:#08060F; --bg1:#120D24; --bg2:#150F2A; --nebula:#241540; --nebula-glow:#8E7BD8;
+    --amber:#F3C077; --amber-deep:#E2965E; --rose:#E9887A;
+    --ink:#FBF3E7; --dim:#C9B6CE; --dim2:#8E7C9E;
+    --paper:#F7EAD6; --paper2:#F1DFC4; --paper-ink:#2C1C15;
+    --glass:rgba(38,27,58,.42); --line:rgba(255,226,196,.13);
+    --red:#F08C80; --yellow:#F0C877; --blue:#8FA6E8; --green:#7FC9A8;
+    --font-display:"Noto Serif SC","Songti SC","STSong",serif;
+    --font-body:"Noto Sans SC","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#07050E}
+  body{font-family:var(--font-body);color:var(--ink)}
+  /* 自测页外壳：430×932 手机比例，小屏等比缩。棋盘本身只占 .board-host。 */
+  .stage{
+    position:relative;width:100vw;max-width:430px;height:100vh;max-height:932px;margin:0 auto;
+    overflow:hidden;
+    background:
+      radial-gradient(120% 60% at 50% -10%,#251743 0%,#150F2A 44%,#0A0717 100%),
+      linear-gradient(180deg,#0A0717,#07050E);
+  }
+  .nebula{position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(42% 30% at 86% 2%, rgba(233,136,122,.20), transparent 70%),
+      radial-gradient(56% 40% at 8% 12%, rgba(130,96,224,.22), transparent 74%),
+      radial-gradient(66% 34% at 50% 82%, rgba(243,192,119,.16), transparent 76%);
+  }
+  .sky{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+  .grain{position:absolute;inset:0;opacity:.13;mix-blend-mode:overlay;pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+  .vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 82% at 50% 42%,transparent 54%,rgba(4,3,10,.55) 100%)}
+  .table{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;padding:18px 16px 14px}
+  /* ---------- HUD（demo 脚手架，不属于 BoardView） ---------- */
+  .hud-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px}
+  .round{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.04em;color:var(--dim2);white-space:nowrap;min-width:0;overflow:hidden}
+  .round b{color:#E8D8C2;font-weight:500;letter-spacing:.06em;white-space:nowrap}
+  .round i{width:1px;height:10px;background:rgba(255,226,196,.2);flex:none}
+  .round span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .safe{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:999px;flex:none;
+    border:1px solid rgba(243,192,119,.28);background:linear-gradient(180deg,rgba(243,192,119,.14),rgba(243,192,119,.05));
+    color:#F0D6B4;font-family:var(--font-body);font-size:11px;letter-spacing:.08em;white-space:nowrap;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .safe svg{width:12px;height:12px;opacity:.85}
+  .turnbar{margin-top:10px;display:flex;align-items:center;gap:6px;padding:6px;border-radius:22px;
+    background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    box-shadow:0 14px 34px rgba(3,2,10,.35)}
+  .p{flex:1;display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:16px;min-width:0}
+  .p .dot{width:11px;height:11px;border-radius:50%;flex:none}
+  .p .dot.red{background:var(--red);box-shadow:0 0 12px 2px rgba(240,140,128,.55)}
+  .p .dot.yellow{background:var(--yellow);box-shadow:0 0 10px 2px rgba(240,200,119,.25);opacity:.75}
+  .p .nm{font-size:15px;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+  .p .clr{font-size:10px;color:var(--dim2);letter-spacing:.1em;white-space:nowrap}
+  .p.on{background:linear-gradient(180deg,rgba(240,140,128,.17),rgba(240,140,128,.05));
+    border:1px solid rgba(240,140,128,.30);box-shadow:0 0 24px rgba(240,140,128,.14) inset}
+  .p.on .nm{color:#FFF3E6}
+  .p.on .clr{color:#E4B9B0}
+  .p .turn{margin-left:auto;font-size:10px;letter-spacing:.14em;color:#E7B7A8;white-space:nowrap}
+  .p.off .turn{color:var(--dim2)}
+  .kick{width:1px;height:26px;background:linear-gradient(180deg,transparent,rgba(255,226,196,.18),transparent)}
+  /* ---------- 棋盘容器（BoardView 挂载点） ---------- */
+  .board-wrap{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0}
+  .board-host{position:absolute;inset:0}
+  /* ---------- 底部 dock（demo 脚手架，模拟 table 行动区/题卡） ---------- */
+  .dock{position:relative;border-radius:24px;padding:14px 16px 12px;
+    background:radial-gradient(120% 90% at 18% 0%,#FDF5E7 0%,var(--paper) 52%,var(--paper2) 100%);
+    color:var(--paper-ink);box-shadow:0 18px 44px rgba(3,2,10,.45),0 0 0 1px rgba(255,226,196,.25) inset;
+    overflow:hidden;flex:none}
+  .dock::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23p)' opacity='0.24'/%3E%3C/svg%3E")}
+  .dock-top{position:relative;display:flex;align-items:center;gap:12px}
+  .die{width:44px;height:44px;border-radius:12px;flex:none;
+    background:linear-gradient(160deg,#3A2418,#24150E);box-shadow:0 1px 0 rgba(255,226,196,.25) inset,0 6px 12px rgba(60,30,20,.35);
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:8px;gap:2px}
+  .die i{width:6px;height:6px;border-radius:50%;background:#FBEBD2;align-self:center;justify-self:center;box-shadow:0 0 6px rgba(251,235,210,.4)}
+  .die i.off{background:transparent;box-shadow:none}
+  .dock-kick{min-width:0;flex:1}
+  .dock-kick .kk{font-size:10.5px;letter-spacing:.14em;color:#9A6A46;font-weight:700}
+  .dock-kick .kk b{color:#7C2A3A;letter-spacing:.06em}
+  .dock-kick .sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:10.5px;color:#8A6A50;letter-spacing:.04em}
+  .q{position:relative;margin:10px 0 0;font-family:var(--font-display);font-weight:600;font-size:19px;line-height:1.55;letter-spacing:.02em;color:#2B1A12}
+  .acts{position:relative;display:flex;gap:10px;margin-top:12px}
+  .btn{flex:1;height:44px;border-radius:999px;border:0;font-family:var(--font-body);font-size:15px;font-weight:700;letter-spacing:.16em}
+  .btn.primary{background:linear-gradient(180deg,#362117,#241410);color:#FFF4E4;box-shadow:0 1px 0 rgba(255,226,196,.2) inset,0 8px 18px rgba(60,30,20,.30)}
+  .btn.ghost{background:transparent;border:1px solid rgba(60,35,24,.28);color:#6E4A33}
+  .dock-foot{position:relative;margin-top:9px;font-size:9.5px;letter-spacing:.06em;color:#A98A6C;text-align:center}
+  .statusline{position:relative;font-size:12px;color:#7C5A3F;letter-spacing:.04em;margin-top:4px}
+  .statusline b{color:#7C2A3A;font-size:15px;letter-spacing:.08em}
+  /* ---------- 自测工具条（ui=0 隐藏） ---------- */
+  .tools{position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:30;display:flex;flex-direction:column;gap:6px;width:52px}
+  .tools button{font-family:var(--font-body);font-size:10px;letter-spacing:.04em;padding:7px 2px;border-radius:10px;
+    border:1px solid rgba(243,192,119,.25);background:rgba(18,11,32,.72);color:#E8D8C2;backdrop-filter:blur(8px)}
+  .tools button.on{background:rgba(243,192,119,.22);color:#FFF3E6}
+  .metrics{position:absolute;left:10px;top:10px;z-index:31;max-width:300px;padding:8px 10px;border-radius:12px;
+    background:rgba(6,4,14,.86);border:1px solid rgba(255,226,196,.18);color:#D8C7E2;font-size:10px;line-height:1.55;
+    white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;pointer-events:none}
+  .metrics[hidden]{display:none}
+  body.no-ui .tools{display:none}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="nebula" aria-hidden="true"></div>
+  <svg class="sky" id="sky" aria-hidden="true"></svg>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="table">
+    <header class="hud" aria-hidden="true">
+      <div class="hud-top">
+        <div class="round"><b id="hud-round">第 3 回合</b><i></i><span id="hud-sub">22:46 · 2 / 4 架在飞</span></div>
+        <button class="safe" type="button" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z"/><path d="M9.2 12.2l2 2 3.6-4"/>
+          </svg>
+          先收棋
+        </button>
+      </div>
+      <div class="turnbar">
+        <div class="p on" id="p-a"><span class="dot red" id="dot-a"></span><span class="nm" id="name-a">他</span><span class="clr">红方</span><span class="turn">的回合</span></div>
+        <span class="kick"></span>
+        <div class="p off" id="p-b"><span class="dot yellow" id="dot-b"></span><span class="nm" id="name-b">她</span><span class="clr">黄方</span><span class="turn">下一手</span></div>
+      </div>
+    </header>
+
+    <section class="board-wrap" aria-label="棋盘区">
+      <div class="board-host" id="board"></div>
+    </section>
+
+    <section class="dock" id="dock" aria-hidden="true"></section>
+  </main>
+
+  <div class="tools" id="tools">
+    <button type="button" data-scn="initial">初始</button>
+    <button type="button" data-scn="move">走子</button>
+    <button type="button" data-scn="prompt">题卡</button>
+    <button type="button" data-scn="capture">击落</button>
+    <button type="button" data-scn="heat">热升</button>
+    <button type="button" data-act="replay">重放</button>
+    <button type="button" data-act="reduced">减动效</button>
+    <button type="button" data-act="metrics">指标</button>
+  </div>
+  <div class="metrics" id="metrics" hidden></div>
+</div>
+
+<script src="../src/engine/flight-board.js"></script>
+<script src="../src/view/board.js"></script>
+<script>
+/* ==========================================================================
+ * 自测页脚本（demo 脚手架，不进构建）
+ * 只调 App.BoardView 的 6 个方法；假数据覆盖 初始 / 走子 / 题卡 / 击落 / 热升。
+ * 全局 API（供 Playwright 自测）：window.__demo
+ * ========================================================================== */
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  var scenarioName = params.get('scenario') || 'initial';
+  if (params.get('ui') === '0') document.body.classList.add('no-ui');
+  var board = window.App.BoardView;
+
+  /* ---------- 装饰星空 ---------- */
+  (function sky() {
+    var el = document.getElementById('sky');
+    var seed = 771126;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    var frag = '';
+    for (var i = 0; i < 58; i++) {
+      var x = (rnd() * 430).toFixed(1), y = (rnd() * 932).toFixed(1);
+      var r = (0.3 + rnd() * 0.9).toFixed(2), o = (0.10 + rnd() * 0.45).toFixed(2);
+      frag += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFE9D2" opacity="' + o + '"/>';
+    }
+    el.innerHTML = frag;
+  })();
+
+  /* ---------- 假数据 ---------- */
+  function p(id, color, squareId, arrived) {
+    return { id: id, color: color, squareId: squareId, arrived: !!arrived, stackGroupId: null };
+  }
+  function names() { return { a: '他', b: '她' }; }
+  function colors() { return { a: 'red', b: 'yellow' }; }
+
+  var SCENARIOS = {};
+
+  SCENARIOS.initial = {
+    label: '初始：8 架都在机坪',
+    snapshot: {
+      names: names(), colors: colors(), turn: 'a',
+      pieces: [
+        p('a:0', 'red', 'hangar:red:0'), p('a:1', 'red', 'hangar:red:1'),
+        p('a:2', 'red', 'hangar:red:2'), p('a:3', 'red', 'hangar:red:3'),
+        p('b:0', 'yellow', 'hangar:yellow:0'), p('b:1', 'yellow', 'hangar:yellow:1'),
+        p('b:2', 'yellow', 'hangar:yellow:2'), p('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: [],
+      fateCells: [5, 29],
+      meta: { heat: 12, stage: 'cold', streak: 0, streakBest: 0 }
+    },
+    events: [],
+    dock: function () {
+      return '' +
+        '<div class="dock-top"><div class="die" aria-hidden="true">' +
+        '<i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i>' +
+        '</div><div class="dock-kick"><div class="kk">他 的回合 · 第 1 回合</div>' +
+        '<div class="sub">心动值 12 · 灯刚亮 · 连击 ×0</div></div></div>' +
+        '<div class="statusline">双方 8 架都在机坪，掷到 <b>6</b> 起飞。</div>' +
+        '<div class="acts"><button class="btn primary" type="button">掷骰</button></div>' +
+        '<div class="dock-foot">长按右上「先收棋」可以随时停，这张不算数</div>';
+    }
+  };
+
+  SCENARIOS.move = {
+    label: '走子：可走子高亮 + 航线/到家',
+    snapshot: {
+      names: names(), colors: colors(), turn: 'a',
+      pieces: [
+        p('a:0', 'red', 'ring:7'), p('a:1', 'red', 'ring:12'),
+        p('a:2', 'red', 'home:red:2'), p('a:3', 'red', 'home:red:goal', true),
+        p('b:0', 'yellow', 'ring:15'), p('b:1', 'yellow', 'ring:19'),
+        p('b:2', 'yellow', 'hangar:yellow:2'), p('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: ['a:0', 'a:1'],
+      fateCells: [5, 29],
+      meta: { heat: 46, stage: 'charged', streak: 3, streakBest: 3 }
+    },
+    events: [],
+    dock: function () {
+      return '' +
+        '<div class="dock-top"><div class="die" aria-hidden="true">' +
+        '<i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i>' +
+        '</div><div class="dock-kick"><div class="kk">他 掷骰 <b>5</b> · 可以走 2 架</div>' +
+        '<div class="sub">★☆ 心动值 46 · 靠近了 · 连击 ×3</div></div></div>' +
+        '<div class="acts"><button class="btn primary" type="button">红1 · 沿航线走</button><button class="btn ghost" type="button">红2 · 沿航线走</button></div>' +
+        '<div class="dock-foot">也可直接点棋盘上发光的纸飞机</div>';
+    }
+  };
+
+  SCENARIOS.prompt = {
+    label: '题卡：落点脉冲 → 真心话',
+    snapshot: {
+      names: names(), colors: colors(), turn: 'a',
+      pieces: [
+        p('a:0', 'red', 'ring:16'), p('a:1', 'red', 'ring:22'),
+        p('a:2', 'red', 'home:red:1'), p('a:3', 'red', 'hangar:red:3'),
+        p('b:0', 'yellow', 'ring:28'), p('b:1', 'yellow', 'ring:33'),
+        p('b:2', 'yellow', 'hangar:yellow:2'), p('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: [],
+      fateCells: [5, 29],
+      meta: { heat: 62, stage: 'burning', streak: 4, streakBest: 4 }
+    },
+    events: [
+      { type: 'dice', die: 3 },
+      { type: 'move', pieceId: 'a:0', path: ['ring:17', 'ring:18', 'ring:19'], mode: 'walk' },
+      {
+        type: 'prompt', prompt: {
+          id: 'pr-demo-1', kind: 'cell-dare', actorId: 'a', targetId: 'a', pieceIds: ['a:0'],
+          card: { id: 'demo', text: '今晚的哪一个瞬间，你最想被对方记住？', star: 2, tags: [], pool: 'dare' }
+        }
+      }
+    ],
+    dock: function () {
+      return '' +
+        '<div class="dock-top"><div class="die" aria-hidden="true">' +
+        '<i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i>' +
+        '</div><div class="dock-kick"><div class="kk">他 掷骰 <b>3</b> · 落到「大冒险」</div>' +
+        '<div class="sub"><span style="color:#C8902F">★★☆</span> 这张给走到的人 · 慢慢说</div></div></div>' +
+        '<p class="q">今晚的哪一个瞬间，<br>你最想被对方记住？</p>' +
+        '<div class="acts"><button class="btn primary" type="button">做了</button><button class="btn ghost" type="button">放过</button></div>' +
+        '<div class="dock-foot">长按右上「先收棋」可以随时停，这张不算数</div>';
+    }
+  };
+
+  SCENARIOS.capture = {
+    label: '击落：落点闪 + 对手回机坪',
+    snapshot: {
+      names: names(), colors: colors(), turn: 'a',
+      pieces: [
+        p('a:0', 'red', 'ring:24'), p('a:1', 'red', 'ring:31'),
+        p('a:2', 'red', 'home:red:2'), p('a:3', 'red', 'hangar:red:3'),
+        p('b:0', 'yellow', 'ring:27'), p('b:1', 'yellow', 'ring:36'),
+        p('b:2', 'yellow', 'hangar:yellow:2'), p('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: [],
+      fateCells: [5, 29],
+      meta: { heat: 54, stage: 'charged', streak: 2, streakBest: 3 }
+    },
+    events: [
+      { type: 'dice', die: 3 },
+      { type: 'move', pieceId: 'a:0', path: ['ring:25', 'ring:26', 'ring:27'], mode: 'walk' },
+      { type: 'capture', attackerId: 'a:0', victimIds: ['b:0'] },
+      {
+        type: 'prompt', prompt: {
+          id: 'pr-demo-2', kind: 'capture', actorId: 'b', targetId: 'b', pieceIds: ['b:0'],
+          card: { id: 'demo2', text: '被送回机坪的人，说一句此刻最想被安慰的话。', star: 3, tags: [], pool: 'capture' }
+        }
+      }
+    ],
+    dock: function () {
+      return '' +
+        '<div class="dock-top"><div class="die" aria-hidden="true">' +
+        '<i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i>' +
+        '</div><div class="dock-kick"><div class="kk">他 掷骰 <b>3</b> · 落点第 28 格</div>' +
+        '<div class="sub">击落黄方 1 架 · 送回机坪 · 心动值不变</div></div></div>' +
+        '<div class="statusline">黄方被击落，回答一张「击破」卡。</div>' +
+        '<div class="acts"><button class="btn primary" type="button">打开题卡</button></div>' +
+        '<div class="dock-foot">击落只影响棋局，不加也不减心动值</div>';
+    }
+  };
+
+  SCENARIOS.heat = {
+    label: '热升：心动 62→85 + 连击里程碑',
+    snapshot: {
+      names: names(), colors: colors(), turn: 'b',
+      pieces: [
+        p('a:0', 'red', 'ring:19'), p('a:1', 'red', 'ring:26'),
+        p('a:2', 'red', 'home:red:3'), p('a:3', 'red', 'home:red:goal', true),
+        p('b:0', 'yellow', 'ring:2'), p('b:1', 'yellow', 'ring:9'),
+        p('b:2', 'yellow', 'ring:20'), p('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: [],
+      fateCells: [5, 29],
+      meta: { heat: 62, stage: 'burning', streak: 3, streakBest: 3 }
+    },
+    events: [
+      { type: 'heat', delta: 10, heat: 72, stage: 'burning' },
+      { type: 'heat', delta: 13, heat: 85, stage: 'blazing', prevStage: 'burning' },
+      { type: 'streak', count: 6, best: 6 },
+      { type: 'milestone', id: 'm6', label: '连击 ×6 · 双人选卡' },
+      { type: 'turn', playerId: 'b', color: 'yellow' }
+    ],
+    dock: function () {
+      return '' +
+        '<div class="dock-top"><div class="die" aria-hidden="true">' +
+        '<i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i>' +
+        '</div><div class="dock-kick"><div class="kk">她 掷骰 <b>4</b> · 落到「靠近」</div>' +
+        '<div class="sub">心动值 85 · 今晚可以更近 · 连击 ×6</div></div></div>' +
+        '<div class="statusline">连击达成 6 次 · 双人选卡（P1）</div>' +
+        '<div class="acts"><button class="btn primary" type="button">翻两张</button><button class="btn ghost" type="button">放过</button></div>' +
+        '<div class="dock-foot">放过不扣心动值，也不会清零连击</div>';
+    }
+  };
+
+  /* ---------- HUD / dock 脚手架 ---------- */
+  var STAGE_NAMES = { cold: '灯刚亮', warm: '有点热', charged: '靠近了', burning: '很近了', blazing: '今晚可以更近' };
+  function hexA(hex, a) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return 'rgba(243,192,119,' + a + ')';
+    var n = parseInt(m[1], 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function readBoard(snap) {
+    var root = document.querySelector('.board-v6');
+    if (!root) {
+      return {
+        turn: snap.turn || 'a', heat: snap.meta ? snap.meta.heat : 0,
+        stage: snap.meta ? snap.meta.stage : 'cold', streak: snap.meta ? snap.meta.streak : 0,
+        flying: 0, home: 0
+      };
+    }
+    var pieces = Array.prototype.slice.call(document.querySelectorAll('[data-piece]'));
+    var flying = 0, home = 0;
+    pieces.forEach(function (p) {
+      var sq = String(p.getAttribute('data-piece-square') || '');
+      if (p.getAttribute('data-arrived') === '1') home++;
+      else if (sq.indexOf('hangar:') !== 0) flying++;
+    });
+    return {
+      turn: root.getAttribute('data-turn') || 'a',
+      heat: Number(root.getAttribute('data-heat') || 0),
+      stage: root.getAttribute('data-stage') || 'cold',
+      streak: Number(root.getAttribute('data-streak') || 0),
+      flying: flying, home: home
+    };
+  }
+
+  function paintHud(snap) {
+    var namesMap = snap.names || names();
+    var colorsMap = snap.colors || colors();
+    var HEX = { red: '#F08C80', yellow: '#F0C877', blue: '#8FA6E8', green: '#7FC9A8' };
+    var b = readBoard(snap);
+    document.getElementById('name-a').textContent = namesMap.a;
+    document.getElementById('name-b').textContent = namesMap.b;
+    ['a', 'b'].forEach(function (pid) {
+      var row = document.getElementById('p-' + pid);
+      var dot = document.getElementById('dot-' + pid);
+      var color = colorsMap[pid];
+      dot.style.background = HEX[color];
+      dot.style.boxShadow = pid === b.turn ? ('0 0 12px 2px ' + hexA(HEX[color], .55)) : 'none';
+      dot.style.opacity = pid === b.turn ? '1' : '.7';
+      row.classList.toggle('on', pid === b.turn);
+      row.classList.toggle('off', pid !== b.turn);
+      row.style.background = pid === b.turn
+        ? 'linear-gradient(180deg,' + hexA(HEX[color], .17) + ',' + hexA(HEX[color], .05) + ')'
+        : 'transparent';
+      row.style.border = pid === b.turn ? ('1px solid ' + hexA(HEX[color], .3)) : '1px solid transparent';
+      var tag = row.querySelector('.turn');
+      if (tag) tag.textContent = pid === b.turn ? '的回合' : '下一手';
+    });
+    document.getElementById('hud-round').textContent = '第 3 回合';
+    document.getElementById('hud-sub').textContent =
+      '22:46 · ' + b.flying + ' 架在飞' + (b.home ? (' · ' + b.home + ' 架到家') : '') + ' · 心动 ' + b.heat;
+  }
+
+  function paintDock(scn) {
+    document.getElementById('dock').innerHTML = scn.dock();
+  }
+
+  /* ---------- 场景驱动 ---------- */
+  var current = scenarioName;
+  var lastPlay = null;
+  var mounted = false;
+
+  function setScenario(name, opts) {
+    opts = opts || {};
+    var scn = SCENARIOS[name] || SCENARIOS.initial;
+    current = SCENARIOS[name] ? name : 'initial';
+    document.querySelectorAll('.tools [data-scn]').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-scn') === current);
+    });
+    paintDock(scn);
+    board.setState(scn.snapshot);
+    board.setChoices(scn.snapshot.choices || []);
+    paintHud(scn.snapshot);
+    if (!opts.silent) {
+      var title = document.getElementById('metrics');
+      if (title && !title.hidden) renderMetrics();
+    }
+    return scn;
+  }
+
+  function playScenario(name) {
+    var scn = setScenario(name || current, { silent: true });
+    if (!scn.events || !scn.events.length) {
+      lastPlay = { played: 0, skipped: false, totalMs: 0 };
+      return Promise.resolve(lastPlay);
+    }
+    return board.play(scn.events).then(function (res) {
+      lastPlay = res;
+      paintHud(scn.snapshot);
+      paintDock(scn);
+      return res;
+    });
+  }
+
+  /* ---------- 指标 ---------- */
+  function metrics() {
+    var stage = document.querySelector('.bv-stage');
+    var host = document.getElementById('board');
+    var nodes = document.querySelectorAll('*').length;
+    var squares = document.querySelectorAll('[data-square]').length;
+    var ring = document.querySelectorAll('[data-square^="ring:"]').length;
+    var hangar = document.querySelectorAll('[data-square^="hangar:"]').length;
+    var home = document.querySelectorAll('[data-square^="home:"]').length;
+    var pieces = document.querySelectorAll('[data-piece]').length;
+    var pieceSq = document.querySelectorAll('[data-piece-square]').length;
+    var labels = document.querySelectorAll('[data-square][aria-label]').length;
+    var rect = stage ? stage.getBoundingClientRect() : { width: 0, height: 0 };
+    var hostRect = host ? host.getBoundingClientRect() : { width: 0, height: 0 };
+    return {
+      nodes: nodes,
+      squares: squares, ring: ring, hangar: hangar, home: home, pieces: pieces,
+      pieceSquares: pieceSq, labelledSquares: labels,
+      stageW: Math.round(rect.width), stageH: Math.round(rect.height),
+      hostW: Math.round(hostRect.width), hostH: Math.round(hostRect.height),
+      viewportW: window.innerWidth, viewportH: window.innerHeight,
+      scrollW: document.documentElement.scrollWidth,
+      bodyScrollW: document.body.scrollWidth,
+      lastPlay: lastPlay,
+      data: {
+        heat: document.querySelector('[data-test="board-heat"]') && document.querySelector('[data-test="board-heat"]').textContent,
+        streak: document.querySelector('[data-test="board-streak"]') && document.querySelector('[data-test="board-streak"]').textContent,
+        stageName: document.querySelector('[data-test="board-stage"]') && document.querySelector('[data-test="board-stage"]').textContent,
+        turn: document.querySelector('[data-test="board-turn"]') && document.querySelector('[data-test="board-turn"]').textContent
+      }
+    };
+  }
+
+  function sampleFrames(ms) {
+    ms = ms || 3000;
+    return new Promise(function (resolve) {
+      var deltas = [];
+      var last = performance.now();
+      var t0 = last;
+      function tick(t) {
+        deltas.push(t - last);
+        last = t;
+        if (t - t0 < ms) requestAnimationFrame(tick);
+        else {
+          var sorted = deltas.slice().sort(function (a, b) { return a - b; });
+          var long = deltas.filter(function (d) { return d > 25; }).length;
+          resolve({
+            frames: deltas.length,
+            durationMs: Math.round(t - t0),
+            longFrames: long,
+            ratio: deltas.length ? +(long / deltas.length * 100).toFixed(2) : 0,
+            p95: sorted.length ? +sorted[Math.floor(sorted.length * 0.95)].toFixed(2) : 0,
+            max: sorted.length ? +sorted[sorted.length - 1].toFixed(2) : 0,
+            avg: deltas.length ? +(deltas.reduce(function (a, b) { return a + b; }, 0) / deltas.length).toFixed(2) : 0
+          });
+        }
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function renderMetrics() {
+    var el = document.getElementById('metrics');
+    if (!el) return;
+    if (el.hidden) { el.hidden = false; return; }
+    var m = metrics();
+    el.textContent =
+      '节点 ' + m.nodes + ' · 格 ' + m.squares + '（环' + m.ring + '/坪' + m.hangar + '/航线' + m.home + '）\n' +
+      '棋子 ' + m.pieces + ' · data-piece-square ' + m.pieceSquares + ' · aria ' + m.labelledSquares + '\n' +
+      'stage ' + m.stageW + '×' + m.stageH + ' · host ' + m.hostW + '×' + m.hostH + ' · vp ' + m.viewportW + '×' + m.viewportH + '\n' +
+      'heat ' + m.data.heat + ' · ' + m.data.stageName + ' · ' + m.data.streak + ' · ' + m.data.turn + '\n' +
+      'play ' + (m.lastPlay ? (m.lastPlay.totalMs + 'ms / ' + m.lastPlay.played + ' events') : '—') +
+      (window.__lastFrames ? ('\nframes ' + window.__lastFrames.frames + ' · long ' + window.__lastFrames.longFrames +
+        ' (' + window.__lastFrames.ratio + '%) · p95 ' + window.__lastFrames.p95 + 'ms · max ' + window.__lastFrames.max + 'ms') : '');
+  }
+
+  /* ---------- 工具条 ---------- */
+  document.getElementById('tools').addEventListener('click', function (e) {
+    var scn = e.target.closest('[data-scn]');
+    var act = e.target.closest('[data-act]');
+    if (scn) {
+      if (scn.getAttribute('data-scn') === 'prompt' || scn.getAttribute('data-scn') === 'capture' || scn.getAttribute('data-scn') === 'heat') {
+        playScenario(scn.getAttribute('data-scn'));
+      } else {
+        setScenario(scn.getAttribute('data-scn'));
+      }
+      return;
+    }
+    if (!act) return;
+    var a = act.getAttribute('data-act');
+    if (a === 'replay') playScenario(current);
+    if (a === 'reduced') {
+      var on = !board.__reducedDemo;
+      board.__reducedDemo = on;
+      board.setReduced(on);
+      act.classList.toggle('on', on);
+    }
+    if (a === 'metrics') {
+      var el = document.getElementById('metrics');
+      el.hidden = !el.hidden;
+      if (!el.hidden) renderMetrics();
+    }
+  });
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    board.mount(document.getElementById('board'), {
+      reduced: params.get('reduced') === '1',
+      sound: false
+    });
+    mounted = true;
+    var scn = setScenario(scenarioName);
+    if (params.get('reduced') === '1') {
+      board.setReduced(true);
+      var rb = document.querySelector('[data-act="reduced"]');
+      if (rb) rb.classList.add('on');
+    }
+    if (params.get('debug') === '1') {
+      var m = document.getElementById('metrics');
+      if (m) { m.hidden = false; renderMetrics(); }
+    }
+    window.__demo = {
+      board: board,
+      scenarios: SCENARIOS,
+      current: function () { return current; },
+      setScenario: setScenario,
+      playScenario: playScenario,
+      playEvents: function (events) {
+        return board.play(events).then(function (res) { lastPlay = res; return res; });
+      },
+      metrics: metrics,
+      renderMetrics: renderMetrics,
+      sampleFrames: sampleFrames,
+      lastPlay: function () { return lastPlay; },
+      ready: true,
+      mounted: function () { return mounted; }
+    };
+    var p2 = params.get('play') === '1' ? playScenario(scenarioName) : Promise.resolve(null);
+    if (scn && params.get('scenario')) {
+      window.__demo.scenario = current;
+    }
+    p2.then(function () {
+      window.__demo.playedAtLoad = true;
+      document.documentElement.setAttribute('data-demo-ready', '1');
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
-/* ===== 今晚飞行棋 · 启动 ===== */
+/* ===== 今晚飞行棋 V6 · 启动装配 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "5.0.0";
+  App.version = "6.0.0";
 
   function hashRoute() {
     var h = String(location.hash || "").replace(/^#\/?/, "");
@@ -16,21 +16,31 @@
   }
 
   function boot() {
+    var screenHost = document.getElementById("screen");
+    if (!screenHost) {
+      if (window.console) console.error("[app] #screen 缺失");
+      return;
+    }
     App.UI.syncSettings();
-    App.Router.init(document.getElementById("screen"));
+    try { App.UI.mountBackdrop(); } catch (e) { if (window.console) console.error("[app] backdrop", e); }
+    App.Router.init(screenHost);
+
     App.Bus.on("route", function (e) {
       document.body.setAttribute("data-screen", e.name);
-      document.getElementById("screen").scrollTop = 0;
+      screenHost.scrollTop = 0;
       var s = App.Store.getSettings();
       App.Audio.setEnabled(s.sound !== false);
       if (App.BoardView && App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
+      if (App.Safe && App.Safe.sync) App.Safe.sync();
     });
     App.Bus.on("settings", function (s) {
       App.Audio.setEnabled(s.sound !== false);
       App.Motion.syncBodyClass();
       if (App.BoardView && App.BoardView.setReduced) App.BoardView.setReduced(!!s.reduced);
+      if (App.BoardView && App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
     });
 
+    /* 首次用户手势后解锁 WebAudio（iOS/Chrome 都需要） */
     var unlocked = false;
     function unlock() {
       if (unlocked) return;
@@ -39,10 +49,15 @@
       document.removeEventListener("pointerdown", unlock, true);
     }
     document.addEventListener("pointerdown", unlock, true);
+
     window.addEventListener("error", function (e) {
       if (window.console) console.error("[app]", e.message);
     });
-    try { if (App.Safe && App.Safe.init) App.Safe.init(); } catch (e) {}
+    window.addEventListener("unhandledrejection", function (e) {
+      if (window.console) console.error("[app] unhandledrejection", e.reason);
+    });
+
+    try { if (App.Safe && App.Safe.init) App.Safe.init(); } catch (e) { if (window.console) console.error("[app] safe", e); }
     try { if (App.PWA && App.PWA.register) App.PWA.register(); } catch (e) {}
 
     try { App.Store.getSession(); } catch (e) {}

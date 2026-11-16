@@ -1,7 +1,22 @@
 #!/usr/bin/env node
 /* 今晚飞行棋 · 引擎验收
  * node qa/rebuild/flight-engine.test.mjs
- * 坐标与 75 条以 T-003 清单为准。A1/A2/A3 与 stackCapturedBySingle 均为待确认，不是已批准规则。
+ * 坐标与 75 条以 T-003 清单为准。A1/A3 与 stackCapturedBySingle 仍为待确认，不是已批准规则。
+ *
+ * ============================ V6 语义变更（spec §5.8 / impl-freeze §2） ============================
+ * 1) 规则修复：skipHomeEntryBlocksEntry=false（进航题「放过」仍进军）、
+ *    skipStackKeepsBonusStep=true（叠机题「放过」仍得奖励步）。旧测试里断言
+ *    「跳过停在原地 / 跳过不多走一步」的用例已按 V6 语义改写。
+ * 2) 合作收尾：V6 不再判输赢（无 win 事件、winnerId 恒 null、ledger ending='shared'|'safe'）；
+ *    收尾触发 = 处理题卡数达 targetCards OR 心动值达 targetHeat OR（长夜任一棋进终点），
+ *    然后两张收尾卡各给一人，都可放过。旧「赢家给对方一张收尾卡」的用例已改写。
+ * 3) 心动值/连击 meta 随 state 落盘；heat 只增不降（上限 100）；streak 放过不清零。
+ * 4) state.v=2；v:1（V5）存档 validate 时补默认并升级，不丢档。
+ * 5) 命运格：FATE_CELLS 候选 7/31 中的 7 是飞点 → 用冻结单退路 [5,29]；
+ *    prompt.kind='fate' + prompt.options + resolvePrompt(state,outcome,opts.cardIndex) 为 P1 接口。
+ * 测试辅助 place() 默认把对局切成 quick + 高目标，只用于隔离单个棋规场景；
+ * 需要测收尾触发时显式传 opts（见 §13/§14）。
+ * ==============================================================================================
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,6 +75,7 @@ function makeSandbox(mem) {
     'app/src/data/cards.js',
     'app/src/engine/flight-rules.js',
     'app/src/engine/flight-board.js',
+    'app/src/engine/flight-meta.js',
     'app/src/engine/flight-draw.js',
     'app/src/engine/archive.js',
     'app/src/engine/minigames.js',
@@ -76,6 +92,7 @@ const F = App.Flight;
 const Rules = App.FlightRules;
 const Board = App.FlightBoard;
 const Draw = App.FlightDraw;
+const Meta = App.FlightMeta;
 const Archive = App.Archive;
 const Mini = App.Minigames;
 const CARDS = sb.window.CARDS;
@@ -95,7 +112,8 @@ function boot(extra, seed) {
 }
 function stateOf(extra, seed) { return boot(extra, seed).state; }
 
-function place(state, turn, map) {
+function place(state, turn, map, opts) {
+  opts = opts || {};
   const s = clone(state);
   s.turn = turn || 'a';
   s.phase = 'playing';
@@ -104,6 +122,15 @@ function place(state, turn, map) {
   s.rollContext = null;
   s.winnerId = null;
   s.result = null;
+  s.endingQueue = null;
+  s.endingIndex = 0;
+  /* V6：place() 会把「没点名的棋子」直接放到终点，若保持 long 会误触「长夜任一棋进终点」收尾。
+   * 因此隔离场景默认 quick + 高目标；要测收尾请显式传 opts。 */
+  s.mode = opts.mode || 'quick';
+  s.targetCards = opts.targetCards != null ? opts.targetCards : 99;
+  s.targetHeat = opts.targetHeat != null ? opts.targetHeat : 999;
+  if (opts.cardsProcessed != null) s.cardsProcessed = opts.cardsProcessed;
+  if (opts.heat != null) s.meta = Meta.normalize(Object.assign({}, s.meta, { heat: opts.heat }));
   s.pieces.forEach((p) => {
     const m = map[p.id];
     if (m) {
@@ -118,35 +145,112 @@ function place(state, turn, map) {
   });
   return s;
 }
+
+/* 所有棋子留在机坪（不预置 arrived），再按 map 放指定棋子。用于测「长夜进终点」触发。 */
+function parked(state, turn, map) {
+  const s = clone(state);
+  s.turn = turn || 'a';
+  s.phase = 'playing';
+  s.awaiting = { type: 'roll' };
+  s.pendingMove = null;
+  s.rollContext = null;
+  s.winnerId = null;
+  s.result = null;
+  s.endingQueue = null;
+  s.endingIndex = 0;
+  s.pieces.forEach((p) => {
+    p.squareId = 'hangar:' + p.color + ':' + (String(p.id).split(':')[1] || 0);
+    p.arrived = false;
+    p.stackGroupId = null;
+  });
+  Object.keys(map || {}).forEach((id) => {
+    const p = at(s, id);
+    if (!p) return;
+    p.squareId = map[id].squareId;
+    p.arrived = !!map[id].arrived;
+    p.stackGroupId = map[id].stackGroupId || null;
+  });
+  return s;
+}
+
+/* 全放过局：每回合把 a:0 放到真心话格前、掷 1 出题、点放过，直到收尾或上限。 */
+function playAllSkipped(seed, rounds) {
+  let s = stateOf({ planeCount: 2 }, seed);
+  const log = [];
+  for (let i = 0; i < (rounds || 10); i++) {
+    if (s.phase !== 'playing' || (s.awaiting && s.awaiting.type === 'ending-prompt')) break;
+    s = place(s, 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 4, targetHeat: 40 });
+    const rolled = F.roll(s, 1);
+    if (!rolled.ok) break;
+    const base = rolled.state;
+    if (!base.awaiting || base.awaiting.type !== 'prompt' || base.awaiting.prompt.kind !== 'cell-truth') break;
+    log.push(base.awaiting.prompt.card && base.awaiting.prompt.card.id);
+    s = F.resolvePrompt(base, 'skipped').state;
+  }
+  return { state: s, cards: log };
+}
+
+/* 两张收尾卡依次结算（默认都做了）。 */
+function settleEnding(state, first, second) {
+  const r1 = F.resolvePrompt(state, first || 'done');
+  if (!r1.ok) return { ok: false, error: r1.error, state: state };
+  const r2 = F.resolvePrompt(r1.state, second || 'done');
+  return { ok: r2.ok, first: r1, last: r2, state: r2.state, error: r2.error };
+}
+
+/* 把 a:0 放到真心话格 ring:1 再掷 1，稳定得到一张 cell-truth 题卡。 */
+function promptState(state, opts) {
+  const s = place(state, 'a', { 'a:0': { squareId: 'ring:1' } }, Object.assign({ targetCards: 99, targetHeat: 999 }, opts || {}));
+  return F.roll(s, 1);
+}
+
+/* 做/放过一张普通题卡，返回 Result（便于连续累积 heat/streak）。 */
+function doPrompt(state, outcome) {
+  const rolled = promptState(state);
+  if (!rolled.ok || rolled.state.awaiting.type !== 'prompt') return null;
+  return F.resolvePrompt(rolled.state, outcome || 'done');
+}
 function at(state, id) {
   return state.pieces.filter((p) => p.id === id)[0];
 }
 function hasType(events, type) { return (events || []).some((e) => e.type === type); }
 function mean(arr) { return arr.reduce((s, n) => s + n, 0) / (arr.length || 1); }
 
-section('1. 开局、校验、规则拷贝（待确认开关）');
+section('1. 开局、校验、规则拷贝（V6 规则修复 + 待确认开关）');
 {
   const cur = Rules.current();
   eq(cur, {
     rerollOnEverySix: true,
     chooseAmongLegalPieces: true,
     threeSixesPenalty: false,
-    skipHomeEntryBlocksEntry: true,
-    skipStackKeepsBonusStep: false,
+    skipHomeEntryBlocksEntry: false,
+    skipStackKeepsBonusStep: true,
     endingPromptSkippable: true,
     ledgerIncludeMoveReplay: false,
     stackCapturedBySingle: true
-  }, '1 默认开关与契约一致（待确认，非已批准）');
+  }, '1 默认开关：A2 两项按 V6 冻结单，其余待确认');
   cur.rerollOnEverySix = false;
   ok(Rules.current().rerollOnEverySix === true, '1 current() 返回拷贝');
   const rulesText = read(path.join(ROOT, 'app/src/engine/flight-rules.js'));
-  ok(rulesText.indexOf('待确认') >= 0 && rulesText.indexOf('不是用户已批准') >= 0, '1 源码标明待确认，未写成已批准');
+  ok(rulesText.indexOf('V6 冻结') >= 0 && rulesText.indexOf('待确认') >= 0, '1 源码区分 V6 冻结项与待确认项');
 
   const made = boot({ scale: 'gentle', boundaries: ['喝酒'] }, 3);
   ok(made.ok && made.error === null, '2 newGame 成功');
   const g = made.state;
-  ok(g.kind === 'flight' && g.v === 1 && g.phase === 'playing', '2 对局是飞行棋且进行中');
+  ok(g.kind === 'flight' && g.v === 2 && g.phase === 'playing', '2 对局是飞行棋、v2 且进行中');
   ok(g.awaiting.type === 'roll' && g.turn === 'a', '2 先手可掷');
+  ok(g.mode === 'long' && g.targetCards === 8 && g.targetHeat === 80, '2 默认 4 架=长夜目标');
+  ok(g.cardsProcessed === 0 && g.endingQueue === null && g.endingIndex === 0, '2 V6 收尾进度字段初始值');
+  ok(g.meta && g.meta.heat === 0 && g.meta.stage === 'cold' && g.meta.streak === 0 && g.meta.streakBest === 0, '2 meta 初始为零');
+  ok(Array.isArray(g.meta.milestones) && g.meta.milestones.length === 0, '2 里程碑初始为空');
+  const quick = stateOf({ planeCount: 2 }, 1);
+  ok(quick.mode === 'quick' && quick.targetCards === 4 && quick.targetHeat === 40, '2 快局 2 架目标 4/40');
+  const modeQuick = F.newGame({ names: { a: '阿岚', b: '小满' }, colors: { a: 'red', b: 'yellow' }, scale: 'warm', mode: 'quick' }, 1);
+  ok(modeQuick.ok && modeQuick.state.planeCount === 2 && modeQuick.state.mode === 'quick', '2 mode=quick 推 2 架');
+  const customTarget = F.newGame({ names: { a: '阿岚', b: '小满' }, colors: { a: 'red', b: 'yellow' }, scale: 'warm', planeCount: 2, targetCards: 6, targetHeat: 55 }, 1);
+  ok(customTarget.ok && customTarget.state.targetCards === 6 && customTarget.state.targetHeat === 55, '2 可传入目标数字（门厅按模式传，缺省仍用冻结默认）');
+  ok(!F.newGame({ names: { a: '阿岚', b: '小满' }, colors: { a: 'red', b: 'yellow' }, scale: 'warm', mode: 'quick', planeCount: 4 }, 1).ok, '2 mode 与架数冲突拒绝');
+  ok(!F.newGame({ names: { a: '阿岚', b: '小满' }, colors: { a: 'red', b: 'yellow' }, scale: 'warm', mode: 'medium' }, 1).ok, '2 未知 mode 拒绝');
   eq({ gentle: 1, warm: 2, hot: 3, open: 4 }, { gentle: 1, warm: 2, hot: 3, open: 4 }, '尺度表');
   ['gentle', 'warm', 'hot', 'open'].forEach((scale) => {
     const s = stateOf({ scale: scale }, 1);
@@ -190,6 +294,8 @@ section('2. 棋盘表钉死');
   eq(MAP.flyDestOf, { red: 'ring:32', yellow: 'ring:45', blue: 'ring:6', green: 'ring:19' }, '7 飞的终点');
   eq(MAP.flyThenJumpOf, { red: 'ring:36', yellow: 'ring:49', blue: 'ring:10', green: 'ring:23' }, '7 飞后再跳');
   eq(MAP.noJumpOf, { red: 'ring:48', yellow: 'ring:9', blue: 'ring:22', green: 'ring:35' }, '7 禁跳格');
+  eq(Board.FATE_CELLS, [5, 29], '7 V6 命运格用冻结单退路 5/29（7 是飞点）');
+  ok(MAP.fateCells.length === 2, '7 棋盘表带命运格');
   Board.COLORS.forEach((c) => {
     eq(MAP.homePathOf[c], [
       'home:' + c + ':0', 'home:' + c + ':1', 'home:' + c + ':2',
@@ -204,21 +310,26 @@ section('2. 棋盘表钉死');
     owned.forEach((id) => {
       const sq = Board.square(id);
       ok(sq.color === c, '9 ' + id + ' 属于 ' + c);
-      if (id === MAP.noJumpOf[c]) ok(sq.jumpTo === null, '9 禁跳 ' + id);
+      if (id === MAP.noJumpOf[c] || Board.FATE_CELLS.indexOf(Number(id.slice(5))) >= 0) ok(sq.jumpTo === null, '9 禁跳/命运 ' + id);
       else ok(sq.jumpTo === 'ring:' + ((Number(id.slice(5)) + 4) % 52), '9 跳 +4 ' + id);
     });
     const fly = Board.square(MAP.flyOf[c]);
     ok(fly.isFly === true && fly.flyTo === MAP.flyDestOf[c], '9 飞点 ' + c);
   });
-  const kinds = { truth: [], dare: [], touch: [], thermo: [], wheel: [] };
+  const kinds = { truth: [], dare: [], touch: [], thermo: [], wheel: [], fate: [] };
   rings.forEach((sq) => { if (kinds[sq.kind]) kinds[sq.kind].push(sq.id); });
-  eq(kinds.truth.sort(), ['ring:1', 'ring:2', 'ring:5', 'ring:9', 'ring:12', 'ring:16', 'ring:17', 'ring:23', 'ring:25', 'ring:28', 'ring:31', 'ring:38', 'ring:42', 'ring:43', 'ring:51'].sort(), '10 真心话格');
+  eq(kinds.truth.sort(), ['ring:1', 'ring:2', 'ring:9', 'ring:12', 'ring:16', 'ring:17', 'ring:23', 'ring:25', 'ring:28', 'ring:31', 'ring:38', 'ring:42', 'ring:43', 'ring:51'].sort(), '10 真心话格（V6 少 5，改为命运格）');
   eq(kinds.dare.sort(), ['ring:4', 'ring:6', 'ring:15', 'ring:18', 'ring:19', 'ring:22', 'ring:27', 'ring:30', 'ring:32', 'ring:35', 'ring:41', 'ring:44', 'ring:45', 'ring:48', 'ring:49'].sort(), '10 大冒险格');
-  eq(kinds.touch.sort(), ['ring:3', 'ring:8', 'ring:21', 'ring:29', 'ring:34', 'ring:47'].sort(), '10 靠近格');
+  eq(kinds.touch.sort(), ['ring:3', 'ring:8', 'ring:21', 'ring:34', 'ring:47'].sort(), '10 靠近格（V6 少 29，改为命运格）');
   eq(kinds.thermo.sort(), ['ring:10', 'ring:36'], '10 温度计 2');
   eq(kinds.wheel.sort(), ['ring:14', 'ring:40'], '10 转盘 2');
-  const asking = kinds.truth.length + kinds.dare.length + kinds.touch.length + kinds.thermo.length + kinds.wheel.length;
-  eq(asking, 40, '10 主路线出题格数');
+  eq(kinds.fate.sort(), ['ring:29', 'ring:5'], '10 命运格 2');
+  kinds.fate.forEach((id) => {
+    const sq = Board.square(id);
+    ok(sq.kind === 'fate' && sq.jumpTo === null && sq.isFly === false, '10 命运格是功能格，不跳不飞 ' + id);
+  });
+  const asking = kinds.truth.length + kinds.dare.length + kinds.touch.length + kinds.thermo.length + kinds.wheel.length + kinds.fate.length;
+  eq(asking, 40, '10 主路线互动格数（题/小游戏/命运）');
   ok(Math.abs(asking / 52 - 0.8) <= 0.04, '10 约 80%，实际 ' + asking + '/52');
   ['0', '13', '26', '39'].forEach((n) => ok(Board.square('ring:' + n).kind === 'ring', '10 起飞格不出普通题 ' + n));
   ['7', '20', '33', '46'].forEach((n) => ok(Board.square('ring:' + n).kind === 'ring' && Board.square('ring:' + n).isFly === true, '10 飞点仍是飞点且不出普通题 ' + n));
@@ -339,7 +450,8 @@ section('4. 跳与飞');
 
   const cases = [
     ['red', 'ring:43', 1, 'ring:48', 'ring:19', 1, 'ring:20', 'ring:32', 'ring:36', 'ring:48'],
-    ['yellow', 'ring:4', 1, 'ring:9', 'ring:32', 1, 'ring:33', 'ring:45', 'ring:49', 'ring:9'],
+    /* 黄：ring:5 是 V6 命运格（不再自动跳），跳格链停在 5；飞后连锁同理会停在 5。 */
+    ['yellow', 'ring:0', 1, 'ring:5', 'ring:32', 1, 'ring:33', 'ring:45', 'ring:49', 'ring:5'],
     ['blue', 'ring:17', 1, 'ring:22', 'ring:45', 1, 'ring:46', 'ring:6', 'ring:10', 'ring:22'],
     ['green', 'ring:30', 1, 'ring:35', 'ring:6', 1, 'ring:7', 'ring:19', 'ring:23', 'ring:35']
   ];
@@ -420,13 +532,18 @@ section('5. 击落与叠机');
   ok(trailed.state.awaiting.prompt.kind === 'cell-truth', '30 再走一步落到题格');
 
   const skipped = F.resolvePrompt(stacked.state, 'skipped');
-  ok(at(skipped.state, 'a:0').squareId === 'ring:49' && at(skipped.state, 'a:1').squareId === 'ring:49', '31 跳过叠机不再多走一步（待确认 A2）');
+  ok(at(skipped.state, 'a:0').squareId === 'ring:50' && at(skipped.state, 'a:1').squareId === 'ring:50', '31 V6：放过叠机题仍得奖励步');
   ok(at(skipped.state, 'a:0').stackGroupId && at(skipped.state, 'a:0').stackGroupId === at(skipped.state, 'a:1').stackGroupId, '31 叠机保留');
 
   let keep = stateOf({ rules: { skipStackKeepsBonusStep: true } }, 18);
   keep = place(keep, 'a', { 'a:0': { squareId: 'ring:48' }, 'a:1': { squareId: 'ring:49' } });
   const kept = F.resolvePrompt(F.move(F.roll(keep, 1).state, 'a:0').state, 'skipped');
   ok(at(kept.state, 'a:0').squareId === 'ring:50', '31 待确认：skipStackKeepsBonusStep 为 true 时仍走一步');
+
+  let noBonus = stateOf({ rules: { skipStackKeepsBonusStep: false } }, 181);
+  noBonus = place(noBonus, 'a', { 'a:0': { squareId: 'ring:48' }, 'a:1': { squareId: 'ring:49' } });
+  const noStep = F.resolvePrompt(F.move(F.roll(noBonus, 1).state, 'a:0').state, 'skipped');
+  ok(at(noStep.state, 'a:0').squareId === 'ring:49', '31 反相：开关 false 时放过不再多走（仅为可切开关）');
 
   let passFoe = place(stateOf({}, 19), 'a', {
     'a:0': { squareId: 'ring:1' },
@@ -467,12 +584,13 @@ section('6. 终点航线与收尾');
   ok(at(sit.state, 'a:0').squareId === 'ring:50' && !sit.state.awaiting.prompt, '35 只停在进航格不出题');
 
   const skippedHome = F.resolvePrompt(entry(1).mid.state, 'skipped');
-  ok(at(skippedHome.state, 'a:0').squareId === 'ring:50', '36 跳过进航停在 preSquare（待确认 A2）');
+  ok(at(skippedHome.state, 'a:0').squareId === 'home:red:0', '36 V6：进航题放过仍进军');
+  ok(skippedHome.state.cardsProcessed === 1, '36 进航题放过也计入处理题卡数');
 
-  let allow = stateOf({ rules: { skipHomeEntryBlocksEntry: false } }, 23);
+  let allow = stateOf({ rules: { skipHomeEntryBlocksEntry: true } }, 23);
   allow = place(allow, 'a', { 'a:0': { squareId: 'ring:50' } });
   const still = F.resolvePrompt(F.roll(allow, 1).state, 'skipped');
-  ok(at(still.state, 'a:0').squareId === 'home:red:0', '36 待确认：跳过仍进入');
+  ok(at(still.state, 'a:0').squareId === 'ring:50', '36 反相：开关 true 时放过停在原地（旧 V5 局按快照走）');
 
   let inner = place(stateOf({}, 24), 'a', { 'a:0': { squareId: 'home:red:0' } });
   const stepped = F.roll(inner, 1);
@@ -481,34 +599,52 @@ section('6. 终点航线与收尾');
   const arrived = F.roll(goal, 1);
   ok(at(arrived.state, 'a:0').arrived === true && at(arrived.state, 'a:0').squareId === 'home:red:goal', '37 到达后 arrived');
 
-  let win = place(stateOf({ boundaries: ['蒙眼'], scale: 'warm' }, 26), 'a', { 'a:0': { squareId: 'home:red:4' } });
-  const won = F.roll(win, 1);
-  ok(won.state.awaiting.type === 'ending-prompt' && won.state.winnerId === 'a', '38 四架到齐获胜');
-  ok(won.state.awaiting.prompt.actorId === 'b', '38 赢家给对方抽收尾');
-  const ended = F.resolvePrompt(won.state, 'done');
-  ok(ended.state.phase === 'ended' && ended.state.result && ended.state.result.ending === 'win-a', '38 生成棋谱');
+  /* V6：进终点不再判胜；长夜任一棋进终点 → 合作收尾（两张收尾卡、无输赢）。 */
+  const longArrival = () => parked(stateOf({ boundaries: ['蒙眼'], scale: 'warm' }, 26), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  const start = F.roll(longArrival(), 1);
+  ok(at(start.state, 'a:0').arrived === true, '38 长夜进终点');
+  ok(start.state.winnerId === null && !hasType(start.events, 'win'), '38 V6 不判输赢（无 win 事件）');
+  ok(start.state.phase === 'playing' && start.state.awaiting.type === 'ending-prompt', '38 进终点触发合作收尾');
+  ok(Array.isArray(start.state.endingQueue) && start.state.endingQueue.length === 2, '38 两张收尾卡');
+  ok(start.state.endingQueue[0].actorId === 'a' && start.state.endingQueue[1].actorId === 'b', '38 两张各给一人');
+  ok(hasType(start.events, 'prompt') && hasType(start.events, 'ending-start'), '38 收尾开始事件');
+  const firstEnd = F.resolvePrompt(start.state, 'done');
+  ok(firstEnd.state.phase === 'playing' && firstEnd.state.endingIndex === 1, '42 第一张结算后仍在进行');
+  ok(firstEnd.state.awaiting.type === 'ending-prompt' && firstEnd.state.awaiting.prompt.id === start.state.endingQueue[1].id, '42 第二张给另一人');
+  const ended = F.resolvePrompt(firstEnd.state, 'skipped');
+  ok(ended.state.phase === 'ended' && ended.state.result, '42 两张后进入回顾');
   const ledger = ended.state.result;
   ok(ledger.names.a === '阿岚' && ledger.colors.a === 'red' && ledger.scale === 'warm', '41 名字颜色尺度');
-  ok(ledger.boundaries.indexOf('蒙眼') >= 0 && ledger.planeCount === 4, '41 边界与架数');
-  ok(ledger.winnerId === 'a' && ledger.prompts.some((p) => p.kind === 'ending' && p.outcome === 'done'), '41 胜负与题目');
+  ok(ledger.boundaries.indexOf('蒙眼') >= 0 && ledger.planeCount === 4 && ledger.mode === 'long', '41 边界/架数/模式');
+  ok(ledger.ending === 'shared' && ledger.winnerId === null, '41 V6 棋谱合作收尾（无输赢）');
+  ok(ledger.prompts.filter((p) => p.kind === 'ending').length === 2, '41 两张收尾卡都进回顾');
+  ok(ledger.prompts.some((p) => p.kind === 'ending' && p.actorId === 'a') && ledger.prompts.some((p) => p.kind === 'ending' && p.actorId === 'b'), '41 收尾卡归属正确');
+  ok(ledger.stats.cardsDone === 1 && ledger.stats.cardsSkipped === 1 && ledger.stats.planesHome === 1, '41 stats：收尾卡做/放过与进终点');
+  ok(ledger.v === 2 && ledger.startedAt === ended.state.ts && ledger.durationMs >= 0, '41 v2/起始时间/时长');
   ok(/^\d{4}-\d{2}-\d{2}$/.test(ledger.date), '41 日期');
   const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
   ok(ledger.date === fmt.format(new Date(ledger.endedAt)), '41 Asia/Shanghai');
   ok(!Object.prototype.hasOwnProperty.call(ledger, 'moves'), '41 默认不写走子回放（待确认 A3）');
 
-  let fast = place(stateOf({ planeCount: 2 }, 27), 'a', { 'a:0': { squareId: 'home:red:4' } });
-  const fastWin = F.roll(fast, 1);
-  ok(fastWin.state.winnerId === 'a' && fast.pieces.filter((p) => p.playerId === 'a').length === 2, '39 快局两架到家即胜');
+  let fast = parked(stateOf({ planeCount: 2 }, 27), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  const fastArrive = F.roll(fast, 1);
+  ok(fastArrive.state.phase === 'playing' && fastArrive.state.awaiting.type === 'roll' && fastArrive.state.winnerId === null, '39 快局进终点不判胜、不触发收尾');
+  ok(at(fastArrive.state, 'a:0').arrived === true, '39 快局棋子确实到了终点');
 
-  const skipEnd = F.resolvePrompt(won.state, 'skipped');
-  ok(skipEnd.state.phase === 'ended' && skipEnd.state.result.ending === 'win-a', '40 收尾可跳过仍有棋谱（待确认 A2）');
-  let hard = place(stateOf({ rules: { endingPromptSkippable: false } }, 28), 'a', { 'a:0': { squareId: 'home:red:4' } });
-  const hardWon = F.roll(hard, 1).state;
-  const denied = F.resolvePrompt(hardWon, 'skipped');
-  ok(!denied.ok && denied.error.code === 'PROMPT_NOT_SKIPPABLE' && denied.state === hardWon, '40 不可跳过时失败且不改入参');
+  const allSkipped = settleEnding(F.roll(longArrival(), 1).state, 'skipped', 'skipped');
+  ok(allSkipped.ok && allSkipped.state.phase === 'ended' && allSkipped.state.result.ending === 'shared', '40 两张收尾卡都可放过，仍正常结束');
 
-  let replay = place(stateOf({ rules: { ledgerIncludeMoveReplay: true } }, 29), 'a', { 'a:0': { squareId: 'home:red:4' } });
-  const replayLedger = F.resolvePrompt(F.roll(replay, 1).state, 'done').state.result;
+  const midSafe = F.safeWord(F.roll(longArrival(), 1).state);
+  ok(midSafe.ok && midSafe.state.phase === 'safe-ended' && midSafe.state.result.ending === 'safe', '40 收尾中触发安全词也能收棋（ending=safe）');
+  ok(!hasType(midSafe.events, 'win'), '40 安全词无输赢事件');
+
+  let hard = parked(stateOf({ rules: { endingPromptSkippable: false } }, 28), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  const hardStart = F.roll(hard, 1).state;
+  const denied = F.resolvePrompt(hardStart, 'skipped');
+  ok(!denied.ok && denied.error.code === 'PROMPT_NOT_SKIPPABLE' && denied.state === hardStart, '40 不可跳过时失败且不改入参');
+
+  let replay = parked(stateOf({ rules: { ledgerIncludeMoveReplay: true } }, 29), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  const replayLedger = settleEnding(F.roll(replay, 1).state, 'done', 'done').state.result;
   ok(Array.isArray(replayLedger.moves) && replayLedger.moves.length > 0, '41 待确认：打开回放才写 moves');
 }
 
@@ -667,9 +803,11 @@ section('9. 存档与旧局');
   const Flight = box.window.App.Flight;
   ok(Store.KEYS.settings === 'couple2.settings' && Store.KEYS.session === 'couple2.session', '56 键名');
   ok(Store.KEYS.history === 'couple2.history' && Store.KEYS.standalone === 'couple2.standalone' && Store.KEYS.pending === 'couple2.pending', '56 其余键');
+  ok(Store.KEYS.backup === 'couple2.backup.session', '56 V6 备份键');
   const fresh = Store.getSettings();
-  ok(fresh.v === 5 && fresh.sound === true && fresh.haptics === true && fresh.reduced === false, '56 默认开关');
+  ok(fresh.v === 6 && fresh.sound === true && fresh.haptics === true && fresh.reduced === false, '56 默认开关（V6 版本 6）');
   ok(fresh.names.a === '他' && fresh.names.b === '她' && fresh.blacklist.length === 0, '56 默认名字与空边界');
+  ok(fresh.boardView === 'svg', '56 V6 boardView 默认 svg');
 
   mem['couple2.settings'] = JSON.stringify({
     v: 4, maxStar: 1, gentleOnly: true, sound: false, haptics: false, reduced: true,
@@ -678,6 +816,7 @@ section('9. 存档与旧局');
   const upgraded = Store.getSettings();
   ok(upgraded.names.a === '旧甲' && upgraded.sound === false && upgraded.haptics === false && upgraded.reduced === true, '57 保留旧设置');
   ok(upgraded.blacklist[0] === '喝酒' && upgraded.scale !== 'gentle' && upgraded.maxStar == null && upgraded.gentleOnly !== true, '57 不把公寓尺度当成开局');
+  ok(upgraded.v === 6 && upgraded.boardView === 'svg', '57 旧设置升级到 v6');
   ok(Store.getSession() === null, '57 读设置不会自动开局');
 
   mem['couple2.session'] = JSON.stringify({
@@ -685,6 +824,7 @@ section('9. 存档与旧局');
     hand: ['a', 'b'], resources: { heart: 1 }, ts: 1710000000000
   });
   ok(Store.getSession() === null && Store.hasSession() === false, '58 夜航不续玩');
+  ok(Store.KEYS.backup && JSON.parse(mem[Store.KEYS.backup]).id === 'mid-voyage', '58 首次读 session 先原样备份');
   const voyage = Store.getHistory().filter((x) => x.id === 'mid-voyage')[0];
   ok(voyage && voyage.kind === 'voyage' && voyage.note.indexOf('不会继续') >= 0, '58 夜航文案');
   mem['couple2.session'] = JSON.stringify({ kind: 'apartment', id: 'apt-1', phase: 'plan', ts: 1710000001000, names: { a: '他', b: '她' } });
@@ -702,7 +842,7 @@ section('9. 存档与旧局');
   const dumped = Store.exportAll();
   Store.resetAll();
   ok(Store.hasSession() === false, '60 清除后不能续');
-  ok(dumped.app === 'couple-flight' && dumped.v === 5 && dumped.session.kind === 'flight', '61 导出');
+  ok(dumped.app === 'couple-flight' && dumped.v === 6 && dumped.session.kind === 'flight', '61 导出（V6 v:6）');
   const restored = Store.importAll(dumped);
   ok(restored.ok && Store.getSession().id === flight.id, '60 已导出的副本还能导回');
 
@@ -812,9 +952,11 @@ section('11. 错误码、事件、快照、待确认反相');
   ok(hasType(played.events, 'dice') && hasType(played.events, 'move') && hasType(played.events, 'fly') && hasType(played.events, 'jump'), '74 跳与飞事件按序可播');
   ok(played.events.findIndex((e) => e.type === 'fly') < played.events.findIndex((e) => e.type === 'jump'), '74 先飞后跳');
   ok(hasType(played.events, 'capture') && hasType(played.events, 'prompt'), '74 击落与出题');
-  const won = F.roll(place(stateOf({}, 75), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
-  ok(hasType(won.events, 'win'), '74 获胜');
-  ok(hasType(F.resolvePrompt(won.state, 'done').events, 'ledger'), '74 棋谱');
+  const won = F.roll(parked(stateOf({}, 75), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
+  ok(hasType(won.events, 'ending-start') && !hasType(won.events, 'win'), '74 V6 合作收尾（无 win 事件）');
+  const wonFirst = F.resolvePrompt(won.state, 'done');
+  ok(hasType(wonFirst.events, 'prompt') && wonFirst.state.phase === 'playing', '74 第二张收尾卡');
+  ok(hasType(F.resolvePrompt(wonFirst.state, 'done').events, 'ledger'), '74 棋谱事件');
   let duo = place(stateOf({}, 76), 'a', { 'a:0': { squareId: 'ring:48' }, 'a:1': { squareId: 'ring:49' } });
   ok(hasType(F.move(F.roll(duo, 1).state, 'a:0').events, 'stack'), '74 叠机');
 
@@ -910,6 +1052,432 @@ section('12. 双方都能起飞并在航线上走');
     const spot = at(s, 'b:0').squareId;
     ok(spot.indexOf('hangar:') !== 0, '76 ' + cb + ' 在航线上 ' + spot);
   });
+}
+
+section('13. V6 规则修复：放过不阻断进军 / 不丢奖励步（P0 红线）');
+{
+  let s = place(stateOf({}, 200), 'a', { 'a:0': { squareId: 'ring:50' } });
+  const mid = F.roll(s, 1);
+  ok(mid.state.awaiting.type === 'prompt' && mid.state.awaiting.prompt.kind === 'home-entry', '77 进航题先出');
+  const skipped = F.resolvePrompt(mid.state, 'skipped');
+  ok(at(skipped.state, 'a:0').squareId === 'home:red:0', '77 进航题放过仍进军（修 AUD-03）');
+  ok(skipped.state.cardsProcessed === 1, '77 放过也计入处理题卡数');
+
+  let legacy = place(stateOf({ rules: { skipHomeEntryBlocksEntry: true } }, 201), 'a', { 'a:0': { squareId: 'ring:50' } });
+  const legacySkip = F.resolvePrompt(F.roll(legacy, 1).state, 'skipped');
+  ok(at(legacySkip.state, 'a:0').squareId === 'ring:50', '77 V5 旧局按 rules 快照走，开关 true 仍停在原地');
+
+  let duo = place(stateOf({}, 202), 'a', { 'a:0': { squareId: 'ring:48' }, 'a:1': { squareId: 'ring:49' } });
+  const moved = F.move(F.roll(duo, 1).state, 'a:0');
+  ok(moved.state.awaiting.type === 'prompt' && moved.state.awaiting.prompt.kind === 'stack-duo', '77 叠机题先出');
+  const duoSkip = F.resolvePrompt(moved.state, 'skipped');
+  ok(at(duoSkip.state, 'a:0').squareId === 'ring:50' && at(duoSkip.state, 'a:1').squareId === 'ring:50', '77 放过叠机仍得奖励步');
+
+  const all = playAllSkipped(210, 8);
+  ok(all.state.phase === 'playing' && all.state.awaiting.type === 'ending-prompt', '78 全放过局在目标内进入收尾（修 AUD-03「永不结束」）');
+  ok(all.state.cardsProcessed === 4 && all.cards.length === 4, '78 全放过也计满目标 4 张');
+  ok(all.state.endingQueue.length === 2, '78 收尾仍是两张卡');
+  const fin = settleEnding(all.state, 'skipped', 'skipped');
+  ok(fin.ok && fin.state.phase === 'ended' && fin.state.result.ending === 'shared', '78 全放过也能正常收尾');
+  ok(fin.state.result.stats.cardsSkipped === 6 && fin.state.result.stats.cardsDone === 0, '78 回顾记 6 张放过（4 普通 + 2 收尾）');
+  ok(fin.state.result.prompts.every((p) => p.outcome === 'skipped' && p.text), '78 回顾保留每题文本');
+  ok(!/失败|未完成|扣分/.test(JSON.stringify(fin.state.result.prompts)), '78 回顾不写失败/扣分');
+}
+
+section('14. V6 心动值 / 连击 / 里程碑（meta 纯函数 + 结算点更新）');
+{
+  eq(Meta.stageOf(0), 'cold', '79 stage 0 cold');
+  eq(Meta.stageOf(19), 'cold', '79 stage 19 cold');
+  eq(Meta.stageOf(20), 'warm', '79 stage 20 warm');
+  eq(Meta.stageOf(39), 'warm', '79 stage 39 warm');
+  eq(Meta.stageOf(40), 'charged', '79 stage 40 charged');
+  eq(Meta.stageOf(59), 'charged', '79 stage 59 charged');
+  eq(Meta.stageOf(60), 'burning', '79 stage 60 burning');
+  eq(Meta.stageOf(79), 'burning', '79 stage 79 burning');
+  eq(Meta.stageOf(80), 'blazing', '79 stage 80 blazing');
+  eq(Meta.stageOf(100), 'blazing', '79 stage 100 blazing');
+  eq(Meta.stageLabel('cold'), '灯刚亮', '79 阶段文案 cold');
+  eq(Meta.stageLabel('warm'), '有点热', '79 阶段文案 warm');
+  eq(Meta.stageLabel('charged'), '靠近了', '79 阶段文案 charged');
+  eq(Meta.stageLabel('burning'), '很近了', '79 阶段文案 burning');
+  eq(Meta.stageLabel('blazing'), '今晚可以更近', '79 阶段文案 blazing');
+  ok(Meta.DEFAULTS.HEAT_MAX === 100, '79 HEAT_MAX=100');
+  ok(Meta.DEFAULTS.HEAT_GAIN.promptDone === 8 && Meta.DEFAULTS.HEAT_GAIN.promptSkipped === 3, '79 题卡 +8/+3');
+  ok(Meta.DEFAULTS.HEAT_GAIN.minigameDone === 5 && Meta.DEFAULTS.HEAT_GAIN.minigameSkipped === 0, '79 小游戏 +5/+0');
+  ok(Meta.DEFAULTS.HEAT_GAIN.endingDone === 10 && Meta.DEFAULTS.HEAT_GAIN.endingSkipped === 3, '79 收尾 +10/+3');
+
+  const base = Meta.init({ ts: 7 });
+  const baseSnap = snap(base);
+  const pure = Meta.apply(base, 'prompt', 'done');
+  ok(snap(base) === baseSnap && pure.meta.heat === 8, '79 flight-meta 是纯函数，不改入参');
+
+  let s = stateOf({ planeCount: 2 }, 220);
+  const done = doPrompt(s, 'done');
+  ok(done.state.meta.heat === 8 && done.state.meta.stage === 'cold', '79 做了 +8，未跨档');
+  ok(done.state.meta.streak === 1 && done.state.meta.streakBest === 1, '79 连击 1');
+  ok(done.state.cardsProcessed === 1, '79 处理题卡数 +1');
+  const heatEv = done.events.filter((e) => e.type === 'heat')[0];
+  ok(heatEv && heatEv.delta === 8 && heatEv.heat === 8 && heatEv.stage === 'cold' && heatEv.prevStage === undefined, '79 heat 事件（同档无 prevStage）');
+  ok(done.events.some((e) => e.type === 'streak' && e.count === 1 && e.best === 1), '79 streak 事件');
+  ok(!hasType(done.events, 'dice') && done.state.meta.updatedAt > 0, '79 结算不再掷骰，meta 带 updatedAt');
+
+  const skipped = doPrompt(done.state, 'skipped');
+  ok(skipped.state.meta.heat === 11 && skipped.state.meta.streak === 1, '80 放过 +3、连击不清零');
+  ok(skipped.events.some((e) => e.type === 'heat' && e.delta === 3), '80 放过有 heat 事件');
+  ok(!skipped.events.some((e) => e.type === 'streak'), '80 放过不产生 streak 事件');
+
+  const mini = F.roll(place(skipped.state, 'a', { 'a:0': { squareId: 'ring:9' } }, { targetCards: 99, targetHeat: 999 }), 1);
+  ok(mini.state.awaiting.type === 'minigame', '80 温度计格');
+  const miniDone = F.resolveMinigame(mini.state, 'done');
+  ok(miniDone.state.meta.heat === 16, '80 小游戏完成 +5');
+  ok(miniDone.state.meta.streak === 1 && miniDone.state.cardsProcessed === 2, '80 小游戏不增加连击、不计题卡数');
+  ok(miniDone.state.log.some((e) => e.kind === 'minigame-thermo' && e.outcome === 'done'), '80 小游戏记录 outcome');
+
+  const wheel = F.roll(place(miniDone.state, 'a', { 'a:0': { squareId: 'ring:13' } }, { targetCards: 99, targetHeat: 999 }), 1);
+  const wheelSkip = F.resolveMinigame(wheel.state, 'skipped');
+  ok(wheelSkip.state.meta.heat === 16, '80 小游戏跳过 +0，heat 不降');
+  ok(wheelSkip.state.log.some((e) => e.kind === 'minigame-wheel' && e.outcome === 'skipped'), '80 跳过也记录');
+  ok(!hasType(wheelSkip.events, 'heat'), '80 跳过无 heat 事件');
+
+  /* 任何操作不下降：同一局连续 done/skipped/小游戏，heat 单调不减 */
+  let seq = stateOf({ planeCount: 2 }, 222);
+  const heats = [];
+  for (let i = 0; i < 3; i++) { seq = doPrompt(seq, 'done').state; heats.push(seq.meta.heat); }
+  seq = doPrompt(seq, 'skipped').state; heats.push(seq.meta.heat);
+  seq = F.resolveMinigame(F.roll(place(seq, 'a', { 'a:0': { squareId: 'ring:9' } }, { targetCards: 99, targetHeat: 999 }), 1).state, 'done').state;
+  heats.push(seq.meta.heat);
+  ok(heats.every((h, i) => i === 0 || h >= heats[i - 1]), '81 heat 只增不降：' + JSON.stringify(heats));
+  ok(seq.meta.heat === 8 * 3 + 3 + 5, '81 计分累计 32');
+
+  /* 连击里程碑：每 3 次「做了」发一次；放过不清零 */
+  let mk = stateOf({ planeCount: 2 }, 223);
+  let third = null;
+  for (let i = 1; i <= 6; i++) {
+    const r = doPrompt(mk, 'done');
+    mk = r.state;
+    if (i === 3) third = r;
+  }
+  ok(third.state.meta.streak === 3 && third.state.meta.milestones.indexOf('streak-3') >= 0, '81 3 连击记里程碑');
+  const msEv = third.events.filter((e) => e.type === 'milestone')[0];
+  ok(msEv && msEv.id === 'streak-3' && msEv.label === '连击 ×3', '81 里程碑事件 id/label');
+  ok(mk.meta.streak === 6 && mk.meta.streakBest === 6 && mk.meta.milestones.indexOf('streak-6') >= 0, '81 6 连击再发一次');
+  ok(mk.meta.milestones.length === 2, '81 里程碑去重');
+
+  let inter = stateOf({ planeCount: 2 }, 224);
+  inter = doPrompt(inter, 'done').state;
+  inter = doPrompt(inter, 'skipped').state;
+  inter = doPrompt(inter, 'done').state;
+  const interThird = doPrompt(inter, 'done');
+  ok(interThird.state.meta.streak === 3 && interThird.state.meta.milestones.indexOf('streak-3') >= 0, '81 放过不清零，仍累积到 3 连击');
+  ok(hasType(interThird.events, 'milestone'), '81 里程碑事件随结算返回');
+
+  const near = place(stateOf({ planeCount: 2 }, 226), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999, heat: 18 });
+  const cross = F.resolvePrompt(F.roll(near, 1).state, 'done');
+  const crossEv = cross.events.filter((e) => e.type === 'heat')[0];
+  ok(cross.state.meta.heat === 26 && cross.state.meta.stage === 'warm', '81 跨阶段 heat/stage');
+  ok(crossEv && crossEv.prevStage === 'cold', '81 跨阶段事件带 prevStage');
+
+  const capped = place(stateOf({ planeCount: 2 }, 225), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999, heat: 99 });
+  const capRes = F.resolvePrompt(F.roll(capped, 1).state, 'done');
+  const capEv = capRes.events.filter((e) => e.type === 'heat')[0];
+  ok(capRes.state.meta.heat === 100, '81 heat 上限 100');
+  ok(capEv && capEv.delta === 1, '81 封顶后 delta 是实际增量');
+}
+
+section('15. V6 合作收尾：三条件触发 + 两张卡 + 回顾数据');
+{
+  /* ① 题卡数达标：§13 全放过局已覆盖；这里验证「心动值达标」可在题卡未达标时触发 */
+  const heatTrigger = place(stateOf({ planeCount: 2 }, 231), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 4, targetHeat: 40, cardsProcessed: 1, heat: 37 });
+  const ht = F.resolvePrompt(F.roll(heatTrigger, 1).state, 'done');
+  ok(ht.state.meta.heat === 45 && ht.state.cardsProcessed === 2, '83 心动值到 45');
+  ok(ht.state.awaiting.type === 'ending-prompt' && ht.state.endingQueue.length === 2, '83 心动值达标触发收尾（题卡只处理 2 张/目标 4）');
+
+  /* ② 长夜进终点触发 */
+  const longStart = F.roll(parked(stateOf({ planeCount: 4 }, 232), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
+  ok(longStart.state.cardsProcessed === 0 && longStart.state.meta.heat === 0, '84 触发时 0 题卡 / 0 心动值');
+  ok(longStart.state.awaiting.type === 'ending-prompt', '84 长夜任一棋进终点触发收尾');
+  ok(longStart.state.mode === 'long', '84 长夜 mode');
+
+  /* ③ 快局进终点不触发 */
+  const quickStart = F.roll(parked(stateOf({ planeCount: 2 }, 233), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
+  ok(quickStart.state.awaiting.type === 'roll' && quickStart.state.winnerId === null, '84 快局进终点不触发收尾、不判胜');
+
+  const startState = longStart.state;
+  const queue = startState.endingQueue;
+  ok(queue.length === 2 && queue.every((p) => p.kind === 'ending' && p.card && p.card.id), '85 两张都是带卡的收尾卡');
+  ok(queue[0].actorId === 'a' && queue[0].targetId === 'a' && queue[1].actorId === 'b' && queue[1].targetId === 'b', '85 两张各给一人');
+  ok(queue[0].id !== queue[1].id, '85 两张卡 prompt 不同（同池允许）');
+  ok(hasType(longStart.events, 'ending-start') && !hasType(longStart.events, 'win'), '85 收尾开始事件、无 win');
+  ok(F.roll(startState, 6).error.code === 'AWAITING_OTHER', '85 收尾中不能再掷骰（不再产生普通题卡）');
+  ok(F.resolveMinigame(startState).error.code === 'AWAITING_OTHER', '85 收尾中没有小游戏');
+
+  const e1 = F.resolvePrompt(startState, 'done');
+  ok(e1.state.phase === 'playing' && e1.state.endingIndex === 1, '85 第一张结算后仍在进行');
+  ok(e1.state.awaiting.type === 'ending-prompt' && e1.state.awaiting.prompt.id === queue[1].id, '85 第二张给另一人');
+  ok(e1.state.meta.heat === 10 && e1.state.meta.streak === 1, '85 收尾卡做了 +10');
+  ok(!hasType(e1.events, 'ledger'), '85 第一张后不出棋谱');
+  const e2 = F.resolvePrompt(e1.state, 'done');
+  ok(e2.state.phase === 'ended' && hasType(e2.events, 'ledger'), '85 第二张后出棋谱');
+  ok(e2.state.meta.heat === 20 && e2.state.meta.streak === 2, '85 两张收尾各 +10');
+
+  /* 收尾中途存档可续玩 */
+  const resumed = F.validate(startState);
+  ok(resumed.endingQueue.length === 2 && resumed.endingIndex === 0, '86 validate 保留收尾队列');
+  const r1 = F.resolvePrompt(resumed, 'skipped');
+  ok(r1.state.endingIndex === 1, '86 续玩后进入第二张');
+  const r2 = F.resolvePrompt(r1.state, 'skipped');
+  ok(r2.state.phase === 'ended' && r2.state.result.ending === 'shared', '86 续玩后正常收尾（两张都可放过）');
+  ok(r2.state.result.stats.heat === 6, '86 两张放过共 +6');
+
+  /* ledger 六类信息 + 小游戏记录 */
+  let mg = place(stateOf({ planeCount: 2 }, 234), 'a', { 'a:0': { squareId: 'ring:9' } }, { targetCards: 4, targetHeat: 40, cardsProcessed: 3 });
+  const mgDone = F.resolveMinigame(F.roll(mg, 1).state, 'done');
+  ok(mgDone.state.cardsProcessed === 3, '87 小游戏不计入目标题卡数');
+  ok(mgDone.state.meta.heat === 5, '87 小游戏完成 +5');
+  const mgPrompt = F.roll(place(mgDone.state, 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 4, targetHeat: 40 }), 1);
+  const mgEnding = F.resolvePrompt(mgPrompt.state, 'skipped');
+  ok(mgEnding.state.awaiting.type === 'ending-prompt', '87 第 4 张普通题卡后进入收尾');
+  const mgFin = settleEnding(mgEnding.state, 'done', 'done').state.result;
+  ok(mgFin.stats.minigames === 1 && mgFin.minigames[0].kind === 'thermo' && mgFin.minigames[0].outcome === 'done' && mgFin.minigames[0].actorId === 'a', '87 回顾含小游戏记录');
+  ok(mgFin.stats.cardsSkipped === 1 && mgFin.stats.cardsDone === 2, '87 回顾统计题卡做/放过（含两张收尾卡）');
+  ok(mgFin.stats.heat === 5 + 3 + 10 + 10 && mgFin.stats.bestStreak === 2, '87 回顾 heat/bestStreak');
+  ok(mgFin.prompts.some((p) => p.kind === 'cell-truth' && p.text && p.cardId && p.star && p.pool && p.source), '87 题卡明细带文本/卡号/星级/池/来源');
+  ok(mgFin.prompts.filter((p) => p.kind === 'ending').every((p) => p.text && p.actorId), '87 收尾卡明细带归属');
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(mgFin.date) && mgFin.names.a === '阿岚' && mgFin.durationMs >= 0, '87 回顾六类：日期/姓名/时长/题卡/小游戏/心动');
+  ok(mgFin.startedAt === mgDone.state.ts && mgFin.endedAt - mgFin.startedAt === mgFin.durationMs, '87 时长按 session 起止');
+  ok(!JSON.stringify(mgFin).includes('这一笔没有句子'), '87 回顾无占位文案');
+  ok(mgFin.ending === 'shared' && mgFin.winnerId === null, '87 回顾不判输赢');
+
+  /* 安全词：不改热度，ending='safe' */
+  const live = F.resolvePrompt(F.roll(place(stateOf({ planeCount: 2 }, 235), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999 }), 1).state, 'done').state;
+  const safe = F.safeWord(live);
+  ok(safe.state.result.ending === 'safe' && safe.state.result.winnerId === null, '88 安全词棋谱 ending=safe');
+  ok(safe.state.result.stats.heat === live.meta.heat && safe.state.result.stats.heat === 8, '88 安全词不改热度');
+}
+
+section('16. V6 存档迁移（V5 v:1 → v2，不丢档）');
+{
+  const modern = boot({ planeCount: 4 }, 240).state;
+  const log = [
+    { id: 'l1', ts: 1, kind: 'cell-truth', outcome: 'done', actorId: 'a', card: { id: 'tr1', text: '旧真话', star: 1, tags: [], pool: 'truth', src: 'GAME' } },
+    { id: 'l2', ts: 2, kind: 'cell-dare', outcome: 'skipped', actorId: 'b', card: { id: 'dr1', text: '旧冒险', star: 2, tags: [], pool: 'dare', src: 'GAME' } },
+    { id: 'l3', ts: 3, kind: 'minigame-thermo', outcome: 'done', actorId: 'a', minigame: 'thermo' }
+  ];
+  const stripV6 = (raw) => {
+    const out = clone(raw);
+    ['mode', 'targetCards', 'targetHeat', 'cardsProcessed', 'meta', 'endingQueue', 'endingIndex'].forEach((k) => delete out[k]);
+    out.v = 1;
+    out.log = log;
+    return out;
+  };
+  const v1 = stripV6(modern);
+  const up = F.validate(v1);
+  ok(up && up.v === 2, '89 v1 validate 成功并升级为 v2');
+  ok(up.mode === 'long' && up.targetCards === 8 && up.targetHeat === 80, '89 按 planeCount 补 mode 与目标');
+  ok(up.cardsProcessed === 2, '89 从 log 统计处理题卡数（小游戏不计）');
+  ok(up.meta && up.meta.heat === 16, '89 从 log 重建 meta（8+3+5）');
+  ok(up.meta.streak === 1 && up.meta.streakBest === 1 && up.meta.stage === 'cold', '89 重建连击/阶段');
+  ok(up.endingQueue === null && up.endingIndex === 0, '89 收尾字段补默认');
+  ok(up.pieces.length === 8 && up.names.a === '阿岚' && up.log.length === 3, '89 其余数据不丢');
+  ok(F.validate(up).meta.heat === 16, '89 升级后再 validate 幂等');
+
+  const v1OldRules = clone(v1);
+  v1OldRules.rules = Object.assign({}, v1.rules, { skipHomeEntryBlocksEntry: true, skipStackKeepsBonusStep: false });
+  const upOldRules = F.validate(v1OldRules);
+  ok(upOldRules.rules.skipHomeEntryBlocksEntry === true && upOldRules.rules.skipStackKeepsBonusStep === false, '89 V5 旧局按 rules 快照走，不被 V6 默认值覆盖（architecture §7.1）');
+
+  const v2NoMeta = clone(modern);
+  v2NoMeta.log = log;
+  delete v2NoMeta.meta;
+  delete v2NoMeta.cardsProcessed;
+  const up2 = F.validate(v2NoMeta);
+  ok(up2 && up2.meta.heat === 16 && up2.cardsProcessed === 2, '90 v2 缺 meta/cardsProcessed 也宽容补全');
+
+  const midEnd = stripV6(modern);
+  midEnd.awaiting = {
+    type: 'ending-prompt',
+    prompt: { id: 'pr-old', kind: 'ending', actorId: 'b', targetId: 'b', pieceIds: [], card: { id: 'tr1', text: '旧收尾', star: 1, tags: [], pool: 'truth', src: 'GAME' } }
+  };
+  const upEnd = F.validate(midEnd);
+  ok(upEnd && upEnd.v === 2 && upEnd.endingQueue && upEnd.endingQueue.length === 1, '91 V5 旧收尾途中存档保留那张卡');
+  const upEndDone = F.resolvePrompt(upEnd, 'done');
+  ok(upEndDone.ok && upEndDone.state.phase === 'ended' && upEndDone.state.result.ending === 'shared', '91 旧收尾卡结算后正常结束');
+
+  const mem = {};
+  const box = makeSandbox(mem);
+  const Store = box.window.App.Store;
+  const Flight = box.window.App.Flight;
+  mem['couple2.session'] = JSON.stringify(v1);
+  const loaded = Store.getSession();
+  ok(loaded && loaded.v === 2 && loaded.meta.heat === 16 && loaded.cardsProcessed === 2, '92 Store 读入 V5 存档：升级且进度保留');
+  ok(loaded.id === v1.id && loaded.names.a === '阿岚', '92 身份与名字不丢');
+  const backup = JSON.parse(mem[Store.KEYS.backup]);
+  ok(backup.v === 1 && backup.id === v1.id, '92 升级前原样备份 v1');
+  ok(Store.saveSession(loaded).ok === true, '92 升级后可写回');
+  ok(JSON.parse(mem['couple2.session']).v === 2, '92 写回的是 v2');
+  const backupBefore = mem[Store.KEYS.backup];
+  Store.getSession();
+  ok(mem[Store.KEYS.backup] === backupBefore, '92 备份只写一次');
+
+  let s = loaded;
+  s = Object.assign({}, s, {
+    cardsProcessed: s.targetCards - 1,
+    awaiting: { type: 'roll' },
+    pendingMove: null,
+    rollContext: null,
+    phase: 'playing',
+    result: null,
+    endingQueue: null,
+    endingIndex: 0
+  });
+  const rolled = Flight.roll(place(s, 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: s.targetCards, targetHeat: 999 }), 1);
+  ok(rolled.ok && rolled.state.awaiting.type === 'prompt', '93 V5 读入后能继续出题');
+  const skippedTurn = Flight.resolvePrompt(rolled.state, 'skipped');
+  ok(skippedTurn.ok && skippedTurn.state.awaiting.type === 'ending-prompt', '93 V5 局在目标内进入收尾');
+  const end1 = Flight.resolvePrompt(skippedTurn.state, 'done');
+  const end2 = Flight.resolvePrompt(end1.state, 'done');
+  ok(end2.ok && end2.state.phase === 'ended' && end2.state.result.ending === 'shared', '93 V5 局最终收尾（无输赢）');
+  ok(end2.state.result.stats.cardsSkipped === 2 && end2.state.result.prompts.length >= 5, '93 收尾后回顾含 V5 期间记录');
+
+  const importRes = Store.importAll({ app: 'couple-flight', settings: { names: { a: '甲', b: '乙' } }, session: v1 });
+  ok(importRes.ok, '94 importAll 接受 V5 v1 飞行棋');
+  ok(Store.getSession().v === 2 && Store.getSession().id === v1.id, '94 导入后升级为 v2');
+
+  Store.saveSettings({ boardView: '3d' });
+  ok(Store.getSettings().boardView === '3d', '94 设置记住 boardView');
+  Store.saveSettings({ boardView: 'weird' });
+  ok(Store.getSettings().boardView === 'svg', '94 非法 boardView 回退 svg');
+  Store.saveSettings({ mode: 'long', lastPlaneCount: 4 });
+  ok(Store.getSettings().mode === 'long' && Store.getSettings().lastPlaneCount === 4, '94 门厅模式选择被记住');
+}
+
+section('17. V6 命运格（P1 接口：prompt.options + opts.cardIndex）');
+{
+  eq(Board.FATE_CELLS, [5, 29], '95 命运格 5/29');
+  const sq5 = Board.square('ring:5');
+  ok(sq5.kind === 'fate' && sq5.jumpTo === null && sq5.isFly === false, '95 命运格不跳不飞');
+  const sq29 = Board.square('ring:29');
+  ok(sq29.kind === 'fate' && sq29.jumpTo === null, '95 第二个命运格');
+
+  let s = place(stateOf({ scale: 'warm' }, 250), 'a', { 'a:0': { squareId: 'ring:4' } });
+  const fate = F.roll(s, 1);
+  ok(fate.ok && fate.state.awaiting.type === 'prompt' && fate.state.awaiting.prompt.kind === 'fate', '95 落命运格出二选一');
+  const pr = fate.state.awaiting.prompt;
+  ok(Array.isArray(pr.options) && pr.options.length === 2, '95 prompt.options 两张');
+  ok(pr.options[0].pool !== pr.options[1].pool, '95 两张来自不同池');
+  ok(pr.card && pr.card.id === pr.options[0].id, '96 prompt.card 兼容旧视图（=options[0]）');
+  ok(pr.options.every((c) => Draw.allowed(c, fate.state)), '96 选项走尺度/边界过滤');
+  ok(pr.actorId === 'a' && pr.targetId === 'a', '96 归属走到的人');
+  ok(hasType(fate.events, 'prompt'), '96 命运格 prompt 事件');
+
+  const before = fate.state.meta.heat;
+  const picked = F.resolvePrompt(fate.state, 'done', { cardIndex: 0 });
+  ok(picked.ok && picked.state.awaiting.type === 'roll', '96 选定后回主桌');
+  ok(picked.state.meta.heat === before + 8 && picked.state.meta.streak === 1, '96 命运卡做了 +8/连击');
+  ok(picked.state.cardsProcessed === 0, '96 命运格不计入目标题卡数');
+  ok(picked.state.log.some((e) => e.kind === 'fate' && e.outcome === 'done' && e.card && e.card.id === pr.options[0].id), '96 log 记所选卡');
+  const other = pr.options[1];
+  ok(picked.state.usedCards[other.pool] && !picked.state.usedCards[other.pool][other.id], '96 未选中的卡放回池子');
+
+  const neither = F.resolvePrompt(fate.state, 'skipped');
+  ok(neither.ok && neither.state.awaiting.type === 'roll', '97 都不选回主桌');
+  ok(neither.state.meta.heat === before, '97 都不选 heat 不降');
+  ok(neither.state.log.length === fate.state.log.length, '97 都不选不记题');
+  ok(!hasType(neither.events, 'heat'), '97 都不选无 heat 事件');
+  ok(neither.state.cardsProcessed === 0, '97 都不选不计题卡数');
+
+  eq(Draw.fatePools(2), ['cell-touch', 'cell-truth'], '98 温柔/暧昧命运池');
+  eq(Draw.fatePools(3), ['cell-dare', 'cell-truth'], '98 热烈命运池');
+  eq(Draw.fatePools(4), ['spark', 'cell-truth'], '98 不设限命运池');
+
+  function fatePoolsDrawn(scale, seed) {
+    let st = place(stateOf({ scale: scale, boundaries: [] }, seed), 'a', { 'a:0': { squareId: 'ring:4' } });
+    const r = F.roll(st, 1);
+    return r.state.awaiting.prompt.options.map((c) => c.pool).sort();
+  }
+  eq(fatePoolsDrawn('warm', 251), ['touch', 'truth'], '98 暧昧实际抽 touch+truth');
+  eq(fatePoolsDrawn('hot', 252), ['dare', 'truth'], '98 热烈实际抽 dare+truth');
+  const openPools = fatePoolsDrawn('open', 253);
+  ok(openPools.indexOf('truth') >= 0 && openPools.indexOf('spark') >= 0, '98 不设限实际抽 spark+truth');
+
+  let bound = place(stateOf({ scale: 'open', boundaries: ['束缚'] }, 254), 'a', { 'a:0': { squareId: 'ring:4' } });
+  const boundFate = F.roll(bound, 1);
+  ok(boundFate.state.awaiting.prompt.options.every((c) => (c.tags || []).indexOf('束缚') < 0 && String(c.text).indexOf('束缚') < 0), '98 命运选项同样避开边界');
+}
+
+section('18. V6 尺度区分（热烈 vs 不设限）');
+{
+  function sample(scale, seed) {
+    let st = stateOf({ scale: scale, boundaries: [] }, seed);
+    const stars = [];
+    const pools = {};
+    for (let i = 0; i < 100; i++) {
+      const r = Draw.take(st, 'cell-truth');
+      st = r.state;
+      stars.push(Number(r.card.star) || 1);
+      pools[r.card.pool] = (pools[r.card.pool] || 0) + 1;
+    }
+    return { stars: stars, pools: pools };
+  }
+  const hist = (arr) => {
+    const h = [0, 0, 0, 0, 0, 0];
+    arr.forEach((n) => { h[n] = (h[n] || 0) + 1; });
+    return h;
+  };
+  const highShare = (arr) => arr.filter((n) => n >= 4).length / arr.length;
+  const gentle = sample('gentle', 300);
+  const warm = sample('warm', 301);
+  const hot = sample('hot', 302);
+  const open = sample('open', 303);
+  const hs = [hist(gentle.stars), hist(warm.stars), hist(hot.stars), hist(open.stars)].map((h) => JSON.stringify(h));
+  ok(new Set(hs).size === 4, '99 四档星级分布两两不同：' + hs.join(' / '));
+  ok(gentle.stars.every((n) => n === 1), '99 温柔只有 1 星');
+  ok(highShare(open.stars) > highShare(hot.stars), '99 不设限 4–5 星占比高于热烈（' + highShare(open.stars).toFixed(2) + ' > ' + highShare(hot.stars).toFixed(2) + '）');
+  ok(mean(hot.stars) > mean(gentle.stars) + 0.8, '99 热烈均星高于温柔');
+  ok(open.stars.every((n) => n <= 5) && hot.stars.every((n) => n <= 5), '99 星级上限 5');
+  ok(Draw.poolsFor('capture', 3).indexOf('spark') < 0 && Draw.poolsFor('capture', 4).indexOf('spark') >= 0, '100 热烈与不设限可抽池不同');
+  ok(Draw.fatePools(3).join('|') !== Draw.fatePools(4).join('|'), '100 命运池随尺度不同');
+  const card4 = { star: 4, tags: [], text: 'x' };
+  ok(Draw.weightOf(card4, Draw.band(stateOf({ scale: 'open' }, 1)), false) > Draw.weightOf(card4, Draw.band(stateOf({ scale: 'hot' }, 1)), false), '100 不设限对高星权重更高');
+}
+
+section('19. V6 快照与 meta 落盘');
+{
+  let s = place(stateOf({}, 320), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999 });
+  s = F.resolvePrompt(F.roll(s, 1).state, 'done').state;
+  const v = F.view(s, { reduced: true });
+  ok(v.names.a === '阿岚' && v.names.b === '小满', '101 view 带 names');
+  ok(v.awaiting && v.awaiting.type === 'roll' && Array.isArray(v.choices) && v.choices.length === 0, '101 view 带 awaiting/choices');
+  ok(v.meta && v.meta.heat === 8 && v.meta.heatStage === 'cold' && v.meta.stage === 'cold' && v.meta.stageLabel === '灯刚亮', '101 view 带 meta 投影（heat/stage/label）');
+  ok(v.meta.max === 100 && v.meta.thresholds && v.meta.thresholds.warm === 20, '101 meta 阈值投影');
+  ok(v.progress && v.progress.cardsProcessed === 1 && v.progress.targetCards === 99 && v.progress.mode === 'quick', '101 view 带进度投影');
+  ok(v.pending === null && v.reduced === true, '101 view pending/reduced');
+  ok(!Object.prototype.hasOwnProperty.call(v, 'rng') && !Object.prototype.hasOwnProperty.call(v, 'log'), '101 view 不泄 rng/log');
+  v.awaiting.type = 'none';
+  ok(s.awaiting.type === 'roll', '101 view 的 awaiting 是拷贝');
+
+  const reload = F.validate(s);
+  ok(reload.meta.heat === 8 && reload.meta.streak === 1, '102 validate 保留 meta');
+
+  const mem = {};
+  const box = makeSandbox(mem);
+  const Store = box.window.App.Store;
+  Store.saveSession(s);
+  const got = Store.getSession();
+  ok(got && got.v === 2 && got.meta.heat === 8 && got.meta.streak === 1 && got.cardsProcessed === 1, '103 Store 落盘保留 heat/连击/进度');
+  const dumped = Store.exportAll();
+  ok(dumped.session.meta.heat === 8 && dumped.v === 6, '103 导出含 meta（v6）');
+
+  /* 收尾中途存档可续玩 */
+  const endingState = F.roll(parked(stateOf({}, 321), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1).state;
+  Store.saveSession(endingState);
+  const endReload = Store.getSession();
+  ok(endReload && endReload.awaiting.type === 'ending-prompt' && endReload.endingQueue.length === 2 && endReload.endingIndex === 0, '103 收尾中途存档可续玩');
+  const endResume = F.resolvePrompt(endReload, 'done');
+  ok(endResume.ok && endResume.state.endingIndex === 1, '103 续玩后进入第二张收尾卡');
+
+  Store.resetAll();
+  ok(Store.importAll(dumped).ok && Store.getSession().meta.heat === 8, '103 导入后 meta 不丢');
 }
 
 console.log('\n' + passed + ' passed, ' + failed.length + ' failed');

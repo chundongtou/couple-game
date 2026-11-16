@@ -1,168 +1,351 @@
-/* ===== 开场 ===== */
+/* ===== V6 ui/screens/boot.js：门厅（视觉 A · 午夜星轨 / 暖光纸感）=====
+   文案口径：docs/v6/copy.md §1；交互口径：spec §4 A1–A6；视觉基准：mocks/a/boot.png。
+   360×640 首屏：主按钮「摆上棋盘」（sticky 底部）始终完整在视口内。 */
 (function () {
   var App = window.App;
   var U = App.util;
+
   var COLORS = [
     { id: "red", name: "红" },
     { id: "yellow", name: "黄" },
     { id: "blue", name: "蓝" },
     { id: "green", name: "绿" }
   ];
-  var SCALES = [
-    { id: "gentle", name: "温柔" },
-    { id: "warm", name: "暧昧" },
-    { id: "hot", name: "热烈" },
-    { id: "open", name: "不设限" }
+  var MODES = [
+    { id: "quick", name: "快局", cards: 4, heat: 40, planes: 2, line1: "目标 4 张题卡", line2: "约 8–12 分钟 · 2 架", line: "目标 4 张题卡 · 约 8–12 分钟 · 2 架" },
+    { id: "long", name: "长夜", cards: 8, heat: 80, planes: 4, line1: "目标 8 张题卡", line2: "约 25–40 分钟 · 4 架", line: "目标 8 张题卡 · 约 25–40 分钟 · 4 架" }
   ];
-  var CHIPS = ["束缚", "露出", "道具", "蒙眼", "喝酒", "角色"];
+  var SCALES = [
+    { id: "gentle", name: "温柔", star: "★1", desc: "灯只留一盏，慢一点。" },
+    { id: "warm", name: "暧昧", star: "★1–2", desc: "可以靠近一点，话可以停在嘴边。" },
+    { id: "hot", name: "热烈", star: "★1–3", desc: "不绕弯，想说的直接说。" },
+    { id: "open", name: "不设限", star: "★1–4", desc: "边界你们自己画，线以内交给今晚。" }
+  ];
+  var CHIPS = ["束缚", "露出", "道具", "喝酒", "蒙眼", "角色"];
+  var MAX_NAME = 12;
+
+  function modeById(id) {
+    for (var i = 0; i < MODES.length; i++) if (MODES[i].id === id) return MODES[i];
+    return MODES[0];
+  }
+  function scaleById(id) {
+    for (var i = 0; i < SCALES.length; i++) if (SCALES[i].id === id) return SCALES[i];
+    return SCALES[1];
+  }
+  function freeColor(taken) {
+    for (var i = 0; i < COLORS.length; i++) if (COLORS[i].id !== taken) return COLORS[i].id;
+    return taken === "red" ? "yellow" : "red";
+  }
+  function flightHistory() {
+    try { return App.Store.getHistory().filter(function (x) { return x && x.kind === "flight"; }); } catch (e) { return []; }
+  }
 
   App.Screens = App.Screens || {};
   App.Screens.boot = {
+    enterless: true, /* 门厅不做位移入场：保证首屏按钮 rect 在动画期间也稳定 */
     mount: function (root, params) {
       params = params || {};
       var settings = App.Store.getSettings();
-      var has = App.Store.hasSession();
-      if (params.resumeFlight) {
-        if (has) { App.Router.reset("table"); return; }
-      }
+      var hasSession = App.Store.hasSession();
+      if (params.resumeFlight && hasSession) { App.Router.reset("table"); return; }
+
+      var history = flightHistory();
+      var lastNight = history.length ? history[0] : null;
       var picked = {
         a: (settings.colors && settings.colors.a) || "red",
         b: (settings.colors && settings.colors.b) || "yellow"
       };
-      if (picked.a === picked.b) picked.b = "yellow";
-      var scale = settings.scale || settings.suggestScale || "warm";
+      if (picked.a === picked.b) picked.b = freeColor(picked.a);
+      var scale = settings.scale || "warm";
+      var mode = modeById(settings.mode || (settings.lastPlaneCount === 4 ? "long" : "quick"));
       var boundaries = (settings.blacklist || []).slice();
-      var planes = settings.lastPlaneCount === 2 ? 2 : 4;
-      var note = App.Store.takeLegacyNote();
+      var names = {
+        a: String((settings.names && settings.names.a) || "").trim(),
+        b: String((settings.names && settings.names.b) || "").trim()
+      };
+      var unsubRules = null;
 
-      function chip(name) {
+      function nightNo() { return history.length + 1; }
+
+      function colorSwatches(pid) {
+        return COLORS.map(function (c) {
+          var on = picked[pid] === c.id;
+          return '<button type="button" class="swatch ' + c.id + (on ? " on" : "") + '" ' +
+            'data-color="' + pid + ":" + c.id + '" data-test="color-' + pid + "-" + c.id + '" ' +
+            'aria-label="' + (pid === "a" ? "第一位" : "第二位") + "的飞机换成" + c.name + '色" ' +
+            'aria-pressed="' + (on ? "true" : "false") + '"></button>';
+        }).join("");
+      }
+
+      function chip(name, idx) {
         var on = boundaries.indexOf(name) >= 0;
-        return '<button type="button" class="btn sm' + (on ? " primary" : " soft") + '" data-bound="' + name + '">' + name + "</button>";
+        return '<button type="button" class="chip' + (on ? " on" : "") + '" data-bound="' + U.escape(name) + '" data-test="bound-' + idx + '">' + U.escape(name) + "</button>";
       }
-      function colorBtn(pid, c) {
-        var on = picked[pid] === c.id;
-        return '<button type="button" class="btn sm' + (on ? " primary" : " soft") + '" data-color="' + pid + ":" + c.id + '">' + c.name + "</button>";
+
+      function modeCard(m) {
+        var on = mode.id === m.id;
+        return '<button type="button" class="mode-card' + (on ? " on" : "") + '" data-mode="' + m.id + '" data-test="mode-' + m.id + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          (on ? '<span class="on-tag">今晚选这个</span>' : "") +
+          "<b>" + m.name + "</b><span>" + m.line1 + "</span><span>" + m.line2 + "</span></button>";
       }
+
+      function scaleCard(s) {
+        var on = scale === s.id;
+        return '<button type="button" class="scale-card' + (on ? " on" : "") + '" data-scale="' + s.id + '" data-test="scale-' + s.id + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          "<b>" + s.name + '</b><em>可抽 ' + s.star + "</em><span>" + s.desc + "</span></button>";
+      }
+
+      var metaPills = "";
+      if (lastNight) {
+        var ld = new Date(lastNight.ts || Date.now());
+        metaPills += '<span class="pill" data-test="last-night"><i aria-hidden="true"></i>上次 · ' + (ld.getMonth() + 1) + " 月 " + ld.getDate() + " 日</span>";
+      }
+      metaPills += '<span class="pill rose"><i aria-hidden="true"></i>第 ' + nightNo() + " 夜</span>";
 
       root.innerHTML =
-        '<div class="page">' +
-          '<div class="kicker">TONIGHT</div>' +
-          '<h1 class="title-xl mt-12">今晚<br>飞行棋</h1>' +
-          '<p class="muted mt-12">两个人，一部手机，一盘桌上的棋。</p>' +
-          (has ? '<button class="btn primary wide mt-16" data-go="table" data-test="continue-flight">继续今晚飞行棋</button>' : "") +
-          '<div class="glass pad-16 mt-16">' +
-            '<label class="small dim">名字</label>' +
-            '<div class="choice-row mt-8">' +
-              '<input class="field" data-name="a" data-test="name-a" value="' + U.escape(settings.names.a || "他") + '" maxlength="12" />' +
-              '<input class="field" data-name="b" data-test="name-b" value="' + U.escape(settings.names.b || "她") + '" maxlength="12" />' +
+        '<div class="page boot" data-test="boot">' +
+          '<div class="kicker"><span class="spark"></span><span>TONIGHT</span><span class="rule"></span></div>' +
+          '<h1 class="boot-h1"><span class="l1">今晚</span><span class="grad-text">飞行棋</span></h1>' +
+          '<p class="boot-sub">两个人，一部手机，一盘桌上的棋。<br>灯调暗一点，<b>慢慢来。</b></p>' +
+          '<div class="boot-meta">' + metaPills + "</div>" +
+          (hasSession
+            ? '<button class="resume mt-16" data-go="resume" data-test="continue-flight" type="button">' +
+              '<span class="ic" aria-hidden="true">▶</span>' +
+              '<span class="tx"><b>继续今晚飞行棋</b><small>上次停下的地方还在</small></span>' +
+              '<span class="arw" aria-hidden="true">→</span></button>'
+            : "") +
+          '<div class="sect">' +
+            '<div class="sect-label">今晚玩多久</div>' +
+            '<div class="mode-grid" data-test="modes">' + MODES.map(modeCard).join("") + "</div>" +
+            '<div class="sect-note" data-test="mode-summary">' + mode.line + "</div>" +
+          "</div>" +
+          '<div class="sect">' +
+            '<div class="sect-label">今晚怎么称呼</div>' +
+            '<div class="who-list">' +
+              '<div class="who-row"><label class="nm"><small>你</small>' +
+                '<input class="field" data-name="a" data-test="name-a" maxlength="' + MAX_NAME + '" placeholder="你" value="' + U.escape(names.a) + '" autocomplete="off" /></label>' +
+                '<div class="swatches" data-test="colors-a">' + colorSwatches("a") + "</div></div>" +
+              '<div class="who-row"><label class="nm"><small>对方</small>' +
+                '<input class="field" data-name="b" data-test="name-b" maxlength="' + MAX_NAME + '" placeholder="对方" value="' + U.escape(names.b) + '" autocomplete="off" /></label>' +
+                '<div class="swatches" data-test="colors-b">' + colorSwatches("b") + "</div></div>" +
             "</div>" +
-            '<div class="small dim mt-12">第一位的飞机</div>' +
-            '<div class="choice-row mt-8" data-test="colors-a">' + COLORS.map(function (c) { return colorBtn("a", c); }).join("") + "</div>" +
-            '<div class="small dim mt-12">第二位的飞机</div>' +
-            '<div class="choice-row mt-8" data-test="colors-b">' + COLORS.map(function (c) { return colorBtn("b", c); }).join("") + "</div>" +
-            '<div class="small dim mt-12">尺度</div>' +
-            '<div class="choice-row mt-8" data-test="scales">' + SCALES.map(function (s) {
-              return '<button type="button" class="btn sm' + (scale === s.id ? " primary" : " soft") + '" data-scale="' + s.id + '">' + s.name + "</button>";
-            }).join("") + "</div>" +
-            '<div class="small dim mt-12">今晚不做的</div>' +
-            '<div class="choice-row mt-8" data-test="bounds">' + CHIPS.map(chip).join("") + "</div>" +
-            '<input class="field mt-8" data-test="bound-custom" placeholder="再写一条，回车加上" />' +
-            '<div class="small dim mt-12">飞机</div>' +
-            '<div class="choice-row mt-8">' +
-              '<button type="button" class="btn sm' + (planes === 4 ? " primary" : " soft") + '" data-planes="4" data-test="planes-4">每人四架</button>' +
-              '<button type="button" class="btn sm' + (planes === 2 ? " primary" : " soft") + '" data-planes="2" data-test="planes-2">每人两架 · 快局</button>' +
+            '<div class="inline-err" data-test="boot-error" aria-live="polite"></div>' +
+          "</div>" +
+          '<div class="sect">' +
+            '<div class="sect-label">灯拨到哪一档</div>' +
+            '<div class="scale-grid" data-test="scales">' + SCALES.map(scaleCard).join("") + "</div>" +
+            '<div class="sect-note" data-test="scale-desc">四档只决定题卡尺度的上限，不预告题目。</div>' +
+          "</div>" +
+          '<div class="sect">' +
+            '<div class="sect-label">今晚不做的</div>' +
+            '<div class="sect-note">写在这儿的，整晚都不会出现。划掉就作数。</div>' +
+            '<div class="chips mt-10" data-test="bounds">' + CHIPS.map(chip).join("") + "</div>" +
+            '<div class="bound-row">' +
+              '<input class="field" data-test="bound-custom" maxlength="40" placeholder="再写一条：一个词、一句话，或一个不想被问的方向" autocomplete="off" />' +
+              '<button class="btn soft sm" data-act="add-bound" data-test="bound-add" type="button">加上</button>' +
             "</div>" +
           "</div>" +
-          '<div class="actions mt-16">' +
-            '<button class="btn primary wide" data-go="start" data-test="start-flight">摆上棋盘</button>' +
-            '<div class="choice-row">' +
-              '<button class="btn soft" data-go="nights">以前的夜</button>' +
-              '<button class="btn soft" data-go="minigame" data-test="open-minigames">小游戏</button>' +
-            "</div>" +
-            '<button class="btn ghost wide" data-go="settings">设置</button>' +
+          '<div class="boot-links">' +
+            '<button class="lbtn" data-go="rules" data-test="rules-open" type="button">规则速览</button><span class="dot"></span>' +
+            '<button class="lbtn" data-go="nights" data-test="go-nights" type="button">以前的夜</button><span class="dot"></span>' +
+            '<button class="lbtn" data-go="minigame" data-test="go-minigames" type="button">小游戏</button><span class="dot"></span>' +
+            '<button class="lbtn" data-go="settings" data-test="go-settings" type="button">设置</button>' +
           "</div>" +
-          '<p class="tiny dim center mt-12">长按「先收棋」可以随时停。做过的都留着。</p>' +
+          '<div class="tiny dim center mt-12">长按「先收棋」可以随时停。做过的都留着。</div>' +
+          '<div class="boot-cta">' +
+            '<button class="btn primary wide lg" data-go="start" data-test="start" aria-label="开始" type="button">摆上棋盘<span class="arw" aria-hidden="true">→</span></button>' +
+            '<div class="cta-hint">掷骰 · 走格 · 翻开一张题卡</div>' +
+          "</div>" +
         "</div>";
 
-      if (note) App.UI.toast("以前的一局已收进以前的夜");
+      var errEl = root.querySelector("[data-test=boot-error]");
+      var scaleDesc = root.querySelector("[data-test=scale-desc]");
 
-      function paintScale() {
-        U.qsa("[data-scale]", root).forEach(function (el) {
-          el.className = "btn sm " + (el.getAttribute("data-scale") === scale ? "primary" : "soft");
+      function clearErrors() {
+        errEl.textContent = "";
+        U.qsa(".field", root).forEach(function (f) { f.classList.remove("err"); f.removeAttribute("aria-invalid"); });
+      }
+      function showError(msg, field) {
+        errEl.textContent = msg;
+        if (field) {
+          field.classList.add("err");
+          field.setAttribute("aria-invalid", "true");
+          try { field.focus({ preventScroll: true }); } catch (e) {}
+        }
+        App.UI.toast(msg, { kind: "rose" });
+      }
+      function paintMode() {
+        U.qsa("[data-mode]", root).forEach(function (el) {
+          var on = el.getAttribute("data-mode") === mode.id;
+          el.classList.toggle("on", on);
+          el.setAttribute("aria-pressed", on ? "true" : "false");
+          var tag = el.querySelector(".on-tag");
+          if (on && !tag) {
+            tag = document.createElement("span");
+            tag.className = "on-tag";
+            tag.textContent = "今晚选这个";
+            el.appendChild(tag);
+          } else if (!on && tag) tag.parentNode.removeChild(tag);
         });
+        var sum = root.querySelector("[data-test=mode-summary]");
+        if (sum) sum.textContent = mode.line;
       }
       function paintColors() {
         U.qsa("[data-color]", root).forEach(function (el) {
           var parts = el.getAttribute("data-color").split(":");
-          el.className = "btn sm " + (picked[parts[0]] === parts[1] ? "primary" : "soft");
+          var on = picked[parts[0]] === parts[1];
+          el.classList.toggle("on", on);
+          el.setAttribute("aria-pressed", on ? "true" : "false");
         });
       }
-      function paintPlanes() {
-        U.qsa("[data-planes]", root).forEach(function (el) {
-          el.className = "btn sm " + (Number(el.getAttribute("data-planes")) === planes ? "primary" : "soft");
+      function paintScales() {
+        U.qsa("[data-scale]", root).forEach(function (el) {
+          var on = el.getAttribute("data-scale") === scale;
+          el.classList.toggle("on", on);
+          el.setAttribute("aria-pressed", on ? "true" : "false");
         });
+        var s = scaleById(scale);
+        if (scaleDesc) scaleDesc.textContent = s.name + " · 可抽 " + s.star + " 的题 · 四档只决定上限，不预告题目。";
       }
       function paintBounds() {
         var box = root.querySelector("[data-test=bounds]");
-        if (box) box.innerHTML = CHIPS.concat(boundaries.filter(function (b) { return CHIPS.indexOf(b) < 0; })).map(chip).join("");
+        if (!box) return;
+        var extra = boundaries.filter(function (b) { return CHIPS.indexOf(b) < 0; });
+        box.innerHTML = CHIPS.concat(extra).map(function (name, i) {
+          var on = boundaries.indexOf(name) >= 0;
+          return '<button type="button" class="chip' + (on ? " on" : "") + '" data-bound="' + U.escape(name) + '" data-test="bound-' + i + '">' + U.escape(name) + "</button>";
+        }).join("");
       }
 
-      U.delegate(root, "[data-scale]", "click", function (e, el) { scale = el.getAttribute("data-scale"); paintScale(); });
+      U.delegate(root, "[data-mode]", "click", function (e, el) {
+        mode = modeById(el.getAttribute("data-mode"));
+        if (App.Audio) App.Audio.play("select");
+        paintMode();
+      });
       U.delegate(root, "[data-color]", "click", function (e, el) {
         var parts = el.getAttribute("data-color").split(":");
-        picked[parts[0]] = parts[1];
-        if (picked.a === picked.b) {
-          picked[parts[0] === "a" ? "b" : "a"] = COLORS.filter(function (c) { return c.id !== parts[1]; })[0].id;
+        var pid = parts[0], cid = parts[1];
+        if (picked[pid === "a" ? "b" : "a"] === cid) {
+          picked[pid === "a" ? "b" : "a"] = freeColor(cid);
+          if (errEl && !errEl.textContent) {
+            errEl.textContent = "两个人的飞机不能同色";
+            setTimeout(function () { if (errEl.textContent === "两个人的飞机不能同色") errEl.textContent = ""; }, 2200);
+          }
         }
+        picked[pid] = cid;
+        if (App.Audio) App.Audio.play("select");
         paintColors();
       });
-      U.delegate(root, "[data-planes]", "click", function (e, el) { planes = Number(el.getAttribute("data-planes")); paintPlanes(); });
+      U.delegate(root, "[data-scale]", "click", function (e, el) {
+        scale = el.getAttribute("data-scale");
+        /* AC-A4-3：尺度选择立即落盘，刷新后仍选中上次档位（下次开局也用它） */
+        App.Store.saveSettings({ scale: scale });
+        if (App.Audio) App.Audio.play("select");
+        paintScales();
+      });
       U.delegate(root, "[data-bound]", "click", function (e, el) {
         var name = el.getAttribute("data-bound");
         var i = boundaries.indexOf(name);
-        if (i >= 0) boundaries.splice(i, 1); else boundaries.push(name);
+        if (i >= 0) boundaries.splice(i, 1); else {
+          if (boundaries.length >= 20) { App.UI.toast("边界已经够多了"); return; }
+          boundaries.push(name);
+        }
+        if (App.Audio) App.Audio.play("tick");
         paintBounds();
+        if (i >= 0) App.UI.toast("划掉了");
+        else App.UI.toast("加上了，从下一张起生效");
       });
+      function addCustom() {
+        var input = root.querySelector("[data-test=bound-custom]");
+        var text = input ? String(input.value || "").trim() : "";
+        if (!text) { if (input) input.classList.add("err"); return; }
+        input.classList.remove("err");
+        if (boundaries.indexOf(text) >= 0) { App.UI.toast("这条已经在里面了"); return; }
+        if (boundaries.length >= 20) { App.UI.toast("边界已经够多了"); return; }
+        boundaries.push(text);
+        input.value = "";
+        paintBounds();
+        App.UI.toast("加上了，从下一张起生效");
+      }
+      U.delegate(root, "[data-act=add-bound]", "click", addCustom);
       var custom = root.querySelector("[data-test=bound-custom]");
       if (custom) custom.addEventListener("keydown", function (e) {
-        if (e.key !== "Enter") return;
-        var t = custom.value.trim();
-        if (t && boundaries.indexOf(t) < 0) boundaries.push(t);
-        custom.value = "";
-        paintBounds();
+        if (e.key === "Enter") { e.preventDefault(); addCustom(); }
       });
 
-      function start() {
-        var names = {
-          a: root.querySelector("[data-name=a]").value.trim(),
-          b: root.querySelector("[data-name=b]").value.trim()
-        };
-        var made = App.Flight.newGame({
-          names: names,
-          colors: { a: picked.a, b: picked.b },
-          scale: scale,
-          boundaries: boundaries,
-          planeCount: planes
-        });
-        if (!made.ok) { App.UI.toast(made.error.message || "还没法开局"); return; }
-        App.Store.saveSettings({
-          names: names,
-          colors: { a: picked.a, b: picked.b },
-          scale: scale,
-          blacklist: boundaries,
-          lastPlaneCount: planes
-        });
-        var saved = App.Store.saveSession(made.state);
-        if (!saved.ok) { App.UI.toast("这台手机没能记下这局"); return; }
-        App.Router.reset("table");
+      function showRules() {
+        App.UI.rulesSheet();
       }
+      function onRulesSeen() {
+        App.Store.saveSettings({ rulesSeen: true });
+      }
+      unsubRules = App.Bus.on("rules-seen", onRulesSeen);
 
       U.delegate(root, "[data-go]", "click", function (e, el) {
         var go = el.getAttribute("data-go");
-        if (go === "start") start();
-        else if (go === "table") App.Router.reset("table");
-        else App.Router.go(go);
+        if (go === "start") { start(); return; }
+        if (go === "resume") {
+          if (App.Audio) App.Audio.play("select");
+          App.Router.reset("table", { resume: true });
+          return;
+        }
+        if (go === "rules") { showRules(); return; }
+        if (App.Audio) App.Audio.play("tap");
+        if (go === "minigame") App.Router.go("minigame", {});
+        else if (go === "nights") App.Router.go("nights", {});
+        else if (go === "settings") App.Router.go("settings", {});
       });
+
+      function start() {
+        clearErrors();
+        var nameA = String(root.querySelector("[data-test=name-a]").value || "").trim();
+        var nameB = String(root.querySelector("[data-test=name-b]").value || "").trim();
+        if (!nameA || !nameB) {
+          var empty = !nameA ? root.querySelector("[data-test=name-a]") : root.querySelector("[data-test=name-b]");
+          showError("先给两个人各起一个名字", empty);
+          return;
+        }
+        if (nameA === nameB) { showError("两个名字不能一样", root.querySelector("[data-test=name-b]")); return; }
+        if (picked.a === picked.b) { picked.b = freeColor(picked.a); paintColors(); }
+
+        var made = App.Flight.newGame({
+          names: { a: nameA, b: nameB },
+          colors: { a: picked.a, b: picked.b },
+          scale: scale,
+          boundaries: boundaries.slice(),
+          planeCount: mode.planes,
+          mode: mode.id,
+          targetCards: mode.cards,
+          targetHeat: mode.heat
+        });
+        if (!made || !made.ok) {
+          var msg = (made && made.error && made.error.message) || "还没法开局";
+          showError(msg, null);
+          return;
+        }
+        App.Store.saveSettings({
+          names: { a: nameA, b: nameB },
+          colors: { a: picked.a, b: picked.b },
+          scale: scale,
+          mode: mode.id,
+          lastPlaneCount: mode.planes,
+          blacklist: boundaries.slice()
+        });
+        var saved = App.Store.saveSession(made.state);
+        if (!saved || saved.ok === false) { showError("这台手机没能记下这局", null); return; }
+        if (App.Audio) App.Audio.play("select");
+        App.UI.haptic("select");
+        App.Router.reset("table", { fresh: true });
+      }
+
+      paintScales();
+      /* 首次进入（无历史且未看过）：自动弹一次玩法速览（AC-A5） */
+      var firstRun = !settings.rulesSeen && history.length === 0;
+      if (firstRun) setTimeout(function () { if (App.UI && App.UI.rulesSheet) App.UI.rulesSheet(); }, 340);
+
+      return function cleanup() {
+        if (unsubRules) { unsubRules(); unsubRules = null; }
+      };
     }
   };
 })();

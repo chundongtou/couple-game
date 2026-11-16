@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今晚飞行棋 · 方向 B · table</title>
+<style>
+  :root{
+    --paper:#F5EBD9;
+    --paper-hi:#FCF6E9;
+    --paper-lo:#EADABE;
+    --ink:#33261F;
+    --ink-soft:#6A5344;
+    --ink-faint:#947C68;
+    --wine:#7B2231;
+    --wine-deep:#5E1620;
+    --gold:#B08D57;
+    --c-red:#B2473F;
+    --c-yellow:#B8892F;
+    --c-blue:#3F5C8A;
+    --c-green:#4F7B5A;
+    --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+    --kai:"STKaiti","KaiTi","Kaiti SC","Noto Serif SC",serif;
+    --sans:"Noto Sans SC","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:932px;overflow:hidden;background:#E7D7B9}
+  body{font-family:var(--serif);color:var(--ink)}
+  .stage{
+    position:relative;width:430px;height:932px;margin:0 auto;overflow:hidden;
+    background:
+      radial-gradient(120% 72% at 50% -8%, #FCF6E9 0%, #F6ECDA 46%, #EFE1C6 100%),
+      linear-gradient(180deg,#F7EEDD,#EDDFC4);
+  }
+  .stage::after{content:"";position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 70px rgba(146,106,64,.14),inset 0 0 6px rgba(120,80,50,.16)}
+  .blotch{position:absolute;inset:0;pointer-events:none;opacity:.55;
+    background:
+      radial-gradient(30% 22% at 88% 6%, rgba(176,141,87,.14), transparent 70%),
+      radial-gradient(34% 26% at 8% 74%, rgba(160,120,70,.10), transparent 72%),
+      radial-gradient(26% 18% at 60% 98%, rgba(123,34,49,.06), transparent 70%)}
+  .grain{position:absolute;inset:0;pointer-events:none;opacity:.30;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23p)' opacity='0.22'/%3E%3C/svg%3E")}
+  .frame{position:absolute;inset:12px;border:1px solid rgba(123,34,49,.3);pointer-events:none}
+  .frame::after{content:"";position:absolute;inset:4px;border:1px solid rgba(123,34,49,.14)}
+  .table{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;
+    padding:34px 20px 24px}
+
+  /* ------------- 抬头 / 回合条 ------------- */
+  .letterhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lh-k{font-family:var(--sans);font-size:9px;letter-spacing:.3em;color:var(--wine);font-weight:700}
+  .lh-t{margin-top:6px;font-family:var(--kai);font-size:19px;letter-spacing:.1em;color:var(--ink-soft)}
+  .lh-t b{font-weight:400;color:var(--wine)}
+  .lh-t span{font-family:var(--kai);font-size:12px;color:var(--ink-faint);margin-left:6px;letter-spacing:.08em}
+  .safe{
+    position:relative;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 15px;
+    background:rgba(252,246,233,.65);border:1px dashed rgba(123,34,49,.5);border-radius:3px;
+    color:var(--wine);font-family:var(--kai);font-size:12.5px;letter-spacing:.12em;cursor:pointer;
+  }
+  .safe::before{content:"";position:absolute;left:6px;top:50%;width:4px;height:4px;margin-top:-2px;
+    border-radius:50%;background:var(--paper-hi);border:1px solid rgba(123,34,49,.45)}
+  .turnbar{margin-top:14px;display:flex;align-items:center;border-top:1px solid rgba(123,34,49,.26);
+    border-bottom:1px solid rgba(123,34,49,.26);padding:9px 2px}
+  .who{display:flex;align-items:center;gap:7px;font-family:var(--serif);font-size:14px;letter-spacing:.05em}
+  .who .dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .who .dot.red{background:var(--c-red)}
+  .who .dot.yellow{background:var(--c-yellow)}
+  .who b{font-weight:600}
+  .who span{font-family:var(--kai);font-size:11.5px;color:var(--ink-faint);letter-spacing:.06em}
+  .who em{margin-left:auto;font-family:var(--kai);font-size:11.5px;font-style:normal;color:var(--wine);letter-spacing:.1em}
+  .who.on{flex:1.1}
+  .who.off{flex:1;padding-left:12px;border-left:1px solid rgba(123,34,49,.18);margin-left:12px;opacity:.62}
+  .who.off em{color:var(--ink-faint)}
+  /* ------------- 热度刻度 ------------- */
+  .heat{margin-top:12px;display:flex;align-items:flex-end;gap:10px}
+  .heat-k{font-family:var(--kai);font-size:11.5px;color:var(--ink-soft);letter-spacing:.14em;flex:none;padding-bottom:2px}
+  .scale{position:relative;flex:1;height:34px}
+  .scale .line{position:absolute;left:0;right:0;top:16px;height:1px;background:rgba(123,34,49,.32)}
+  .scale .ticks{position:absolute;left:0;right:0;top:10px;height:7px;
+    background:repeating-linear-gradient(90deg,rgba(123,34,49,.38) 0 1px,transparent 1px 9px)}
+  .scale .lit{position:absolute;left:0;width:62%;top:16px;height:1px;background:var(--wine)}
+  .scale .marker{position:absolute;left:62%;top:2px;transform:translateX(-50%);text-align:center}
+  .scale .marker b{display:block;font-family:var(--serif);font-size:14px;font-weight:600;color:var(--wine);line-height:1}
+  .scale .marker i{display:block;width:1px;height:9px;background:var(--wine);margin:3px auto 0}
+  .scale .stages{position:absolute;left:0;right:0;top:22px;display:flex;justify-content:space-between;
+    font-family:var(--kai);font-size:9px;color:var(--ink-faint);letter-spacing:.08em}
+  .heat-s{flex:none;font-family:var(--kai);font-size:12px;color:var(--wine);letter-spacing:.1em;padding-bottom:2px}
+
+  /* ------------- 地图 ------------- */
+  .map-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+  .map{position:relative;width:390px;height:390px;margin-top:4px;
+    background:radial-gradient(58% 58% at 50% 48%,rgba(255,250,238,.62),rgba(255,250,238,0) 72%)}
+  .map svg.lines{position:absolute;inset:0;width:390px;height:390px;pointer-events:none}
+  .cells{position:absolute;inset:0}
+  .cell{
+    position:absolute;width:20px;height:20px;border-radius:2.5px;
+    border:1px solid rgba(51,38,31,.55);background:rgba(252,246,233,.72);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cell i{width:5px;height:5px;border-radius:50%;display:block;opacity:.8}
+  .cell.t{border-color:rgba(178,71,63,.75)} .cell.t i{background:var(--c-red)}
+  .cell.y{border-color:rgba(184,137,47,.75)} .cell.y i{background:var(--c-yellow)}
+  .cell.b{border-color:rgba(63,92,138,.75)} .cell.b i{background:var(--c-blue)}
+  .cell.g{border-color:rgba(79,123,90,.75)} .cell.g i{background:var(--c-green)}
+  .cell.here{background:rgba(178,71,63,.16);border-color:var(--c-red);box-shadow:0 0 0 2px rgba(178,71,63,.14)}
+  .cell.here i{width:7px;height:7px;opacity:1}
+  /* 起飞区（印章） */
+  .zone{
+    position:absolute;width:64px;height:56px;border:1.4px solid var(--zc);border-radius:2px;
+    background:rgba(252,246,233,.55);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:2px;
+  }
+  .zone::after{content:"";position:absolute;inset:3px;border:1px dashed var(--zl);border-radius:1px}
+  .zone .zn{font-family:var(--serif);font-size:14px;font-weight:600;color:var(--zc);letter-spacing:.1em;line-height:1}
+  .zone .zs{font-family:var(--kai);font-size:8.5px;color:var(--zl);letter-spacing:.12em}
+  .zone svg{width:12px;height:12px;opacity:.7;margin-top:1px}
+  .zone.z-red{--zc:#A33C35;--zl:rgba(163,60,53,.65);right:4px;top:2px;transform:rotate(2.2deg)}
+  .zone.z-yellow{--zc:#A97C28;--zl:rgba(169,124,40,.65);right:4px;bottom:2px;transform:rotate(-2.6deg)}
+  .zone.z-blue{--zc:#3A547E;--zl:rgba(58,84,126,.65);left:4px;bottom:2px;transform:rotate(2deg)}
+  .zone.z-green{--zc:#477051;--zl:rgba(71,112,81,.65);left:4px;top:2px;transform:rotate(-2deg)}
+  /* 中心罗盘 */
+  .hub{position:absolute;left:50%;top:50%;width:132px;height:132px;margin:-66px 0 0 -66px;
+    border-radius:50%;border:1px solid rgba(51,38,31,.5);
+    background:radial-gradient(circle at 50% 40%,rgba(255,251,241,.92),rgba(246,236,218,.86));
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    box-shadow:0 2px 10px rgba(120,85,55,.10)}
+  .hub::before{content:"";position:absolute;inset:-13px;border-radius:50%;border:1px dashed rgba(51,38,31,.30)}
+  .hub::after{content:"";position:absolute;inset:7px;border-radius:50%;border:1px solid rgba(51,38,31,.2)}
+  .hub svg.heart{width:24px;height:24px;margin-bottom:1px}
+  .hub .goal{font-family:var(--serif);font-size:16px;font-weight:600;letter-spacing:.3em;text-indent:.3em;color:var(--ink)}
+  .hub .gsub{margin-top:3px;font-family:var(--kai);font-size:9.5px;color:var(--ink-faint);letter-spacing:.08em}
+  .hub .cticks{position:absolute;inset:0;pointer-events:none}
+  /* 棋子 */
+  .piece{position:absolute;width:28px;height:28px;border-radius:50%;
+    transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;
+    border:1.5px solid #FBF4E5;box-shadow:0 3px 7px rgba(90,60,35,.30);z-index:4}
+  .piece svg{width:15px;height:15px;display:block}
+  .piece.red{background:radial-gradient(circle at 34% 30%,#A8464A,#7C1F2C)}
+  .piece.yellow{background:radial-gradient(circle at 34% 30%,#C09545,#8F671F)}
+  .note{position:absolute;transform:translate(-50%,-50%) rotate(-9deg);
+    font-family:var(--kai);font-size:14px;color:var(--wine);letter-spacing:.02em;white-space:nowrap}
+  /* ------------- 题卡（贴纸便签） ------------- */
+  .slip{
+    position:relative;margin-top:12px;border-radius:4px;padding:14px 16px 13px;
+    background:linear-gradient(175deg,#FDF7EA,#F8EFDD 62%,#F3E6CE);
+    border:1px solid rgba(123,34,49,.45);
+    box-shadow:0 10px 24px rgba(90,60,35,.20),0 1px 0 rgba(255,255,255,.5) inset;
+    transform:rotate(-.35deg);
+  }
+  .slip::before{content:"";position:absolute;inset:4px;border:1px solid rgba(123,34,49,.16);pointer-events:none}
+  .tape{
+    position:absolute;left:50%;top:-9px;width:70px;height:18px;margin-left:-35px;transform:rotate(-1.6deg);
+    background:linear-gradient(180deg,rgba(214,186,133,.64),rgba(196,164,108,.54));
+    box-shadow:0 1px 3px rgba(90,60,35,.18);
+    -webkit-mask:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
+    mask:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
+  }
+  .slip-top{position:relative;display:flex;align-items:flex-start;gap:12px}
+  .slip-k{flex:1;min-width:0}
+  .slip-k .kk{font-family:var(--sans);font-size:10px;letter-spacing:.2em;color:#8C5B34;font-weight:700}
+  .slip-k .kk b{color:var(--wine);letter-spacing:.08em}
+  .slip-k .who2{margin-top:4px;font-family:var(--kai);font-size:11px;letter-spacing:.05em;color:var(--ink-faint)}
+  .die{
+    width:42px;height:42px;flex:none;border-radius:3px;transform:rotate(5deg);
+    background:linear-gradient(155deg,#FDF6E6,#EEDFC1);border:1px solid rgba(90,60,35,.42);
+    box-shadow:0 3px 6px rgba(90,60,35,.18),0 1px 0 #fff inset;
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:6px;gap:1px;
+  }
+  .die i{width:5px;height:5px;border-radius:50%;background:var(--wine);align-self:center;justify-self:center}
+  .die i.off{background:transparent}
+  .q{position:relative;margin:11px 0 0;font-size:19.5px;font-weight:600;line-height:1.62;letter-spacing:.02em;color:#2C1E17}
+  .q .dim{font-family:var(--kai);font-size:15px;font-weight:400;color:var(--ink-faint);letter-spacing:.03em}
+  .stars-row{position:relative;display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+  .stars{font-size:12px;letter-spacing:.18em;color:var(--gold)}
+  .stars b{color:var(--wine)}
+  .seal-line{font-family:var(--kai);font-size:10px;color:var(--ink-faint);letter-spacing:.08em}
+  .acts{position:relative;display:flex;gap:10px;margin-top:11px}
+  .btn{flex:1;height:44px;border-radius:4px;border:1px solid transparent;cursor:pointer;
+    font-family:var(--serif);font-size:14.5px;font-weight:600;letter-spacing:.2em;text-indent:.2em}
+  .btn.primary{background:linear-gradient(175deg,#892A3A,#6B1C29);color:#FBF1DF;
+    box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 5px 12px rgba(94,22,32,.22)}
+  .btn.ghost{background:transparent;border-color:rgba(51,38,31,.4);color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="blotch"></div>
+  <div class="grain"></div>
+  <div class="frame"></div>
+
+  <main class="table">
+    <header class="letterhead">
+      <div>
+        <div class="lh-k">第 3 回合 · 22:52</div>
+        <div class="lh-t">把这一夜，<b>写在纸上。</b></div>
+      </div>
+      <button class="safe" type="button">先收棋</button>
+    </header>
+
+    <div class="turnbar">
+      <div class="who on"><i class="dot red"></i><b>他</b><span>红方</span><em>的回合</em></div>
+      <div class="who off"><i class="dot yellow"></i><b>她</b><span>黄方</span><em>下一手</em></div>
+    </div>
+
+    <div class="heat">
+      <span class="heat-k">热度</span>
+      <div class="scale">
+        <span class="line"></span>
+        <span class="lit"></span>
+        <span class="ticks"></span>
+        <span class="marker"><b>62°</b><i></i></span>
+        <span class="stages"><span>轻</span><span>热</span><span>烫</span><span>深</span></span>
+      </div>
+      <span class="heat-s"></span>
+    </div>
+
+    <section class="map-wrap">
+      <div class="map">
+        <svg class="lines" viewBox="0 0 390 390" fill="none" aria-hidden="true">
+          <g stroke="#6A5344" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M195 40c84 2 150 63 150 148 0 84-66 150-150 152-84 2-152-66-152-150S111 38 195 40z"
+              stroke-width="1.1" stroke-dasharray="2 6" opacity=".6"/>
+            <path d="M195 56c74 0 134 56 134 134s-60 136-134 136S61 266 61 190 121 56 195 56z"
+              stroke-width=".7" opacity=".2"/>
+            <path d="M53 138c-5-2-7 4-2 6 4 2 8-1 8-4" stroke-width="1" opacity=".5"/>
+            <path d="M337 250c5 2 7-4 2-6-4-2-8 1-8 4" stroke-width="1" opacity=".5"/>
+          </g>
+        </svg>
+        <div class="cells" id="cells" aria-hidden="true"></div>
+
+        <div class="zone z-red" aria-hidden="true">
+          <div class="zn">红</div><div class="zs">起飞</div>
+          <svg viewBox="0 0 24 24" fill="#A33C35"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+        </div>
+        <div class="zone z-yellow" aria-hidden="true">
+          <div class="zn">黄</div><div class="zs">起飞</div>
+          <svg viewBox="0 0 24 24" fill="#A97C28"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+        </div>
+        <div class="zone z-blue" aria-hidden="true">
+          <div class="zn">蓝</div><div class="zs">起飞</div>
+          <svg viewBox="0 0 24 24" fill="#3A547E"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+        </div>
+        <div class="zone z-green" aria-hidden="true">
+          <div class="zn">绿</div><div class="zs">起飞</div>
+          <svg viewBox="0 0 24 24" fill="#477051"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>
+        </div>
+
+        <div class="hub">
+          <svg class="cticks" viewBox="0 0 132 132" aria-hidden="true">
+            <g stroke="#6A5344" stroke-width="1" opacity=".45" stroke-linecap="round">
+              <path d="M66 6v7M66 119v7M6 66h7M119 66h7"/>
+              <path d="M66 18l3 7-6 0z" fill="#7B2231" stroke="none" opacity=".6"/>
+              <path d="M66 114l3-7-6 0z" fill="#3F5C8A" stroke="none" opacity=".5"/>
+            </g>
+          </svg>
+          <svg class="heart" viewBox="0 0 24 24" fill="none" stroke="#7B2231" stroke-width="1.3">
+            <path d="M12 20s-7.4-4.6-7.4-10A4.2 4.2 0 0 1 12 7.2 4.2 4.2 0 0 1 19.4 10c0 5.4-7.4 10-7.4 10z"/>
+          </svg>
+          <div class="goal">终点</div>
+          <div class="gsub">先到的人，收下这一夜</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slip">
+      <div class="tape"></div>
+      <div class="slip-top">
+        <div class="slip-k">
+          <div class="kk">真心话 · <b>他 掷骰 5</b></div>
+          <div class="who2">这张给走到的人 · 慢慢说，不急</div>
+        </div>
+        <div class="die" aria-hidden="true">
+          <i></i><i class="off"></i><i></i>
+          <i class="off"></i><i></i><i class="off"></i>
+          <i></i><i class="off"></i><i></i>
+        </div>
+      </div>
+      <p class="q">今晚的哪一个瞬间，<br>你最想被对方记住？<span class="dim">　慢慢讲。</span></p>
+      <div class="stars-row">
+        <span class="stars">★<b>★</b>☆</span>
+        <span class="seal-line">翻到这一张，就算数</span>
+      </div>
+      <div class="acts">
+        <button class="btn primary" type="button">做了</button>
+        <button class="btn ghost" type="button">放过</button>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+  (function () {
+    var N = 36, R = 148, C = 195, CELL = 20;
+    var cells = document.getElementById('cells');
+    var cls = ['t', 'y', 'b', 'g'];
+    var marks = { 5: true, 14: true, 23: true, 32: true };
+    var html = '';
+    for (var k = 0; k < N; k++) {
+      var a = (-90 + k * 10) * Math.PI / 180;
+      var x = C + R * Math.cos(a) - CELL / 2;
+      var y = C + R * Math.sin(a) - CELL / 2;
+      var q = cls[Math.floor(k / 9)];
+      var here = (k === 7) ? ' here' : '';
+      var rot = ((k * 37) % 5 - 2) * 0.7;
+      html += '<div class="cell ' + q + here + '" style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;transform:rotate(' + rot.toFixed(1) + 'deg)">' +
+              '<i></i></div>';
+    }
+    cells.innerHTML = html;
+
+    var positions = {};
+    for (var m = 0; m < N; m++) {
+      var aa = (-90 + m * 10) * Math.PI / 180;
+      positions[m] = { x: C + R * Math.cos(aa), y: C + R * Math.sin(aa) };
+    }
+    var map = document.querySelector('.map');
+    function piece(idx, color, note) {
+      var pos = positions[idx];
+      var el = document.createElement('div');
+      el.className = 'piece ' + color;
+      el.style.left = pos.x + 'px';
+      el.style.top = pos.y + 'px';
+      el.innerHTML = '<svg viewBox="0 0 24 24" fill="#FBF4E5"><path d="M2.2 11.4l19.4-8.1c.5-.2.9.3.7.8l-7.4 18.6c-.2.5-.9.5-1.2.1l-3.2-6.5-6.6-3.3c-.6-.3-.6-1 0-1.4z"/></svg>';
+      map.appendChild(el);
+      if (note) {
+        var n = document.createElement('div');
+        n.className = 'note';
+        n.textContent = note;
+        n.style.left = (pos.x + 26) + 'px';
+        n.style.top = (pos.y - 18) + 'px';
+        map.appendChild(n);
+      }
+    }
+    piece(7, 'red', '＋5');
+    piece(16, 'yellow', '');
+  })();
+</script>
+</body>
+</html>

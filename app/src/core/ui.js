@@ -1,23 +1,36 @@
-/* ===== V3 core/ui.js：通用 UI 组件（toast / sheet / confirm / 资源图标 / 触感） ===== */
+/* ===== V6 core/ui.js：通用 UI 组件（toast / sheet / confirm / 心动值 / 星级 / 规则速览 / 触感 / 夜空背景） ===== */
 (function () {
   var App = (window.App = window.App || {});
   var U = App.util;
-  var M = App.Motion;
+  if (!U) return;
+
   var toastQueue = [];
   var toastBusy = false;
   var styles = {};
 
-  var RES = {
-    heart: { icon: "♥", label: "心动", cls: "res-heart" },
-    tension: { icon: "✦", label: "张力", cls: "res-tension" },
-    sync: { icon: "⌁", label: "默契", cls: "res-sync" },
-    coins: { icon: "◈", label: "星屑", cls: "res-coins" }
-  };
   var ICONS = {
-    heart: "♥", tension: "✦", sync: "⌁", coin: "◈", star: "★", starEmpty: "☆",
-    back: "←", close: "✕", arrow: "→", lock: "⌑", sound: "♪", mute: "♪̸",
-    menu: "☰", edit: "✎", check: "✓", warn: "!", spark: "✧", moon: "☾"
+    heart: "♥", spark: "✦", star: "★", starEmpty: "☆",
+    back: "←", close: "✕", arrow: "→", check: "✓", warn: "!", moon: "☾", play: "▶", pause: "❚❚"
   };
+
+  /* 心动值阶段（impl-freeze §2.3 / spec §5.1） */
+  var HEAT_STAGES = [
+    { max: 19, id: "cold", name: "灯刚亮" },
+    { max: 39, id: "warm", name: "有点热" },
+    { max: 59, id: "charged", name: "靠近了" },
+    { max: 79, id: "burning", name: "很近了" },
+    { max: 100, id: "blazing", name: "今晚可以更近" }
+  ];
+
+  /* 玩法速览 6 条（copy.md §1.6；AC-A5-1 断言这 6 条标题） */
+  var RULES = [
+    { t: "6 起飞", d: "掷出 6，才有一架飞机从机坪起飞。" },
+    { t: "6 可再掷", d: "掷出 6，走完还能再掷一次。" },
+    { t: "跳/飞/进航", d: "落在跳格向前 4 格，飞点向前 12 格；进航格转进自己的航线。" },
+    { t: "击落回机坪", d: "落在对方飞机所在的格子，对方的飞机回机坪。" },
+    { t: "放过不惩罚", d: "题卡可以放过：心动值不减少、不挡路、连击不清零。" },
+    { t: "安全词随时可停", d: "按住右上角「先收棋」1.6 秒，任何屏幕都能先停一下。" }
+  ];
 
   function settings() { try { return App.Store.getSettings(); } catch (e) { return {}; } }
 
@@ -30,9 +43,21 @@
     styles[id] = true;
   }
 
+  function toastHost() {
+    var host = document.getElementById("toasts");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "toasts";
+      host.setAttribute("aria-live", "assertive");
+      (document.getElementById("app") || document.body).appendChild(host);
+    }
+    return host;
+  }
+
   function toast(msg, opts) {
     opts = opts || {};
-    toastQueue.push({ msg: msg, kind: opts.kind || "default", dur: opts.dur || 1900 });
+    if (!msg) return;
+    toastQueue.push({ msg: String(msg), kind: opts.kind || "default", dur: opts.dur || 1900 });
     if (toastQueue.length > 3) toastQueue.shift();
     if (!toastBusy) nextToast();
   }
@@ -41,27 +66,28 @@
     var t = toastQueue.shift();
     if (!t) { toastBusy = false; return; }
     toastBusy = true;
-    var host = document.getElementById("toasts");
+    var host = toastHost();
     var el = document.createElement("div");
     el.className = "toast " + t.kind;
+    el.setAttribute("role", "status");
     el.textContent = t.msg;
     host.appendChild(el);
     requestAnimationFrame(function () { el.classList.add("on"); });
     setTimeout(function () {
       el.classList.remove("on");
-      setTimeout(function () { el.remove(); nextToast(); }, 260);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); nextToast(); }, 260);
     }, t.dur);
   }
 
+  /* ---------- 触感 ---------- */
   var userTapped = false;
   try {
     document.addEventListener("pointerdown", function () { userTapped = true; }, true);
   } catch (e) {}
 
   function vibrate(pattern) {
-    if (!userTapped) return;   /* Chrome 会在无用户手势时拒绝 vibrate 并打 console error */
-    var s = settings();
-    if (s.haptics === false) return;
+    if (!userTapped) return; /* 无用户手势时 Chrome 会拒绝 vibrate 并打 console error */
+    if (settings().haptics === false) return;
     try { if (navigator.vibrate) navigator.vibrate(pattern || 12); } catch (e) {}
   }
 
@@ -69,12 +95,15 @@
     if (kind === "success") vibrate([14, 30, 18]);
     else if (kind === "warn") vibrate([24, 40, 24]);
     else if (kind === "heavy") vibrate(38);
+    else if (kind === "error") vibrate([30, 50, 30]);
+    else if (kind === "select") vibrate(8);
     else vibrate(10);
   }
 
+  /* ---------- 底部 sheet ---------- */
   function sheet(opts) {
     opts = opts || {};
-    var overlay = document.getElementById("overlay");
+    var overlay = document.getElementById("overlay") || document.body;
     var mask = document.createElement("div");
     mask.className = "sheet-mask";
     var panel = document.createElement("div");
@@ -102,16 +131,21 @@
       closed = true;
       mask.classList.remove("on");
       panel.classList.remove("on");
-      setTimeout(function () { mask.remove(); }, 320);
+      setTimeout(function () { if (mask.parentNode) mask.parentNode.removeChild(mask); }, 340);
       if (opts.onClose) opts.onClose(val);
     }
     if (opts.dismissible !== false) {
       mask.addEventListener("click", function (e) { if (e.target === mask) close(); });
       panel.addEventListener("click", function (e) {
-        var t = e.target.closest("[data-close]");
+        var t = e.target.closest ? e.target.closest("[data-close]") : null;
         if (t) close();
       });
+      mask.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") { e.stopPropagation(); close(); }
+      });
     }
+    /* 安全词层在 sheet 之上，所以这里不需要抢焦点，只把可点内容标出来 */
+    panel.querySelectorAll(".btn").forEach(function (b) { b.setAttribute("type", "button"); });
     if (opts.onMount) opts.onMount(panel, close);
     return { close: close, panel: panel, mask: mask };
   }
@@ -120,30 +154,59 @@
     opts = typeof opts === "string" ? { text: opts } : (opts || {});
     return new Promise(function (resolve) {
       var answered = false;
-      var s = sheet({
+      var ref = sheet({
         title: opts.title || "确认",
         html: '<p class="sheet-text">' + U.escape(opts.text || "") + "</p>" +
           '<div class="sheet-actions">' +
-          '<button class="btn ghost" data-no>' + U.escape(opts.cancel || "取消") + "</button>" +
-          '<button class="btn primary" data-yes>' + U.escape(opts.ok || "确定") + "</button></div>",
+          '<button class="btn ghost" data-no type="button">' + U.escape(opts.cancel || "取消") + "</button>" +
+          '<button class="btn primary" data-yes type="button">' + U.escape(opts.ok || "确定") + "</button></div>",
         dismissible: true,
         onClose: function () { if (!answered) { answered = true; resolve(false); } },
         onMount: function (panel) {
-          panel.querySelector("[data-no]").addEventListener("click", function () { answered = true; s.close(); resolve(false); });
-          panel.querySelector("[data-yes]").addEventListener("click", function () { answered = true; s.close(); resolve(true); });
+          panel.querySelector("[data-no]").addEventListener("click", function () { answered = true; ref.close(); resolve(false); });
+          panel.querySelector("[data-yes]").addEventListener("click", function () { answered = true; ref.close(); resolve(true); });
         }
       });
     });
   }
 
-  function resRow(res, opts) {
-    opts = opts || {};
-    var keys = opts.keys || ["heart", "tension", "sync", "coins"];
-    return keys.map(function (k) {
-      var meta = RES[k];
-      return '<span class="res ' + meta.cls + '" title="' + meta.label + '"><i>' + meta.icon + "</i>" +
-        '<b data-res="' + k + '">' + U.round(res[k] || 0) + "</b></span>";
+  /* ---------- 规则速览（首次进局 + 主桌「规则」共用） ---------- */
+  function rulesSheet() {
+    var items = RULES.map(function (r, i) {
+      return '<div class="recap-row"><div class="rk">' + (i + 1) + " · " + U.escape(r.t) + "</div>" +
+        '<div class="rt">' + U.escape(r.d) + "</div></div>";
     }).join("");
+    var ref = sheet({
+      title: "玩法速览",
+      subtitle: "第一次玩，看这六条就够了。",
+      cls: "rules-sheet",
+      dismissible: true,
+      html: '<div class="recap-list" data-test="rules-list">' + items + "</div>" +
+        '<button class="btn primary wide mt-16" data-test="rules-ok" type="button">知道了</button>',
+      onMount: function (panel, close) {
+        panel.querySelector("[data-test=rules-ok]").addEventListener("click", function () {
+          close("ok");
+          if (App.Bus) App.Bus.emit("rules-seen", true);
+        });
+      }
+    });
+    /* QA/fe-table 统一钩子：App.UI.rulesSheet() 打开的面板 */
+    if (ref && ref.panel) ref.panel.setAttribute("data-test", "rules-sheet");
+    return ref;
+  }
+
+  /* ---------- 心动值 / 星级 ---------- */
+  function heatStage(heat) {
+    var v = Math.max(0, Math.min(100, Math.round(Number(heat) || 0)));
+    for (var i = 0; i < HEAT_STAGES.length; i++) if (v <= HEAT_STAGES[i].max) return HEAT_STAGES[i];
+    return HEAT_STAGES[HEAT_STAGES.length - 1];
+  }
+
+  function heatPill(heat) {
+    var stage = heatStage(heat);
+    var hot = stage.id === "burning" || stage.id === "blazing";
+    return '<span class="heat-pill' + (hot ? " hot" : "") + '" data-test="heat-pill">' +
+      '<i aria-hidden="true"></i>心动值 ' + U.round(heat) + " · " + U.escape(stage.name) + "</span>";
   }
 
   function stars(n, max) {
@@ -153,30 +216,105 @@
     return out;
   }
 
-  function syncSettings() {
-    var s = settings();
-    App.Audio.setEnabled(s.sound !== false);
-    M.syncBodyClass();
+  function starsHTML(n, max) {
+    max = max || 5;
+    var out = "";
+    for (var i = 1; i <= max; i++) out += i <= n ? ICONS.star : '<span class="off">' + ICONS.star + "</span>";
+    return '<span class="stars" aria-label="' + (Number(n) || 0) + ' 星">' + out + "</span>";
   }
 
-  function autoGrow() {}
+  function fmtDuration(ms) {
+    var s = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return (h ? h + ":" + (m < 10 ? "0" : "") + m : m) + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+
+  /* ---------- 夜空背景（app.js 启动时调用一次；幂等） ---------- */
+  function mountBackdrop() {
+    var bg = document.getElementById("bg");
+    if (!bg || bg.getAttribute("data-v6") === "1") return;
+    bg.setAttribute("data-v6", "1");
+    var neb = document.createElement("div");
+    neb.className = "v6-nebula";
+    bg.appendChild(neb);
+
+    /* 星点：固定种子，避免每次刷新闪烁 */
+    var seed = 20261116;
+    function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+    var w = 430, h = 932, frag = "";
+    for (var i = 0; i < 96; i++) {
+      var x = (rnd() * w).toFixed(1), y = (rnd() * h).toFixed(1);
+      var r = (0.35 + rnd() * 1.05).toFixed(2), o = (0.14 + rnd() * 0.62).toFixed(2);
+      frag += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="#FFE9D2" opacity="' + o + '"/>';
+    }
+    for (var j = 0; j < 7; j++) {
+      var x2 = (rnd() * w).toFixed(1), y2 = (rnd() * h * 0.66).toFixed(1);
+      frag += '<circle cx="' + x2 + '" cy="' + y2 + '" r="1.5" fill="#FFF3DF" opacity=".9"/>' +
+        '<circle cx="' + x2 + '" cy="' + y2 + '" r="5" fill="none" stroke="rgba(255,233,210,.18)" stroke-width=".7"/>';
+    }
+    var sky = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    sky.setAttribute("class", "v6-sky");
+    sky.setAttribute("viewBox", "0 0 430 932");
+    sky.setAttribute("aria-hidden", "true");
+    sky.setAttribute("preserveAspectRatio", "xMidYMid slice");
+    sky.innerHTML = frag;
+    bg.appendChild(sky);
+
+    var orbit = document.createElement("div");
+    orbit.className = "v6-orbit";
+    orbit.setAttribute("aria-hidden", "true");
+    orbit.innerHTML =
+      '<svg viewBox="0 0 600 600">' +
+      '<defs><linearGradient id="v6og" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#F3C077" stop-opacity="0"/>' +
+      '<stop offset=".55" stop-color="#F3C077" stop-opacity=".55"/>' +
+      '<stop offset="1" stop-color="#E9887A" stop-opacity="0"/></linearGradient></defs>' +
+      '<circle cx="300" cy="300" r="268" fill="none" stroke="rgba(243,192,119,.13)" stroke-width="1" stroke-dasharray="1 10" stroke-linecap="round"/>' +
+      '<path d="M 300 32 A 268 268 0 0 1 568 300" fill="none" stroke="url(#v6og)" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>' +
+      "</svg>";
+    bg.appendChild(orbit);
+
+    var grain = document.createElement("div");
+    grain.className = "v6-grain";
+    bg.appendChild(grain);
+  }
+
+  function syncSettings() {
+    var s = settings();
+    if (App.Audio && App.Audio.setEnabled) App.Audio.setEnabled(s.sound !== false);
+    if (App.Motion && App.Motion.syncBodyClass) App.Motion.syncBodyClass();
+    document.body.classList.toggle("sound-off", s.sound === false);
+  }
+
+  function topbar(title, opts) {
+    opts = opts || {};
+    return '<div class="topbar">' +
+      '<button class="back" data-go="' + (opts.back || "boot") + '" data-test="back" aria-label="返回">' + ICONS.back + "</button>" +
+      '<div class="tb-title">' + U.escape(title) + "</div>" +
+      '<div class="tb-right"></div></div>';
+  }
 
   App.UI = {
-    RES: RES,
     ICONS: ICONS,
+    RULES: RULES,
+    HEAT_STAGES: HEAT_STAGES,
     injectStyle: injectStyle,
     toast: toast,
     sheet: sheet,
     confirm: confirm,
+    rulesSheet: rulesSheet,
     vibrate: vibrate,
     haptic: haptic,
-    resRow: resRow,
+    heatStage: heatStage,
+    heatPill: heatPill,
     stars: stars,
+    starsHTML: starsHTML,
+    fmtDuration: fmtDuration,
+    topbar: topbar,
+    mountBackdrop: mountBackdrop,
     icon: function (name) { return ICONS[name] || ""; },
-    resMeta: function (k) { return RES[k] || { icon: "", label: k, cls: "" }; },
     syncSettings: syncSettings,
     overlay: function () { return document.getElementById("overlay"); },
-    screenRoot: function () { return document.getElementById("screen"); },
-    autoGrow: autoGrow
+    screenRoot: function () { return document.getElementById("screen"); }
   };
 })();

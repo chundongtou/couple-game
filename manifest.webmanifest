@@ -1,14 +1,14 @@
 {
-  "name": "今晚飞行棋",
+  "name": "今晚飞行棋 V6",
   "short_name": "飞行棋",
   "lang": "zh-CN",
-  "description": "两个人，一部手机，一盘桌上的飞行棋。",
+  "description": "两个人，一部手机，20 分钟的一盘飞行棋。暗光下点一盏暖灯，摇骰子、抽题卡，玩到今晚收尾。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#140c09",
-  "theme_color": "#1a100c",
+  "background_color": "#08060F",
+  "theme_color": "#08060F",
   "icons": [
     {
       "src": "icons/icon-192.png",

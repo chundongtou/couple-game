@@ -7,18 +7,21 @@
     session: "couple2.session",
     history: "couple2.history",
     standalone: "couple2.standalone",
-    pending: "couple2.pending"
+    pending: "couple2.pending",
+    backup: "couple2.backup.session"
   };
-  var VER = 5;
+  var VER = 6;
   var SCALES = { gentle: 1, warm: 2, hot: 3, open: 4 };
   var COLORS = ["red", "yellow", "blue", "green"];
+  var BOARD_VIEWS = ["svg", "3d"];
   var DEFAULT_SETTINGS = {
     v: VER,
     sound: true,
     haptics: true,
     reduced: false,
     names: { a: "他", b: "她" },
-    blacklist: []
+    blacklist: [],
+    boardView: "svg"
   };
 
   function merge(base, patch) {
@@ -73,6 +76,7 @@
       if (COLORS.indexOf(merged.colors.a) < 0 || COLORS.indexOf(merged.colors.b) < 0 || merged.colors.a === merged.colors.b) delete merged.colors;
     }
     if (merged.lastPlaneCount !== 2 && merged.lastPlaneCount !== 4) delete merged.lastPlaneCount;
+    if (BOARD_VIEWS.indexOf(merged.boardView) < 0) merged.boardView = "svg";
     /* 公寓的 maxStar / gentleOnly 不作为本局尺度，也不自动开局。 */
     var oldCap = parseInt(raw && raw.maxStar, 10);
     if (!SCALES[merged.scale] && oldCap >= 1 && oldCap <= 4) {
@@ -115,6 +119,8 @@
       var raw = null;
       try { raw = U.storage.get(KEYS.session, null); } catch (e) { return null; }
       if (!raw || typeof raw !== "object") return null;
+      /* V6：首次读到 session 先原样备份一份，迁移事故可回溯（architecture §7.2）。 */
+      Store.backupSession(raw);
       var A = archiveApi();
       if (A && A.isForeign && A.isForeign(raw)) {
         rememberForeign(raw);
@@ -125,9 +131,28 @@
       var F = flightApi();
       if (F && F.validate) {
         var valid = F.validate(raw);
-        return valid;
+        if (valid) return valid;
+        /* 读不出来的 flight：已备份，再移除，避免把「读不懂」当垃圾反复读。 */
+        U.storage.remove(KEYS.session);
+        if (App.Bus) App.Bus.emit("session", null);
+        return null;
       }
       return raw.kind === "flight" ? raw : null;
+    },
+
+    /* 一次性原样备份（quota 失败静默跳过；之后不再覆盖）。 */
+    backupSession: function (raw) {
+      try {
+        if (raw === undefined || raw === null) {
+          var current = U.storage.get(KEYS.session, null);
+          if (!current || typeof current !== "object") return false;
+          raw = current;
+        }
+        if (U.storage.get(KEYS.backup, null) != null) return false;
+        return U.storage.set(KEYS.backup, raw) !== false;
+      } catch (e) {
+        return false;
+      }
     },
 
     hasSession: function () {
@@ -244,6 +269,7 @@
       U.storage.remove(KEYS.history);
       U.storage.remove(KEYS.standalone);
       U.storage.remove(KEYS.pending);
+      U.storage.remove(KEYS.backup);
       legacyNote = null;
       if (App.Bus) {
         App.Bus.emit("settings", Store.getSettings());
@@ -260,6 +286,8 @@
       var ledger = (state && state.result) || (App.Flight && App.Flight.buildLedger ? App.Flight.buildLedger(state) : null);
       var endingName = "这局记下了";
       if (ledger && ledger.ending === "safe") endingName = "安全词收棋";
+      else if (ledger && ledger.ending === "shared") endingName = "今晚一起走完";
+      /* 旧版 V5 棋谱仍可能是 win-a / win-b，保留兼容文案。 */
       else if (ledger && ledger.ending === "win-a") endingName = ((state.names && state.names.a) || "甲方") + " 先把飞机送回家";
       else if (ledger && ledger.ending === "win-b") endingName = ((state.names && state.names.b) || "乙方") + " 先把飞机送回家";
       return {

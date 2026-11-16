@@ -1,61 +1,509 @@
-/* ===== 今晚棋谱 ===== */
+/* ===== V6 今晚回顾：无输赢 · 6 类信息 · 心动值曲线 · 题卡明细可展开 =====
+ * 数据：history entry.ledger（冻结单 §2.5）；兼容旧 V5 ledger（缺字段时推算/兜底）。
+ * 文案：docs/v6/copy.md §6.2 / §6.3 / §6.4。
+ */
 (function () {
-  var App = window.App;
-  var U = App.util;
-  var KIND = {
-    "cell-truth": "真心话", "cell-dare": "大冒险", "cell-touch": "靠近",
-    capture: "击落", "stack-duo": "叠机", "home-entry": "进终点", ending: "收尾",
-    "minigame-thermo": "温度计", "minigame-wheel": "转盘"
-  };
-  var SCALE = { gentle: "温柔", warm: "暧昧", hot: "热烈", open: "不设限" };
-  var COLOR = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
+  var App = window.App || {};
+  var U = App.util || {};
 
-  function find(id) {
-    var list = App.Store.getHistory();
-    for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+  function esc(s) {
+    if (U.escape) return U.escape(s);
+    return String(s === undefined || s === null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  var SCALE = { gentle: "温柔", warm: "暧昧", hot: "热烈", open: "不设限" };
+  var STAGE = {
+    cold: "灯刚亮", warm: "有点热", charged: "靠近了",
+    burning: "很近了", blazing: "今晚可以更近"
+  };
+  var TYPE = {
+    "cell-truth": "真心话", "cell-dare": "大冒险", "cell-touch": "靠近",
+    capture: "击落", "stack-duo": "叠机", "home-entry": "进终点",
+    ending: "收尾", fate: "命运"
+  };
+  var MINI_TYPES = { "minigame-thermo": 1, "minigame-wheel": 1 };
+  var FALLBACK_NAME = { a: "他", b: "她" };
+
+  var CSS = `
+.lg-page{background:radial-gradient(120% 60% at 50% 0%,rgba(36,21,64,.5) 0%,rgba(8,6,15,.9) 60%,var(--bg0,#08060F) 100%);
+  color:var(--ink,#FBF3E7);padding-bottom:calc(28px + var(--safe-b,0px))}
+.lg-done{position:relative;margin-top:6px;padding:18px 16px;border-radius:var(--r-lg,26px);
+  background:linear-gradient(180deg,rgba(243,192,119,.16),rgba(233,136,122,.08));
+  border:1px solid rgba(243,192,119,.26);overflow:hidden}
+.lg-done::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:radial-gradient(60% 90% at 85% 0%,rgba(233,136,122,.22),transparent 70%)}
+.lg-done-title{position:relative;font-family:var(--font-display,var(--font,"Noto Serif SC","Songti SC",serif));
+  font-size:clamp(28px,8.4vw,38px);line-height:1.15;font-weight:700;color:var(--ink,#FBF3E7);letter-spacing:.04em}
+.lg-done-sub{position:relative;margin-top:8px;font-size:12.5px;color:var(--dim,#C9B6CE);letter-spacing:.04em}
+.lg-title{margin-top:22px;font-family:var(--font-display,var(--font,"Noto Serif SC","Songti SC",serif));
+  font-size:clamp(24px,7vw,32px);line-height:1.2;font-weight:700;letter-spacing:.06em;color:var(--ink,#FBF3E7)}
+.lg-sub{margin-top:6px;font-size:12.5px;color:var(--dim2,#8E7C9E);letter-spacing:.04em}
+.lg-stats{margin-top:14px;border-radius:var(--r-lg,26px);overflow:hidden;
+  background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13));
+  box-shadow:0 14px 34px rgba(3,2,10,.3)}
+.lg-stat{display:flex;align-items:baseline;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line,rgba(255,226,196,.1))}
+.lg-stat:last-child{border-bottom:0}
+.lg-stat-label{flex:none;width:64px;font-size:11.5px;letter-spacing:.12em;color:var(--dim2,#8E7C9E);font-weight:700}
+.lg-stat-val{flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--ink,#FBF3E7);word-break:break-word}
+.lg-stat-val b{color:var(--amber,#F3C077);font-variant-numeric:tabular-nums}
+.lg-curve{margin-top:12px;padding:12px 14px 10px;border-radius:var(--r-lg,26px);
+  background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13))}
+.lg-curve svg{display:block;width:100%;height:64px}
+.lg-curve-cap{display:flex;justify-content:space-between;gap:10px;margin-top:4px;font-size:11px;color:var(--dim2,#8E7C9E);letter-spacing:.06em}
+.lg-curve-cap b{color:var(--amber,#F3C077);font-weight:700}
+.lg-sec-title{margin-top:22px;font-size:11px;letter-spacing:.18em;color:var(--dim2,#8E7C9E);font-weight:800}
+.lg-list{margin-top:8px;display:flex;flex-direction:column;gap:7px}
+.lg-item{border-radius:16px;background:rgba(255,236,214,.045);border:1px solid var(--line,rgba(255,226,196,.12));overflow:hidden}
+.lg-row{display:flex;align-items:center;gap:10px;width:100%;min-height:50px;padding:11px 12px;text-align:left;
+  font-family:inherit;color:var(--ink,#FBF3E7);background:transparent}
+.lg-row-main{flex:1;min-width:0;font-size:13px;line-height:1.5}
+.lg-row-main .lg-who{color:var(--amber,#F3C077);font-weight:700}
+.lg-row-main .lg-res{color:var(--dim,#C9B6CE)}
+.lg-row-main .lg-res.skipped{color:var(--dim2,#8E7C9E)}
+.lg-row-toggle{flex:none;font-size:10.5px;letter-spacing:.06em;color:var(--dim2,#8E7C9E);
+  padding:6px 8px;border-radius:999px;border:1px solid var(--line,rgba(255,226,196,.14))}
+.lg-row-text{display:none;padding:0 12px 12px;font-size:14px;line-height:1.7;color:var(--paper-ink,#2C1C15);
+  background:radial-gradient(120% 90% at 18% 0%,#FDF5E7 0%,var(--paper,#F7EAD6) 60%,var(--paper2,var(--paper-2,#F1DFC4)) 100%);
+  margin:0 10px 10px;border-radius:12px;padding:11px 12px;box-shadow:0 6px 16px rgba(3,2,10,.25)}
+.lg-item.open .lg-row-text{display:block}
+.lg-item.open .lg-row-toggle{color:var(--amber,#F3C077);border-color:rgba(243,192,119,.4)}
+.lg-mini{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.lg-mini-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;
+  font-size:12.5px;color:var(--dim,#C9B6CE);background:rgba(255,236,214,.04);border:1px solid var(--line,rgba(255,226,196,.1))}
+.lg-mini-row .lg-mini-dot{width:6px;height:6px;border-radius:50%;background:var(--amber,#F3C077);flex:none}
+.lg-empty{margin-top:10px;padding:14px;border-radius:16px;border:1px dashed rgba(255,226,196,.2);
+  font-size:12.5px;line-height:1.65;color:var(--dim2,#8E7C9E)}
+.lg-bound{margin-top:14px;font-size:10.5px;line-height:1.7;color:var(--dim2,#8E7C9E);letter-spacing:.03em}
+.lg-actions{margin-top:20px;display:flex;flex-direction:column;gap:9px}
+.lg-btn{width:100%;min-height:50px;border-radius:999px;font-size:15px;font-weight:800;letter-spacing:.1em;font-family:inherit;
+  transition:transform var(--t-fast,160ms) var(--ease-out,cubic-bezier(.16,1,.3,1))}
+.lg-btn:active{transform:scale(.985)}
+.lg-btn.main{background:linear-gradient(180deg,var(--amber,#F3C077),var(--amber-deep,#E2965E));color:#2A140E;
+  box-shadow:0 10px 26px rgba(243,192,119,.2)}
+.lg-btn.soft{background:rgba(255,236,214,.08);border:1px solid var(--line,rgba(255,226,196,.16));color:var(--ink,#FBF3E7)}
+.lg-btn.ghost{background:transparent;border:1px solid var(--line,rgba(255,226,196,.12));color:var(--dim,#C9B6CE);min-height:44px;font-size:13px}
+.lg-btn.small{min-height:40px;font-size:11.5px;letter-spacing:.06em}
+.lg-foot{margin-top:14px;text-align:center;font-size:10px;color:var(--dim2,#8E7C9E);letter-spacing:.06em}
+`;
+
+  function injectStyle() {
+    if (App.UI && App.UI.injectStyle) { App.UI.injectStyle("ledger-v6", CSS); return; }
+    if (document.getElementById("style-ledger-v6")) return;
+    var el = document.createElement("style");
+    el.id = "style-ledger-v6";
+    el.textContent = CSS;
+    document.head.appendChild(el);
+  }
+
+  function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function findEntry(id) {
+    var list = (App.Store && App.Store.getHistory) ? App.Store.getHistory() : [];
+    if (id) {
+      for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i];
+      return null;
+    }
     return list[0] || null;
+  }
+
+  function entryFromSession() {
+    var s = null;
+    try { s = App.Store.getSession(); } catch (e) { s = null; }
+    if (!s || !s.result) return null;
+    return {
+      id: s.id || ("flight-" + (s.ts || Date.now())),
+      ts: (s.result.endedAt) || s.ts || Date.now(),
+      kind: "flight",
+      title: "今晚飞行棋",
+      names: s.names,
+      ledger: s.result
+    };
+  }
+
+  function dateText(ledger, entry) {
+    var d = ledger && ledger.date ? String(ledger.date) : "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    var ts = (ledger && (ledger.endedAt || ledger.startedAt)) || (entry && entry.ts) || Date.now();
+    if (U.fmtDate) return U.fmtDate(ts);
+    var dt = new Date(ts);
+    return dt.getFullYear() + "-" + (dt.getMonth() + 1) + "-" + dt.getDate();
+  }
+
+  function durationText(ledger) {
+    /* AC-E7-3：优先用引擎落盘的 ledger.durationMs（不拿展示时的估算）；缺失才回退起止时间。 */
+    var raw = ledger ? ledger.durationMs : null;
+    if (raw === undefined || raw === null || raw === "") {
+      if (ledger && ledger.endedAt && ledger.startedAt) raw = num(ledger.endedAt) - num(ledger.startedAt);
+      else if (ledger && ledger.stats && ledger.stats.durationMs !== undefined) raw = ledger.stats.durationMs;
+    }
+    if (raw === undefined || raw === null) return "—";
+    var ms = Number(raw);
+    if (!isFinite(ms) || ms < 0) return "—";
+    var total = Math.max(0, Math.round(ms / 1000));
+    if (total < 60) return total + " 秒";
+    var min = Math.floor(total / 60);
+    var sec = total % 60;
+    if (min < 60) return min + " 分 " + (sec < 10 ? "0" : "") + sec + " 秒";
+    var hr = Math.floor(min / 60);
+    return hr + " 小时 " + ((min % 60) < 10 ? "0" : "") + (min % 60) + " 分 " + (sec < 10 ? "0" : "") + sec + " 秒";
+  }
+
+  function scaleText(scale) { return SCALE[scale] || "暧昧"; }
+
+  function stageOf(heat) {
+    var h = num(heat);
+    if (h < 20) return STAGE.cold;
+    if (h < 40) return STAGE.warm;
+    if (h < 60) return STAGE.charged;
+    if (h < 80) return STAGE.burning;
+    return STAGE.blazing;
+  }
+
+  function miniLabel(kind) {
+    var k = String(kind || "");
+    if (k === "thermo" || k === "minigame-thermo") return "温度计";
+    if (k === "truth" || k === "truth-wheel" || k === "truth-wheel-mini") return "真心话转盘";
+    if (k === "dare" || k === "dare-wheel") return "大冒险转盘";
+    if (k === "minigame-wheel" || k === "wheel") return "转盘";
+    return "小游戏";
+  }
+
+  function miniOutcome(m) {
+    var o = m && (m.outcome || m.result);
+    if (o === "skipped" || o === "skip") return "跳过";
+    return "完成";
+  }
+
+  function actorName(p, names) {
+    if (!p) return "你们俩";
+    if (p.kind === "stack-duo" || p.targetId === "both") return "两人一起";
+    var id = p.actorId;
+    if (p.kind === "ending") id = p.targetId || p.actorId;
+    if (!id) return "你们俩";
+    names = names || {};
+    var raw = names[id];
+    if (raw !== undefined && raw !== null && String(raw).trim()) return String(raw).trim();
+    return FALLBACK_NAME[id] || "你们俩";
+  }
+
+  function buildModel(entry) {
+    var ledger = (entry && entry.ledger) || null;
+    if (!ledger) return null;
+    var names = ledger.names || (entry && entry.names) || {};
+    var prompts = Array.isArray(ledger.prompts) ? ledger.prompts.filter(Boolean) : [];
+    var cards = [];
+    var minis = [];
+    var hasMiniArray = Array.isArray(ledger.minigames) && ledger.minigames.length > 0;
+    if (Array.isArray(ledger.minigames)) {
+      ledger.minigames.forEach(function (m) { if (m) minis.push(m); });
+    }
+    prompts.forEach(function (p) {
+      if (MINI_TYPES[p.kind]) {
+        /* V6 ledger 的 prompts 不含小游戏；旧档把 minigame-* 混在 prompts 里。有独立数组时去重。 */
+        if (!hasMiniArray) minis.push(p);
+      } else cards.push(p);
+    });
+
+    var stats = ledger.stats || {};
+    var done = 0, skipped = 0;
+    cards.forEach(function (p) {
+      if (p.outcome === "skipped") skipped += 1;
+      else done += 1;
+    });
+    if (!cards.length) {
+      done = num(stats.cardsDone);
+      skipped = num(stats.cardsSkipped);
+    }
+
+    var heat = stats.heat !== undefined && stats.heat !== null
+      ? clamp(num(stats.heat), 0, 100)
+      : (ledger.meta && ledger.meta.heat !== undefined ? clamp(num(ledger.meta.heat), 0, 100) : -1);
+    var curve = [];
+    var running = 0;
+    prompts.forEach(function (p) {
+      if (p.outcome === "skipped") {
+        if (p.kind !== "minigame-thermo" && p.kind !== "minigame-wheel") running += 3;
+      } else if (p.kind === "ending") running += 10;
+      else if (p.kind === "minigame-thermo" || p.kind === "minigame-wheel") running += 5;
+      else running += 8;
+      curve.push(clamp(running, 0, 100));
+    });
+    if (heat < 0) heat = curve.length ? curve[curve.length - 1] : 0;
+    if (curve.length < 2) {
+      curve = [0, heat];
+      if (curve[1] < curve[0]) curve[1] = curve[0];
+    } else if (heat > curve[curve.length - 1]) {
+      curve.push(heat);
+    }
+
+    var best = 0;
+    if (stats.bestStreak !== undefined) best = num(stats.bestStreak);
+    else if (ledger.meta && ledger.meta.streakBest !== undefined) best = num(ledger.meta.streakBest);
+    if (!best) {
+      var run = 0;
+      cards.forEach(function (p) {
+        if (p.outcome !== "skipped") { run += 1; if (run > best) best = run; }
+        else run = 0;
+      });
+    }
+
+    var miniDone = 0, miniSkipped = 0;
+    minis.forEach(function (m) { if (miniOutcome(m) === "跳过") miniSkipped += 1; else miniDone += 1; });
+
+    return {
+      ledger: ledger,
+      entry: entry,
+      names: names,
+      nameA: names.a || "他",
+      nameB: names.b || "她",
+      date: dateText(ledger, entry),
+      scale: scaleText(ledger.scale),
+      duration: durationText(ledger),
+      cards: cards,
+      minis: minis,
+      done: done,
+      skipped: skipped,
+      total: done + skipped,
+      heat: heat,
+      stage: stageOf(heat),
+      best: best,
+      miniDone: miniDone,
+      miniSkipped: miniSkipped,
+      curve: curve
+    };
+  }
+
+  function curveSvg(points, heat) {
+    var W = 320, H = 64, pad = 5;
+    var max = 100;
+    var n = points.length;
+    var coords = points.map(function (v, i) {
+      var x = n <= 1 ? pad : pad + (W - pad * 2) * (i / (n - 1));
+      var y = H - pad - (H - pad * 2) * (clamp(v, 0, max) / max);
+      return [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
+    });
+    var line = coords.map(function (c, i) { return (i ? "L" : "M") + c[0] + " " + c[1]; }).join(" ");
+    var area = line + " L" + coords[coords.length - 1][0] + " " + (H - pad) + " L" + coords[0][0] + " " + (H - pad) + " Z";
+    var last = coords[coords.length - 1];
+    return '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="心动值曲线" data-test="heat-curve">' +
+      '<defs><linearGradient id="lgHeatV6" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" stop-color="#F3C077" stop-opacity=".42"/>' +
+      '<stop offset="1" stop-color="#F3C077" stop-opacity="0"/>' +
+      "</linearGradient></defs>" +
+      '<path d="' + area + '" fill="url(#lgHeatV6)"/>' +
+      '<path d="' + line + '" fill="none" stroke="#F3C077" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="3" fill="#E9887A"/>' +
+      '<text x="' + Math.min(W - 6, last[0] + 5) + '" y="' + Math.max(11, last[1] - 6) + '" fill="#C9B6CE" font-size="9" text-anchor="end">' + num(heat) + "</text>" +
+      "</svg>";
+  }
+
+  function renderRows(model) {
+    if (!model.cards.length) {
+      return '<div class="lg-empty" data-test="ledger-empty">今晚还没有落下任何一张。这一晚仍然算数。</div>';
+    }
+    return '<div class="lg-list">' + model.cards.map(function (p, i) {
+      var who = actorName(p, model.names);
+      var type = TYPE[p.kind] || "题目";
+      var star = clamp(Math.round(num(p.star || (p.card && p.card.star))), 0, 5);
+      var result = p.outcome === "skipped" ? "今晚先放过" : "做了";
+      var text = p.text || (p.card && p.card.text) || "这一张只记了类型和结果。";
+      return '<div class="lg-item" data-test="ledger-prompt">' +
+        '<button class="lg-row" type="button" data-act="expand" aria-expanded="false" data-test="ledger-prompt-toggle">' +
+          '<span class="lg-row-main"><span class="lg-who">' + esc(who) + "</span> · " + esc(type) + " · " + star + "★ · " +
+            '<span class="lg-res' + (p.outcome === "skipped" ? " skipped" : "") + '">' + esc(result) + "</span></span>" +
+          '<span class="lg-row-toggle" data-test="ledger-prompt-expand">展开原文</span>' +
+        "</button>" +
+        '<div class="lg-row-text" hidden>' + esc(text) + "</div>" +
+        "</div>";
+    }).join("") + "</div>";
+  }
+
+  function renderMinis(model) {
+    if (!model.minis.length) {
+      return '<div class="lg-empty" data-test="ledger-minigame-empty">今晚没有小游戏。</div>';
+    }
+    return '<div class="lg-mini" data-test="ledger-minigames">' + model.minis.map(function (m) {
+      var label = miniLabel(m.kind || m.minigame);
+      return '<div class="lg-mini-row" data-test="ledger-minigame">' +
+        '<span class="lg-mini-dot" aria-hidden="true"></span>' +
+        esc(label) + " · " + esc(miniOutcome(m)) +
+        "</div>";
+    }).join("") + "</div>";
+  }
+
+  function emptyPage() {
+    return '<div class="page lg-page" data-test="ledger">' +
+      '<h1 class="lg-title" data-test="ledger-title">今晚回顾</h1>' +
+      '<p class="lg-sub">这一页还空着。</p>' +
+      '<div class="lg-empty" data-test="ledger-empty">今晚还没有落下任何一张。这一晚仍然算数。</div>' +
+      '<div class="lg-actions"><button class="lg-btn main" type="button" data-go="boot">回到开场</button></div>' +
+      "</div>";
+  }
+
+  function errorPage() {
+    return '<div class="page lg-page" data-test="ledger">' +
+      '<h1 class="lg-title">今晚回顾</h1>' +
+      '<div class="lg-empty" data-test="ledger-error">这一页读不出来，先回开场。</div>' +
+      '<div class="lg-actions"><button class="lg-btn main" type="button" data-go="boot">回到开场</button></div>' +
+      "</div>";
   }
 
   App.Screens = App.Screens || {};
   App.Screens.ledger = {
     mount: function (root, params) {
       params = params || {};
-      var entry = find(params.id);
-      var ledger = entry && entry.ledger;
-      var ending = "这页记下了今晚。";
-      if (entry && entry.safe) ending = "安全词收棋。做过的都留在这里。";
-      else if (ledger && ledger.ending === "win-a") ending = (ledger.names.a || "") + " 先把飞机送回家。";
-      else if (ledger && ledger.ending === "win-b") ending = (ledger.names.b || "") + " 先把飞机送回家。";
-      else if (entry && entry.note) ending = entry.note;
-      var prompts = (ledger && ledger.prompts) || [];
-      var lines = prompts.map(function (p) {
-        return '<li class="glass pad-16" style="margin-top:8px"><div class="small dim">' +
-          U.escape(KIND[p.kind] || p.kind || "") + " · " + (p.outcome === "skipped" ? "放过" : "做了") +
-          "</div><div>" + U.escape(p.text || "（这一笔没有句子）") + "</div></li>";
-      }).join("");
-      var moves = "";
-      if (ledger && ledger.moves && ledger.moves.length) {
-        moves = '<div class="small dim mt-16">走子</div><ul>' + ledger.moves.map(function (m) {
-          return "<li class='tiny dim'>" + U.escape((m.kind || "") + " " + (m.die || "") + " " + (m.from || "") + " " + (m.to || "")) + "</li>";
-        }).join("") + "</ul>";
+      injectStyle();
+      var entry = findEntry(params.id);
+      if (!entry && !params.id) entry = entryFromSession();
+      var model = entry ? buildModel(entry) : null;
+      if (!model) {
+        if (params.id || entry) { root.innerHTML = errorPage(); bind(root, null); return; }
+        root.innerHTML = emptyPage(); bind(root, null); return;
       }
+
+      var ledger = model.ledger;
+      var endingNote = ledger.ending === "safe" ? "今晚就到这" : "今晚完成";
+      var doneTitle = ledger.ending === "safe" ? "今晚就到这" : "今晚完成了";
       root.innerHTML =
-        '<div class="page" data-test="ledger">' +
-          '<div class="topbar"><button class="back" data-go="boot">←</button><div class="tb-title">今晚棋谱</div></div>' +
-          '<h1 class="title-xl mt-12">' + U.escape(ending) + "</h1>" +
-          (ledger
-            ? '<p class="muted mt-12">' + U.escape(ledger.date || "") + " · " +
-              U.escape((ledger.names && ledger.names.a) || "") + " " + COLOR[(ledger.colors && ledger.colors.a) || ""] +
-              " / " + U.escape((ledger.names && ledger.names.b) || "") + " " + COLOR[(ledger.colors && ledger.colors.b) || ""] +
-              "<br>" + (SCALE[ledger.scale] || "") + " · " + (ledger.planeCount === 2 ? "快局两架" : "每人四架") +
-              (ledger.boundaries && ledger.boundaries.length ? "<br>今晚不做的：" + U.escape(ledger.boundaries.join("、")) : "") +
-              "</p>"
-            : '<p class="muted mt-12">' + U.escape((entry && entry.title) || "以前的一夜") + "</p>") +
-          '<ul>' + (lines || '<li class="small dim mt-16">这一页没有题目。</li>') + "</ul>" +
-          moves +
-          '<button class="btn primary wide mt-16" data-go="boot">回到开场</button>' +
+        '<div class="page lg-page" data-test="ledger">' +
+          '<div class="lg-done" data-test="ledger-done">' +
+            '<div class="lg-done-title">' + doneTitle + '</div>' +
+            '<div class="lg-done-sub">今晚的记录都留在这儿。</div>' +
+          "</div>" +
+          '<h1 class="lg-title" data-test="ledger-title">今晚回顾</h1>' +
+          '<p class="lg-sub" data-test="ledger-subtitle">' + esc(model.date) + " · " + esc(model.nameA) + " &amp; " + esc(model.nameB) + "</p>" +
+          '<div class="lg-stats" data-test="ledger-stats">' +
+            '<div class="lg-stat"><div class="lg-stat-label">今晚</div><div class="lg-stat-val">' +
+              esc(model.date) + " · " + esc(model.nameA) + " &amp; " + esc(model.nameB) + " · " + esc(model.scale) + "</div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">时长</div><div class="lg-stat-val" data-test="ledger-duration">' + esc(model.duration) + "</div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">题卡</div><div class="lg-stat-val" data-test="ledger-cards">共 <b>' + model.total + "</b> 张 · 做了 <b>" + model.done + "</b> · 放过 <b>" + model.skipped + "</b></div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">心动值</div><div class="lg-stat-val" data-test="ledger-heat"><b>' + model.heat + "</b> · " + esc(model.stage) + "</div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">最高连击</div><div class="lg-stat-val" data-test="ledger-streak">' + model.best + "</div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">小游戏</div><div class="lg-stat-val" data-test="ledger-minigame-count">' +
+              (model.minis.length
+                ? model.minis.length + " 次 · 完成 " + model.miniDone + " · 跳过 " + model.miniSkipped
+                : "今晚没有小游戏。") +
+            "</div></div>" +
+          "</div>" +
+          '<div class="lg-curve" data-test="ledger-timeline">' + curveSvg(model.curve, model.heat) +
+            '<div class="lg-curve-cap"><span>心动值</span><span><b>' + model.heat + "</b> · " + esc(model.stage) + "</span></div>" +
+          "</div>" +
+          '<div class="lg-sec-title">今晚的每一张</div>' +
+          (renderRows(model)) +
+          '<div class="lg-sec-title">小游戏</div>' +
+          (renderMinis(model)) +
+          (ledger.boundaries && ledger.boundaries.length
+            ? '<div class="lg-bound" data-test="ledger-boundaries">今晚不做的：' + esc(ledger.boundaries.join("、")) + "</div>"
+            : "") +
+          '<div class="lg-actions">' +
+            '<button class="lg-btn main" type="button" data-act="save" data-test="ledger-save">保存到以前的夜</button>' +
+            '<button class="lg-btn soft" type="button" data-act="again" data-test="again-night">再开一夜</button>' +
+            '<button class="lg-btn ghost" type="button" data-act="home" data-test="ledger-home">回到开场</button>' +
+            (App.Share ? '<button class="lg-btn ghost small" type="button" data-act="share" data-test="ledger-share">存成图片</button>' : "") +
+          "</div>" +
+          '<div class="lg-foot">' + esc(endingNote) + " · 记录只在这台手机上</div>" +
         "</div>";
-      U.delegate(root, "[data-go]", "click", function (e, el) { App.Router.reset(el.getAttribute("data-go")); });
+
+      bind(root, model);
     }
   };
+
+  function bind(root, model) {
+    root.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var go = t.closest("[data-go]");
+      if (go) {
+        if (App.Router) App.Router.reset("boot");
+        return;
+      }
+      var row = t.closest('[data-act="expand"]');
+      if (row) {
+        var item = row.closest(".lg-item");
+        if (!item) return;
+        var open = item.classList.toggle("open");
+        row.setAttribute("aria-expanded", open ? "true" : "false");
+        var textEl = item.querySelector(".lg-row-text");
+        if (textEl) { if (open) textEl.removeAttribute("hidden"); else textEl.setAttribute("hidden", "hidden"); }
+        var toggle = item.querySelector(".lg-row-toggle");
+        if (toggle) toggle.textContent = open ? "收起原文" : "展开原文";
+        return;
+      }
+      var btn = t.closest("[data-act]");
+      if (!btn || !model) return;
+      var act = btn.getAttribute("data-act");
+      if (act === "save") {
+        saveEntry(model);
+        if (App.Audio) App.Audio.play("chime");
+        if (App.UI && App.UI.toast) App.UI.toast("收进以前的夜了");
+        return;
+      }
+      if (act === "again") {
+        rememberConfig(model.ledger);
+        if (App.Router) App.Router.reset("boot");
+        return;
+      }
+      if (act === "home") {
+        if (App.Router) App.Router.reset("boot");
+        return;
+      }
+      if (act === "share") {
+        share(model);
+      }
+    });
+  }
+
+  function saveEntry(model) {
+    if (!App.Store || !App.Store.addHistory) return;
+    var ledger = model.ledger;
+    var entry = model.entry || {};
+    var id = entry.id || ("flight-" + (ledger.endedAt || Date.now()));
+    var list = App.Store.getHistory();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === id) return;
+    }
+    App.Store.addHistory({
+      id: id,
+      ts: ledger.endedAt || entry.ts || Date.now(),
+      kind: "flight",
+      title: "今晚飞行棋",
+      names: ledger.names || entry.names || { a: model.nameA, b: model.nameB },
+      endingName: ledger.ending === "safe" ? "今晚就到这" : "今晚完成",
+      note: "",
+      safe: ledger.ending === "safe",
+      ledger: ledger
+    });
+  }
+
+  function rememberConfig(ledger) {
+    try {
+      if (!App.Store || !App.Store.saveSettings || !ledger) return;
+      var patch = {};
+      if (ledger.names && ledger.names.a && ledger.names.b) patch.names = { a: ledger.names.a, b: ledger.names.b };
+      if (ledger.colors && ledger.colors.a && ledger.colors.b) patch.colors = { a: ledger.colors.a, b: ledger.colors.b };
+      if (ledger.scale) patch.scale = ledger.scale;
+      if (ledger.planeCount === 2 || ledger.planeCount === 4) patch.lastPlaneCount = ledger.planeCount;
+      if (ledger.mode === "quick" || ledger.mode === "long") patch.mode = ledger.mode;
+      if (Object.keys(patch).length) App.Store.saveSettings(patch);
+    } catch (e) {
+      if (window.console) console.error("[ledger] rememberConfig", e);
+    }
+  }
+
+  function share(model) {
+    if (!App.Share || !App.Share.exportLedger) return;
+    try {
+      var ret = App.Share.exportLedger(model.ledger);
+      if (App.UI && App.UI.toast) {
+        if (ret && ret.then) ret.then(function (r) { if (r && r.ok) App.UI.toast("存成图片了"); }).catch(function () { App.UI.toast("图片没存下来"); });
+        else if (ret && ret.ok) App.UI.toast("存成图片了");
+      }
+    } catch (e) {
+      if (window.console) console.error("[ledger] share", e);
+      if (App.UI && App.UI.toast) App.UI.toast("图片没存下来");
+    }
+  }
 })();

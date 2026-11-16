@@ -18,3 +18,8 @@ arcade/_legacy-v17.html
 app3d/node_modules/
 app3d/dist/
 app/render/node_modules/
+
+# QA 临时产物（截图/缓存/探针），不入库
+qa/v6/shots/
+qa/v6/__pycache__/
+qa/v6/_probe*.py

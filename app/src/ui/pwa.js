@@ -140,7 +140,7 @@
     btn.setAttribute("aria-label", "装到桌面");
     btn.innerHTML = '<i aria-hidden="true">📲</i><span>装到桌面</span>';
     btn.addEventListener("click", function () {
-      if (isInstalled()) { toast("已经装到桌面了 · 从主屏打开即可"); return; }
+      if (isInstalled()) { toast("已经装到桌面了，从主屏打开就行"); return; }
       if (canPrompt()) promptInstall();
       else showInstall();
     });
@@ -176,7 +176,7 @@
       if (choice && typeof choice.then === "function") {
         choice.then(function (r) {
           if (r && r.outcome === "accepted") {
-            toast("📲 正在安装…");
+            toast("正在安装…");
           } else {
             toast("已取消安装");
           }
@@ -214,7 +214,7 @@
   }
 
   function showInstall() {
-    if (isInstalled()) { toast("已经装到桌面了 · 从主屏打开即可"); return; }
+    if (isInstalled()) { toast("已经装到桌面了，从主屏打开就行"); return; }
     var p = platform();
     var steps = stepsFor(p);
     var list = steps.map(function (s, i) {
@@ -253,7 +253,7 @@
   function notifyUpdateOnce() {
     if (STATE.updateToasted) return;
     STATE.updateToasted = true;
-    toast("✨ 新版本已就绪，重开一次生效");
+    toast("新版本已就绪，重开一次生效");
   }
 
   function watchUpdate(reg) {
@@ -302,20 +302,20 @@
     window.addEventListener("appinstalled", function () {
       STATE.installed = true;
       STATE.deferred = null;
-      toast("📲 已添加到桌面");
+      toast("已添加到桌面");
       syncPill();
     });
 
     window.addEventListener("offline", function () {
       if (STATE.online === false) return;
       STATE.online = false;
-      toast("📴 已离线 · 这盘棋仍可继续");
+      toast("已离线 · 这盘棋仍可继续");
     });
 
     window.addEventListener("online", function () {
       if (STATE.online === true) return;
       STATE.online = true;
-      toast("🌐 已恢复联网");
+      toast("已恢复联网");
     });
   }
 

@@ -1,0 +1,310 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今晚飞行棋 · 方向 B · boot</title>
+<style>
+  :root{
+    --paper:#F5EBD9;
+    --paper-hi:#FCF5E8;
+    --paper-lo:#EBDCBF;
+    --ink:#33261F;
+    --ink-soft:#6A5344;
+    --ink-faint:#947C68;
+    --wine:#7B2231;
+    --wine-deep:#5E1620;
+    --wax:#8E2432;
+    --gold:#B08D57;
+    --red:#B2473F;
+    --yellow:#B8892F;
+    --blue:#3F5C8A;
+    --green:#4F7B5A;
+    --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+    --kai:"STKaiti","KaiTi","Kaiti SC","Noto Serif SC",serif;
+    --sans:"Noto Sans SC","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:932px;overflow:hidden;background:#E7D7B9}
+  body{font-family:var(--serif);color:var(--ink)}
+  .stage{
+    position:relative;width:430px;height:932px;margin:0 auto;overflow:hidden;
+    background:
+      radial-gradient(120% 72% at 50% -6%, #FCF6E9 0%, #F6ECDA 46%, #EFE1C6 100%),
+      linear-gradient(180deg,#F7EEDD,#EDDFC4);
+  }
+  .stage::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 70px rgba(146,106,64,.14),inset 0 0 6px rgba(120,80,50,.18);
+  }
+  .blotch{
+    position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background:
+      radial-gradient(30% 22% at 84% 12%, rgba(176,141,87,.14), transparent 70%),
+      radial-gradient(34% 26% at 12% 78%, rgba(160,120,70,.10), transparent 72%),
+      radial-gradient(26% 18% at 66% 96%, rgba(123,34,49,.06), transparent 70%);
+  }
+  .grain{
+    position:absolute;inset:0;pointer-events:none;opacity:.30;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23p)' opacity='0.22'/%3E%3C/svg%3E");
+  }
+  .frame{position:absolute;inset:14px;border:1px solid rgba(123,34,49,.34);pointer-events:none}
+  .frame::after{content:"";position:absolute;inset:5px;border:1px solid rgba(123,34,49,.17)}
+  .frame i{position:absolute;width:9px;height:9px;border:0 solid rgba(123,34,49,.45)}
+  .frame i:nth-child(1){left:-1px;top:-1px;border-left-width:2px;border-top-width:2px}
+  .frame i:nth-child(2){right:-1px;top:-1px;border-right-width:2px;border-top-width:2px}
+  .frame i:nth-child(3){left:-1px;bottom:-1px;border-left-width:2px;border-bottom-width:2px}
+  .frame i:nth-child(4){right:-1px;bottom:-1px;border-right-width:2px;border-bottom-width:2px}
+
+  main{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;
+    padding:44px 34px 30px}
+
+  /* ---------- 抬头 ---------- */
+  .head{display:flex;justify-content:space-between;align-items:flex-start;min-height:92px}
+  .head .left{padding-top:4px}
+  .eyebrow{font-family:var(--sans);font-size:9.5px;letter-spacing:.36em;color:var(--wine);font-weight:700}
+  .no{margin-top:8px;font-family:var(--sans);font-size:10px;letter-spacing:.18em;color:var(--ink-faint)}
+  .stamp{
+    position:relative;width:66px;height:78px;margin:-2px 2px 0 0;transform:rotate(3.4deg);
+    background:linear-gradient(150deg,#FBF3E2,#F1E3C9);
+    box-shadow:0 2px 6px rgba(90,60,35,.16);
+  }
+  .stamp-in{
+    position:absolute;inset:6px;border:1px solid rgba(123,34,49,.5);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .stamp-in svg{width:16px;height:16px;opacity:.75}
+  .stamp-k{font-family:var(--sans);font-size:8px;letter-spacing:.3em;color:var(--wine);text-indent:.3em}
+  .stamp-v{font-family:var(--serif);font-size:19px;line-height:1;color:var(--wine);font-weight:600}
+  .stamp-p{font-family:var(--sans);font-size:7px;letter-spacing:.14em;color:var(--ink-faint)}
+  .postmark{
+    position:absolute;right:86px;top:44px;width:64px;height:64px;border-radius:50%;
+    border:1px solid rgba(52,38,31,.45);transform:rotate(-13deg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  }
+  .postmark::before{content:"";position:absolute;inset:4px;border:1px solid rgba(52,38,31,.26);border-radius:50%}
+  .postmark b{font-family:var(--sans);font-size:11px;letter-spacing:.1em;color:rgba(52,38,31,.8)}
+  .postmark span{font-family:var(--sans);font-size:6.5px;letter-spacing:.18em;color:rgba(52,38,31,.55)}
+  .waves{position:absolute;right:144px;top:86px;width:96px;height:22px;transform:rotate(-8deg);opacity:.5}
+
+  /* ---------- 正文 ---------- */
+  .to{display:flex;align-items:center;gap:10px;margin-top:6px;
+    font-family:var(--kai);font-size:14px;letter-spacing:.12em;color:var(--wine)}
+  .to .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(123,34,49,.34),rgba(123,34,49,0))}
+  h1{
+    margin:18px 0 0;font-weight:600;font-size:53px;line-height:1.16;
+    letter-spacing:.10em;color:var(--ink);
+    text-shadow:0 1px 0 rgba(255,252,244,.9);
+  }
+  .sub{margin:16px 0 0;font-size:15px;line-height:1.9;letter-spacing:.07em;color:var(--ink-soft)}
+  .sub .k{font-family:var(--kai);font-size:15.5px;color:var(--wine);letter-spacing:.08em}
+  .orn{display:flex;align-items:center;gap:12px;margin:22px 0 0}
+  .orn span{flex:1;height:1px;background:rgba(123,34,49,.28)}
+  .orn svg{width:15px;height:15px;opacity:.7}
+
+  /* ---------- 手绘草图 ---------- */
+  .sketch{margin:12px 0 0;display:flex;flex-direction:column;align-items:center}
+  .sketch svg{width:330px;height:248px;display:block}
+  .sketch .cap{font-family:var(--kai);font-size:12px;letter-spacing:.16em;color:rgba(123,34,49,.62);margin-top:-2px}
+
+  .grow{flex:1}
+  .setup{
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    font-family:var(--kai);font-size:13px;letter-spacing:.06em;color:var(--ink-soft);
+    padding:11px 0;border-top:1px solid rgba(123,34,49,.22);border-bottom:1px solid rgba(123,34,49,.22);
+  }
+  .setup b{color:var(--ink);font-weight:600}
+  .setup i{width:1px;height:12px;background:rgba(123,34,49,.24)}
+  .setup .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:1px}
+  .setup .dot.r{background:var(--red)}
+  .setup .dot.y{background:var(--yellow)}
+  /* ---------- 主按钮 ---------- */
+  .cta{
+    margin-top:16px;height:56px;width:100%;border:0;border-radius:7px;cursor:pointer;
+    background:linear-gradient(175deg,#8A2A3A,#711E2C 62%,#5F1621);
+    color:#FBF1DF;font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:.3em;text-indent:.3em;
+    box-shadow:
+      0 0 0 1px rgba(255,238,210,.22) inset,
+      0 8px 18px rgba(94,22,32,.24),
+      0 1px 0 rgba(255,255,255,.25);
+    position:relative;
+  }
+  .cta::after{
+    content:"";position:absolute;inset:4px;border:1px solid rgba(240,214,176,.28);border-radius:4px;pointer-events:none;
+  }
+  .hint{margin:10px 0 0;text-align:center;font-family:var(--kai);font-size:11.5px;letter-spacing:.1em;color:var(--ink-faint)}
+  .links{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:14px}
+  .links a{
+    font-family:var(--sans);font-size:11px;letter-spacing:.16em;color:var(--wine);text-decoration:none;
+    border-bottom:1px dotted rgba(123,34,49,.5);padding-bottom:2px;
+  }
+  .links span{width:3px;height:3px;border-radius:50%;background:rgba(123,34,49,.35)}
+  .sign{margin-top:20px;display:flex;align-items:center;gap:12px}
+  .seal-wrap{position:relative;width:54px;height:54px;flex:none;transform:rotate(-7deg)}
+  .seal-bg{
+    position:absolute;inset:0;border-radius:50%;filter:url(#wax);
+    background:radial-gradient(circle at 36% 30%,#A83A45,#7C1F2C 58%,#5E1620);
+    box-shadow:0 4px 10px rgba(80,20,28,.35),0 0 0 3px rgba(94,22,32,.10);
+  }
+  .seal-txt{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-weight:600;font-size:20px;color:rgba(255,232,210,.92);
+    text-shadow:0 1px 0 rgba(70,10,18,.55),0 -1px 0 rgba(255,220,190,.25);letter-spacing:0;
+  }
+  .sign .lines{flex:1;font-family:var(--kai);font-size:11.5px;line-height:1.7;color:var(--ink-faint);letter-spacing:.08em}
+  .sign .lines b{display:block;font-family:var(--kai);font-size:13px;color:var(--ink-soft);font-weight:400;letter-spacing:.1em}
+  .sign .date{font-family:var(--sans);font-size:9px;letter-spacing:.14em;color:var(--ink-faint);text-align:right;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="blotch"></div>
+  <div class="grain"></div>
+  <div class="frame"><i></i><i></i><i></i><i></i></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="wax" x="-30%" y="-30%" width="160%" height="160%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="2" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <main>
+    <header class="head">
+      <div class="left">
+        <div class="eyebrow">TONIGHT · LETTER</div>
+        <div class="no">第 006 夜 / 共 12 封</div>
+      </div>
+      <div class="stamp" id="stamp">
+        <div class="stamp-in">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7B2231" stroke-width="1.4">
+            <path d="M12 20s-7.4-4.6-7.4-10A4.2 4.2 0 0 1 12 7.2 4.2 4.2 0 0 1 19.4 10c0 5.4-7.4 10-7.4 10z"/>
+          </svg>
+          <div class="stamp-k">今晚</div>
+          <div class="stamp-v">06</div>
+          <div class="stamp-p">2.00</div>
+        </div>
+      </div>
+      <div class="postmark">
+        <b>11.16</b>
+        <span>22:40</span>
+      </div>
+      <svg class="waves" viewBox="0 0 96 22" fill="none" stroke="rgba(52,38,31,.55)" stroke-width="1">
+        <path d="M2 5c9 6 18-6 27 0s18-6 27 0 18-6 27 0"/>
+        <path d="M2 11c9 6 18-6 27 0s18-6 27 0 18-6 27 0"/>
+        <path d="M2 17c9 6 18-6 27 0s18-6 27 0 18-6 27 0"/>
+      </svg>
+    </header>
+
+    <div class="to"><span>致 · 今晚的我们</span><span class="rule"></span></div>
+
+    <h1>今晚飞行棋</h1>
+    <p class="sub">两个人，一部手机，一盘桌上的棋。<br>
+      <span class="k">今晚把没说完的话，交给骰子。</span>
+    </p>
+
+    <div class="orn">
+      <span></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#7B2231" stroke-width="1.3">
+        <path d="M12 20s-7.4-4.6-7.4-10A4.2 4.2 0 0 1 12 7.2 4.2 4.2 0 0 1 19.4 10c0 5.4-7.4 10-7.4 10z"/>
+      </svg>
+      <span></span>
+    </div>
+
+    <div class="sketch">
+      <svg viewBox="0 0 330 248" fill="none" aria-hidden="true">
+        <g stroke="#7B2231" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M165 26c62-2 124 44 126 100 2 54-54 96-124 96S39 178 39 124 103 28 165 26z"
+            stroke-width="1.1" stroke-dasharray="3 7" opacity=".5"/>
+          <path d="M165 40c52 0 106 38 108 88 2 48-46 84-108 84S57 176 57 128 113 40 165 40z"
+            stroke-width=".8" opacity=".22"/>
+          <path d="M165 94c-6-8-18-6-18 4 0 7 9 13 18 20 9-7 18-13 18-20 0-10-12-12-18-4z"
+            stroke="#8E2432" stroke-width="1.3" opacity=".9"/>
+          <path d="M165 124l0 10" stroke-width="1" opacity=".45"/>
+          <text x="165" y="152" text-anchor="middle" font-family="STKaiti,KaiTi,serif" font-size="12"
+            fill="#7B2231" opacity=".8" stroke="none">终 点</text>
+          <g opacity=".8">
+            <path d="M232 78l30-12c2-.8 3 1.4 1.6 2.9l-18 26c-1 1.4-3 .9-3.4-.8l-2.4-8.4-8.6-4.2c-1.8-.9-1.4-3.4.8-3.5z" stroke-width="1.2"/>
+            <path d="M222 96c-7 3-12 8-15 14" stroke-width="1" stroke-dasharray="2 5" opacity=".6"/>
+          </g>
+          <g opacity=".65">
+            <path d="M96 168l-24 11c-1.6.7-2.4-1.2-1.2-2.4l15-15c.9-.9 2.4-.5 2.7.7l1.8 6.7 6.9 3.3c1.4.7 1.1 2.7-.6 2.7z" stroke-width="1.1"/>
+            <path d="M106 156c6-2 10-6 13-11" stroke-width="1" stroke-dasharray="2 5" opacity=".55"/>
+          </g>
+          <g stroke-width="1" opacity=".55">
+            <path d="M165 52l0 8M165 196l0 8M93 124l8 0M237 124l8 0"/>
+            <circle cx="165" cy="124" r="3" fill="#7B2231" stroke="none" opacity=".55"/>
+          </g>
+          <g fill="#B2473F" stroke="none" opacity=".85">
+            <circle cx="165" cy="34" r="2.4"/>
+          </g>
+          <g fill="#B8892F" stroke="none" opacity=".85">
+            <circle cx="259" cy="124" r="2.4"/>
+          </g>
+          <g fill="#3F5C8A" stroke="none" opacity=".85">
+            <circle cx="165" cy="214" r="2.4"/>
+          </g>
+          <g fill="#4F7B5A" stroke="none" opacity=".85">
+            <circle cx="71" cy="124" r="2.4"/>
+          </g>
+        </g>
+      </svg>
+      <div class="cap">今晚的航线 · 草稿</div>
+    </div>
+
+    <div class="grow"></div>
+
+    <div class="setup">
+      <span><i class="dot r"></i>他 · <b>红方</b></span><i></i>
+      <span><i class="dot y"></i>她 · <b>黄方</b></span><i></i>
+      <span>尺度 · <b>暧昧</b></span>
+    </div>
+    <button class="cta" type="button">摆上棋盘</button>
+    <p class="hint">骰子落桌之前，都不算数。</p>
+
+    <nav class="links">
+      <a href="#">以前的夜</a><span></span>
+      <a href="#">小游戏</a><span></span>
+      <a href="#">设置</a>
+    </nav>
+
+    <div class="sign">
+      <div class="seal-wrap">
+        <div class="seal-bg"></div>
+        <div class="seal-txt">今</div>
+      </div>
+      <div class="lines">
+        <b>今晚的这封信，写给你。</b>
+        长按「先收棋」，随时可以停。
+      </div>
+      <div class="date">11 / 16<br>22:40</div>
+    </div>
+  </main>
+</div>
+<script>
+  (function () {
+    var el = document.getElementById('stamp');
+    var w = 66, h = 78, step = 5.5, depth = 4.6, pts = [];
+    function edge(x1, y1, x2, y2, axis) {
+      var len = Math.hypot(x2 - x1, y2 - y1);
+      var n = Math.max(2, Math.round(len / step));
+      for (var i = 0; i <= n; i++) {
+        var t = i / n, x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+        var d = (i % 2 === 0) ? depth : 0;
+        if (axis === 'top') y = d;
+        else if (axis === 'bottom') y = h - d;
+        else if (axis === 'left') x = d;
+        else x = w - d;
+        pts.push(x.toFixed(1) + 'px ' + y.toFixed(1) + 'px');
+      }
+    }
+    edge(0, 0, w, 0, 'top');
+    edge(w, 0, w, h, 'right');
+    edge(w, h, 0, h, 'bottom');
+    edge(0, h, 0, 0, 'left');
+    el.style.clipPath = 'polygon(' + pts.join(',') + ')';
+    el.style.webkitClipPath = 'polygon(' + pts.join(',') + ')';
+  })();
+</script>
+</body>
+</html>
+

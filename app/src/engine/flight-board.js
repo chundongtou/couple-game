@@ -7,6 +7,10 @@
  * 黄 takeoff ring:13 进航 ring:11  飞点 ring:33 → ring:45 → 再跳 ring:49  禁跳 ring:9
  * 蓝 takeoff ring:26 进航 ring:24  飞点 ring:46 → ring:6  → 再跳 ring:10  禁跳 ring:22
  * 绿 takeoff ring:39 进航 ring:37  飞点 ring:7  → ring:19 → 再跳 ring:23  禁跳 ring:35
+ *
+ * V6 命运格（docs/v6/impl-freeze.md §2.3）：候选 7/31，但 ring:7 是绿方飞点、
+ * 与功能格冲突，按冻结单退路改用 FATE_CELLS = [5, 29]。命运格不再自动跳格，
+ * 落定后由引擎给两张不同池的卡二选一（prompt.kind='fate'）。
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -17,7 +21,7 @@
   var TAKEOFF = { red: 0, yellow: 13, blue: 26, green: 39 };
   var HOME_STEPS = 5;
 
-  /* 主路线出题约八成：40/52。
+  /* 主路线出题约八成：39 题/小游戏 + 2 命运 = 41/52。
    * 这是本轮对「普通格不出题」的显式变更，不是 A1–A3 或叠机击落开关。
    * 起飞、飞点、进航共 12 格不出普通题，短字仍是功能名。
    * 禁跳、飞后再跳会出题，但印刷层仍写停/跳，不改成看不出功能的题格。
@@ -34,6 +38,10 @@
     14: 'wheel', 40: 'wheel'
   };
   var WHEEL_KIND = { 14: 'truth-wheel', 40: 'dare-wheel' };
+
+  /* V6 命运格：候选 7/31 中 7 是飞点，冲突 → 用冻结单退路 5/29。 */
+  var FATE_CELLS = [5, 29];
+  FATE_CELLS.forEach(function (n) { CELL_KIND[n] = 'fate'; });
 
   function mod(n) { return ((n % 52) + 52) % 52; }
 
@@ -74,14 +82,17 @@
     var color = colorOfRing(n);
     var fly = isFlyIndex(n);
     var forbid = isForbidden(n);
+    var fate = FATE_CELLS.indexOf(n) >= 0;
     add({
       id: 'ring:' + n,
       kind: CELL_KIND[n] || 'ring',
       color: color,
       wheel: WHEEL_KIND[n] || null,
       isFly: fly,
-      jumpTo: forbid ? null : ('ring:' + mod(n + 4)),
-      flyTo: fly ? ('ring:' + mod(n + 12)) : null
+      /* 命运格是功能格：不自动跳格，落定后由引擎发二选一题卡。 */
+      jumpTo: (forbid || fate) ? null : ('ring:' + mod(n + 4)),
+      flyTo: fly ? ('ring:' + mod(n + 12)) : null,
+      fate: fate
     });
   }
 
@@ -132,6 +143,7 @@
   var BOARD = {
     colors: COLORS.slice(),
     homeSteps: HOME_STEPS,
+    fateCells: FATE_CELLS.slice(),
     squares: squares,
     takeoffOf: takeoffOf,
     homeEntryOf: homeEntryOf,
@@ -170,6 +182,7 @@
     COLORS: COLORS,
     TAKEOFF: TAKEOFF,
     HOME_STEPS: HOME_STEPS,
+    FATE_CELLS: FATE_CELLS,
     map: function () { return BOARD; },
     square: square,
     parseSquare: parseSquare,

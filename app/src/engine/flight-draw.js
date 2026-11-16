@@ -195,18 +195,34 @@
     if (purpose === 'cell-truth') return ['truth'];
     if (purpose === 'cell-dare') return ['dare'];
     if (purpose === 'cell-touch') return ['touch'];
+    if (purpose === 'truth') return ['truth'];
+    if (purpose === 'dare') return ['dare'];
+    if (purpose === 'touch') return ['touch'];
+    if (purpose === 'sync') return ['sync'];
+    if (purpose === 'spark') return ['spark'];
+    if (purpose === 'fate') return fatePools(cap);
     if (purpose === 'capture') {
       var caps = ['dare', 'touch', 'truth'];
-      if (cap >= 3) caps.push('spark');
+      /* V6 尺度区分：spark 池只对「不设限」开放（AUD-13）。 */
+      if (cap >= 4) caps.push('spark');
       return caps;
     }
     if (purpose === 'stack-duo') return ['sync', 'touch'];
     if (purpose === 'home-entry' || purpose === 'ending') {
       var home = ['truth', 'touch', 'dare'];
-      if (cap >= 3) home.push('spark');
+      if (cap >= 4) home.push('spark');
       return home;
     }
     return ['truth'];
+  }
+
+  /* 命运格：两个不同池各抽一张，二选一；尺度越高越靠近 spark。
+   * 温柔/暧昧 = 真心话 + 靠近；热烈 = 大冒险 + 真心话；不设限 = spark + 真心话。 */
+  function fatePools(cap) {
+    var n = Number(cap) || 2;
+    if (n >= 4) return ['spark', 'cell-truth'];
+    if (n >= 3) return ['cell-dare', 'cell-truth'];
+    return ['cell-touch', 'cell-truth'];
   }
 
   function fallback(state) {
@@ -254,6 +270,7 @@
     band: band,
     take: take,
     poolsFor: poolsFor,
+    fatePools: fatePools,
     weightOf: weightOf
   };
 })(typeof window !== 'undefined' ? window : this);
