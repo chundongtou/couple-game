@@ -17,11 +17,19 @@
   var TAKEOFF = { red: 0, yellow: 13, blue: 26, green: 39 };
   var HOME_STEPS = 5;
 
-  /* 题格：避开起飞、飞点、飞的终点、进航格、禁跳格。 */
+  /* 主路线出题约八成：40/52。
+   * 这是本轮对「普通格不出题」的显式变更，不是 A1–A3 或叠机击落开关。
+   * 起飞、飞点、进航共 12 格不出普通题，短字仍是功能名。
+   * 禁跳、飞后再跳会出题，但印刷层仍写停/跳，不改成看不出功能的题格。
+   * 跳、飞、进航的坐标不在这里重算。 */
   var CELL_KIND = {
-    2: 'truth', 16: 'truth', 28: 'truth', 42: 'truth',
-    4: 'dare', 18: 'dare', 30: 'dare', 44: 'dare',
-    8: 'touch', 21: 'touch', 34: 'touch', 47: 'touch',
+    1: 'truth', 2: 'truth', 5: 'truth', 9: 'truth', 12: 'truth',
+    16: 'truth', 17: 'truth', 23: 'truth', 25: 'truth', 28: 'truth',
+    31: 'truth', 38: 'truth', 42: 'truth', 43: 'truth', 51: 'truth',
+    4: 'dare', 6: 'dare', 15: 'dare', 18: 'dare', 19: 'dare',
+    22: 'dare', 27: 'dare', 30: 'dare', 32: 'dare', 35: 'dare',
+    41: 'dare', 44: 'dare', 45: 'dare', 48: 'dare', 49: 'dare',
+    3: 'touch', 8: 'touch', 21: 'touch', 29: 'touch', 34: 'touch', 47: 'touch',
     10: 'thermo', 36: 'thermo',
     14: 'wheel', 40: 'wheel'
   };

@@ -1474,11 +1474,19 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
   var TAKEOFF = { red: 0, yellow: 13, blue: 26, green: 39 };
   var HOME_STEPS = 5;
 
-  /* 题格：避开起飞、飞点、飞的终点、进航格、禁跳格。 */
+  /* 主路线出题约八成：40/52。
+   * 这是本轮对「普通格不出题」的显式变更，不是 A1–A3 或叠机击落开关。
+   * 起飞、飞点、进航共 12 格不出普通题，短字仍是功能名。
+   * 禁跳、飞后再跳会出题，但印刷层仍写停/跳，不改成看不出功能的题格。
+   * 跳、飞、进航的坐标不在这里重算。 */
   var CELL_KIND = {
-    2: 'truth', 16: 'truth', 28: 'truth', 42: 'truth',
-    4: 'dare', 18: 'dare', 30: 'dare', 44: 'dare',
-    8: 'touch', 21: 'touch', 34: 'touch', 47: 'touch',
+    1: 'truth', 2: 'truth', 5: 'truth', 9: 'truth', 12: 'truth',
+    16: 'truth', 17: 'truth', 23: 'truth', 25: 'truth', 28: 'truth',
+    31: 'truth', 38: 'truth', 42: 'truth', 43: 'truth', 51: 'truth',
+    4: 'dare', 6: 'dare', 15: 'dare', 18: 'dare', 19: 'dare',
+    22: 'dare', 27: 'dare', 30: 'dare', 32: 'dare', 35: 'dare',
+    41: 'dare', 44: 'dare', 45: 'dare', 48: 'dare', 49: 'dare',
+    3: 'touch', 8: 'touch', 21: 'touch', 29: 'touch', 34: 'touch', 47: 'touch',
     10: 'thermo', 36: 'thermo',
     14: 'wheel', 40: 'wheel'
   };
@@ -3433,7 +3441,8 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
     ".hud-btn{pointer-events:auto}",
     ".table-actions{position:absolute;left:12px;right:12px;bottom:calc(18px + var(--safe-b));z-index:6;",
     "display:flex;flex-direction:column;gap:8px}",
-    ".piece-choices{display:flex;flex-wrap:wrap;gap:8px}",
+    ".piece-choices{display:flex;flex-direction:column;gap:8px}",
+    ".piece-hint{color:#fff8ee;text-align:center;margin:0}",
     ".table-root .prompt-dock{z-index:8}"
   ].join("");
 
@@ -3504,13 +3513,18 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
         renderActions();
       }
 
+      var COLOR_NAME = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
+
       function renderActions() {
         paintTurn();
         cardHost.innerHTML = "";
         actions.innerHTML = "";
         actions.style.display = "";
-        if (busy) return;
         var wait = state.awaiting || {};
+        if (App.BoardView && App.BoardView.setChoices) {
+          App.BoardView.setChoices(!busy && wait.type === "choose-piece" ? (wait.pieceIds || []) : []);
+        }
+        if (busy) return;
         if (wait.type === "prompt" || wait.type === "ending-prompt") {
           actions.style.display = "none";
           App.PromptCard.open(cardHost, wait.prompt, state, {
@@ -3527,11 +3541,14 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
           return;
         }
         if (wait.type === "choose-piece") {
-          var html = '<div class="piece-choices">';
+          var html = '<p class="piece-hint">点亮着的飞机，或点下面一架</p><div class="piece-choices">';
           (wait.pieceIds || []).forEach(function (id) {
             var piece = state.pieces.filter(function (p) { return p.id === id; })[0];
-            var label = (piece ? ({ red: "红", yellow: "黄", blue: "蓝", green: "绿" })[piece.color] : "") + " " + id;
-            html += '<button class="btn soft" data-piece="' + id + '">' + label + "</button>";
+            var slot = id.split(":")[1];
+            var name = piece ? (COLOR_NAME[piece.color] || "") : "";
+            var where = piece && String(piece.squareId).indexOf("hangar:") === 0 ? "从机坪起飞" : "沿航线走";
+            var label = name + " · 第" + (Number(slot) + 1) + "架 · " + where;
+            html += '<button class="btn soft wide" data-piece="' + id + '">' + label + "</button>";
           });
           html += "</div>";
           actions.innerHTML = html;
@@ -3542,6 +3559,12 @@ body.reduce .win-rain, body.reduce .lamp-glow, body.reduce .rotor { animation: n
         }
       }
 
+      boardEl.addEventListener("board-pick", function (e) {
+        if (busy) return;
+        var id = e.detail && e.detail.pieceId;
+        if (!id || !state.awaiting || state.awaiting.type !== "choose-piece") return;
+        commit(App.Flight.move(state, id));
+      });
       actions.addEventListener("click", function (e) {
         var roll = e.target.closest("[data-act=roll]");
         var piece = e.target.closest("[data-piece]");
