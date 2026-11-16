@@ -28,20 +28,20 @@ JS_MODULES = [
     "src/core/motion.js",
     "src/core/safe.js",
     "src/core/ui.js",
-    "src/engine/balance.js",
-    "src/engine/engine.js",
-    "src/content/content.js",
+    "src/engine/flight-rules.js",
+    "src/engine/flight-board.js",
+    "src/engine/flight-draw.js",
+    "src/engine/archive.js",
+    "src/engine/minigames.js",
+    "src/engine/flight-engine.js",
     "src/ui/router.js",
-    "src/ui/night.js",
+    "src/ui/overlay/prompt-card.js",
     "src/ui/screens/boot.js",
-    "src/ui/screens/foyer.js",
-    "src/ui/screens/plan.js",
-    "src/ui/screens/kit.js",
-    "src/ui/screens/room.js",
-    "src/ui/screens/door.js",
-    "src/ui/screens/close.js",
+    "src/ui/screens/table.js",
+    "src/ui/screens/ledger.js",
     "src/ui/screens/nights.js",
     "src/ui/screens/settings.js",
+    "src/ui/screens/minigame.js",
     "src/ui/pwa.js",
     "src/app.js",
 ]
@@ -142,6 +142,19 @@ def build(outdir=None, release=False):
             continue
         shutil.copy2(src, dst)
         assets.append(name)
+    board_src = ROOT / "assets" / "board.js"
+    if board_src.exists():
+        board_dst = out / "assets" / "board.js"
+        board_dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            same_board = board_src.resolve() == board_dst.resolve()
+        except Exception:
+            same_board = False
+        if same_board:
+            assets.append("assets/board.js(in-place)")
+        else:
+            shutil.copy2(board_src, board_dst)
+            assets.append("assets/board.js")
     icons_src = ROOT / "icons"
     if icons_src.is_dir():
         dst = out / "icons"

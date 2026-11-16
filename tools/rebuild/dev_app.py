@@ -42,6 +42,15 @@ def main():
     ap.add_argument("--out", default="dist/rebuild")
     args = ap.parse_args()
     if not args.no_build:
+        render = ROOT / "app" / "render"
+        board = ROOT / "assets" / "board.js"
+        sources = [render / "package.json", render / "vite.config.js"]
+        src_dir = render / "src"
+        if src_dir.is_dir():
+            sources.extend(p for p in src_dir.rglob("*") if p.is_file())
+        newest = max((p.stat().st_mtime for p in sources if p.exists()), default=0)
+        if not board.exists() or board.stat().st_mtime < newest:
+            subprocess.run(["npm", "run", "build"], cwd=str(render), check=True)
         subprocess.run([sys.executable, str(ROOT / "tools" / "rebuild" / "build_app.py"), "--out", args.out], check=True)
     handler = functools.partial(NoCacheHandler, directory=str(ROOT / args.out))
     try:

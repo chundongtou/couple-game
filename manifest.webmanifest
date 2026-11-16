@@ -1,8 +1,8 @@
 {
-  "name": "今晚在这间公寓",
-  "short_name": "这间公寓",
+  "name": "今晚飞行棋",
+  "short_name": "飞行棋",
   "lang": "zh-CN",
-  "description": "两个人，一部手机，一枚「我们」。在夜里的公寓里一间间走。",
+  "description": "两个人，一部手机，一盘桌上的飞行棋。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
