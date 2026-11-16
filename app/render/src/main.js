@@ -346,7 +346,6 @@ function createBoardView() {
     const from = mesh.position.clone();
     const target = posOf(toId).add(formationOffset(id));
     const mates = Object.keys(groups).filter(function (k) { return groups[k] && groups[k] === groups[id] && k !== id; });
-    const mateFrom = mates.map(function (mid) { return pieces[mid] ? pieces[mid].position.clone() : null; });
     blip(viaCenter ? "act" : "select");
     const midPoint = new THREE.Vector3(0, peak, 0);
     async function sweep(start, end, ms) {
@@ -370,19 +369,27 @@ function createBoardView() {
       await wait(220);
       await sweep(midPoint, target, 380);
     } else {
-      await tween(320, function (k) {
-        const e = easeInOut(k);
-        const base = new THREE.Vector3().lerpVectors(from, target, e);
-        const y = from.y + (target.y - from.y) * e + Math.sin(Math.PI * e) * peak;
-        mesh.position.set(base.x, y, base.z);
+      const apex = new THREE.Vector3().lerpVectors(from, target, 0.5);
+      apex.y = Math.max(from.y, target.y) + peak;
+      await tween(420, function (k) {
+        const e = easeOut(k);
+        mesh.position.lerpVectors(from, apex, e);
         pointNose(mesh, target.x, target.z);
-        mates.forEach(function (mid, idx) {
-          const m = pieces[mid];
-          if (!m || !mateFrom[idx]) return;
-          const mt = posOf(toId).add(formationOffset(mid));
-          const mb = new THREE.Vector3().lerpVectors(mateFrom[idx], mt, e);
-          m.position.set(mb.x, y + formationOffset(mid).y * 0.2, mb.z);
-        });
+        updateShadows();
+      });
+      await wait(280);
+      const midFall = new THREE.Vector3().lerpVectors(apex, target, 0.5);
+      await tween(280, function (k) {
+        const e = easeOut(k);
+        mesh.position.lerpVectors(apex, midFall, e);
+        pointNose(mesh, target.x, target.z);
+        updateShadows();
+      });
+      await wait(320);
+      await tween(340, function (k) {
+        const e = easeInOut(k);
+        mesh.position.lerpVectors(midFall, target, e);
+        pointNose(mesh, target.x, target.z);
         updateShadows();
       });
     }
@@ -466,15 +473,36 @@ function createBoardView() {
   async function playCapture(ev) {
     const atk = pieces[ev.attackerId];
     const victims = ev.victimIds || [];
-    if (atk) {
-      const origin = atk.position.clone();
-      await tween(280, function (k) {
-        const e = Math.sin(k * Math.PI);
-        atk.position.x = origin.x + e * 0.45;
-        atk.position.y = origin.y + e * 0.35;
+    const first = victims.length ? pieces[victims[0]] : null;
+    if (atk && first) {
+      const a0 = atk.position.clone();
+      const v0 = first.position.clone();
+      const meet = v0.clone();
+      meet.y = PIECE_Y;
+      blip("warn");
+      const crossAt = 0.72;
+      await tween(480, function (k) {
+        const e = crossAt * easeOut(k);
+        const arrive = Math.min(1, e * 1.55);
+        atk.position.lerpVectors(a0, meet, arrive);
+        atk.position.y = PIECE_Y + Math.sin(Math.PI * e) * 1.55;
+        const shove = Math.sin(Math.PI * e) * 0.85;
+        const tx = -(v0.z - a0.z);
+        const tz = v0.x - a0.x;
+        const len = Math.hypot(tx, tz) || 1;
+        first.position.set(
+          v0.x + (tx / len) * shove,
+          PIECE_Y + Math.sin(Math.PI * e) * 0.95,
+          v0.z + (tz / len) * shove
+        );
+        first.rotation.z = shove * 1.2;
+        pointNose(atk, meet.x, meet.z);
         updateShadows();
       });
-      atk.position.copy(origin);
+      await wait(380);
+      atk.position.set(meet.x, PIECE_Y, meet.z);
+      first.rotation.z = 0;
+      first.position.set(v0.x, PIECE_Y, v0.z);
     }
     for (let i = 0; i < victims.length; i++) {
       const mesh = pieces[victims[i]];
@@ -483,16 +511,24 @@ function createBoardView() {
       const slot = "hangar:" + color + ":" + (i % 4);
       const from = mesh.position.clone();
       const to = posOf(slot);
-      blip("warn");
-      await tween(640, function (k) {
-        const e = easeInOut(k);
-        const spin = k * Math.PI * 3;
-        mesh.position.lerpVectors(from, to, e);
-        mesh.position.y += Math.sin(Math.PI * e) * 1.8;
-        mesh.rotation.y = spin;
-        mesh.rotation.z = Math.sin(spin) * 0.8;
+      to.y = PIECE_Y;
+      const turns = 2.5;
+      function spiralPose(k) {
+        const e = easeInOut(Math.min(1, k));
+        const base = new THREE.Vector3().lerpVectors(from, to, e);
+        const ang = k * Math.PI * 2 * turns;
+        const radius = (1 - e) * 2.35;
+        mesh.position.set(
+          base.x + Math.cos(ang) * radius,
+          PIECE_Y + Math.sin(Math.PI * e) * 2.6,
+          base.z + Math.sin(ang) * radius
+        );
+        mesh.rotation.set(Math.sin(ang) * 0.7, ang, Math.cos(ang) * 1.05);
         updateShadows();
-      });
+      }
+      await tween(620, function (k) { spiralPose(k * 0.42); });
+      await wait(360);
+      await tween(780, function (k) { spiralPose(0.42 + k * 0.58); });
       mesh.position.copy(to);
       mesh.rotation.set(0, 0, 0);
       mesh.userData.squareId = slot;
@@ -525,7 +561,7 @@ function createBoardView() {
       const mode = ev.mode || "walk";
       return hopAlong(ev.pieceId, path, mode === "jump" ? 1.05 : (mode === "fly" ? 3.2 : 0.28));
     }
-    if (ev.type === "jump") return arcTo(ev.pieceId, ev.to, 2.55, false);
+    if (ev.type === "jump") return arcTo(ev.pieceId, ev.to, 3.4, false);
     if (ev.type === "fly") return arcTo(ev.pieceId, ev.to, 4.6, true);
     if (ev.type === "capture") return playCapture(ev);
     if (ev.type === "stack") return playStack(ev);
