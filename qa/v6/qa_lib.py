@@ -508,7 +508,7 @@ def get_settings(page):
 
 
 def session_summary(page):
-    """返回一局的最小状态摘要（读 Store，缺失字段为 None）。"""
+    """返回一局的最小状态摘要（读 Store，缺失字段为 None）。V6.1 起额外给到家/保底/胜者。"""
     s = get_session(page) or {}
     meta = s.get("meta") or {}
     aw = s.get("awaiting") or {}
@@ -516,6 +516,7 @@ def session_summary(page):
         "phase": s.get("phase"),
         "mode": s.get("mode"),
         "turn": s.get("turn"),
+        "planeCount": s.get("planeCount"),
         "cardsProcessed": s.get("cardsProcessed"),
         "targetCards": s.get("targetCards"),
         "targetHeat": s.get("targetHeat"),
@@ -525,8 +526,21 @@ def session_summary(page):
         "awaiting": aw.get("type"),
         "prompt_kind": (aw.get("prompt") or {}).get("kind"),
         "prompt_actor": (aw.get("prompt") or {}).get("actorId") or (aw.get("prompt") or {}).get("actor"),
+        "endingIndex": s.get("endingIndex"),
+        "winnerId": s.get("winnerId"),
+        "takeoffMiss": s.get("takeoffMiss"),
+        "planesHome": None if not s else _planes_home_of(s),
         "log_len": len(s.get("log") or []),
     }
+
+
+def _planes_home_of(s):
+    out = {"a": 0, "b": 0}
+    for p in (s.get("pieces") or []):
+        pid = p.get("playerId")
+        if pid in out and p.get("arrived"):
+            out[pid] += 1
+    return out
 
 
 def eval_js(page, js, arg=None):
@@ -786,6 +800,232 @@ def force_prompt_kind(page, kind):
     )
 
 
+# ---------------------------------------------------------------- V6.1 局面夹具
+# 说明：V6.1 结束条件 = 一方全部飞机到家（spec §7 允许测试侧注入局面）。
+# 夹具只写 localStorage 里的合法 session（经 App.Flight.validate 校验），不改实现代码；
+# 注入后按 §7 刷新页面 → 点「继续今晚飞行棋」，点击计数从「继续」开始。
+SESSION_KEY = "couple2.session"
+HISTORY_KEY = "couple2.history"
+COLORS_ZH = {"red": "红", "yellow": "黄", "blue": "蓝", "green": "绿"}
+
+
+def color_zh(color_id) -> str:
+    return COLORS_ZH.get(str(color_id or ""), str(color_id or ""))
+
+
+def install_event_recorder(page):
+    """测试侧记录引擎事件（不改实现）：包一层 App.Flight.roll/move/resolvePrompt，
+    把返回的 events 追加进 window.__QA_EVENTS__，用于断言 win / dice.pity / turn 顺序。"""
+    return page.evaluate(
+        """() => {
+            if (window.__QA_EVENTS__ && window.__QA_EVENTS__.installed) return true;
+            if (!(window.App && App.Flight)) return false;
+            var store = {installed: true, events: []};
+            window.__QA_EVENTS__ = store;
+            ['roll', 'move', 'resolvePrompt', 'resolveMinigame'].forEach(function (name) {
+                var orig = App.Flight[name];
+                if (typeof orig !== 'function' || orig.__qaWrapped) return;
+                var wrapped = function () {
+                    var out = orig.apply(App.Flight, arguments);
+                    try {
+                        if (out && out.ok && out.events) {
+                            out.events.forEach(function (e) {
+                                store.events.push({fn: name, type: e && e.type, ev: e});
+                            });
+                        }
+                    } catch (err) {}
+                    return out;
+                };
+                wrapped.__qaWrapped = true;
+                App.Flight[name] = wrapped;
+            });
+            return true;
+        }"""
+    )
+
+
+def recorded_events(page, clear=False):
+    out = page.evaluate(
+        "() => { try { return (window.__QA_EVENTS__ && window.__QA_EVENTS__.events) || []; } catch (e) { return []; } }"
+    )
+    if clear:
+        page.evaluate("() => { try { if (window.__QA_EVENTS__) window.__QA_EVENTS__.events = []; } catch (e) {} }")
+    return out or []
+
+
+def fixture_place(page, placements, turn="a", cards_processed=None, heat=None,
+                  takeoff_miss=None, reload=True, settle_ms=900):
+    """通用局面夹具：按 placements {pieceId: squareId} 摆棋子，写成合法 session 后刷新。
+
+    - squareId 支持 `{a}` / `{b}` 占位符（替换成该玩家颜色），如 `home:{a}:4`；
+    - 以 `:goal` 结尾的格子自动置 arrived=true；
+    - turn 指定行动方；cards_processed / heat 用于验证「题卡数/心动值不触发结束」；
+    - 返回 valid session（dict）或 None（失败时调用方 FAIL 并给复现步骤）。
+    """
+    payload = {
+        "placements": placements,
+        "turn": turn,
+        "cardsProcessed": cards_processed,
+        "heat": heat,
+        "takeoffMiss": takeoff_miss,
+    }
+    res = page.evaluate(
+        """(a) => {
+            try {
+                var s = App.Store.getSession();
+                if (!s) return {ok: false, error: 'no-session'};
+                var colors = s.colors || {a: 'red', b: 'yellow'};
+                var map = {'{a}': colors.a || 'red', '{b}': colors.b || 'yellow'};
+                s.turn = a.turn === 'b' ? 'b' : 'a';
+                s.phase = 'playing';
+                s.awaiting = {type: 'roll'};
+                s.winnerId = null;
+                s.endingQueue = null;
+                s.endingIndex = 0;
+                s.pendingMove = null;
+                s.rollContext = null;
+                if (a.takeoffMiss) s.takeoffMiss = {a: Number(a.takeoffMiss.a) || 0, b: Number(a.takeoffMiss.b) || 0};
+                if (a.cardsProcessed !== null && a.cardsProcessed !== undefined) s.cardsProcessed = Number(a.cardsProcessed);
+                if (a.heat !== null && a.heat !== undefined) { s.meta = s.meta || {}; s.meta.heat = Number(a.heat); }
+                (s.pieces || []).forEach(function (p) {
+                    var sq = a.placements[p.id];
+                    if (sq === null || sq === undefined) return;
+                    sq = String(sq).replace('{a}', map['{a}']).replace('{b}', map['{b}']);
+                    p.squareId = sq;
+                    p.arrived = sq.indexOf(':goal') >= 0;
+                    p.stackGroupId = null;
+                });
+                var valid = App.Flight.validate(s);
+                if (!valid) return {ok: false, error: 'validate-null'};
+                localStorage.setItem('couple2.session', JSON.stringify(valid));
+                return {ok: true, state: valid};
+            } catch (e) {
+                if (window.console) console.error('QA_FIXTURE', e);
+                return {ok: false, error: String((e && e.message) || e)};
+            }
+        }""",
+        payload,
+    )
+    if not isinstance(res, dict) or not res.get("ok"):
+        return None
+    if reload:
+        page.reload(wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(settle_ms)
+    return res.get("state")
+
+
+def fixture_near_home(page, pid="a", steps=(3, 4), cards_processed=None, heat=None,
+                      takeoff_miss=None, reload=True, settle_ms=900):
+    """夹具：pid 一方只剩最后 len(steps) 架未到家（停在 home:*:<step>），其余已到家；
+    对方全部留机坪。默认 steps=(3,4)：掷 1 时两架都能走；
+    steps=(4,) 时唯一一架走 1 即到家（用于「一方全部到家 → 收尾」）。
+    返回 (state, pending_piece_ids) 或 (None, [])。
+    """
+    sess = get_session(page) or {}
+    total = int(sess.get("planeCount") or 2)
+    steps = tuple(steps) if steps else (4,)
+    if len(steps) > total:
+        steps = steps[-total:]
+    other = "b" if pid == "a" else "a"
+    placements = {}
+    start = total - len(steps)
+    for i in range(total):
+        if i < start:
+            placements["%s:%d" % (pid, i)] = "home:{%s}:goal" % pid
+        else:
+            placements["%s:%d" % (pid, i)] = "home:{%s}:%d" % (pid, steps[i - start])
+    for i in range(total):
+        placements["%s:%d" % (other, i)] = "hangar:{%s}:%d" % (other, i)
+    state = fixture_place(page, placements, turn=pid, cards_processed=cards_processed,
+                          heat=heat, takeoff_miss=takeoff_miss, reload=reload,
+                          settle_ms=settle_ms)
+    pending = ["%s:%d" % (pid, i) for i in range(start, total)]
+    return state, pending
+
+
+def continue_session(page, timeout=8000):
+    """刷新后从门厅点「继续今晚飞行棋」回主桌；返回是否回到 data-screen=table。"""
+    loc, _ = find(page, ["test:continue-flight", "test:continue",
+                         "role:button:/继续今晚飞行棋/", "text:/继续今晚飞行棋/"], timeout=timeout)
+    if loc is not None:
+        try:
+            loc.click(timeout=6000)
+        except Exception:
+            return False
+    return wait_screen(page, ["table"], timeout=timeout) == "table"
+
+
+def put_history(page, entries):
+    """写入历史（旧档兼容用例用）：entries 为 list[dict]。返回写入条数或 None。"""
+    return page.evaluate(
+        """(list) => {
+            try {
+                localStorage.setItem('couple2.history', JSON.stringify(list));
+                return list.length;
+            } catch (e) { return null; }
+        }""",
+        entries,
+    )
+
+
+def old_ledger_entry(ending="shared", names=("阿岚", "阿策")):
+    """构造旧档回顾条目（V6.0 合作收尾 / shared：无 winnerId、stats.planesHome 为旧总数）。"""
+    return {
+        "id": "qa-old-" + str(ending),
+        "ts": 1763300000000,
+        "kind": "flight",
+        "title": "今晚飞行棋",
+        "names": {"a": names[0], "b": names[1]},
+        "endingName": "今晚一起走完",
+        "note": "",
+        "safe": False,
+        "ledger": {
+            "v": 2,
+            "date": "2026-11-16",
+            "startedAt": 1763297000000,
+            "endedAt": 1763300000000,
+            "durationMs": 3000000,
+            "names": {"a": names[0], "b": names[1]},
+            "colors": {"a": "red", "b": "yellow"},
+            "scale": "warm",
+            "mode": "quick",
+            "planeCount": 2,
+            "ending": ending,
+            "stats": {
+                "cardsDone": 3,
+                "cardsSkipped": 1,
+                "heat": 24,
+                "bestStreak": 2,
+                "minigames": 0,
+                "planesHome": 2,
+            },
+            "prompts": [
+                {"kind": "cell-truth", "outcome": "done", "actorId": "a",
+                 "card": {"id": "old-1", "text": "旧档里的一张卡。", "star": 2}},
+            ],
+            "minigames": [],
+        },
+    }
+
+
+def drop_takeoff_miss(page):
+    """旧档兼容夹具：删掉 localStorage 里的 takeoffMiss（模拟 V6.0 存档）。返回删除前的键列表。"""
+    return page.evaluate(
+        """() => {
+            try {
+                var raw = localStorage.getItem('couple2.session');
+                if (!raw) return null;
+                var s = JSON.parse(raw);
+                var had = Object.keys(s || {});
+                delete s.takeoffMiss;
+                delete s.winnerId;
+                localStorage.setItem('couple2.session', JSON.stringify(s));
+                return had;
+            } catch (e) { return null; }
+        }"""
+    )
+
+
 # ---------------------------------------------------------------- 交互原语
 def safe_longpress(page, locator, hold_ms=1700, box=None):
     box = box or element_rect(locator)
@@ -815,6 +1055,48 @@ def wait_until(page, predicate_js, timeout=4000, interval=80, arg=None):
             pass
         page.wait_for_timeout(interval)
     return None
+
+
+def click_and_time(page, selector, watch_js, timeout_ms=3000):
+    """页内真实点击 + 页内计时：返回 {ok, click_to_ms, text} 或 {ok: False, error}。
+
+    为什么不用 Playwright 的 click 计时：playwright 的 click 会等元素「稳定」（棋盘动画期间
+    按钮每帧轻微位移，实测会额外等 1s+），那是测试框架开销，不是产品延迟。这里在页面里点
+    真实按钮（同一个 click 事件/处理器），用 performance.now() 量「点击 → DOM 文本出现」。
+    """
+    return page.evaluate(
+        """(a) => new Promise(function (resolve) {
+            var btn = document.querySelector(a.sel);
+            if (!btn) { resolve({ok: false, error: 'no-element'}); return; }
+            var watch = null;
+            try { watch = new Function('return (' + a.watch + ')'); }
+            catch (e) { resolve({ok: false, error: 'bad-watch'}); return; }
+            var t0 = performance.now();
+            var done = false;
+            function check() {
+                if (done) return;
+                var hit = null;
+                try { hit = watch(); } catch (e) { hit = null; }
+                if (hit) {
+                    done = true;
+                    clearInterval(iv);
+                    resolve({ok: true, click_to_ms: Math.round(performance.now() - t0),
+                             text: String(hit)});
+                    return;
+                }
+                if (performance.now() - t0 > a.timeout) {
+                    done = true;
+                    clearInterval(iv);
+                    resolve({ok: false, error: 'timeout',
+                             click_to_ms: Math.round(performance.now() - t0)});
+                }
+            }
+            var iv = setInterval(check, 16);
+            btn.click();
+            check();
+        })""",
+        {"sel": selector, "watch": watch_js, "timeout": timeout_ms},
+    )
 
 
 # ---------------------------------------------------------------- 记录器 / 报告
@@ -1150,25 +1432,54 @@ def wait_table(page, timeout=8000):
 
 
 def read_status(page):
-    """从 DOM 读状态条：返回 {cards, target, heat, streak, turn, text}。"""
+    """从 DOM 读状态条（V6.1 口径）：双方已到家（status-home-a/b）+「第 N 张」+ 心动值/连击/回合。
+
+    返回：
+      {cards, target(恒 None：V6.1 无目标张数), heat, streak, turn,
+       home: {a: {text, n, total, color}, b: {...}}, cards_text, home_text,
+       has_status, text}
+    DOM 缺少状态条节点时对应字段为 None，调用方应 SKIP/FAIL（不要臆造）。
+    """
     return page.evaluate(
         """() => {
             function txt(sel) {
                 var el = document.querySelector(sel);
-                return el ? (el.innerText || '') : '';
+                return el ? (el.innerText || '').replace(/\\s+/g, ' ').trim() : '';
             }
+            function pair(s) {
+                var m = /(\\d+)\\s*\\/\\s*(\\d+)/.exec(s || '');
+                return m ? {n: Number(m[1]), total: Number(m[2])} : {n: null, total: null};
+            }
+            function head(s) { return String(s || '').replace(/\\s*\\d+\\s*\\/\\s*\\d+\\s*$/, '').trim(); }
             var body = document.body ? document.body.innerText : '';
-            function pick(re) { var m = body.match(re); return m ? m : null; }
-            var cards = pick(/第\\s*(\\d+)\\s*\\/\\s*(\\d+)\\s*张/);
-            var heat = pick(/心动值\\s*(\\d+)/);
-            var streak = pick(/连击\\s*(\\d+)/);
-            var turn = pick(/([^\\n]{1,12}?)\\s*的回合/);
+            var cardsText = txt('[data-test="status-cards"]');
+            var homeA = txt('[data-test="status-home-a"]');
+            var homeB = txt('[data-test="status-home-b"]');
+            var heatText = txt('[data-test="status-heat"]');
+            var streakText = txt('[data-test="status-streak"]');
+            var turnText = txt('[data-test="turn-name"]');
+            var mc = /第\\s*(\\d+)\\s*张/.exec(cardsText) || /第\\s*(\\d+)\\s*张/.exec(body);
+            var mh = /心动值\\s*(\\d+)/.exec(heatText) || /心动值\\s*(\\d+)/.exec(body);
+            var ms = /连击\\s*(\\d+)/.exec(streakText) || /连击\\s*(\\d+)/.exec(body);
+            var mt = /([^\\n]{1,12}?)\\s*的回合/.exec(turnText || body);
+            var pa = pair(homeA), pb = pair(homeB);
             return {
-                cards: cards ? Number(cards[1]) : null,
-                target: cards ? Number(cards[2]) : null,
-                heat: heat ? Number(heat[1]) : null,
-                streak: streak ? Number(streak[1]) : null,
-                turn: turn ? turn[1].trim() : null,
+                cards: mc ? Number(mc[1]) : null,
+                target: null,
+                heat: mh ? Number(mh[1]) : null,
+                streak: ms ? Number(ms[1]) : null,
+                turn: mt ? mt[1].trim() : null,
+                home: {
+                    a: {text: homeA, n: pa.n, total: pa.total, color: head(homeA)},
+                    b: {text: homeB, n: pb.n, total: pb.total, color: head(homeB)}
+                },
+                cards_text: cardsText,
+                home_text: (homeA && homeB) ? (homeA + ' · ' + homeB) : '',
+                heat_text: heatText,
+                streak_text: streakText,
+                has_status: !!document.querySelector('[data-test="status"]'),
+                has_pity: !!document.querySelector('[data-test="takeoff-pity"]'),
+                has_winner: !!document.querySelector('[data-test="winner-text"]'),
                 text: body.slice(0, 4000)
             };
         }"""

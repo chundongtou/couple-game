@@ -37,6 +37,7 @@
 .lg-done-title{position:relative;font-family:var(--font-display,var(--font,"Noto Serif SC","Songti SC",serif));
   font-size:clamp(28px,8.4vw,38px);line-height:1.15;font-weight:700;color:var(--ink,#FBF3E7);letter-spacing:.04em}
 .lg-done-sub{position:relative;margin-top:8px;font-size:12.5px;color:var(--dim,#C9B6CE);letter-spacing:.04em}
+.lg-done-sub b{color:var(--amber,#F3C077);font-weight:700;font-variant-numeric:tabular-nums}
 .lg-title{margin-top:22px;font-family:var(--font-display,var(--font,"Noto Serif SC","Songti SC",serif));
   font-size:clamp(24px,7vw,32px);line-height:1.2;font-weight:700;letter-spacing:.06em;color:var(--ink,#FBF3E7)}
 .lg-sub{margin-top:6px;font-size:12.5px;color:var(--dim2,#8E7C9E);letter-spacing:.04em}
@@ -99,6 +100,83 @@
 
   function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  /* ===== V6.1 先到家（冻结单 §3.3）=====
+   * 读 ledger.ending（win-a/win-b/safe）+ 旧档 shared；winnerId 兜底；stats.planesHome 兼容 {a,b} 与旧的总数。
+   * 文案只用「先到家 / 已到家 / 一起走到这里」，不出现输了/失败/惩罚。
+   */
+  function readEnding(ledger) {
+    var raw = ledger && ledger.ending !== undefined && ledger.ending !== null ? String(ledger.ending) : "";
+    if (raw === "win-a" || raw === "win-b" || raw === "safe" || raw === "shared") return raw;
+    /* 旧档没有 ending（或值不认识）时按 winnerId 兜底，还没有就按旧合作收尾。 */
+    var w = ledger && ledger.winnerId;
+    if (w === "a" || w === "b") return "win-" + w;
+    return "shared";
+  }
+
+  function readWinnerId(ledger, ending) {
+    if (ending === "win-a") return "a";
+    if (ending === "win-b") return "b";
+    var w = ledger && ledger.winnerId;
+    return (w === "a" || w === "b") ? w : null;
+  }
+
+  /* stats.planesHome：新契约 {a,b}；旧引擎只给过总数（number）；旧 V5 档没有该字段。 */
+  function readPlanesHome(ledger) {
+    var raw = ledger && ledger.stats ? ledger.stats.planesHome : null;
+    var out = { a: null, b: null, total: null };
+    if (raw && typeof raw === "object") {
+      if (raw.a !== undefined && raw.a !== null) out.a = Math.max(0, Math.round(num(raw.a)));
+      if (raw.b !== undefined && raw.b !== null) out.b = Math.max(0, Math.round(num(raw.b)));
+      if (out.a !== null || out.b !== null) out.total = (out.a || 0) + (out.b || 0);
+    } else if (raw !== undefined && raw !== null && raw !== "") {
+      out.total = Math.max(0, Math.round(num(raw)));
+    }
+    return out;
+  }
+
+  function readPlaneCount(ledger, home) {
+    var n = Number(ledger && ledger.planeCount);
+    if (n === 2 || n === 4) return n;
+    if ((home.a || 0) > 2 || (home.b || 0) > 2) return 4;
+    return 2;
+  }
+
+  function doneCopy(model) {
+    var ending = model.ending;
+    var planes = model.planeCount;
+    if (ending === "win-a" || ending === "win-b") {
+      var x = model.winnerHome === null || model.winnerHome === undefined ? planes : model.winnerHome;
+      return {
+        title: (model.winnerName || "你们中的一位") + " 先到家",
+        sub: "已到家 <b>" + x + "</b>/" + planes + " 架 · 今晚的记录都留在这儿。",
+        note: "今晚完成了"
+      };
+    }
+    if (ending === "safe") {
+      return { title: "安全词收棋", sub: "今晚就到这 · 也算数", note: "安全词收棋" };
+    }
+    return { title: "今晚一起走到这里", sub: "今晚的记录都留在这儿。", note: "今晚一起走到这里" };
+  }
+
+  function homeStatHtml(model) {
+    var home = model.home;
+    var planes = model.planeCount;
+    var parts = [];
+    function side(pid, name) {
+      var v = home[pid];
+      return esc(name) + " <b>" + (v === null ? "—" : v) + "</b>/" + planes;
+    }
+    if (home.a !== null || home.b !== null) {
+      parts.push(side("a", model.nameA), side("b", model.nameB));
+      if (home.total !== null) parts.push("共 <b>" + home.total + "</b>/" + (planes * 2) + " 架");
+    } else if (home.total !== null) {
+      parts.push("共 <b>" + home.total + "</b>/" + (planes * 2) + " 架");
+    } else {
+      return "—";
+    }
+    return parts.join(" · ");
+  }
 
   function findEntry(id) {
     var list = (App.Store && App.Store.getHistory) ? App.Store.getHistory() : [];
@@ -253,12 +331,35 @@
     var miniDone = 0, miniSkipped = 0;
     minis.forEach(function (m) { if (miniOutcome(m) === "跳过") miniSkipped += 1; else miniDone += 1; });
 
+    /* V6.1：结局/赢家/到家数（缺字段按旧档兜底，见 readEnding 等） */
+    var ending = readEnding(ledger);
+    var winnerId = readWinnerId(ledger, ending);
+    var home = readPlanesHome(ledger);
+    var planeCount = readPlaneCount(ledger, home);
+    var winnerHome = null;
+    var winnerName = "";
+    if (winnerId) {
+      /* 「先到家」意味着赢家全部飞机到家：旧档没有 planesHome 时按满员补齐这一侧，另一侧留 —，不臆造。 */
+      if (home[winnerId] === null) home[winnerId] = planeCount;
+      winnerHome = home[winnerId];
+      var wn = names[winnerId];
+      winnerName = wn !== undefined && wn !== null && String(wn).trim()
+        ? String(wn).trim()
+        : (FALLBACK_NAME[winnerId] || "你们中的一位");
+    }
+
     return {
       ledger: ledger,
       entry: entry,
       names: names,
       nameA: names.a || "他",
       nameB: names.b || "她",
+      ending: ending,
+      winnerId: winnerId,
+      winnerName: winnerName,
+      winnerHome: winnerHome,
+      home: home,
+      planeCount: planeCount,
       date: dateText(ledger, entry),
       scale: scaleText(ledger.scale),
       duration: durationText(ledger),
@@ -365,13 +466,13 @@
       }
 
       var ledger = model.ledger;
-      var endingNote = ledger.ending === "safe" ? "今晚就到这" : "今晚完成";
-      var doneTitle = ledger.ending === "safe" ? "今晚就到这" : "今晚完成了";
+      var copy = doneCopy(model);
+      var endingNote = copy.note;
       root.innerHTML =
         '<div class="page lg-page" data-test="ledger">' +
-          '<div class="lg-done" data-test="ledger-done">' +
-            '<div class="lg-done-title">' + doneTitle + '</div>' +
-            '<div class="lg-done-sub">今晚的记录都留在这儿。</div>' +
+          '<div class="lg-done" data-test="ledger-done" data-ending="' + esc(model.ending) + '">' +
+            '<div class="lg-done-title" data-test="ledger-done-title">' + esc(copy.title) + '</div>' +
+            '<div class="lg-done-sub" data-test="ledger-done-sub">' + copy.sub + '</div>' +
           "</div>" +
           '<h1 class="lg-title" data-test="ledger-title">今晚回顾</h1>' +
           '<p class="lg-sub" data-test="ledger-subtitle">' + esc(model.date) + " · " + esc(model.nameA) + " &amp; " + esc(model.nameB) + "</p>" +
@@ -380,6 +481,7 @@
               esc(model.date) + " · " + esc(model.nameA) + " &amp; " + esc(model.nameB) + " · " + esc(model.scale) + "</div></div>" +
             '<div class="lg-stat"><div class="lg-stat-label">时长</div><div class="lg-stat-val" data-test="ledger-duration">' + esc(model.duration) + "</div></div>" +
             '<div class="lg-stat"><div class="lg-stat-label">题卡</div><div class="lg-stat-val" data-test="ledger-cards">共 <b>' + model.total + "</b> 张 · 做了 <b>" + model.done + "</b> · 放过 <b>" + model.skipped + "</b></div></div>" +
+            '<div class="lg-stat"><div class="lg-stat-label">已到家</div><div class="lg-stat-val" data-test="ledger-home">' + homeStatHtml(model) + "</div></div>" +
             '<div class="lg-stat"><div class="lg-stat-label">心动值</div><div class="lg-stat-val" data-test="ledger-heat"><b>' + model.heat + "</b> · " + esc(model.stage) + "</div></div>" +
             '<div class="lg-stat"><div class="lg-stat-label">最高连击</div><div class="lg-stat-val" data-test="ledger-streak">' + model.best + "</div></div>" +
             '<div class="lg-stat"><div class="lg-stat-label">小游戏</div><div class="lg-stat-val" data-test="ledger-minigame-count">' +
@@ -401,7 +503,7 @@
           '<div class="lg-actions">' +
             '<button class="lg-btn main" type="button" data-act="save" data-test="ledger-save">保存到以前的夜</button>' +
             '<button class="lg-btn soft" type="button" data-act="again" data-test="again-night">再开一夜</button>' +
-            '<button class="lg-btn ghost" type="button" data-act="home" data-test="ledger-home">回到开场</button>' +
+            '<button class="lg-btn ghost" type="button" data-act="home" data-test="ledger-back">回到开场</button>' +
             (App.Share ? '<button class="lg-btn ghost small" type="button" data-act="share" data-test="ledger-share">存成图片</button>' : "") +
           "</div>" +
           '<div class="lg-foot">' + esc(endingNote) + " · 记录只在这台手机上</div>" +
@@ -471,9 +573,11 @@
       kind: "flight",
       title: "今晚飞行棋",
       names: ledger.names || entry.names || { a: model.nameA, b: model.nameB },
-      endingName: ledger.ending === "safe" ? "今晚就到这" : "今晚完成",
+      endingName: model.ending === "safe"
+        ? "安全词收棋"
+        : (model.winnerId ? (model.winnerName || "你们中的一位") + " 先到家" : "今晚一起走到这里"),
       note: "",
-      safe: ledger.ending === "safe",
+      safe: model.ending === "safe",
       ledger: ledger
     });
   }

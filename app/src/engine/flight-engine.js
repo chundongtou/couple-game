@@ -1,14 +1,17 @@
 /* ==========================================================================
- * 今晚飞行棋 · 对局状态机（V6）
+ * 今晚飞行棋 · 对局状态机（V6.1）
  * 纯函数：不改入参，无 DOM，无 localStorage。
  * 跳 / 飞 / 航线只读 FlightBoard；抽题只读 FlightDraw；热度/连击只读 FlightMeta。
  *
- * V6 语义（docs/v6/impl-freeze.md，覆盖 api-contract 冲突处）：
- *   - 合作收尾：无输赢；cardsProcessed/targetCards 或 meta.heat/targetHeat 或
- *     （长夜且任一棋进终点）→ 两张收尾卡各给一人，都可放过。
+ * V6.1 语义（docs/v6/impl-freeze-v6.1.md，覆盖 impl-freeze.md 冲突处）：
+ *   - 结束条件改为飞行棋胜负：任意一方本局全部飞机都到终点（home:*:goal）→ 结束，
+ *     写 winnerId、发 win 事件，再发两张收尾卡各给一人。题卡数 / 心动值 / 单架到家都不再结束。
+ *   - 起飞保底：仍要 6 起飞；但连续 2 个自己的回合没掷出 6（且所有未到家飞机都在机坪），
+ *     第 3 个回合任意点数保底起飞；实际起飞或掷出 6 都清零（takeoffMiss，0..2）。
+ *   - 合作收尾流程不变：两张收尾卡都可放过，回顾用「先到家」文案，不出现输赢羞辱。
  *   - 放过不惩罚：进航题放过仍进军，叠机题放过仍得奖励步（规则开关见 flight-rules）。
  *   - meta 在 resolvePrompt / resolveMinigame 结算点更新，随 state 落盘。
- *   - state.v = 2；v:1 旧档读入补默认、不丢档（validate）。
+ *   - state.v = 2；v:1 / V6 旧档读入补默认、不丢档（validate）。
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -85,26 +88,70 @@
     return n;
   }
 
-  function arrivedCount(s) {
-    return (s.pieces || []).filter(function (p) { return !!p.arrived; }).length;
+  function arrivedCount(s, pid) {
+    return (s.pieces || []).filter(function (p) {
+      return !!p.arrived && (!pid || p.playerId === pid);
+    }).length;
   }
 
-  function anyArrived(s) {
-    return arrivedCount(s) > 0;
+  /* V6.1 §2.2：该玩家本局全部飞机都到终点才算赢。 */
+  function allHome(s, pid) {
+    var list = (s.pieces || []).filter(function (p) { return p.playerId === pid; });
+    return list.length > 0 && list.every(function (p) { return p.arrived === true; });
   }
 
-  /* 收尾触发（冻结单 §2.2）：三条件任一满足。 */
+  /* V6.1 §2.3：该玩家所有「未到家」的飞机都在机坪（已全部到家时不算，避免当成可保底）。 */
+  function allUnarrivedInHangar(s, pid) {
+    var list = (s.pieces || []).filter(function (p) { return p.playerId === pid && !p.arrived; });
+    if (!list.length) return false;
+    return list.every(function (p) {
+      var loc = board().parseSquare(p.squareId);
+      return !!loc && loc.type === 'hangar';
+    });
+  }
+
+  function missOf(v) {
+    var n = Math.floor(Number(v));
+    if (!isFinite(n) || n < 0) return 0;
+    return Math.min(2, n);
+  }
+
+  function takeoffMissOf(s, pid) {
+    return missOf(s && s.takeoffMiss ? s.takeoffMiss[pid] : 0);
+  }
+
+  /* 本回合是否已具备保底起飞：连续 2 回合没起飞且所有未到家飞机都在机坪。 */
+  function takeoffPity(s) {
+    if (!s || (s.turn !== 'a' && s.turn !== 'b')) return false;
+    return takeoffMissOf(s, s.turn) >= 2 && allUnarrivedInHangar(s, s.turn);
+  }
+
+  function resetTakeoffMiss(s, pid) {
+    if (!s.takeoffMiss || typeof s.takeoffMiss !== 'object') s.takeoffMiss = { a: 0, b: 0 };
+    if (pid === 'a' || pid === 'b') s.takeoffMiss[pid] = 0;
+  }
+
+  /* 换手前按本回合点数记账：6 清零；非 6 且全在机坪 +1（上限 2）；其他不变。 */
+  function noteTakeoffMiss(s) {
+    var ctx = s.rollContext;
+    if (!ctx) return;
+    var pid = s.turn;
+    if (pid !== 'a' && pid !== 'b') return;
+    if (!s.takeoffMiss || typeof s.takeoffMiss !== 'object') s.takeoffMiss = { a: 0, b: 0 };
+    if (Number(ctx.die) === 6) { s.takeoffMiss[pid] = 0; return; }
+    if (allUnarrivedInHangar(s, pid)) s.takeoffMiss[pid] = Math.min(2, takeoffMissOf(s, pid) + 1);
+  }
+
+  /* 胜负（V6.1 §2.2）：任一方本局飞机全部到家即结束；不再看题卡数/心动值/单架到家。 */
+  function winnerOf(s) {
+    if (allHome(s, 'a')) return 'a';
+    if (allHome(s, 'b')) return 'b';
+    return null;
+  }
+
   function shouldEnd(s) {
     if (!s || s.phase !== 'playing') return false;
-    var cards = Number(s.cardsProcessed) || 0;
-    var targetCards = Number(s.targetCards) || 0;
-    if (targetCards > 0 && cards >= targetCards) return true;
-    var heat = Number(s.meta && s.meta.heat) || 0;
-    var targetHeat = Number(s.targetHeat) || 0;
-    if (targetHeat > 0 && heat >= targetHeat) return true;
-    var mode = s.mode || modeOf(s.planeCount);
-    if (mode === 'long' && anyArrived(s)) return true;
-    return false;
+    return winnerOf(s) !== null;
   }
 
   function shanghaiDate(ts) {
@@ -218,7 +265,9 @@
     var color = piece.color;
 
     if (loc.type === 'hangar') {
-      if (die !== 6) {
+      /* V6.1 §2.3：6 起飞；连续 2 回合未起飞且该玩家所有未到家飞机都在机坪时，任意点数保底起飞。 */
+      var pity = takeoffMissOf(state, piece.playerId) >= 2 && allUnarrivedInHangar(state, piece.playerId);
+      if (die !== 6 && !pity) {
         plan.blockedReason = 'NEED_SIX_TO_TAKEOFF';
         return plan;
       }
@@ -520,6 +569,8 @@
     var ignore = movers.map(function (p) { return p.id; });
     var plan = computePlan(s, primary, die, ignore);
     if (!plan.legal) return { illegal: true, reason: plan.blockedReason || 'NO_LEGAL_MOVE' };
+    /* V6.1 §2.3：实际起飞后该玩家保底计数清零。 */
+    if (plan.takeoff) resetTakeoffMiss(s, primary.playerId);
 
     if (plan.wouldEnterHome && !opt.applyingHome) {
       s.pendingMove = {
@@ -589,9 +640,14 @@
     };
   }
 
+  /* 收尾（V6.1 §2.2）：一方全部到家 → 先写 winnerId 并发 win；再给两张收尾卡（各给一人）。
+   * 事件顺序固定：[{type:'win', playerId}, {type:'prompt'}, {type:'ending-start'}]。 */
   function enterEnding(s, events) {
     if (!s || s.phase !== 'playing') return false;
     if (s.awaiting && s.awaiting.type === 'ending-prompt') return false;
+    var winnerId = winnerOf(s);
+    s.winnerId = winnerId;
+    if (winnerId) events.push({ type: 'win', playerId: winnerId });
     var queue = [endingPrompt(s, 'a'), endingPrompt(s, 'b')];
     s.endingQueue = queue;
     s.endingIndex = 0;
@@ -604,6 +660,8 @@
   }
 
   function finishTurn(s, events) {
+    /* V6.1 §2.3 / §4：换手前按本回合点数记账（computePlan 读的是本回合开始前的计数）。 */
+    noteTakeoffMiss(s);
     var extra = !!(s.rollContext && s.rollContext.extra && s.rules && s.rules.rerollOnEverySix);
     s.pendingMove = null;
     s.rollContext = null;
@@ -619,7 +677,7 @@
 
   function afterAction(s, events) {
     if (s.awaiting && (s.awaiting.type === 'prompt' || s.awaiting.type === 'minigame' || s.awaiting.type === 'ending-prompt')) return;
-    /* V6：先检查合作收尾（到达目标题卡数 / 心动值 / 长夜进终点），不再判输赢。 */
+    /* V6.1：先判「一方全部到家」收尾；题卡数/心动值不再触发结束。 */
     if (shouldEnd(s) && enterEnding(s, events)) return;
     finishTurn(s, events);
   }
@@ -722,6 +780,7 @@
       phase: 'playing',
       turn: 'a',
       consecutiveSixes: 0,
+      takeoffMiss: { a: 0, b: 0 },
       pieces: pieces,
       usedCards: { truth: {}, dare: {}, touch: {}, sync: {}, spark: {}, punish: {} },
       log: [],
@@ -764,9 +823,13 @@
       s.v = 2;
       s.mode = modeOf(s.planeCount);
       var targets = targetsFor(s.mode);
+      /* V6.1：targetCards/targetHeat 保留默认值（旧 UI/测试兼容），但 shouldEnd 不再读。 */
       if (!(Number(s.targetCards) > 0)) s.targetCards = targets.targetCards;
       if (!(Number(s.targetHeat) > 0)) s.targetHeat = targets.targetHeat;
       if (!(Number(s.cardsProcessed) >= 0)) s.cardsProcessed = processedFromLog(s.log);
+      /* V6.1 迁移：旧档补起飞保底计数（0..2），不新增必填项。 */
+      var tm = (s.takeoffMiss && typeof s.takeoffMiss === 'object') ? s.takeoffMiss : {};
+      s.takeoffMiss = { a: missOf(tm.a), b: missOf(tm.b) };
       var M = metaApi();
       if (M) {
         s.meta = (s.meta && typeof s.meta === 'object' && typeof s.meta.heat === 'number')
@@ -855,10 +918,13 @@
       if (d !== (d | 0) || d < 1 || d > 6) return fail(state, 'INVALID_DIE', '骰子只能是 1 到 6');
     }
     var s = clone(state);
+    /* V6.1 §2.3：先判断本回合是否已具备保底（读的是掷骰前状态），再记账。 */
+    var pity = takeoffPity(s);
     var die = injected ? Number(dieOpt) : rollDie(s);
     var extra = beginRoll(s, die);
-    var events = [{ type: 'dice', die: die, extraRoll: extra ? true : undefined }];
-    if (events[0].extraRoll === undefined) delete events[0].extraRoll;
+    var events = [{ type: 'dice', die: die }];
+    if (extra) events[0].extraRoll = true;
+    if (pity) events[0].pity = true;
     var legal = legalMoves(s, die);
     if (!legal.pieceIds.length) {
       s.rollContext = { die: die, extra: extra };
@@ -1071,6 +1137,8 @@
     var endedAt = Date.now();
     var startedAt = Number(state.ts) || endedAt;
     var meta = metaApi() ? metaApi().normalize(state.meta) : ensureMeta(state);
+    var winnerId = (state.winnerId === 'a' || state.winnerId === 'b') ? state.winnerId : winnerOf(state);
+    var ledgerWinnerId = (state.phase === 'safe-ended') ? null : winnerId;
     var prompts = [];
     var minigames = [];
     var cardsDone = 0;
@@ -1116,16 +1184,17 @@
       mode: state.mode || modeOf(state.planeCount),
       planeCount: state.planeCount,
       boundaries: (state.boundaries || []).slice(),
-      /* V6 合作收尾：无输赢；安全词收记为 safe（冻结单 §2.1 / §2.5）。 */
-      ending: state.phase === 'safe-ended' ? 'safe' : 'shared',
-      winnerId: null,
+      /* V6.1 §2.2：一方全部到家 → win-a/win-b；安全词 → safe；
+       * winnerId 缺失的旧「合作收尾」档仍记 shared（UI 兼容文案）。 */
+      ending: state.phase === 'safe-ended' ? 'safe' : (ledgerWinnerId ? 'win-' + ledgerWinnerId : 'shared'),
+      winnerId: state.phase === 'safe-ended' ? null : ledgerWinnerId,
       stats: {
         cardsDone: cardsDone,
         cardsSkipped: cardsSkipped,
         heat: Number(meta.heat) || 0,
         bestStreak: Number(meta.streakBest) || 0,
         minigames: minigames.length,
-        planesHome: arrivedCount(state)
+        planesHome: { a: arrivedCount(state, 'a'), b: arrivedCount(state, 'b') }
       },
       prompts: prompts,
       minigames: minigames
@@ -1198,6 +1267,12 @@
         targetHeat: Number(state && state.targetHeat) || 0,
         endingIndex: Number(state && state.endingIndex) || 0,
         endingTotal: queue.length
+      },
+      /* V6.1 §2.1：状态条「已到家」与起飞保底投影（targetCards/targetHeat 仅历史兼容）。 */
+      planesHome: { a: arrivedCount(state || {}, 'a'), b: arrivedCount(state || {}, 'b') },
+      takeoff: {
+        misses: { a: takeoffMissOf(state, 'a'), b: takeoffMissOf(state, 'b') },
+        pity: takeoffPity(state)
       }
     };
   }

@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""今晚飞行棋 V6 · E2E 验收（Playwright + Edge / 360·390·430 三视口）。
+"""今晚飞行棋 V6.1 · E2E 验收（Playwright + Edge / 360·390·430 三视口）。
 
-覆盖（对应 docs/v6/spec.md §4/§7/§9）：
-- §7 的 20 点击主路径（快局 → 开始 → 掷骰(注入) → 选子 → 做了 ×4 → 收尾两张 → 回顾 → 保存）；
-- 门厅（首屏 CTA 在视口内 / 快局长夜 / 尺度说明 / 规则速览 / 校验 / 续玩）；
-- 暂停与安全词（长按 1.6s / 短按不触发 / 继续回原状态 / 今晚就到这 / 全屏可达 / 不遮挡）；
-- 小游戏（温度计/转盘：可操作面板、跳过、完成、记录）；
-- 题卡归属/放过不惩罚/收尾两张/回顾 6 类信息/无输赢词；
-- 响应式（320/360/390/430 无横向滚动、关键按钮 ≥44px）；
-- 离线（SW 注册 + 断网刷新可开局）；
-- 0 pageerror / 0 console error。
+V6.1 口径（docs/v6/impl-freeze-v6.1.md / spec §0、§7）：
+- 结束条件 = 一方**全部飞机到家**（快局 2 / 长夜 4）；题卡数、心动值**不再**触发结束；
+- 起飞 = 6；连续 2 个自己的回合没掷出 6 且该方未到家飞机都在机坪，第 3 个回合任意点数保底起飞；
+- 收尾 = 两张「今晚最后一段」卡（各给一人）→ 今晚回顾；只写「<姓名> 先到家」「已到家 X/Y」。
+
+覆盖（对应 spec §4/§7/§9）：
+- §7 主路径（快局 → 注入「差一步全到家」局面 → 掷骰 → 选子到家 → 先到家 → 两张收尾卡 → 回顾 → 保存）；
+- 门厅（首屏 CTA 在视口内 / 快局长夜新文案 / 尺度说明 / 规则速览 6 条 / 校验 / 续玩）；
+- 起飞保底（第 2 回合不提前起飞、第 3 回合任意点数保底、起飞/掷 6 清零）；
+- 结束判定（一方全到家 → win 事件 + winner-text + 两张收尾卡 + ledger win-a/win-b；题卡 20 张 / 心动值 100 / 长夜 1 架到家 → 不结束）；
+- 旧档兼容（缺 takeoffMiss → 补 0 可续玩；旧 ending='shared' 回顾文案）；
+- 暂停与安全词、小游戏、题卡归属/放过不惩罚、回顾 6 类信息、响应式、离线、0 pageerror。
 
 用法：
   python qa/v6/e2e_v6.py                       # 跑全部（需先构建 dist/rebuild）
-  python qa/v6/e2e_v6.py --only main,pause     # 跑部分
+  python qa/v6/e2e_v6.py --only main,takeoff   # 跑部分
   python qa/v6/e2e_v6.py --dist dist/rebuild --headed
 产物：
   reports/v6/qa-e2e.json / qa-e2e.md
@@ -50,6 +53,17 @@ GRID_WORDS = ("起飞格", "真心话格", "大冒险格", "靠近格", "温度�
               "飞格", "跳格", "停格", "进航格", "命运格", "普通格", "终点", "回家第")
 FORBIDDEN_WORDS = ("赢", "输", "胜", "负", "失败", "惩罚", "扣分")
 STAGE_WORDS = ("灯刚亮", "有点热", "靠近了", "很近了", "今晚可以更近")
+# V6.1 门厅文案（copy.md §1.3 / impl-freeze-v6.1 §3.1）
+MODE_LINE_QUICK = "先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架"
+MODE_LINE_LONG = "先送完 4 架飞机 · 约 30–50 分钟 · 每人 4 架"
+# V6.1 规则速览 6 条（第 1 条合并「6 起飞 · 6 可再掷」并补保底；第 4 条「先到家就收尾」）
+RULES_NEED = ("6 起飞", "6 可再掷", "跳/飞/进航", "击落回机坪", "先到家就收尾",
+              "放过不惩罚", "安全词随时可停")
+RULES_PITY_TEXT = "保底起飞"
+PITY_TEXT = "连续两次没起飞 · 这一掷任意点数保底起飞"
+WIN_TEXT_TAIL = "先到家"
+# AC-G1-1（任意屏可暂停/安全词可达）用：记录每次 check_safety_visible 通过的屏幕
+SAFETY_SCREENS = {}
 
 # 控件定位候选（优先 data-test，再 aria/文本；copy.md §0.4 / §8 为文案基准）
 SEL = {
@@ -70,7 +84,21 @@ SEL = {
     "roll": ["test:roll", "role:button:/^掷骰$/", "text:/^掷骰$/"],
     "die_text": ["test:die-text", "test:dice-result", "text:/掷出\\s*[1-6]/"],
     "turn": ["test:turn-name", "text:/的回合/"],
-    "status": ["test:status", "test:status-bar", "text:/第\\s*\\d+\\s*\\/\\s*\\d+\\s*张/"],
+    # V6.1：状态条不再有「第 N/目标 张」；改读双方已到家 + 「第 N 张」
+    "status": ["test:status", "test:status-bar", "test:status-home"],
+    "status_home": ["test:status-home", "[data-test='status-home']"],
+    "status_home_a": ["test:status-home-a"],
+    "status_home_b": ["test:status-home-b"],
+    "status_cards": ["test:status-cards"],
+    "takeoff_pity": ["test:takeoff-pity"],
+    "winner_text": ["test:winner-text"],
+    "mode_summary": ["test:mode-summary"],
+    "mode_card_quick": ["test:mode-quick"],
+    "mode_card_long": ["test:mode-long"],
+    "rules_end": ["test:rules-end"],
+    "ledger_done_title": ["test:ledger-done-title"],
+    "ledger_done": ["test:ledger-done"],
+    "ledger_home": ["test:ledger-home"],
     "piece_hint": ["test:piece-hint", "text:/这步可以走这几架/"],
     "prompt_card": ["test:prompt-card", ".pc-root", "[data-prompt-card]", ".prompt-card", ".prompt"],
     "prompt_done": ["test:prompt-done", "role:button:/^做了$/", "text:/^做了$/"],
@@ -175,14 +203,18 @@ def prompt_dom(page):
 
 
 def status_now(page):
+    """状态条快照（V6.1）：已到家/心动值/连击优先读 DOM，缺节点时回落到引擎状态。"""
     st = Q.read_status(page)
-    if st.get("cards") is None:
+    if st.get("cards") is None or st.get("heat") is None:
         sess = Q.get_session(page) or {}
         meta = sess.get("meta") or {}
-        st["cards"] = sess.get("cardsProcessed")
-        st["target"] = sess.get("targetCards")
-        st["heat"] = meta.get("heat")
-        st["streak"] = meta.get("streak")
+        if st.get("cards") is None:
+            st["cards"] = sess.get("cardsProcessed")
+        if st.get("heat") is None:
+            st["heat"] = meta.get("heat")
+        if st.get("streak") is None:
+            st["streak"] = meta.get("streak")
+    st["target"] = None            # V6.1：没有目标张数
     return st
 
 
@@ -202,22 +234,54 @@ def wait_status(page, predicate, timeout=1500):
 
 
 def session_summary(page):
-    s = Q.get_session(page) or {}
-    meta = s.get("meta") or {}
-    aw = s.get("awaiting") or {}
-    return {
-        "phase": s.get("phase"),
-        "mode": s.get("mode"),
-        "turn": s.get("turn"),
-        "cardsProcessed": s.get("cardsProcessed"),
-        "targetCards": s.get("targetCards"),
-        "heat": meta.get("heat"),
-        "streak": meta.get("streak"),
-        "awaiting": aw.get("type"),
-        "prompt_kind": (aw.get("prompt") or {}).get("kind"),
-        "prompt_actor": (aw.get("prompt") or {}).get("actorId") or (aw.get("prompt") or {}).get("actor"),
-        "log_len": len(s.get("log") or []),
-    }
+    return Q.session_summary(page)
+
+
+def home_expect(page, pid):
+    """该玩家状态条期望文本「<色名> n/total」：颜色按本局 session.colors 取。"""
+    sess = Q.get_session(page) or {}
+    colors = sess.get("colors") or {}
+    total = int(sess.get("planeCount") or 2)
+    return Q.color_zh(colors.get(pid)), total
+
+
+def assert_status_home(rec, page, cid, label, pid, expect_n, ac="AC-B6-1",
+                       severity="P0", note=""):
+    """断言状态条「<色名> n/total」；返回 (ok, 实际文本)。"""
+    st = status_now(page)
+    color, total = home_expect(page, pid)
+    got = (st.get("home") or {}).get(pid) or {}
+    ok = got.get("n") == expect_n and got.get("total") == total and got.get("color") == color
+    expected = "%s %s/%s" % (color, expect_n, total)
+    actual = got.get("text") or "（无 status-home-%s 文本）" % pid
+    if ok:
+        rec.ok("%s/%s%s" % (cid, label, note), "状态条已到家数正确（%s）" % pid, expected, actual,
+               ac=ac, viewport=label)
+    else:
+        rec.fail("%s/%s%s" % (cid, label, note), "状态条已到家数（%s）" % pid, expected, actual,
+                 ac=ac, severity=severity, viewport=label,
+                 repro="读取 [data-test=status-home-%s] 文本" % pid)
+    return ok, actual
+
+
+def winner_text_of(page):
+    loc, _ = Q.find(page, SEL["winner_text"], timeout=1200)
+    if loc is None:
+        return ""
+    try:
+        return (loc.inner_text() or "").replace("\n", " ").strip()
+    except Exception:
+        return ""
+
+
+def pity_text_of(page):
+    loc, _ = Q.find(page, SEL["takeoff_pity"], timeout=1200)
+    if loc is None:
+        return ""
+    try:
+        return (loc.inner_text() or "").replace("\n", " ").strip()
+    except Exception:
+        return ""
 
 
 def click_and_count(drv, candidates, desc, count=True):
@@ -304,18 +368,30 @@ class TableDriver:
         return True
 
     def check_rules_overview(self, where):
-        txt = Q.body_text(self.page)
-        missing = [k for k in ("6 起飞", "6 可再掷", "跳/飞/进航", "击落回机坪",
-                               "放过不惩罚", "安全词随时可停") if k not in txt]
-        if not missing:
-            self.rec.ok("AC-A5-1/%s" % where, "规则速览 6 条齐全", "6 条标题", "6 条均在",
+        page = self.page
+        txt = Q.body_text(page)
+        missing = [k for k in RULES_NEED if k not in txt]
+        rows = page.evaluate(
+            """() => {
+                var el = document.querySelector('[data-test="rules-list"]');
+                if (!el) return null;
+                return {rows: el.querySelectorAll('.recap-row').length,
+                        text: (el.innerText || '')};
+            }"""
+        )
+        n_rows = (rows or {}).get("rows")
+        pity_ok = RULES_PITY_TEXT in ((rows or {}).get("text") or txt)
+        if not missing and pity_ok and n_rows == 6:
+            self.rec.ok("AC-A5-1/%s" % where, "规则速览 6 条齐全（含保底起飞与先到家就收尾）",
+                        "6 条标题 + 保底起飞正文", "6 条均在，rows=%s" % n_rows,
                         ac="AC-A5-1", viewport=self.label,
-                        evidence=Q.this_shot(self.rec, self.page, "rules_" + where))
+                        evidence=Q.this_shot(self.rec, page, "rules_" + where))
         else:
-            self.rec.fail("AC-A5-1/%s" % where, "规则速览 6 条齐全", "6 条标题",
-                          "缺少：%s" % missing, ac="AC-A5-1", viewport=self.label,
-                          repro="首次打开→查看玩法速览",
-                          evidence=Q.this_shot(self.rec, self.page, "rules_" + where))
+            self.rec.fail("AC-A5-1/%s" % where, "规则速览 6 条齐全", "6 条标题 + 保底起飞正文",
+                          "缺少标题=%s 缺保底正文=%s rows=%s" % (missing, not pity_ok, n_rows),
+                          ac="AC-A5-1", viewport=self.label,
+                          repro="首次打开→查看玩法速览（规则速览 6 条）",
+                          evidence=Q.this_shot(self.rec, page, "rules_" + where))
 
     # -- 一回合 -----------------------------------------------------
     def step(self):
@@ -608,6 +684,10 @@ class TableDriver:
                           "未找到题卡容器", ac="C1", viewport=self.label,
                           repro="落到题格→读取题卡")
             return "stuck"
+        # B4 红线：安全词在题卡浮层上仍可达（每个视口只验一次）
+        if not getattr(self, "safety_prompt_checked", False):
+            self.safety_prompt_checked = True
+            check_safety_visible(self.ps, self.rec, self.label, "prompt")
         text = dom.get("text") or ""
         screenshot = Q.this_shot(self.rec, page, "prompt_%02d_%s_%s" % (len(self.prompt_log) + 1, kind, self.label))
 
@@ -855,23 +935,39 @@ class TableDriver:
                                   ac="AC-B6-2", viewport=self.label,
                                   repro="题卡结算后对比状态条与 App.Store 会话")
 
-        # 收尾触发（E3-1）
+        # 结束判定（V6.1 E3）：题卡数 / 心动值**不再**触发收尾；只有「一方全部到家」才收尾。
+        # 只在本局第一张普通题卡后断言一次（避免每张卡一行重复用例）。
         if not ending and sess_after.get("phase") not in ("ended", "safe-ended"):
-            target = sess_after.get("targetCards") or 4
-            should_end = (self.cards or 0) >= target or (heat_after or 0) >= (sess_after.get("targetHeat") or 40)
-            if should_end:
-                etxt, ems = Q.wait_text(page, r"今晚最后一段", timeout=1500)
-                if etxt:
-                    self.rec.ok("AC-E3-1/%s" % self.label, "达到目标后 ≤1s 出现「今晚最后一段」",
-                                "≤1000ms", "%s（%dms）" % (etxt, ems), ac="AC-E3-1",
-                                viewport=self.label, duration_ms=ems,
+            if not getattr(self, "checked_e3", False):
+                self.checked_e3 = True
+                homes = session_summary(page).get("planesHome") or {}
+                total = int(sess_after.get("planeCount") or 2)
+                all_home = any((homes.get(x) or 0) >= total for x in ("a", "b"))
+                cards_n = sess_after.get("cardsProcessed") or self.cards or 0
+                banner = Q.exists(page, SEL["ending_title"], timeout=400)
+                if all_home and banner:
+                    self.rec.ok("AC-E3-1/%s" % self.label, "一方全部到家 → 出现收尾标题",
+                                "「今晚最后一段」", "cards=%s heat=%s home=%s" %
+                                (cards_n, heat_after, homes), ac="AC-E3-1", viewport=self.label,
                                 evidence=Q.this_shot(self.rec, page, "ending_start"))
+                    self.ending_started = True
+                elif all_home:
+                    self.rec.fail("AC-E3-1/%s" % self.label, "一方全部到家 → 收尾",
+                                  "≤1s 出现「今晚最后一段」", "cards=%s home=%s" % (cards_n, homes),
+                                  ac="AC-E3-1", viewport=self.label,
+                                  repro="构造一方全部到家→读取收尾标题")
+                elif not banner:
+                    self.rec.ok("AC-E3-2/%s" % self.label, "题卡数/心动值不触发结束",
+                                "未出现「今晚最后一段」",
+                                "cards=%s（targetCards=%s 仅历史兼容）heat=%s home=%s" %
+                                (cards_n, sess_after.get("targetCards"), heat_after, homes),
+                                ac="AC-E3-2 / AC-E3-3", viewport=self.label)
                 else:
-                    self.rec.fail("AC-E3-1/%s" % self.label, "达到目标后 ≤1s 出现「今晚最后一段」",
-                                  "≤1000ms", "未出现收尾标题（cards=%s, heat=%s）" %
-                                  (self.cards, heat_after), ac="AC-E3-1", viewport=self.label,
-                                  repro="快局处理第 4 张题卡→读取「今晚最后一段」")
-                self.ending_started = True
+                    self.rec.fail("AC-E3-2/%s" % self.label, "题卡数/心动值不触发结束",
+                                  "未出现「今晚最后一段」", "cards=%s heat=%s home=%s" %
+                                  (cards_n, heat_after, homes), ac="AC-E3-2",
+                                  viewport=self.label,
+                                  repro="处理题卡后读取「今晚最后一段」")
 
         # 收尾卡第二张之后
         if ending:
@@ -930,6 +1026,10 @@ class TableDriver:
                           "未找到小游戏面板", ac="AC-D1-1", viewport=self.label,
                           repro="落到温度计/转盘格→读取面板")
             return "stuck"
+        # B4 红线：安全词在小游戏浮层上仍可达（每个视口只验一次）
+        if not getattr(self, "safety_mini_checked", False):
+            self.safety_mini_checked = True
+            check_safety_visible(self.ps, self.rec, self.label, "minigame")
         has_control = page.evaluate(
             """() => {
                 var sel = '[data-test="minigame-panel"], [data-minigame], .minigame-panel';
@@ -1120,6 +1220,7 @@ def check_safety_visible(ps, rec, label, screen):
                "opacity>0 + 可点 + ≥44px", "opacity=%.2f %.0fx%.0f hit=%s" %
                (data["opacity"], data["w"], data["h"], hit.get("test") or hit.get("cls")),
                ac="AC-B4-1", viewport=label)
+        SAFETY_SCREENS.setdefault(screen, set()).add(label)
     else:
         rec.fail("AC-B4-1/%s/%s" % (screen, label), "安全词在 %s 屏可见且可点" % screen,
                  "opacity>0 + 可点 + ≥44px + hit-test 命中自身",
@@ -1163,31 +1264,40 @@ def check_modes_and_scale(ps, rec, label):
         rec.fail("AC-A2-1/%s" % label, "门厅提供快局/长夜两种模式", "两个选项",
                  "quick=%s long=%s" % (has_quick, has_long), ac="AC-A2-1", viewport=label,
                  repro="打开门厅→查找快局/长夜")
-    # 快局说明
+    # 快局说明（V6.1：先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架；不再有「目标 4 张题卡」）
     Q.try_click(page, SEL["quick"], timeout=1000)
     page.wait_for_timeout(200)
     txt = Q.body_text(page)
-    need = ["目标 4 张题卡", "8–12", "2 架"]
+    summary = ""
+    loc, _ = Q.find(page, SEL["mode_summary"], timeout=1000)
+    if loc is not None:
+        try:
+            summary = (loc.inner_text() or "").replace("\n", " ").strip()
+        except Exception:
+            summary = ""
+    need = ["先送完 2 架飞机", "15–25", "每人 2 架"]
     miss = [n for n in need if n not in txt]
-    if not miss:
-        rec.ok("AC-A2-2/%s" % label, "快局显示目标/时长/飞机数", "目标 4 张题卡 · 约 8–12 分钟 · 2 架",
-               "均命中", ac="AC-A2-2", viewport=label)
+    legacy = [w for w in ("目标 4 张题卡", "目标 8 张题卡", "8–12 分钟", "25–40 分钟") if w in txt]
+    if not miss and not legacy and MODE_LINE_QUICK in (summary or txt):
+        rec.ok("AC-A2-2/%s" % label, "快局说明为「先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架」",
+               MODE_LINE_QUICK, "命中（mode-summary=%r）" % summary, ac="AC-A2-2", viewport=label)
     else:
-        rec.fail("AC-A2-2/%s" % label, "快局显示目标/时长/飞机数", "目标 4 张题卡 · 约 8–12 分钟 · 2 架",
-                 "缺少：%s" % miss, ac="AC-A2-2", viewport=label,
-                 repro="门厅点快局→读取模式说明")
+        rec.fail("AC-A2-2/%s" % label, "快局说明为「先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架」",
+                 MODE_LINE_QUICK, "缺=%s 旧口径残留=%s summary=%r" % (miss, legacy, summary),
+                 ac="AC-A2-2", viewport=label, repro="门厅点快局→读取模式说明")
     # 长夜说明（只读，不开始）
     Q.try_click(page, SEL["long"], timeout=1200)
     page.wait_for_timeout(200)
     txt = Q.body_text(page)
-    miss2 = [n for n in ("目标 8 张题卡", "25–40", "4 架") if n not in txt]
-    if not miss2:
-        rec.ok("AC-A2-2-long/%s" % label, "长夜显示目标/时长/飞机数", "目标 8 张题卡 · 约 25–40 分钟 · 4 架",
-               "均命中", ac="AC-A2-2", viewport=label)
+    miss2 = [n for n in ("先送完 4 架飞机", "30–50", "每人 4 架") if n not in txt]
+    legacy2 = [w for w in ("目标 8 张题卡", "目标 4 张题卡") if w in txt]
+    if not miss2 and not legacy2:
+        rec.ok("AC-A2-2-long/%s" % label, "长夜说明为「先送完 4 架飞机 · 约 30–50 分钟 · 每人 4 架」",
+               MODE_LINE_LONG, "命中", ac="AC-A2-2", viewport=label)
     else:
-        rec.check("AC-A2-2-long/%s" % label, "长夜显示目标/时长/飞机数", "FAIL",
-                  "目标 8 张题卡 · 约 25–40 分钟 · 4 架", "缺少：%s" % miss2, ac="AC-A2-2",
-                  viewport=label)
+        rec.fail("AC-A2-2-long/%s" % label, "长夜说明为「先送完 4 架飞机 · 约 30–50 分钟 · 每人 4 架」",
+                 MODE_LINE_LONG, "缺=%s 旧口径残留=%s" % (miss2, legacy2), ac="AC-A2-2",
+                 viewport=label, repro="门厅点长夜→读取模式说明")
     Q.try_click(page, SEL["quick"], timeout=1000)
     # 尺度四档 + 说明
     scale_names = ["温柔", "暧昧", "热烈", "不设限"]
@@ -1269,16 +1379,19 @@ def run_rules_case(browser, url, rec, label="390x844"):
                       "首次打开出现 6 条规则", "本次 context 首次打开未出现规则层（可能默认关闭）",
                       ac="AC-A5-1", viewport=label)
         else:
-            need = ["6 起飞", "6 可再掷", "跳/飞/进航", "击落回机坪", "放过不惩罚", "安全词随时可停"]
+            need = list(RULES_NEED)
             miss = [n for n in need if n not in txt]
-            if not miss:
-                rec.ok("AC-A5-1/%s" % label, "玩法速览 6 条齐全", "6 条标题",
-                       "均命中", ac="AC-A5-1", viewport=label,
-                       evidence=Q.this_shot(rec, page, "rules_first"))
+            pity_ok = RULES_PITY_TEXT in txt
+            end_row = Q.exists(page, SEL["rules_end"], timeout=600)
+            if not miss and pity_ok:
+                rec.ok("AC-A5-1/%s" % label, "玩法速览 6 条齐全（含保底与先到家就收尾）",
+                       "6 条标题 + 保底正文 + rules-end 高亮",
+                       "均命中 pity=%s rules-end=%s" % (pity_ok, end_row), ac="AC-A5-1",
+                       viewport=label, evidence=Q.this_shot(rec, page, "rules_first"))
             else:
-                rec.fail("AC-A5-1/%s" % label, "玩法速览 6 条齐全", "6 条标题",
-                         "缺少：%s" % miss, ac="AC-A5-1", viewport=label,
-                         repro="首次打开→读取规则层")
+                rec.fail("AC-A5-1/%s" % label, "玩法速览 6 条齐全（含保底与先到家就收尾）",
+                         "6 条标题 + 保底正文", "缺少：%s 保底正文=%s" % (miss, pity_ok),
+                         ac="AC-A5-1", viewport=label, repro="首次打开→读取规则层")
             Q.try_click(page, SEL["rules_ok"], timeout=2500)
             page.wait_for_timeout(400)
             if "玩法速览" not in Q.body_text(page):
@@ -1297,15 +1410,15 @@ def run_rules_case(browser, url, rec, label="390x844"):
             Q.try_click(page, SEL["rules_entry"], timeout=1500)
             page.wait_for_timeout(500)
             txt2 = Q.body_text(page)
-            miss2 = [k for k in ("6 起飞", "6 可再掷", "跳/飞/进航", "击落回机坪",
-                                 "放过不惩罚", "安全词随时可停") if k not in txt2]
+            miss2 = [k for k in RULES_NEED if k not in txt2]
             sheet_ok = Q.exists(page, SEL["rules_sheet"] + SEL["rules_list"], timeout=800)
             if not miss2:
-                rec.ok("AC-A5-3/%s" % label, "主桌可再次打开规则（6 条）", "6 条命中 + rules-sheet",
+                rec.ok("AC-A5-3/%s" % label, "主桌可再次打开规则（6 条含保底/先到家）",
+                       "6 条命中 + rules-sheet",
                        "均命中 sheet=%s" % sheet_ok, ac="AC-A5-3", viewport=label,
                        evidence=Q.this_shot(rec, page, "rules_table_%s" % label))
             else:
-                rec.fail("AC-A5-3/%s" % label, "主桌可再次打开规则（6 条）", "6 条命中",
+                rec.fail("AC-A5-3/%s" % label, "主桌可再次打开规则（6 条含保底/先到家）", "6 条命中",
                          "缺少：%s sheet=%s" % (miss2, sheet_ok), ac="AC-A5-3", viewport=label,
                          repro="主桌点「规则」→读取规则层")
             # 关闭规则面板，继续后续用例
@@ -1319,61 +1432,254 @@ def run_rules_case(browser, url, rec, label="390x844"):
         ctx.close()
 
 
-def run_main_path(browser, url, rec, label, prompt_outcome="done", minigame_outcome="skip",
-                  stop_after_cards=None, names=NAMES, screenshot_prefix="main", max_steps=120):
-    """§7 20 点击主路径 + 收尾 + 回顾。返回 driver。"""
+def _wait_piece_buttons(page, timeout=6000):
+    """等待可走子文字按钮出现；返回 (buttons, spec)。"""
+    deadline = time.time() + timeout / 1000.0
+    btns, spec = [], None
+    while time.time() < deadline:
+        btns, spec = Q.find_piece_buttons(page)
+        if btns:
+            return btns, spec
+        page.wait_for_timeout(120)
+    return [], spec
+
+
+def prompt_snapshot(page, timeout=8000):
+    """等待题卡挂上；返回 (prompt_dom, kicker_text)。"""
+    deadline = time.time() + timeout / 1000.0
+    dom = None
+    while time.time() < deadline:
+        dom = prompt_dom(page)
+        if dom:
+            break
+        page.wait_for_timeout(120)
+    kicker = ""
+    loc, _ = Q.find(page, ["test:prompt-kicker"], timeout=1500)
+    if loc is not None:
+        try:
+            kicker = (loc.inner_text() or "").replace("\n", " ").strip()
+        except Exception:
+            kicker = ""
+    return dom, kicker
+
+
+def check_ledger_v61(ps, rec, label, drv, winner="a", expect_home=None, expect_ending=None,
+                     total=2):
+    """V6.1 回顾断言：`<姓名> 先到家` + `已到家 X/Y`（ledger-home）+ 无输赢词 + ledger 契约。
+
+    expect_home: (a 到家数, b 到家数)；expect_ending: 'win-a' / 'win-b'（缺省按 winner 推）。
+    """
+    page = ps.page
+    txt = Q.body_text(page)
+    shot = Q.this_shot(rec, page, "ledger_v61_%s" % label)
+    want_winner_name = drv.names[0] if winner == "a" else drv.names[1]
+    total = int(total or 2)
+    expect_home = expect_home or (0, 0)
+    dtitle = ""
+    loc, _ = Q.find(page, SEL["ledger_done_title"], timeout=2000)
+    if loc is not None:
+        try:
+            dtitle = (loc.inner_text() or "").replace("\n", " ").strip()
+        except Exception:
+            dtitle = ""
+    if dtitle == want_winner_name + " 先到家":
+        rec.ok("AC-F2-5-title/%s" % label, "回顾首屏写「<姓名> 先到家」",
+               "%s 先到家" % want_winner_name, dtitle, ac="AC-F2-5", viewport=label,
+               evidence=shot)
+    else:
+        rec.fail("AC-F2-5-title/%s" % label, "回顾首屏写「<姓名> 先到家」",
+                 "%s 先到家" % want_winner_name,
+                 "实际=%r（body 含「先到家」=%s）" % (dtitle, "先到家" in txt),
+                 ac="AC-F2-5", viewport=label,
+                 repro="完成收尾→读取 [data-test=ledger-done-title]", evidence=shot)
+    sub = ""
+    loc, _ = Q.find(page, ["test:ledger-done-sub"], timeout=1500)
+    if loc is not None:
+        try:
+            sub = (loc.inner_text() or "").replace("\n", " ").strip()
+        except Exception:
+            sub = ""
+    winner_home = expect_home[0] if winner == "a" else expect_home[1]
+    if "已到家" in sub and re.search(r"%d\s*/\s*%d" % (winner_home, total), sub):
+        rec.ok("AC-F2-5-sub/%s" % label, "首屏副标题写「已到家 X/Y」",
+               "已到家 %d/%d 架" % (winner_home, total), sub, ac="AC-F2-5", viewport=label)
+    else:
+        rec.fail("AC-F2-5-sub/%s" % label, "首屏副标题写「已到家 X/Y」",
+                 "已到家 %d/%d 架" % (winner_home, total), "实际=%r" % sub, ac="AC-F2-5",
+                 viewport=label, repro="完成收尾→读取 [data-test=ledger-done-sub]")
+    home_txt = ""
+    loc, _ = Q.find(page, SEL["ledger_home"], timeout=2000)
+    if loc is not None:
+        try:
+            home_txt = (loc.inner_text() or "").replace("\n", " ").strip()
+        except Exception:
+            home_txt = ""
+    has_a = bool(re.search(r"(?<!\d)%d\s*/\s*%d" % (expect_home[0], total), home_txt))
+    has_b = bool(re.search(r"(?<!\d)%d\s*/\s*%d" % (expect_home[1], total), home_txt))
+    if home_txt and has_a and has_b:
+        rec.ok("AC-F2-5-home/%s" % label, "汇总格「已到家」记录双方到家数（ledger-home）",
+               "%d/%d 与 %d/%d" % (expect_home[0], total, expect_home[1], total), home_txt,
+               ac="AC-F2-5", viewport=label, evidence=shot)
+    else:
+        rec.fail("AC-F2-5-home/%s" % label, "汇总格「已到家」记录双方到家数（ledger-home）",
+                 "%d/%d 与 %d/%d" % (expect_home[0], total, expect_home[1], total),
+                 "实际=%r" % home_txt, ac="AC-F2-5", viewport=label,
+                 repro="完成收尾→读取 [data-test=ledger-home]")
+    led = Q.eval_js(
+        page,
+        """() => {
+            try {
+                var list = App.Store.getHistory() || [];
+                for (var i = 0; i < list.length; i++) {
+                    var l = list[i] && list[i].ledger;
+                    if (l && l.ending) return {ending: l.ending, winnerId: l.winnerId,
+                                               planesHome: (l.stats || {}).planesHome,
+                                               planeCount: l.planeCount};
+                }
+                return null;
+            } catch (e) { return null; }
+        }""")
+    want_ending = expect_ending or ("win-" + winner)
+    ph = (led or {}).get("planesHome") or {}
+    if (led and led.get("ending") == want_ending and led.get("winnerId") == winner
+            and ph.get("a") == expect_home[0] and ph.get("b") == expect_home[1]):
+        rec.ok("AC-F2-5-ledger/%s" % label, "ledger ending/winnerId/stats.planesHome 正确",
+               "ending=%s winnerId=%s planesHome=%s" % (want_ending, winner, expect_home),
+               json.dumps(led, ensure_ascii=False), ac="AC-E3-1 / impl-freeze §2.2",
+               viewport=label)
+    else:
+        rec.fail("AC-F2-5-ledger/%s" % label, "ledger ending/winnerId/stats.planesHome 正确",
+                 "ending=%s winnerId=%s planesHome=%s" % (want_ending, winner, expect_home),
+                 json.dumps(led, ensure_ascii=False), ac="AC-E3-1 / impl-freeze §2.2",
+                 viewport=label, repro="完成收尾→读 App.Store.getHistory()[0].ledger")
+    bad = [w for w in FORBIDDEN_WORDS if w in txt]
+    if not bad:
+        rec.ok("AC-E2-3/%s" % label, "回顾页无输赢判定词", "不含 赢/输/胜/负/失败/惩罚/扣分", "无",
+               ac="AC-E2-3", viewport=label)
+    else:
+        rec.fail("AC-E2-3/%s" % label, "回顾页无输赢判定词", "不含 赢/输/胜/负/失败/惩罚/扣分",
+                 "出现：%s" % bad, ac="AC-E2-3", viewport=label,
+                 repro="完成对局→读取回顾页文本")
+    return led
+
+
+def run_main_path(browser, url, rec, label, names=NAMES, screenshot_prefix="main"):
+    """V6.1 §7 主路径：门厅 → 快局 → 注入「差一步全到家」→ 掷骰/选子到家 →
+    「<姓名> 先到家」→ 两张收尾卡 → 今晚回顾 → 保存；返回 driver（点击计数 + 证据）。
+
+    注入（spec §7，不计点击）：写 couple2.session —— a 方两架分别停在 home:*:3 / home:*:4，
+    b 方留机坪；刷新后点「继续今晚飞行棋」。
+    """
     vp = Q.VIEWPORTS[label]
     ctx, ps, page = new_page(browser, url, vp, rec, label)
-    drv = TableDriver(ps, rec, label, names=names, prompt_outcome=prompt_outcome,
-                      minigame_outcome=minigame_outcome, stop_after_cards=stop_after_cards,
-                      max_steps=max_steps, target_kinds=["truth", "dare", "touch"])
+    drv = TableDriver(ps, rec, label, names=names, prompt_outcome="done",
+                      minigame_outcome="skip", max_steps=40)
     try:
-        # 门厅断言（首次可能含规则）
         Q.ensure_boot(page, rec)
         check_start_in_viewport(ps, rec, label, vp)
         if label == "390x844":
             check_modes_and_scale(ps, rec, label)
         else:
             Q.try_click(page, SEL["quick"], timeout=1000)
+        # ---- step 1~2：快局 → 摆上棋盘（点击 1、2）----
         if not drv.start_quick():
             return drv
+        # B4 红线：主桌安全词可达（每个视口验一次，供 AC-G1-1 汇总）
+        check_safety_visible(ps, rec, label, "table")
         rec.shot(page, "%s_table_%s" % (screenshot_prefix, label))
-        # AC-A2-3：开始后引擎状态与所选模式一致（快局 target 4 / 2 架/人）
         sess0 = Q.get_session(page) or {}
-        if (sess0.get("mode") == "quick" and sess0.get("targetCards") == 4
-                and int(sess0.get("planeCount") or 0) == 2):
-            rec.ok("AC-A2-3/%s" % label, "开始后引擎状态与快局一致", "mode=quick target=4 planeCount=2",
-                   "mode=%s target=%s planeCount=%s" % (sess0.get("mode"), sess0.get("targetCards"),
-                                                        sess0.get("planeCount")),
+        if sess0.get("mode") == "quick" and int(sess0.get("planeCount") or 0) == 2:
+            rec.ok("AC-A2-3/%s" % label, "开始后引擎状态与快局一致",
+                   "mode=quick planeCount=2（targetCards 仅历史兼容）",
+                   "mode=%s planeCount=%s targetCards=%s" %
+                   (sess0.get("mode"), sess0.get("planeCount"), sess0.get("targetCards")),
                    ac="AC-A2-3", viewport=label)
         else:
-            rec.fail("AC-A2-3/%s" % label, "开始后引擎状态与快局一致", "mode=quick target=4 planeCount=2",
-                     "mode=%s target=%s planeCount=%s" % (sess0.get("mode"), sess0.get("targetCards"),
-                                                          sess0.get("planeCount")),
-                     ac="AC-A2-3", viewport=label, repro="门厅选快局→开始→读取 App.Store.getSession()")
-        # 初始状态条
-        ok, st = wait_status(page, lambda s: s.get("cards") == 0)
-        target = st.get("target") or (4 if prompt_outcome != "skip" else 4)
-        if st.get("cards") == 0:
-            rec.ok("§7-STEP-2/%s" % label, "开始后状态条为第 0/目标 张", "第 0/4 张 · 心动值 0",
-                   "cards=%s target=%s heat=%s" % (st.get("cards"), st.get("target"), st.get("heat")),
-                   ac="§7.2 / B6", viewport=label)
+            rec.fail("AC-A2-3/%s" % label, "开始后引擎状态与快局一致", "mode=quick planeCount=2",
+                     "mode=%s planeCount=%s" % (sess0.get("mode"), sess0.get("planeCount")),
+                     ac="AC-A2-3", viewport=label,
+                     repro="门厅选快局→开始→读取 App.Store.getSession()")
+        rec.add_note("V6.1：targetCards=%s / targetHeat=%s 仅为历史兼容字段，不参与结束判定"
+                     % (sess0.get("targetCards"), sess0.get("targetHeat")))
+
+        # ---- step 2 断言：状态条读双方已到家（V6.1），不再有「第 N/目标 张」----
+        wait_status(page, lambda s: s.get("cards") == 0 and
+                    (((s.get("home") or {}).get("a") or {}).get("n") == 0))
+        st = status_now(page)
+        color_a, total = home_expect(page, "a")
+        color_b, _ = home_expect(page, "b")
+        want_home = "%s 0/%d · %s 0/%d" % (color_a, total, color_b, total)
+        if st.get("home_text") == want_home:
+            rec.ok("§7-STEP-2/%s" % label, "开始后状态条读双方已到家", want_home,
+                   "%s（心动值 %s · 连击 %s）" % (st.get("home_text"), st.get("heat"),
+                                                st.get("streak")),
+                   ac="§7.2 / AC-B6-1", viewport=label)
         else:
-            rec.fail("§7-STEP-2/%s" % label, "开始后状态条为第 0/目标 张", "第 0/4 张 · 心动值 0",
-                     json.dumps(st, ensure_ascii=False)[:200], ac="§7.2 / B6", viewport=label,
-                     repro="开始对局→读取状态条")
+            rec.fail("§7-STEP-2/%s" % label, "开始后状态条读双方已到家", want_home,
+                     "实际=%r（body=%r）" % (st.get("home_text"), (st.get("text") or "")[:160]),
+                     ac="§7.2 / AC-B6-1", viewport=label,
+                     repro="开始对局→读取 [data-test=status-home]")
+        four = {"home": st.get("home_text"), "heat": st.get("heat"),
+                "streak": st.get("streak"), "turn": st.get("turn")}
+        if all(v is not None and v != "" for v in four.values()):
+            rec.ok("AC-B6-1/%s" % label, "状态条可读到已到家/心动值/连击/回合",
+                   "4 项均可见", json.dumps(four, ensure_ascii=False), ac="AC-B6-1",
+                   viewport=label)
+        else:
+            rec.fail("AC-B6-1/%s" % label, "状态条可读到已到家/心动值/连击/回合", "4 项均可见",
+                     json.dumps(four, ensure_ascii=False), ac="AC-B6-1", viewport=label,
+                     repro="主桌读取状态条与回合名")
+        cards_text = (st.get("cards_text") or "").strip()
+        status_txt = st.get("text") or ""
+        if cards_text and "/" not in cards_text and "目标" not in status_txt:
+            rec.ok("§7-STATUS-CARDS/%s" % label, "状态条不再显示目标张数", "「第 N 张」且无「目标」",
+                   "status-cards=%r" % cards_text, ac="AC-B6-1 / §0-5", viewport=label)
+        else:
+            rec.fail("§7-STATUS-CARDS/%s" % label, "状态条不再显示目标张数",
+                     "「第 N 张」且无「目标」",
+                     "status-cards=%r 含目标=%s" % (cards_text, "目标" in status_txt),
+                     ac="AC-B6-1 / §0-5", viewport=label,
+                     repro="主桌读取 [data-test=status-cards] 与状态条文本")
+        nodes = page.evaluate(
+            """() => ({
+                status_home: !!document.querySelector('[data-test="status-home"]'),
+                status_home_a: !!document.querySelector('[data-test="status-home-a"]'),
+                status_home_b: !!document.querySelector('[data-test="status-home-b"]'),
+                takeoff_pity: !!document.querySelector('[data-test="takeoff-pity"]'),
+                winner_text: !!document.querySelector('[data-test="winner-text"]'),
+                pity_shown: (function(){var el=document.querySelector('[data-test="takeoff-pity"]');
+                    return !!(el && !el.hidden && (el.innerText||'').trim());})(),
+                winner_shown: (function(){var el=document.querySelector('[data-test="winner-text"]');
+                    return !!(el && !el.hidden && (el.innerText||'').trim());})()
+            })"""
+        )
+        if all(nodes.get(k) for k in ("status_home", "status_home_a", "status_home_b",
+                                      "takeoff_pity", "winner_text")):
+            rec.ok("§7-STATUS-NODES/%s" % label, "V6.1 状态节点齐全",
+                   "status-home(-a/-b) + takeoff-pity + winner-text",
+                   json.dumps(nodes, ensure_ascii=False), ac="AC-B6-1 / freeze §3.2",
+                   viewport=label)
+        else:
+            rec.fail("§7-STATUS-NODES/%s" % label, "V6.1 状态节点齐全",
+                     "status-home(-a/-b) + takeoff-pity + winner-text",
+                     json.dumps(nodes, ensure_ascii=False), ac="AC-B6-1 / freeze §3.2",
+                     viewport=label, repro="主桌检查 data-test 节点")
+        if nodes.get("pity_shown") or nodes.get("winner_shown"):
+            rec.fail("§7-NO-EARLY-PITY/%s" % label, "开局不显示保底提示/胜者", "两者均隐藏",
+                     json.dumps(nodes, ensure_ascii=False), ac="freeze §3.2", viewport=label,
+                     repro="开局读取 takeoff-pity / winner-text")
         if st.get("heat") not in (0, None):
-            rec.fail("AC-E1-1-init/%s" % label, "初始心动值为 0", "0", "heat=%s" % st.get("heat"),
-                     ac="AC-E1-1", viewport=label, repro="开局→读取状态条")
-        # 回合名
-        turn_txt, tms = Q.wait_text(page, r"[\u4e00-\u9fa5A-Za-z0-9]{1,12}\s*的回合", timeout=2000)
+            rec.fail("AC-E1-1-init/%s" % label, "初始心动值为 0", "0",
+                     "heat=%s" % st.get("heat"), ac="AC-E1-1", viewport=label,
+                     repro="开局→读取状态条")
+        turn_txt, tms = Q.wait_text(page, r"[\u4e00-\u9fa5A-Za-z0-9]{1,12}\s*的回合",
+                                    timeout=2000)
         if turn_txt:
             rec.ok("AC-B6-1-turn/%s" % label, "主桌显示当前回合姓名", "「X 的回合」",
                    "%s（%dms）" % (turn_txt, tms), ac="AC-B6-1", viewport=label)
         else:
             rec.fail("AC-B6-1-turn/%s" % label, "主桌显示当前回合姓名", "「X 的回合」",
                      "未找到回合名", ac="AC-B6-1", viewport=label, repro="开局→读取回合条")
-        # 棋盘结构（visual 另测；这里轻量）
         probe = Q.v6_probe(page)
         if probe.get("squares", 0) >= 52:
             rec.ok("VIS-BOARD-COUNT/%s" % label, "棋盘格位 DOM 可断言", "≥52 个 [data-square]",
@@ -1382,127 +1688,349 @@ def run_main_path(browser, url, rec, label, prompt_outcome="done", minigame_outc
             rec.check("VIS-BOARD-COUNT/%s" % label, "棋盘格位 DOM 可断言", "FAIL",
                       "≥52 个 [data-square]", "squares=%d" % probe.get("squares", 0),
                       ac="B7/B8", severity="P1", viewport=label)
-        # 主循环
-        guard = 0
-        while guard < drv.max_steps:
-            guard += 1
-            screen = Q.screen_name(page)
-            if screen in ("ledger", "nights"):
-                drv.finished = True
+
+        # ---- step 3：注入「a 方差一步全到家」（不计点击）→ 刷新 → 继续今晚飞行棋 ----
+        state, pending = Q.fixture_near_home(page, "a", steps=(3, 4))
+        if not state or len(pending) != 2:
+            rec.fail("§7-FIXTURE/%s" % label, "注入「a 方差一步全到家」局面",
+                     "a 方两架停在 home:*:3 / home:*:4，b 方留机坪",
+                     "注入失败（state=%r pending=%s）" % (bool(state), pending), ac="§7",
+                     viewport=label, repro="写 couple2.session 后刷新页面")
+            return drv
+        rec.add_note("§7 主路径按 spec §7 用测试夹具注入局面（a:0=home:*:3、a:1=home:*:4、"
+                     "b 全在机坪），注入不计点击")
+        Q.install_event_recorder(page)
+        if Q.continue_session(page):
+            drv.clicks.append("继续今晚飞行棋")
+            rec.ok("AC-A6-1/%s" % label, "注入局面后刷新出现「继续今晚飞行棋」并回到主桌", "table",
+                   "continue→table", ac="AC-A6-1", viewport=label)
+        else:
+            rec.fail("AC-A6-1/%s" % label, "注入局面后刷新出现「继续今晚飞行棋」并回到主桌", "table",
+                     "screen=%r" % Q.screen_name(page), ac="AC-A6-1", viewport=label,
+                     repro="刷新→点继续今晚飞行棋")
+            return drv
+        page.wait_for_timeout(500)
+        Q.install_event_recorder(page)
+        assert_status_home(rec, page, "§7-STEP-3", label, "a", 0, ac="§7.3 / AC-B6-1")
+        sess = Q.get_session(page) or {}
+        if sess.get("turn") == "a" and (sess.get("awaiting") or {}).get("type") == "roll":
+            rec.ok("§7-STEP-3-turn/%s" % label, "继续后回到先手方掷骰", "turn=a awaiting=roll",
+                   "turn=%s awaiting=%s" % (sess.get("turn"),
+                                            (sess.get("awaiting") or {}).get("type")),
+                   ac="§7.3", viewport=label)
+        else:
+            rec.fail("§7-STEP-3-turn/%s" % label, "继续后回到先手方掷骰", "turn=a awaiting=roll",
+                     "turn=%s awaiting=%s" % (sess.get("turn"),
+                                              (sess.get("awaiting") or {}).get("type")),
+                     ac="§7.3", viewport=label, repro="注入后刷新→点继续→读 session")
+
+        # ---- step 4：掷 1（注入）→ 两架都能走 → 文字选子按钮 ----
+        Q.set_die(page, 1)
+        click_and_count(drv, SEL["roll"], "掷骰")
+        txt, ms = Q.wait_text(page, r"掷出\s*1", timeout=1500)
+        shot = Q.this_shot(rec, page, "roll_0")
+        if txt and ms <= 800:
+            rec.ok("AC-B1-1/%s" % label, "掷骰后点数文本 ≤800ms", "≤800ms 出现「掷出 1」",
+                   "%s（%dms）" % (txt.replace("\n", " "), ms), ac="AC-B1-1", viewport=label,
+                   duration_ms=ms, evidence=shot)
+        else:
+            rec.fail("AC-B1-1/%s" % label, "掷骰后点数文本 ≤800ms", "≤800ms 出现「掷出 1」",
+                     ("未出现" if not txt else "%s（%dms，超 800ms）" % (txt, ms)),
+                     ac="AC-B1-1", viewport=label, duration_ms=ms,
+                     repro="点掷骰→计时读取「掷出 1」", evidence=shot)
+        btns, spec = _wait_piece_buttons(page, timeout=6000)
+        labels = []
+        for b in btns:
+            try:
+                labels.append((b.inner_text() or "").replace("\n", " ").strip())
+            except Exception:
+                labels.append("")
+        if len(btns) == 2 and all(
+                re.search(r"(红|黄|蓝|绿).*第\s*\d+\s*架.*(从机坪起飞|沿航线走)", t) for t in labels):
+            rec.ok("AC-B3-1/%s" % label, "两架可走时给出文字选子按钮（颜色/第几架/从哪走）",
+                   "2 个按钮且文案完整", json.dumps(labels, ensure_ascii=False), ac="AC-B3-1",
+                   viewport=label, evidence=Q.this_shot(rec, page, "choose_1"))
+        else:
+            rec.fail("AC-B3-1/%s" % label, "两架可走时给出文字选子按钮（颜色/第几架/从哪走）",
+                     "2 个按钮且文案完整", "n=%s labels=%s" % (len(btns), labels),
+                     ac="AC-B3-1", viewport=label,
+                     repro="掷骰后读取 [data-action-piece] 按钮")
+
+        # ---- step 5：点「航线最后一格那架」→ 该架进终点 → 红 1/2，换手 ----
+        clicked = False
+        for b in btns:
+            try:
+                pid_attr = b.get_attribute("data-action-piece") or b.get_attribute("data-piece")
+            except Exception:
+                pid_attr = None
+            if pid_attr == pending[-1]:
+                b.click(timeout=4000)
+                clicked = True
+                drv.clicks.append("选子")
                 break
-            st = Q.get_session(page) or {}
-            aw = (st.get("awaiting") or {}).get("type")
-            if stop_after_cards is not None and drv.cards >= stop_after_cards and aw in ("roll", None):
-                drv.stopped_for_resume = True
-                break
-            r = drv.step()
-            if r in ("ledger",):
-                drv.finished = True
-                break
-            if r == "stuck":
-                break
-            if Q.screen_name(page) in ("ledger", "nights"):
-                drv.finished = True
-                break
-        if guard >= drv.max_steps:
-            rec.fail("PATH-step-limit/%s" % label, "主路径在步数上限内走完", "≤%d 步" % drv.max_steps,
-                     "达到上限仍未结束（cards=%s, awaiting=%s）" %
-                     (drv.cards, (Q.get_session(page) or {}).get("awaiting")),
-                     ac="§7", viewport=label, repro="按主路径循环推进")
-        # 主路径结局断言
-        if stop_after_cards is None:
-            if drv.finished and Q.screen_name(page) == "ledger":
-                rec.ok("§7-STEP-19/%s" % label, "两张收尾卡后进入今晚回顾", "data-screen=ledger",
-                       "ledger", ac="§7.19-20", viewport=label,
-                       evidence=Q.this_shot(rec, page, "%s_ledger_%s" % (screenshot_prefix, label)))
-                rec.ok("§7-STEP-20/%s" % label, "回顾页存在「保存到以前的夜」", "可点按钮",
-                       "存在", ac="§7.20", viewport=label)
+        if not clicked:
+            rec.fail("§7-STEP-5/%s" % label, "点选「最后一格那架」走到终点",
+                     "点中 %s" % pending[-1],
+                     "未找到该棋子的文字按钮（labels=%s）" % labels, ac="§7.5",
+                     viewport=label, repro="掷骰后按 data-action-piece 点选目标棋子")
+            return drv
+        Q.wait_until(
+            page,
+            """() => { try { var s = App.Store.getSession(); if (!s) return false;
+                var n = 0; (s.pieces||[]).forEach(function(p){
+                    if (p.playerId === 'a' && p.arrived) n++; });
+                return n >= 1; } catch(e) { return false; } }""",
+            timeout=6000)
+        page.wait_for_timeout(300)
+        assert_status_home(rec, page, "§7-STEP-5", label, "a", 1, ac="§7.5 / AC-B6-2")
+        if not Q.exists(page, SEL["ending_title"], timeout=300):
+            rec.ok("AC-E3-4/%s" % label, "未全部到家时不触发收尾", "无「今晚最后一段」",
+                   "a 到家 1/%s" % total, ac="AC-E3-4", viewport=label)
+        else:
+            rec.fail("AC-E3-4/%s" % label, "未全部到家时不触发收尾", "无「今晚最后一段」",
+                     "提前出现收尾", ac="AC-E3-4", viewport=label,
+                     repro="只让 1 架到家→读取收尾标题")
+
+        # ---- step 6：b 掷 1 → 全在机坪、无合法走子 → 原因文本 + 自动换回 ----
+        Q.set_die(page, 1)
+        click_and_count(drv, SEL["roll"], "掷骰")
+        txt2, ms2 = Q.wait_text(
+            page, r"没有飞机能动，换\s*[^\s，。]{1,12}\s*掷骰|都还在机坪", timeout=2500)
+        sess = Q.get_session(page) or {}
+        turn_back = sess.get("turn") == "a"
+        if txt2 and turn_back:
+            rec.ok("AC-B2-1/%s" % label, "无子可走给出原因并自动换人", "原因文本 + turn 回到 a",
+                   "%s（%dms）turn=%s" % (txt2.replace("\n", " "), ms2, sess.get("turn")),
+                   ac="AC-B2-1", viewport=label, duration_ms=ms2)
+        else:
+            rec.fail("AC-B2-1/%s" % label, "无子可走给出原因并自动换人", "原因文本 + turn 回到 a",
+                     "text=%r turn=%s" % (txt2, sess.get("turn")), ac="AC-B2-1",
+                     viewport=label, repro="b 全在机坪掷 1→读原因文本与 turn")
+        miss = sess.get("takeoffMiss") or {}
+        if miss.get("b") == 1 and miss.get("a") == 0:
+            rec.ok("§7-PITY-COUNT/%s" % label, "非 6 且全在机坪 → 该方保底计数 +1",
+                   "b=1 a=0", "takeoffMiss=%s" % json.dumps(miss, ensure_ascii=False),
+                   ac="freeze §2.3", viewport=label)
+        else:
+            rec.fail("§7-PITY-COUNT/%s" % label, "非 6 且全在机坪 → 该方保底计数 +1",
+                     "b=1 a=0", "takeoffMiss=%s" % json.dumps(miss, ensure_ascii=False),
+                     ac="freeze §2.3", viewport=label, repro="读 session.takeoffMiss")
+
+        # ---- step 7：a 掷 2 → 唯一可走的一架自动到终点 → 红 2/2 + 先到家 + 收尾 ----
+        Q.recorded_events(page, clear=True)
+        # 「掷骰 → 先到家」延迟按 AC-E3-1 ≤1s：在页面内点真实按钮 + 页内计时，
+        # 避免 Playwright click 的 actionability 稳定性等待（棋盘动画期约 1.4s 框架开销）。
+        if Q.find(page, SEL["roll"], timeout=3000)[0] is None:
+            rec.fail("§7-STEP-7/%s" % label, "最后一架到家前可点掷骰", "存在 [data-test=roll]",
+                     "未找到掷骰按钮", ac="§7.7", viewport=label, repro="读取主桌行动区")
+            return drv
+        Q.set_die(page, 2)
+        t_roll = time.time()
+        timed = Q.click_and_time(
+            page, "[data-test='roll']",
+            "(function(){var el=document.querySelector('[data-test=\"winner-text\"]');"
+            "if(!el||el.hidden)return null;var t=(el.innerText||'').trim();"
+            "return t.indexOf('先到家')>=0?t:null;})()",
+            timeout_ms=3000) or {}
+        drv.clicks.append("掷骰")
+        wtext = timed.get("text") or ""
+        ms_win = timed.get("click_to_ms")
+        Q.wait_until(
+            page,
+            """() => { try { var s = App.Store.getSession();
+                return !!s && (s.awaiting || {}).type === 'ending-prompt'; } catch(e) { return false; } }""",
+            timeout=3000)
+        page.wait_for_timeout(150)
+        sess = Q.get_session(page) or {}
+        body_now = Q.body_text(page)
+        ms_die = None
+        if re.search(r"掷出\s*2", body_now):
+            ms_die = ms_win
+        if wtext == names[0] + " 先到家" and ms_win is not None and ms_win <= 1000:
+            rec.ok("§7-STEP-7/%s" % label, "最后一架到家 → 主桌「<姓名> 先到家」",
+                   "%s 先到家（≤1s）" % names[0],
+                   "%s（点击→文本 %dms）" % (wtext, ms_win),
+                   ac="AC-E3-1 / freeze §3.2", viewport=label, duration_ms=ms_win,
+                   evidence=Q.this_shot(rec, page, "winner_%s" % label))
+        else:
+            rec.fail("§7-STEP-7/%s" % label, "最后一架到家 → 主桌「<姓名> 先到家」",
+                     "%s 先到家（≤1s）" % names[0],
+                     "winner-text=%r 点击→文本=%sms timed=%s body=%r" %
+                     (wtext, ms_win, json.dumps({k: timed.get(k) for k in ("ok", "error")},
+                                                ensure_ascii=False), body_now[:200]),
+                     ac="AC-E3-1 / freeze §3.2", viewport=label,
+                     repro="注入最后一格→掷 2→读取 [data-test=winner-text]")
+        assert_status_home(rec, page, "§7-STEP-7", label, "a", total, ac="§7.7 / AC-E3-1")
+        if "今晚最后一段" in body_now and (ms_win is None or ms_win <= 1000):
+            rec.ok("AC-E3-1/%s" % label, "一方全部到家后 ≤1s 出现「今晚最后一段」", "≤1000ms",
+                   "今晚最后一段（%sms）" % ms_win, ac="AC-E3-1", viewport=label,
+                   duration_ms=ms_win)
+        else:
+            rec.fail("AC-E3-1/%s" % label, "一方全部到家后 ≤1s 出现「今晚最后一段」", "≤1000ms",
+                     "命中=%s 点击→文本=%sms" % ("今晚最后一段" in body_now, ms_win),
+                     ac="AC-E3-1", viewport=label,
+                     repro="最后一架到家→读取收尾标题")
+        evs = [e for e in Q.recorded_events(page) if e.get("type")]
+        types = [e.get("type") for e in evs]
+        win_ev = next((e for e in evs if e.get("type") == "win"), None)
+        order_ok = ("dice" in types and "win" in types and "prompt" in types
+                    and types.index("dice") < types.index("win") < types.index("prompt"))
+        if win_ev and (win_ev.get("ev") or {}).get("playerId") == "a" and order_ok:
+            rec.ok("§7-WIN-EVENT/%s" % label, "结束事件顺序 dice→move→win→prompt→ending-start",
+                   "win.playerId=a 且顺序正确", json.dumps(types, ensure_ascii=False),
+                   ac="freeze §2.2", viewport=label)
+        else:
+            rec.fail("§7-WIN-EVENT/%s" % label, "结束事件顺序 dice→move→win→prompt→ending-start",
+                     "win.playerId=a 且顺序正确",
+                     "events=%s win=%s" % (json.dumps(types, ensure_ascii=False),
+                                           json.dumps(win_ev, ensure_ascii=False)),
+                     ac="freeze §2.2", viewport=label,
+                     repro="记录 App.Flight.roll 返回的 events")
+        if sess.get("winnerId") == "a" and (sess.get("awaiting") or {}).get("type") == "ending-prompt":
+            rec.ok("§7-WINNER-STATE/%s" % label, "engine winnerId=a 且进入两张收尾卡",
+                   "winnerId=a awaiting=ending-prompt",
+                   "winnerId=%s awaiting=%s" % (sess.get("winnerId"),
+                                                (sess.get("awaiting") or {}).get("type")),
+                   ac="AC-E3-1", viewport=label)
+        else:
+            rec.fail("§7-WINNER-STATE/%s" % label, "engine winnerId=a 且进入两张收尾卡",
+                     "winnerId=a awaiting=ending-prompt",
+                     "winnerId=%s awaiting=%s" % (sess.get("winnerId"),
+                                                  (sess.get("awaiting") or {}).get("type")),
+                     ac="AC-E3-1", viewport=label, repro="读取 session.winnerId/awaiting")
+
+        # ---- step 8~9：两张收尾卡（各给一人）----
+        dom, kicker = prompt_snapshot(page)
+        expected_actor = [names[0], names[1]]
+        for idx in (1, 2):
+            if idx == 2:
+                dom, kicker = prompt_snapshot(page)
+            m = re.search(r"今晚最后一段\s*·\s*第\s*(\d+)\s*/\s*2\s*张\s*·\s*给\s*(\S{1,12})",
+                          kicker)
+            want_actor = expected_actor[idx - 1]
+            if m and m.group(1) == str(idx) and want_actor in m.group(2):
+                rec.ok("AC-E2-1/%s/%d" % (label, idx), "第 %d 张收尾卡归属正确" % idx,
+                       "今晚最后一段 · 第 %d/2 张 · 给 %s" % (idx, want_actor), m.group(0),
+                       ac="AC-E2-1", viewport=label,
+                       evidence=Q.this_shot(rec, page, "ending_%d_%s" % (idx, label)))
             else:
-                rec.fail("§7-STEP-19/%s" % label, "两张收尾卡后进入今晚回顾", "data-screen=ledger",
-                         "screen=%r cards=%s finished=%s" % (Q.screen_name(page), drv.cards, drv.finished),
-                         ac="§7.19-20", viewport=label, repro="按 §7 主路径走完 4 张+2 张收尾")
-            # 20 点击预算：Lead 裁决允许 20+2（≤2 次额外掷骰）=22 次容差
-            if len(drv.clicks) <= 22:
-                rec.ok("§7-CLICKS/%s" % label, "P0 主路径点击 ≤22（20+2 容差）", "≤22",
-                       "%d 次：%s" % (len(drv.clicks), " → ".join(drv.clicks[:24])),
-                       ac="§7 / M1", viewport=label,
-                       detail=("20+2 容差内；实际 %d 次" % len(drv.clicks)))
-            else:
-                rec.fail("§7-CLICKS/%s" % label, "P0 主路径点击 ≤22（20+2 容差）", "≤22",
-                         "%d 次：%s" % (len(drv.clicks), " → ".join(drv.clicks[:24])),
-                         ac="§7 / M1", viewport=label,
-                         repro="按固定种子走 §7 主路径→统计交互点击（mode+开始+掷骰+选子+做了/放过+收尾+保存）")
-            # 回顾内容
-            if Q.screen_name(page) == "ledger":
-                check_ledger(ps, rec, label, drv)
-                # 保存到以前的夜（step 20）；V6 实现会在 finish() 时先自动归档，
-                # 因此这里验证「保存按钮可点 + 幂等 + 历史里确有本局」，不强行要求跳列表。
-                hist_before = Q.eval_js(page, "() => { try { return (App.Store.getHistory()||[]).length } catch(e){ return -1 } }")
-                loc, _ = Q.find(page, SEL["ledger_save"], timeout=2000)
-                if loc is not None:
-                    loc.click(timeout=4000)
-                    drv.clicks.append("保存到以前的夜")
-                    toast, t_ms = Q.wait_text(page, r"收进以前的夜了", timeout=1500)
-                    page.wait_for_timeout(400)
-                    hist_after = Q.eval_js(page, "() => { try { return (App.Store.getHistory()||[]).length } catch(e){ return -1 } }")
-                    screen = Q.screen_name(page)
-                    entry_ok = Q.eval_js(
-                        page,
-                        """() => {
-                            try {
-                                var list = App.Store.getHistory() || [];
-                                var e = list[0] || {};
-                                var l = e.ledger || {};
-                                return !!(l && l.names && l.date && l.stats);
-                            } catch (err) { return false; }
-                        }""")
-                    if toast and hist_after >= 1 and hist_after in (hist_before, hist_before + 1) and entry_ok:
-                        rec.ok("§7-STEP-20-save/%s" % label, "回顾页「保存到以前的夜」可点且历史有本局",
-                               "toast + history≥1（幂等）",
-                               "before=%s after=%s screen=%s toast=%s" %
-                               (hist_before, hist_after, screen, toast), ac="§7.20 / F3",
-                               viewport=label, evidence=Q.this_shot(rec, page, "ledger_saved_%s" % label))
-                        rec.add_note("保存到以前的夜：V6 在 finish() 自动归档，按钮为幂等保存；未跳「以前的夜」列表（spec §7.20 期望跳列表）")
-                    else:
-                        rec.fail("§7-STEP-20-save/%s" % label, "回顾页「保存到以前的夜」保存本局",
-                                 "toast + history≥1（幂等）",
-                                 "before=%s after=%s screen=%s toast=%s entry_ok=%s" %
-                                 (hist_before, hist_after, screen, toast, entry_ok), ac="§7.20 / F3",
-                                 viewport=label, repro="回顾页点「保存到以前的夜」→读取历史与 toast")
+                rec.fail("AC-E2-1/%s/%d" % (label, idx), "第 %d 张收尾卡归属正确" % idx,
+                         "今晚最后一段 · 第 %d/2 张 · 给 %s" % (idx, want_actor),
+                         "kicker=%r（dom=%s）" % (kicker, bool(dom)), ac="AC-E2-1",
+                         viewport=label, repro="收尾阶段读取题卡 kicker")
+            heat_before = status_now(page).get("heat")
+            click_and_count(drv, SEL["prompt_done"], "做了")
+            if idx == 1:
+                Q.wait_until(
+                    page,
+                    """() => { try { var m = (App.Store.getSession()||{}).meta || {};
+                        return Number(m.heat) >= %d; } catch(e) { return false; } }"""
+                    % ((heat_before or 0) + 10), timeout=3000)
+                page.wait_for_timeout(200)
+                heat_after = status_now(page).get("heat")
+                if heat_before is not None and heat_after == heat_before + 10:
+                    rec.ok("AC-E2-5/%s" % label, "收尾卡「做了」心动值 +10（不惩罚任一方）",
+                           "%s → +10" % heat_before, "%s → %s" % (heat_before, heat_after),
+                           ac="AC-E2-5", viewport=label)
                 else:
-                    rec.fail("§7-STEP-20-save/%s" % label, "回顾页有「保存到以前的夜」",
-                             "可点按钮", "未找到", ac="F3", viewport=label,
-                             repro="进入回顾页→查找保存按钮")
-            # 无输赢词
-            txt = Q.body_text(page)
-            bad = [w for w in FORBIDDEN_WORDS if w in txt]
-            if not bad:
-                rec.ok("AC-E2-3/%s" % label, "回顾页无输赢判定词", "不含 赢/输/胜/负/失败/惩罚/扣分",
-                       "无", ac="AC-E2-3", viewport=label)
+                    rec.fail("AC-E2-5/%s" % label, "收尾卡「做了」心动值 +10（不惩罚任一方）",
+                             "%s → +10" % heat_before, "%s → %s" % (heat_before, heat_after),
+                             ac="AC-E2-5", viewport=label,
+                             repro="收尾卡点做了→对比状态条心动值")
+                drv.prompt_log.append({"kind": "ending", "actor": want_actor,
+                                       "outcome": "done", "heat_before": heat_before,
+                                       "heat_after": heat_after,
+                                       "card_text": (dom or {}).get("text", "")[:200]})
             else:
-                rec.fail("AC-E2-3/%s" % label, "回顾页无输赢判定词", "不含 赢/输/胜/负/失败/惩罚/扣分",
-                         "出现：%s" % bad, ac="AC-E2-3", viewport=label,
-                         repro="完成对局→读取回顾页文本")
-            # 完成文本
+                finish, fms = Q.wait_text(page, r"今晚完成了", timeout=1800)
+                if finish and fms <= 500:
+                    rec.ok("AC-F1-1/%s" % label, "两张收尾卡处理完 ≤500ms 出现「今晚完成了」",
+                           "≤500ms", "%s（%dms）" % (finish, fms), ac="AC-F1-1",
+                           viewport=label, duration_ms=fms,
+                           evidence=Q.this_shot(rec, page, "finished_%s" % label))
+                else:
+                    rec.fail("AC-F1-1/%s" % label, "两张收尾卡处理完 ≤500ms 出现「今晚完成了」",
+                             "≤500ms",
+                             ("未出现" if not finish else "%s（%dms）" % (finish, fms)),
+                             ac="AC-F1-1", viewport=label,
+                             repro="第二张收尾卡点做了→计时读取「今晚完成了」")
+                drv.ending_done = True
+                drv.prompt_log.append({"kind": "ending", "actor": want_actor,
+                                       "outcome": "done", "heat_before": heat_before,
+                                       "card_text": (dom or {}).get("text", "")[:200]})
+                Q.wait_screen(page, ["ledger"], timeout=9000)
+        drv.ending_started = True
+
+        # ---- step 10：今晚回顾（V6.1 口径）+ 保存 ----
+        if Q.screen_name(page) == "ledger":
+            drv.finished = True
+            rec.ok("§7-STEP-9/%s" % label, "两张收尾卡后进入今晚回顾", "data-screen=ledger",
+                   "ledger", ac="§7.9", viewport=label,
+                   evidence=Q.this_shot(rec, page, "%s_ledger_%s" % (screenshot_prefix, label)))
+            check_ledger(ps, rec, label, drv)
+            check_ledger_v61(ps, rec, label, drv, winner="a",
+                             expect_home=(total, 0), expect_ending="win-a", total=total)
+            hist_before = Q.eval_js(
+                page, "() => { try { return (App.Store.getHistory()||[]).length } "
+                      "catch(e){ return -1 } }")
+            loc, _ = Q.find(page, SEL["ledger_save"], timeout=2000)
+            if loc is not None:
+                loc.click(timeout=4000)
+                drv.clicks.append("保存到以前的夜")
+                toast, t_ms = Q.wait_text(page, r"收进以前的夜了", timeout=1500)
+                page.wait_for_timeout(300)
+                hist_after = Q.eval_js(
+                    page, "() => { try { return (App.Store.getHistory()||[]).length } "
+                          "catch(e){ return -1 } }")
+                if toast and hist_after >= 1 and hist_after in (hist_before, hist_before + 1):
+                    rec.ok("§7-STEP-10-save/%s" % label,
+                           "回顾页「保存到以前的夜」可点且历史有本局", "toast + history≥1（幂等）",
+                           "before=%s after=%s toast=%s" % (hist_before, hist_after, toast),
+                           ac="§7.10 / F3", viewport=label,
+                           evidence=Q.this_shot(rec, page, "ledger_saved_%s" % label))
+                else:
+                    rec.fail("§7-STEP-10-save/%s" % label,
+                             "回顾页「保存到以前的夜」保存本局", "toast + history≥1（幂等）",
+                             "before=%s after=%s toast=%s" % (hist_before, hist_after, toast),
+                             ac="§7.10 / F3", viewport=label,
+                             repro="回顾页点「保存到以前的夜」→读历史与 toast")
+            else:
+                rec.fail("§7-STEP-10-save/%s" % label, "回顾页有「保存到以前的夜」", "可点按钮",
+                         "未找到", ac="F3", viewport=label, repro="进入回顾页→查找保存按钮")
             done_text = "今晚完成了" in Q.body_text(page)
             rec.check("AC-F1-1-done/%s" % label, "结束有明确「今晚完成了」反馈",
                       "PASS" if (drv.ending_done or done_text) else "FAIL", "完成文本出现",
                       "ending_done=%s text_seen=%s" % (drv.ending_done, done_text),
                       ac="AC-F1-1", viewport=label)
-        # 响应式 & 错误
+        else:
+            rec.fail("§7-STEP-9/%s" % label, "两张收尾卡后进入今晚回顾", "data-screen=ledger",
+                     "screen=%r" % Q.screen_name(page), ac="§7.9", viewport=label,
+                     repro="按 §7 主路径走完两张收尾卡")
+
+        # ---- 点击预算（§7 M1）：注入不计 ----
+        if len(drv.clicks) <= 22:
+            rec.ok("§7-CLICKS/%s" % label, "P0 主路径点击 ≤22（20+2 容差）", "≤22",
+                   "%d 次：%s" % (len(drv.clicks), " → ".join(drv.clicks[:24])),
+                   ac="§7 / M1", viewport=label,
+                   detail="§7 期望 10 次；实际 %d 次" % len(drv.clicks))
+        else:
+            rec.fail("§7-CLICKS/%s" % label, "P0 主路径点击 ≤22（20+2 容差）", "≤22",
+                     "%d 次：%s" % (len(drv.clicks), " → ".join(drv.clicks[:24])),
+                     ac="§7 / M1", viewport=label,
+                     repro="按 §7 主路径统计交互点击")
         if Q.overflow(page):
-            rec.fail("AC-H4-1-table/%s" % label, "主桌/回顾无横向滚动", "scrollWidth<=clientWidth",
+            rec.fail("AC-H4-1-table/%s" % label, "主桌/回顾无横向滚动",
+                     "scrollWidth<=clientWidth",
                      json.dumps(Q.viewport_metrics(page), ensure_ascii=False), ac="AC-H4-1",
                      viewport=label, repro="走完对局→读取 scrollWidth")
         else:
-            rec.ok("AC-H4-1-table/%s" % label, "主桌/回顾无横向滚动", "scrollWidth<=clientWidth",
-                   "ok", ac="AC-H4-1", viewport=label)
+            rec.ok("AC-H4-1-table/%s" % label, "主桌/回顾无横向滚动",
+                   "scrollWidth<=clientWidth", "ok", ac="AC-H4-1", viewport=label)
         check_no_errors(rec, ps, "AC-H6-1/%s" % label, label, "主路径")
         rec.meta.setdefault("drivers", {})[label] = drv.summary()
         return drv
     finally:
         ctx.close()
-
 
 def check_ledger(ps, rec, label, drv):
     page = ps.page
@@ -1589,41 +2117,27 @@ def check_ledger(ps, rec, label, drv):
 
 
 def run_skip_all_case(browser, url, rec, label="390x844"):
-    """C2/E2/E3：全放过也能在目标内收尾，回顾只写「今晚先放过」，无输赢。"""
+    """C2/E2（V6.1）：放过不惩罚 + 两张收尾卡都放过也能进回顾 + 回顾只写「今晚先放过」。
+
+    V6.1 起结束只看「一方全部到家」，题卡全放过不再影响收尾；自然对局要 40+ 次掷骰，
+    浏览器侧按 spec §7 的注入方式构造「差一步全到家」，收尾卡仍全程点「放过」。
+    """
     vp = Q.VIEWPORTS[label]
     ctx, ps, page = new_page(browser, url, vp, rec, label)
-    drv = TableDriver(ps, rec, label, prompt_outcome="skip", minigame_outcome="skip",
-                      target_kinds=["truth", "dare", "touch"])
+    drv = TableDriver(ps, rec, label, prompt_outcome="skip", minigame_outcome="skip")
     try:
         Q.ensure_boot(page, rec)
         if not drv.start_quick():
             return drv
+        # 先正常打几步：放过的心动值只增不减（C2-1 / E1-2）
         guard = 0
-        while guard < 100:
+        while guard < 40 and drv.cards < 1:
             guard += 1
             if Q.screen_name(page) in ("ledger", "nights"):
-                drv.finished = True
                 break
             r = drv.step()
-            if r in ("ledger", "stuck"):
-                drv.finished = r == "ledger"
+            if r == "stuck":
                 break
-        if drv.cards >= 4:
-            rec.ok("AC-C2-E3/%s" % label, "全放过局在目标题卡数内收尾", "第 4 张后进入收尾",
-                   "cards=%d" % drv.cards, ac="AC-C2-6 / E3-1", viewport=label)
-        else:
-            rec.fail("AC-C2-E3/%s" % label, "全放过局在目标题卡数内收尾", "第 4 张后进入收尾",
-                     "cards=%d screen=%r" % (drv.cards, Q.screen_name(page)), ac="AC-C2-6 / E3-1",
-                     viewport=label, repro="快局全程点「放过」→观察是否进入收尾")
-        heat = (Q.get_session(page) or {}).get("meta", {}).get("heat")
-        if heat is not None and drv.cards >= 4 and heat == 12:
-            rec.ok("AC-E1-1-skip/%s" % label, "放过 +3 累计正确", "4 张放过 = 12",
-                   "heat=%d" % heat, ac="AC-E1-1", viewport=label)
-        elif heat is not None:
-            rec.check("AC-E1-1-skip/%s" % label, "放过 +3 累计", "FAIL" if heat < 0 else "PASS",
-                      "4 张放过 = 12", "heat=%d cards=%d" % (heat, drv.cards), ac="AC-E1-1",
-                      viewport=label)
-        # C2-1 / E1-2：全程放过，心动值只增不减
         heats = [p.get("heat_after") for p in drv.prompt_log if p.get("heat_after") is not None]
         non_decreasing = all(b >= a for a, b in zip(heats, heats[1:])) if len(heats) >= 2 else True
         if non_decreasing:
@@ -1634,18 +2148,62 @@ def run_skip_all_case(browser, url, rec, label="390x844"):
         else:
             rec.fail("AC-C2-1/%s" % label, "放过不惩罚：心动值不减少", "Δ≥0",
                      "heat 序列=%s" % heats, ac="AC-C2-1", viewport=label,
-                     repro="全放过局→对比每次结算后的心动值")
-        # 收尾卡也放过
-        while guard < 130 and Q.screen_name(page) != "ledger" and (Q.get_session(page) or {}).get("phase") == "playing":
+                     repro="放过题卡→对比每次结算后的心动值")
+        # 注入「a 方最后一架在 home:*:4」→ 掷 1 到家 → 两张收尾卡都放过
+        state, pending = Q.fixture_near_home(page, "a", steps=(4,))
+        if not state:
+            rec.fail("AC-C2-E3/%s" % label, "全放过局也能靠「一方全部到家」收尾",
+                     "注入局面后掷 1 到家", "夹具注入失败", ac="AC-C2-6 / E3-1",
+                     viewport=label, repro="写 couple2.session 后刷新")
+            return drv
+        if not Q.continue_session(page):
+            rec.fail("AC-C2-E3/%s" % label, "全放过局也能靠「一方全部到家」收尾",
+                     "继续→主桌", "未能回到主桌", ac="AC-C2-6 / E3-1", viewport=label,
+                     repro="刷新→点继续今晚飞行棋")
+            return drv
+        page.wait_for_timeout(400)
+        Q.install_event_recorder(page)
+        Q.set_die(page, 1)
+        click_and_count(drv, SEL["roll"], "掷骰")
+        Q.wait_until(
+            page,
+            """() => { try { var s = App.Store.getSession(); if (!s) return false;
+                var aw = s.awaiting || {}; return aw.type === 'ending-prompt' ||
+                s.phase === 'ended'; } catch(e) { return false; } }""",
+            timeout=8000)
+        sess = Q.get_session(page) or {}
+        if (sess.get("awaiting") or {}).get("type") == "ending-prompt" or sess.get("phase") == "ended":
+            rec.ok("AC-C2-E3/%s" % label, "全放过局也能靠「一方全部到家」收尾",
+                   "到家后进入收尾卡", "awaiting=%s winnerId=%s" %
+                   ((sess.get("awaiting") or {}).get("type"), sess.get("winnerId")),
+                   ac="AC-C2-6 / E3-1", viewport=label)
+        else:
+            rec.fail("AC-C2-E3/%s" % label, "全放过局也能靠「一方全部到家」收尾",
+                     "到家后进入收尾卡", "awaiting=%s phase=%s" %
+                     ((sess.get("awaiting") or {}).get("type"), sess.get("phase")),
+                     ac="AC-C2-6 / E3-1", viewport=label,
+                     repro="注入最后一格→掷 1→读 awaiting/phase")
+        guard = 0
+        while guard < 12 and Q.screen_name(page) != "ledger":
             guard += 1
-            drv.step()
+            if Q.screen_name(page) in ("ledger", "nights"):
+                break
+            r = drv.step()
+            if r == "stuck":
+                break
+        drv.finished = Q.screen_name(page) == "ledger"
         txt = Q.body_text(page)
-        if "今晚先放过" in txt:
-            rec.ok("AC-C2-5/%s" % label, "回顾记为「今晚先放过」", "含「今晚先放过」", "命中",
-                   ac="AC-C2-5", viewport=label, evidence=Q.this_shot(rec, page, "skip_ledger_%s" % label))
+        if drv.finished and "今晚先放过" in txt:
+            rec.ok("AC-C2-5/%s" % label, "回顾记为「今晚先放过」", "含「今晚先放过」",
+                   "命中", ac="AC-C2-5", viewport=label,
+                   evidence=Q.this_shot(rec, page, "skip_ledger_%s" % label))
+        elif drv.finished:
+            rec.fail("AC-C2-5/%s" % label, "回顾记为「今晚先放过」", "含「今晚先放过」",
+                     "未命中（body=%r）" % txt[:150], ac="AC-C2-5", viewport=label,
+                     repro="两张收尾卡都放过→读取回顾明细")
         else:
             rec.check("AC-C2-5/%s" % label, "回顾记为「今晚先放过」", "SKIP",
-                      "含「今晚先放过」", "未进入回顾或未命中", ac="AC-C2-5", viewport=label)
+                      "含「今晚先放过」", "未进入回顾", ac="AC-C2-5", viewport=label)
         bad = [w for w in ("失败", "未完成", "扣分") if w in txt]
         if not bad:
             rec.ok("AC-C2-5-bad/%s" % label, "放过记录不含失败/未完成/扣分", "无这些词", "无",
@@ -1654,8 +2212,504 @@ def run_skip_all_case(browser, url, rec, label="390x844"):
             rec.fail("AC-C2-5-bad/%s" % label, "放过记录不含失败/未完成/扣分", "无这些词",
                      "出现：%s" % bad, ac="AC-C2-5", viewport=label,
                      repro="全放过局进入回顾→读取文本")
+        if drv.finished:
+            check_ledger_v61(ps, rec, label, drv, winner="a",
+                             expect_home=(int(sess.get("planeCount") or 2), 0),
+                             expect_ending="win-a", total=int(sess.get("planeCount") or 2))
         check_no_errors(rec, ps, "AC-H6-1-skip/%s" % label, label, "全放过")
         return drv
+    finally:
+        ctx.close()
+
+
+def run_takeoff_pity_case(browser, url, rec, label="390x844"):
+    """V6.1 起飞保底（freeze §2.3 / §4）：
+    ① 第 1 个自己的回合非 6 → 不能起飞、计数=1；
+    ② 第 2 个自己的回合仍非 6 → 还是不能起飞（**不提前**），计数=2；
+    ③ 第 3 个自己的回合：掷骰前出现 takeoff-pity 提示，任意点数（注入 2）都能起飞，起飞后计数清零；
+    ④ 掷出 6 也清零（夹具置 2 → 掷 6 → 起飞 → 0）。
+    全程用真实 UI 掷骰，只用 __V6_TEST__.forceDie 注入点数与读 session.takeoffMiss。
+    """
+    vp = Q.VIEWPORTS[label]
+    ctx, ps, page = new_page(browser, url, vp, rec, label)
+    drv = TableDriver(ps, rec, label, max_steps=30)
+    try:
+        Q.ensure_boot(page, rec)
+        if not drv.start_quick():
+            return drv
+        Q.install_event_recorder(page)
+
+        def roll_and_wait(die, timeout=6000):
+            Q.set_die(page, die)
+            click_and_count(drv, SEL["roll"], "掷骰")
+            Q.wait_text(page, r"掷出\s*%d" % die, timeout=2000)
+            Q.wait_until(
+                page,
+                """() => { try { return !(window.__V6_TEST__ && window.__V6_TEST__.isBusy &&
+                    window.__V6_TEST__.isBusy()); } catch(e) { return true; } }""",
+                timeout=timeout)
+            page.wait_for_timeout(300)
+            return Q.get_session(page) or {}
+
+        def miss_of(s, pid="a"):
+            return ((s.get("takeoffMiss") or {}).get(pid))
+
+        def pity_shown():
+            return bool(pity_text_of(page))
+
+        def takeoff_choice(s):
+            """返回 (有没有起飞按钮, 按钮文案列表)。"""
+            ids = ((s.get("awaiting") or {}).get("pieceIds") or [])
+            btns, _ = _wait_piece_buttons(page, timeout=3000) if ids else ([], None)
+            labels = []
+            for b in btns:
+                try:
+                    labels.append((b.inner_text() or "").replace("\n", " ").strip())
+                except Exception:
+                    labels.append("")
+            takeoff = [t for t in labels if "从机坪起飞" in t]
+            return bool(takeoff), labels
+
+        # 状态：a 先手、全在机坪
+        s0 = Q.get_session(page) or {}
+        base_ok = (miss_of(s0, "a") == 0 and (s0.get("turn") == "a"))
+        if base_ok:
+            rec.ok("AC-B2-4-init/%s" % label, "开局 takeoffMiss={a:0,b:0} 且 a 先手",
+                   "a=0 b=0 turn=a",
+                   "takeoffMiss=%s turn=%s" % (json.dumps(s0.get("takeoffMiss"), ensure_ascii=False),
+                                               s0.get("turn")), ac="freeze §2.1", viewport=label)
+        else:
+            rec.fail("AC-B2-4-init/%s" % label, "开局 takeoffMiss={a:0,b:0} 且 a 先手",
+                     "a=0 b=0 turn=a", "takeoffMiss=%s turn=%s" %
+                     (json.dumps(s0.get("takeoffMiss"), ensure_ascii=False), s0.get("turn")),
+                     ac="freeze §2.1", viewport=label, repro="开局读 session.takeoffMiss")
+        if pity_shown():
+            rec.fail("AC-B2-4-pity0/%s" % label, "第 1 个自己的回合没有保底提示", "无提示",
+                     "出现保底提示", ac="freeze §3.2", viewport=label,
+                     repro="开局读取 [data-test=takeoff-pity]")
+
+        # ① 第 1 回合：a 掷 3（非 6）→ 不能起飞，miss=1；b 掷 3 → miss=1
+        s = roll_and_wait(3)
+        ok1, labels1 = takeoff_choice(s)
+        if (not ok1) and miss_of(s, "a") == 1 and (s.get("turn") == "b"):
+            rec.ok("AC-B2-4-1/%s" % label, "第 1 个回合非 6 → 不能起飞，计数=1，换手",
+                   "无起飞按钮 + a=1 + turn=b",
+                   "labels=%s takeoffMiss=%s turn=%s" %
+                   (labels1, json.dumps(s.get("takeoffMiss"), ensure_ascii=False), s.get("turn")),
+                   ac="freeze §2.3", viewport=label)
+        else:
+            rec.fail("AC-B2-4-1/%s" % label, "第 1 个回合非 6 → 不能起飞，计数=1，换手",
+                     "无起飞按钮 + a=1 + turn=b",
+                     "labels=%s takeoffMiss=%s turn=%s" %
+                     (labels1, json.dumps(s.get("takeoffMiss"), ensure_ascii=False), s.get("turn")),
+                     ac="freeze §2.3", viewport=label, repro="a 掷 3→读按钮与 takeoffMiss")
+        s = roll_and_wait(3)
+        if miss_of(s, "b") == 1 and s.get("turn") == "a":
+            rec.ok("AC-B2-4-1b/%s" % label, "对方非 6 也累计自己的计数并换回",
+                   "b=1 turn=a", "takeoffMiss=%s turn=%s" %
+                   (json.dumps(s.get("takeoffMiss"), ensure_ascii=False), s.get("turn")),
+                   ac="freeze §2.3", viewport=label)
+        else:
+            rec.fail("AC-B2-4-1b/%s" % label, "对方非 6 也累计自己的计数并换回",
+                     "b=1 turn=a", "takeoffMiss=%s turn=%s" %
+                     (json.dumps(s.get("takeoffMiss"), ensure_ascii=False), s.get("turn")),
+                     ac="freeze §2.3", viewport=label, repro="b 掷 3→读 takeoffMiss")
+
+        # ② 第 2 个自己的回合：a 掷 4（非 6）→ 仍不能起飞（不提前），miss=2
+        s = roll_and_wait(4)
+        ok2, labels2 = takeoff_choice(s)
+        if (not ok2) and miss_of(s, "a") == 2:
+            rec.ok("AC-B2-4-2/%s" % label, "第 2 个自己的回合仍非 6 → 不提前起飞，计数=2",
+                   "无起飞按钮 + a=2",
+                   "labels=%s takeoffMiss=%s" %
+                   (labels2, json.dumps(s.get("takeoffMiss"), ensure_ascii=False)),
+                   ac="freeze §4 边界", viewport=label)
+        else:
+            rec.fail("AC-B2-4-2/%s" % label, "第 2 个自己的回合仍非 6 → 不提前起飞，计数=2",
+                     "无起飞按钮 + a=2",
+                     "labels=%s takeoffMiss=%s" %
+                     (labels2, json.dumps(s.get("takeoffMiss"), ensure_ascii=False)),
+                     ac="freeze §4 边界", viewport=label,
+                     repro="a 连掷两次非 6→检查第 2 回合不能起飞")
+        s = roll_and_wait(3)   # b 的回合（换回 a）
+        if s.get("turn") != "a":
+            rec.fail("AC-B2-4-2b/%s" % label, "两次非 6 后回到 a 的回合", "turn=a",
+                     "turn=%s" % s.get("turn"), ac="freeze §2.3", viewport=label,
+                     repro="b 掷 3→读 turn")
+        # 掷骰前（awaiting=roll）：应出现保底提示
+        if pity_shown():
+            rec.ok("AC-B2-4-3-pity/%s" % label, "具备保底时掷骰前出现提示",
+                   PITY_TEXT, pity_text_of(page), ac="freeze §3.2", viewport=label,
+                   evidence=Q.this_shot(rec, page, "takeoff_pity_%s" % label))
+        else:
+            rec.fail("AC-B2-4-3-pity/%s" % label, "具备保底时掷骰前出现提示", PITY_TEXT,
+                     "未出现（takeoffMiss=%s）" % json.dumps(s.get("takeoffMiss"),
+                                                              ensure_ascii=False),
+                     ac="freeze §3.2", viewport=label,
+                     repro="连续两次非 6 后读取 [data-test=takeoff-pity]")
+
+        # ③ 第 3 个自己的回合：注入 2（非 6）也能起飞 → 起飞后计数清零
+        s = roll_and_wait(2)
+        ok3, labels3 = takeoff_choice(s)
+        if ok3:
+            rec.ok("AC-B2-4-3/%s" % label, "第 3 个自己的回合任意点数可起飞（注入 2）",
+                   "出现「… · 从机坪起飞」按钮", json.dumps(labels3, ensure_ascii=False),
+                   ac="freeze §2.3", viewport=label,
+                   evidence=Q.this_shot(rec, page, "takeoff_ready_%s" % label))
+        else:
+            rec.fail("AC-B2-4-3/%s" % label, "第 3 个自己的回合任意点数可起飞（注入 2）",
+                     "出现「… · 从机坪起飞」按钮", "labels=%s takeoffMiss=%s" %
+                     (labels3, json.dumps(s.get("takeoffMiss"), ensure_ascii=False)),
+                     ac="freeze §2.3", viewport=label,
+                     repro="连续两次非 6 → 第 3 回合掷 2 → 读选子按钮")
+        # 点起飞
+        btns, _ = _wait_piece_buttons(page, timeout=3000)
+        clicked = False
+        for b in btns:
+            try:
+                t = (b.inner_text() or "")
+            except Exception:
+                t = ""
+            if "从机坪起飞" in t:
+                b.click(timeout=4000)
+                clicked = True
+                drv.clicks.append("选子")
+                break
+        if clicked:
+            Q.wait_until(
+                page,
+                """() => { try { var s = App.Store.getSession(); if (!s) return false;
+                    var p = (s.pieces||[]).filter(function(x){ return x.playerId === 'a'; })[0];
+                    return !!p && p.squareId.indexOf('ring:') === 0 &&
+                           (s.awaiting || {}).type === 'roll'; } catch(e) { return false; } }""",
+                timeout=8000)
+            page.wait_for_timeout(300)
+            s2 = Q.get_session(page) or {}
+            if miss_of(s2, "a") == 0:
+                rec.ok("AC-B2-4-3-clear/%s" % label, "实际起飞后保底计数清零", "a=0",
+                       "takeoffMiss=%s" % json.dumps(s2.get("takeoffMiss"), ensure_ascii=False),
+                       ac="freeze §2.3", viewport=label)
+            else:
+                rec.fail("AC-B2-4-3-clear/%s" % label, "实际起飞后保底计数清零", "a=0",
+                         "takeoffMiss=%s" % json.dumps(s2.get("takeoffMiss"), ensure_ascii=False),
+                         ac="freeze §2.3", viewport=label,
+                         repro="保底回合点起飞→读 takeoffMiss")
+            if not pity_shown():
+                rec.ok("AC-B2-4-3-hide/%s" % label, "起飞后该方保底提示消失", "无提示", "无",
+                       ac="freeze §3.2", viewport=label)
+            else:
+                # 提示是「当前行动方」口径：a 起飞后轮到 b，而 b 也累计了 2 次没起飞 →
+                # 此时仍看到提示是正确行为，只要 view.takeoff 指向 b 且 a 的计数已归零。
+                view = Q.eval_js(
+                    page,
+                    """() => { try { var s = App.Store.getSession();
+                        var v = App.Flight.view(s, {});
+                        return {pity: !!(v.takeoff && v.takeoff.pity),
+                                misses: (v.takeoff && v.takeoff.misses) || null,
+                                turn: v.turn}; } catch(e) { return null; } }""") or {}
+                cur_miss = (view.get("misses") or {}).get(view.get("turn"))
+                if view.get("turn") == "b" and view.get("pity") and cur_miss == 2:
+                    rec.ok("AC-B2-4-3-hide/%s" % label,
+                           "起飞后提示只跟随当前行动方（b 也有 2 次没起飞）",
+                           "turn=b 且 b.misses=2 时提示可见", json.dumps(view, ensure_ascii=False),
+                           ac="freeze §3.2", viewport=label)
+                else:
+                    rec.fail("AC-B2-4-3-hide/%s" % label,
+                             "起飞后该方保底提示消失（或只跟随当前行动方）",
+                             "a 起飞后无提示；若可见必须是 b 具备保底",
+                             "text=%r view=%s" % (pity_text_of(page),
+                                                  json.dumps(view, ensure_ascii=False)),
+                             ac="freeze §3.2", viewport=label,
+                             repro="保底回合起飞→读取 takeoff-pity 与 view.takeoff")
+        else:
+            rec.fail("AC-B2-4-3-click/%s" % label, "点起飞按钮能实际起飞", "出现并点击起飞按钮",
+                     "未找到「从机坪起飞」按钮", ac="freeze §2.3", viewport=label,
+                     repro="保底回合读取选子按钮")
+        check_no_errors(rec, ps, "AC-H6-1-takeoff/%s" % label, label, "起飞保底")
+        return drv
+    finally:
+        ctx.close()
+
+
+def run_win_side_case(browser, url, rec, label="390x844", winner="b"):
+    """AC-E3-1（另一方）：构造 b 方全部到家 → winner-text / ledger ending='win-b'。
+
+    与主路径互补：主路径验证 a 先到家（win-a），这里验证 winnerId=b 时文案与 ledger 都对。
+    """
+    vp = Q.VIEWPORTS[label]
+    ctx, ps, page = new_page(browser, url, vp, rec, label)
+    drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=30)
+    try:
+        Q.ensure_boot(page, rec)
+        if not drv.start_quick():
+            return drv
+        total = int((Q.get_session(page) or {}).get("planeCount") or 2)
+        state, pending = Q.fixture_near_home(page, winner, steps=(4,))
+        if not state:
+            rec.fail("AC-E3-1-win-%s/%s" % (winner, label), "构造 %s 方全部到家前一步" % winner,
+                     "注入成功", "夹具注入失败", ac="AC-E3-1", viewport=label,
+                     repro="写 couple2.session 后刷新")
+            return drv
+        if not Q.continue_session(page):
+            rec.fail("AC-E3-1-win-%s/%s" % (winner, label), "继续回到主桌", "table",
+                     "screen=%r" % Q.screen_name(page), ac="AC-E3-1", viewport=label,
+                     repro="刷新→点继续")
+            return drv
+        page.wait_for_timeout(400)
+        Q.install_event_recorder(page)
+        Q.recorded_events(page, clear=True)
+        Q.set_die(page, 1)
+        click_and_count(drv, SEL["roll"], "掷骰")
+        Q.wait_until(
+            page,
+            """() => { try { var s = App.Store.getSession();
+                return !!s && (s.awaiting || {}).type === 'ending-prompt'; } catch(e) { return false; } }""",
+            timeout=8000)
+        page.wait_for_timeout(300)
+        sess = Q.get_session(page) or {}
+        want_name = drv.names[1] if winner == "b" else drv.names[0]
+        wtext = winner_text_of(page)
+        evs = [e.get("type") for e in Q.recorded_events(page) if e.get("type")]
+        win_ev = next((e for e in Q.recorded_events(page) if e.get("type") == "win"), None)
+        if want_name + " 先到家" in wtext and sess.get("winnerId") == winner:
+            rec.ok("AC-E3-1-win-%s/%s" % (winner, label), "%s 方全部到家 →「%s 先到家」" %
+                   (winner, want_name), "%s 先到家 + winnerId=%s" % (want_name, winner),
+                   "%s winnerId=%s" % (wtext, sess.get("winnerId")), ac="AC-E3-1",
+                   viewport=label, evidence=Q.this_shot(rec, page, "winner_%s" % winner))
+        else:
+            rec.fail("AC-E3-1-win-%s/%s" % (winner, label), "%s 方全部到家 →「%s 先到家」" %
+                     (winner, want_name), "%s 先到家 + winnerId=%s" % (want_name, winner),
+                     "winner-text=%r winnerId=%s" % (wtext, sess.get("winnerId")),
+                     ac="AC-E3-1", viewport=label, repro="注入 b 方最后一格→掷 1→读文案")
+        if win_ev and (win_ev.get("ev") or {}).get("playerId") == winner:
+            rec.ok("AC-E3-1-winev-%s/%s" % (winner, label), "win 事件 playerId=%s" % winner,
+                   "playerId=%s" % winner, json.dumps(evs, ensure_ascii=False),
+                   ac="freeze §2.2", viewport=label)
+        else:
+            rec.fail("AC-E3-1-winev-%s/%s" % (winner, label), "win 事件 playerId=%s" % winner,
+                     "playerId=%s" % winner,
+                     "events=%s win=%s" % (json.dumps(evs, ensure_ascii=False),
+                                           json.dumps(win_ev, ensure_ascii=False)),
+                     ac="freeze §2.2", viewport=label, repro="记录引擎事件")
+        # 两张收尾卡都点「做了」→ 回顾
+        guard = 0
+        while guard < 12 and Q.screen_name(page) != "ledger":
+            guard += 1
+            if Q.screen_name(page) in ("ledger", "nights"):
+                break
+            if drv.step() == "stuck":
+                break
+        drv.finished = Q.screen_name(page) == "ledger"
+        if drv.finished:
+            rec.ok("AC-E2-1-win-%s/%s" % (winner, label), "两张收尾卡后进入回顾", "ledger",
+                   "ledger", ac="AC-E2-1", viewport=label)
+            homes = {"a": 0, "b": 0}
+            homes[winner] = total
+            check_ledger_v61(ps, rec, label, drv, winner=winner,
+                             expect_home=(homes["a"], homes["b"]),
+                             expect_ending="win-" + winner, total=total)
+        else:
+            rec.fail("AC-E2-1-win-%s/%s" % (winner, label), "两张收尾卡后进入回顾", "ledger",
+                     "screen=%r" % Q.screen_name(page), ac="AC-E2-1", viewport=label,
+                     repro="收尾卡都点做了/放过→读取 screen")
+        check_no_errors(rec, ps, "AC-H6-1-win-%s/%s" % (winner, label), label, "先到家")
+        return drv
+    finally:
+        ctx.close()
+
+
+def run_not_end_case(browser, url, rec, label="390x844"):
+    """AC-E3-2 / E3-3 / E3-4：题卡 20 张、心动值 100、长夜只 1 架到家 → 都**不**结束。"""
+    vp = Q.VIEWPORTS[label]
+    ctx, ps, page = new_page(browser, url, vp, rec, label)
+    drv = TableDriver(ps, rec, label, max_steps=30)
+    try:
+        Q.ensure_boot(page, rec)
+        # 长夜（每人 4 架）
+        Q.try_click(page, SEL["long"], timeout=1500)
+        Q.fill_names(page, list(NAMES))
+        click_and_count(drv, SEL["start"], "摆上棋盘")
+        if Q.wait_screen(page, ["table"], timeout=9000) != "table":
+            rec.fail("AC-E3-4-setup/%s" % label, "长夜模式进入主桌", "data-table",
+                     "screen=%r" % Q.screen_name(page), ac="AC-E3-4", viewport=label,
+                     repro="门厅选长夜→开始")
+            return drv
+        page.wait_for_timeout(400)
+        sess = Q.get_session(page) or {}
+        if int(sess.get("planeCount") or 0) == 4:
+            rec.ok("AC-E3-4-setup/%s" % label, "长夜模式每人 4 架", "planeCount=4",
+                   "planeCount=%s mode=%s" % (sess.get("planeCount"), sess.get("mode")),
+                   ac="AC-E3-4", viewport=label)
+        else:
+            rec.fail("AC-E3-4-setup/%s" % label, "长夜模式每人 4 架", "planeCount=4",
+                     "planeCount=%s" % sess.get("planeCount"), ac="AC-E3-4", viewport=label,
+                     repro="门厅选长夜→开始→读 session.planeCount")
+        # 构造：a:0 已到家，a:1=home:*:4，a:2=home:*:0，a:3=机坪；b 全在机坪
+        # 题卡 20 张 + 心动值 100（都不该触发结束）
+        placements = {
+            "a:0": "home:{a}:goal", "a:1": "home:{a}:4", "a:2": "home:{a}:0",
+            "a:3": "hangar:{a}:3",
+            "b:0": "hangar:{b}:0", "b:1": "hangar:{b}:1", "b:2": "hangar:{b}:2",
+            "b:3": "hangar:{b}:3",
+        }
+        state = Q.fixture_place(page, placements, turn="a", cards_processed=20, heat=100)
+        if not state:
+            rec.fail("AC-E3-2/%s" % label, "构造题卡 20 张 + 心动值 100 的局面", "注入成功",
+                     "夹具注入失败", ac="AC-E3-2", viewport=label,
+                     repro="写 couple2.session 后刷新")
+            return drv
+        if not Q.continue_session(page):
+            rec.fail("AC-E3-2/%s" % label, "继续回到主桌", "table",
+                     "screen=%r" % Q.screen_name(page), ac="AC-E3-2", viewport=label,
+                     repro="刷新→点继续")
+            return drv
+        page.wait_for_timeout(400)
+        st = status_now(page)
+        if st.get("cards") == 20 and st.get("heat") == 100:
+            rec.ok("AC-E3-2-setup/%s" % label, "状态条读到 20 张 / 心动值 100",
+                   "第 20 张 + 心动值 100",
+                   "cards=%s heat=%s home=%s" % (st.get("cards"), st.get("heat"),
+                                                 st.get("home_text")), ac="AC-E3-2",
+                   viewport=label)
+        else:
+            rec.fail("AC-E3-2-setup/%s" % label, "状态条读到 20 张 / 心动值 100",
+                     "第 20 张 + 心动值 100",
+                     "cards=%s heat=%s" % (st.get("cards"), st.get("heat")), ac="AC-E3-2",
+                     viewport=label, repro="注入后读取状态条")
+        # 只 1 架到家 → 不结束
+        if not Q.exists(page, SEL["ending_title"], timeout=400):
+            rec.ok("AC-E3-4/%s" % label, "长夜只 1 架到家 → 不触发收尾", "无「今晚最后一段」",
+                   "a 到家 1/4", ac="AC-E3-4", viewport=label)
+        else:
+            rec.fail("AC-E3-4/%s" % label, "长夜只 1 架到家 → 不触发收尾", "无「今晚最后一段」",
+                     "提前出现收尾", ac="AC-E3-4", viewport=label,
+                     repro="1 架到家→读取收尾标题")
+        # 掷 1 → a:2 从 home:*:0 走到 home:*:1（仍有 2 架未到家）→ 不结束
+        Q.install_event_recorder(page)
+        Q.set_die(page, 1)
+        click_and_count(drv, SEL["roll"], "掷骰")
+        Q.wait_until(
+            page,
+            """() => { try { var s = App.Store.getSession();
+                var aw = (s && s.awaiting) || {};
+                return !!s && (aw.type === 'choose-piece' || aw.type === 'roll' ||
+                               aw.type === 'prompt' || s.phase === 'ended'); } catch(e) { return false; } }""",
+            timeout=8000)
+        page.wait_for_timeout(300)
+        sess2 = Q.get_session(page) or {}
+        homes = Q.session_summary(page).get("planesHome") or {}
+        no_end = not Q.exists(page, SEL["ending_title"], timeout=300)
+        if sess2.get("phase") == "playing" and no_end and (homes.get("a") or 0) < 4:
+            rec.ok("AC-E3-2/%s" % label, "题卡 20 张 / 心动值 100 且未全部到家 → 不结束",
+                   "phase=playing 且无收尾标题",
+                   "cards=%s heat=%s home=%s phase=%s" %
+                   (sess2.get("cardsProcessed"), (sess2.get("meta") or {}).get("heat"),
+                    json.dumps(homes, ensure_ascii=False), sess2.get("phase")),
+                   ac="AC-E3-2 / AC-E3-3", viewport=label,
+                   evidence=Q.this_shot(rec, page, "not_end_%s" % label))
+        else:
+            rec.fail("AC-E3-2/%s" % label, "题卡 20 张 / 心动值 100 且未全部到家 → 不结束",
+                     "phase=playing 且无收尾标题",
+                     "cards=%s heat=%s home=%s phase=%s ending=%s" %
+                     (sess2.get("cardsProcessed"), (sess2.get("meta") or {}).get("heat"),
+                      json.dumps(homes, ensure_ascii=False), sess2.get("phase"), not no_end),
+                     ac="AC-E3-2 / AC-E3-3", viewport=label,
+                     repro="注入 20 张/100 心动值→掷骰→读 phase 与收尾标题")
+        check_no_errors(rec, ps, "AC-H6-1-notend/%s" % label, label, "不结束判定")
+        return drv
+    finally:
+        ctx.close()
+
+
+def run_legacy_case(browser, url, rec, label="390x844"):
+    """兼容旧档（freeze §2.1 / copy §9-D11）：
+    ① V6.0 存档缺 takeoffMiss / winnerId → validate() 补 {a:0,b:0}，仍可续玩；
+    ② 旧回顾 ending='shared' → 回顾写「今晚一起走到这里」，不出现输赢词。
+    """
+    vp = Q.VIEWPORTS[label]
+    ctx, ps, page = new_page(browser, url, vp, rec, label)
+    try:
+        Q.ensure_boot(page, rec)
+        Q.fill_names(page, list(NAMES))
+        Q.try_click(page, SEL["start"], timeout=6000)
+        if Q.wait_screen(page, ["table"], timeout=9000) != "table":
+            rec.fail("AC-A6-3/%s" % label, "旧档兼容用例进入主桌", "table",
+                     "screen=%r" % Q.screen_name(page), ac="AC-A6-3", viewport=label,
+                     repro="门厅开始一局")
+            return
+        had = Q.drop_takeoff_miss(page)
+        page.reload(wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(900)
+        if Q.continue_session(page):
+            page.wait_for_timeout(400)
+            sess = Q.get_session(page) or {}
+            tm = sess.get("takeoffMiss") or {}
+            if tm.get("a") == 0 and tm.get("b") == 0:
+                rec.ok("AC-A6-3/%s" % label, "缺 takeoffMiss 的旧档 → validate 补 0 且可续玩",
+                       "takeoffMiss={a:0,b:0}", json.dumps(tm, ensure_ascii=False),
+                       ac="freeze §2.1", viewport=label)
+            else:
+                rec.fail("AC-A6-3/%s" % label, "缺 takeoffMiss 的旧档 → validate 补 0 且可续玩",
+                         "takeoffMiss={a:0,b:0}", json.dumps(tm, ensure_ascii=False),
+                         ac="freeze §2.1", viewport=label,
+                         repro="删 takeoffMiss → 刷新 → 点继续 → 读 session")
+            # 续玩后还能掷骰
+            Q.set_die(page, 6)
+            Q.try_click(page, SEL["roll"], timeout=4000)
+            txt, ms = Q.wait_text(page, r"掷出\s*6", timeout=2000)
+            if txt:
+                rec.ok("AC-A6-3-play/%s" % label, "旧档续玩后可以继续掷骰", "出现「掷出 6」",
+                       "%s（%dms）" % (txt, ms), ac="AC-A6-3", viewport=label)
+            else:
+                rec.fail("AC-A6-3-play/%s" % label, "旧档续玩后可以继续掷骰", "出现「掷出 6」",
+                         "未出现点数文本", ac="AC-A6-3", viewport=label,
+                         repro="旧档续玩→点掷骰")
+        else:
+            rec.fail("AC-A6-3/%s" % label, "缺 takeoffMiss 的旧档仍可继续", "出现继续入口并进主桌",
+                     "未回到主桌（had=%s）" % (had or []), ac="freeze §2.1", viewport=label,
+                     repro="删 takeoffMiss→刷新→点继续")
+        # 旧回顾 ending='shared'
+        entry = Q.old_ledger_entry("shared", NAMES)
+        Q.put_history(page, [entry])
+        page.goto(url + "?v=legacy-shared", wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(900)
+        Q.ensure_boot(page, rec, dismiss_rules=False)
+        if Q.try_click(page, ["test:go-nights", "role:button:/以前的夜/"], timeout=4000):
+            Q.wait_screen(page, ["nights"], timeout=6000)
+            page.wait_for_timeout(300)
+            clicked = Q.try_click(page, ["test:night-item-qa-old-shared", "[data-id='qa-old-shared']"],
+                                  timeout=4000)
+            Q.wait_screen(page, ["ledger"], timeout=8000)
+            page.wait_for_timeout(500)
+            if clicked and Q.screen_name(page) == "ledger":
+                txt = Q.body_text(page)
+                if "今晚一起走到这里" in txt:
+                    rec.ok("AC-F2-6/%s" % label, "旧档 ending='shared' 回顾写「今晚一起走到这里」",
+                           "含「今晚一起走到这里」", "命中", ac="AC-F2-5 / copy §9-D11",
+                           viewport=label,
+                           evidence=Q.this_shot(rec, page, "legacy_shared_%s" % label))
+                else:
+                    rec.fail("AC-F2-6/%s" % label, "旧档 ending='shared' 回顾写「今晚一起走到这里」",
+                             "含「今晚一起走到这里」", "body=%r" % txt[:200],
+                             ac="AC-F2-5 / copy §9-D11", viewport=label,
+                             repro="写入 shared 旧档→以前的夜→打开回顾")
+                bad = [w for w in FORBIDDEN_WORDS if w in txt]
+                if not bad:
+                    rec.ok("AC-F2-6-bad/%s" % label, "旧档回顾无输赢词", "无判定词", "无",
+                           ac="AC-F2-5", viewport=label)
+                else:
+                    rec.fail("AC-F2-6-bad/%s" % label, "旧档回顾无输赢词", "无判定词",
+                             "出现：%s" % bad, ac="AC-F2-5", viewport=label,
+                             repro="打开 shared 旧档回顾→读文本")
+            else:
+                rec.fail("AC-F2-6/%s" % label, "打开旧档回顾", "data-screen=ledger",
+                         "screen=%r clicked=%s" % (Q.screen_name(page), clicked),
+                         ac="AC-F2-5", viewport=label,
+                         repro="以前的夜→点旧档条目")
+        else:
+            rec.fail("AC-F2-6/%s" % label, "门厅可进入「以前的夜」", "go-nights 可点", "未找到入口",
+                     ac="AC-F2-5", viewport=label, repro="门厅→查找以前的夜入口")
+        check_no_errors(rec, ps, "AC-H6-1-legacy/%s" % label, label, "旧档兼容")
     finally:
         ctx.close()
 
@@ -1820,6 +2874,23 @@ def run_pause_case(browser, url, rec, label="390x844", short_press_check=True):
                      "未命中", ac="AC-G5-1", viewport=label,
                      repro="安全词长按→读取暂停页说明")
         check_safety_visible(ps, rec, label, "pause")
+        # V6.1（copy.md §9-D9 已对齐）：暂停页状态卡读「双方已到家」，不再显示「第 N/目标 张」
+        ph = Q.find(page, ["test:pause-home"], timeout=1500)[0]
+        ph_txt = ""
+        if ph is not None:
+            try:
+                ph_txt = (ph.inner_text() or "").replace("\n", " ").strip()
+            except Exception:
+                ph_txt = ""
+        if ph_txt and re.search(r"\d+\s*/\s*\d+", ph_txt) and "目标" not in txt:
+            rec.ok("AC-B6-1-pause/%s" % label, "暂停页状态卡读双方已到家（V6.1）",
+                   "含 X/Y 且无「目标」张数", ph_txt, ac="AC-B6-1", viewport=label)
+        else:
+            rec.fail("AC-B6-1-pause/%s" % label, "暂停页状态卡读双方已到家（V6.1）",
+                     "含 X/Y 且无「目标」张数",
+                     "pause-home=%r 暂停页含「目标」=%s" % (ph_txt, "目标" in txt),
+                     ac="AC-B6-1", viewport=label,
+                     repro="安全词长按→读取 [data-test=pause-home] 与暂停页文本")
         # 「看今晚记录」= 暂停层内只读预览（不跳 ledger），可「回到暂停」
         if Q.exists(page, SEL["pause_record"], timeout=1200):
             Q.try_click(page, SEL["pause_record"], timeout=2000)
@@ -2010,6 +3081,9 @@ def run_minigame_case(browser, url, rec, label="390x844"):
             heat_before = (Q.get_session(page) or {}).get("meta", {}).get("heat")
             if outcome == "skip":
                 if Q.exists(page, SEL["mg_skip"], timeout=2000):
+                    rec.ok("AC-D2-1/%s/%s" % (kind, label), "小游戏有「跳过」按钮",
+                           "minigame-skip 可见可点", "存在", ac="AC-D2-1", viewport=label,
+                           evidence=shot)
                     click_and_count(drv, SEL["mg_skip"], "小游戏跳过")
                     toast, ms = Q.wait_text(page, r"这一格先跳过|记下了", timeout=1800)
                     rec.ok("AC-D2-2/%s/%s" % (kind, label), "小游戏跳过有反馈", "toast 跳过",
@@ -2383,6 +3457,31 @@ def run_responsive_case(browser, url, rec):
                                   viewport=label)
                 # hit-test：主桌按钮中心不被安全词覆盖（360 必须）
                 if label == "360x640":
+                    # AC-H1-2：关键按钮中心的 elementFromPoint 必须命中按钮自身（不被遮挡）
+                    for nm, spec in (("掷骰", SEL["roll"]), ("暂停", SEL["pause_mini"]),
+                                     ("规则", SEL["rules_entry"])):
+                        l, _ = Q.find(page, spec, timeout=1500)
+                        if not l:
+                            continue
+                        hit2 = Q.hit_test(page, l)
+                        self_hit = bool(hit2) and (
+                            hit2.get("test") in ("roll", "pause", "rules") or
+                            "掷骰" in (hit2.get("text") or "") or
+                            "暂停" in (hit2.get("text") or "") or
+                            "规则" in (hit2.get("text") or ""))
+                        if self_hit:
+                            rec.ok("AC-H1-2/%s/%s" % (nm, label),
+                                   "%s 按钮中心 hit-test 命中自身" % nm,
+                                   "elementFromPoint 命中该按钮",
+                                   "hit=%s/%s" % (hit2.get("test"), (hit2.get("text") or "")[:12]),
+                                   ac="AC-H1-2", viewport=label)
+                        else:
+                            rec.fail("AC-H1-2/%s/%s" % (nm, label),
+                                     "%s 按钮中心 hit-test 命中自身" % nm,
+                                     "elementFromPoint 命中该按钮",
+                                     "hit=%s" % json.dumps(hit2, ensure_ascii=False),
+                                     ac="AC-H1-2", viewport=label,
+                                     repro="主桌读取按钮中心 elementFromPoint")
                     safety, _ = Q.find(page, SEL["safety"], timeout=2000)
                     if safety:
                         for nm, spec in (("掷骰", SEL["roll"]), ("暂停", SEL["pause_mini"])):
@@ -2532,9 +3631,13 @@ def run_reduced_case(browser, url, rec, label="390x844"):
 # ---------------------------------------------------------------- 主入口
 CASE_GROUPS = {
     "env": "基础加载/首屏/错误/截图",
-    "boot": "门厅 A1/A2/A4/A5/A3",
-    "main": "§7 20 点击主路径（360/390/430）",
-    "skip": "全放过收尾 C2/E3",
+    "boot": "门厅 A1/A2/A4/A5/A3（V6.1 新文案 + 规则速览 6 条）",
+    "main": "§7 主路径：注入「一方差一步全到家」→ 先到家 → 两张收尾卡 → 回顾（360/390/430）",
+    "skip": "C2/E2 放过不惩罚 + 全放过也能收尾 + 回顾「今晚先放过」",
+    "takeoff": "V6.1 起飞保底：第 2 回合不提前 / 第 3 回合任意点数 / 起飞·掷 6 清零",
+    "win": "V6.1 另一方先到家（win-b）文案与 ledger",
+    "notend": "V6.1 题卡 20 张 / 心动值 100 / 长夜 1 架到家 → 不结束",
+    "legacy": "V6.1 旧档兼容：缺 takeoffMiss 补 0 续玩 + ending='shared' 回顾文案",
     "resume": "A6 刷新续玩",
     "pause": "G1/G2/B4/B5 暂停/安全词",
     "minigame": "D1/D2/D3 小游戏",
@@ -2549,7 +3652,9 @@ CASE_GROUPS = {
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", default=str(Q.DEFAULT_DIST))
-    ap.add_argument("--only", default="", help="逗号分隔：env,boot,main,skip,resume,pause,minigame,fate,responsive,offline,reduced")
+    ap.add_argument("--only", default="",
+                    help="逗号分隔：env,boot,main,skip,takeoff,win,notend,legacy,resume,pause,"
+                         "minigame,fate,events,responsive,offline,reduced")
     ap.add_argument("--viewports", default="", help="main 组视口，逗号分隔（默认 390x844,360x640,430x932）")
     ap.add_argument("--skip-reduced", action="store_true")
     ap.add_argument("--headed", action="store_true")
@@ -2667,6 +3772,14 @@ def main():
                                           (label, len(drv.clicks), drv.cards, drv.finished))
                             elif g == "skip":
                                 run_skip_all_case(browser, base_url, rec)
+                            elif g == "takeoff":
+                                run_takeoff_pity_case(browser, base_url, rec)
+                            elif g == "win":
+                                run_win_side_case(browser, base_url, rec, winner="b")
+                            elif g == "notend":
+                                run_not_end_case(browser, base_url, rec)
+                            elif g == "legacy":
+                                run_legacy_case(browser, base_url, rec)
                             elif g == "resume":
                                 run_resume_case(browser, base_url, rec)
                             elif g == "pause":
@@ -2693,6 +3806,23 @@ def main():
                         print("[E2E] === %s done in %.1fs ===" % (g, time.time() - t0))
             finally:
                 browser.close()
+
+    # AC-G1-1：安全词/暂停在各类屏幕都可达（汇总 check_safety_visible 的通过屏幕）
+    # 仅在全量口径（同时跑了 main + pause 组）时汇总，部分用例组不因缺组报 FAIL。
+    if SAFETY_SCREENS and {"main", "pause"} <= set(groups):
+        need = {"boot", "table", "pause", "ledger"}
+        got = set(SAFETY_SCREENS.keys())
+        overlay_ok = bool(got & {"prompt", "minigame"})
+        actual = json.dumps({k: sorted(v) for k, v in sorted(SAFETY_SCREENS.items())},
+                            ensure_ascii=False)
+        if need <= got and overlay_ok:
+            rec.ok("AC-G1-1", "安全词在门厅/主桌/题卡或小游戏/暂停/回顾都可达",
+                   "≥5 类屏幕可达（含浮层）", actual, ac="AC-G1-1", viewport="-")
+        else:
+            rec.fail("AC-G1-1", "安全词在各类屏幕都可达", "boot/table/pause/ledger + 浮层之一",
+                     "缺少=%s 浮层=%s 实得=%s" % (sorted(need - got), overlay_ok, actual),
+                     ac="AC-G1-1", viewport="-",
+                     repro="跑 env/main/pause/minigame 组后读 SAFETY_SCREENS 汇总")
 
     json_path, md_path = Q.write_suite_report(rec, args.json)
     counts = rec.counts()

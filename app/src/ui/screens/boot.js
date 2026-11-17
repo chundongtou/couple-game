@@ -11,9 +11,12 @@
     { id: "blue", name: "蓝" },
     { id: "green", name: "绿" }
   ];
+  /* V6.1（impl-freeze-v6.1 §3.1）：结束条件改为「一方把本局全部飞机送进终点」，不再按题卡数/心动值结束。
+     模式卡因此只讲「先送完几架 · 多久 · 每人几架」，不再显示「目标 4/8 张题卡」。
+     cards/heat 仅保留为数据兼容（开局仍可传给引擎，引擎已不再据此判定结束），UI 不引用。 */
   var MODES = [
-    { id: "quick", name: "快局", cards: 4, heat: 40, planes: 2, line1: "目标 4 张题卡", line2: "约 8–12 分钟 · 2 架", line: "目标 4 张题卡 · 约 8–12 分钟 · 2 架" },
-    { id: "long", name: "长夜", cards: 8, heat: 80, planes: 4, line1: "目标 8 张题卡", line2: "约 25–40 分钟 · 4 架", line: "目标 8 张题卡 · 约 25–40 分钟 · 4 架" }
+    { id: "quick", name: "快局", cards: 4, heat: 40, planes: 2, line: "先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架" },
+    { id: "long", name: "长夜", cards: 8, heat: 80, planes: 4, line: "先送完 4 架飞机 · 约 30–50 分钟 · 每人 4 架" }
   ];
   var SCALES = [
     { id: "gentle", name: "温柔", star: "★1", desc: "灯只留一盏，慢一点。" },
@@ -86,7 +89,7 @@
         var on = mode.id === m.id;
         return '<button type="button" class="mode-card' + (on ? " on" : "") + '" data-mode="' + m.id + '" data-test="mode-' + m.id + '" aria-pressed="' + (on ? "true" : "false") + '">' +
           (on ? '<span class="on-tag">今晚选这个</span>' : "") +
-          "<b>" + m.name + "</b><span>" + m.line1 + "</span><span>" + m.line2 + "</span></button>";
+          "<b>" + m.name + "</b><span>" + m.line + "</span></button>";
       }
 
       function scaleCard(s) {
@@ -315,6 +318,7 @@
           boundaries: boundaries.slice(),
           planeCount: mode.planes,
           mode: mode.id,
+          /* V6.1：结束只看「一方全部飞机到家」；targetCards/targetHeat 仅历史兼容，引擎不再据此判定结束 */
           targetCards: mode.cards,
           targetHeat: mode.heat
         });

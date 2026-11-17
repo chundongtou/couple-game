@@ -26,9 +26,9 @@
   ];
   var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   var MINI_NAME = { thermo: "温度计", "truth-wheel": "真心话转盘", "dare-wheel": "大冒险转盘" };
-  /* 图例（copy §2.6 + §2.5 的格名说明） */
+  /* 图例（copy §2.6 + §2.5 的格名说明；V6.1：起飞规则补保底） */
   var LEGEND = [
-    ["起飞格", "从这里起飞，需要 6"],
+    ["起飞格", "从这里起飞：掷出 6；连续两次没起飞，这一掷任意点数保底起飞"],
     ["真心话格", "抽一张真心话"],
     ["大冒险格", "抽一张大冒险"],
     ["靠近格", "抽一张靠近的题"],
@@ -41,6 +41,9 @@
 
   /* 单屏实例共享的对局状态（mount 时赋值；同一时刻只有一个主桌） */
   var state = null;
+  /* 当前主桌的 owner：BoardView 是单例，快速连开两局时上一屏的延迟 cleanup
+   * 不能把新主桌刚挂好的棋盘拆掉（否则棋盘空白）。 */
+  var tableOwner = null;
 
   var CSS = [
     ".v6-table{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;",
@@ -95,6 +98,10 @@
     "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
     ".v6-hint{font-size:12px;line-height:1.35;color:var(--rose,#E9887A)}",
     ".v6-hint .v6-reason{display:block;color:var(--dim2,#8E7C9E);font-size:11px}",
+    /* V6.1：胜者行（「{姓名} 先到家」）与起飞保底提示（掷骰前，不覆盖「掷出 N」） */
+    ".v6-winner{font-size:12.5px;font-weight:700;letter-spacing:.06em;color:#FFD9CE}",
+    ".v6-pity{font-size:11.5px;line-height:1.35;color:var(--amber,#F3C077)}",
+    ".v6-winner[hidden],.v6-pity[hidden]{display:none}",
     ".v6-ending{display:flex;flex-direction:column;gap:1px}",
     ".v6-ending b{font-size:12.5px;font-weight:700;letter-spacing:.08em;color:#FFD9CE}",
     ".v6-ending span{font-size:11px;color:var(--dim,#C9B6CE)}",
@@ -218,10 +225,73 @@
     for (i = 0; i < STAGES.length; i++) if (h >= STAGES[i].min) out = STAGES[i];
     return out;
   }
-  function targetCardsOf(s) {
-    var t = num(s && s.targetCards, 0);
-    if (t > 0) return t;
-    return (s && s.planeCount === 2) ? 4 : 8;
+  /* ---------- V6.1 规则投影：已到家数 / 起飞保底 / 胜者 ----------
+   * 依据 impl-freeze-v6.1 §3.2：状态条读双方「已到家」，掷骰前读起飞保底，胜者读 win 事件 / winnerId。
+   * 新字段优先（view.planesHome / view.takeoff / state.winnerId），缺失时用 pieces / takeoffMiss 兜底，
+   * 保证 BE 未就绪的旧档也能渲染（不报错、不出现目标暗示）。 */
+  function viewOf(s) {
+    try {
+      if (App.Flight && typeof App.Flight.view === "function") return App.Flight.view(s, { reduced: reduced() }) || {};
+    } catch (e) {}
+    return {};
+  }
+  function piecePlayerId(p, s) {
+    if (!p) return "";
+    if (p.playerId) return String(p.playerId);
+    var colors = (s && s.colors) || {}, ids = Object.keys(colors), i = 0;
+    for (i = 0; i < ids.length; i++) if (colors[ids[i]] === p.color) return ids[i];
+    return String(p.id || "").split(":")[0] || "";
+  }
+  /* 每人本局飞机数（快局 2 / 长夜 4）：按 pieces 实测，缺 pieces 时退回 planeCount */
+  function planeTotalsOf(s) {
+    var out = { a: 0, b: 0 };
+    ((s && s.pieces) || []).forEach(function (p) {
+      var pid = piecePlayerId(p, s);
+      if (out[pid] != null) out[pid]++;
+    });
+    var fallback = num(s && s.planeCount, 0);
+    ["a", "b"].forEach(function (pid) { if (!out[pid] && fallback > 0) out[pid] = fallback; });
+    return out;
+  }
+  function planesHomeOf(s) {
+    var total = planeTotalsOf(s), out = { a: 0, b: 0 };
+    var v = viewOf(s), raw = v && v.planesHome;
+    if (raw && typeof raw.a === "number" && typeof raw.b === "number") {
+      return { a: clamp(Math.round(raw.a), 0, total.a), b: clamp(Math.round(raw.b), 0, total.b), total: total };
+    }
+    ((s && s.pieces) || []).forEach(function (p) {
+      if (!p || !p.arrived) return;
+      var pid = piecePlayerId(p, s);
+      if (out[pid] != null) out[pid]++;
+    });
+    return { a: out.a, b: out.b, total: total };
+  }
+  /* 该玩家所有「未到家」飞机都在机坪（已全部到家时不算——避免把赢家当成「可保底起飞」） */
+  function allUnarrivedInHangar(s, pid) {
+    var list = ((s && s.pieces) || []).filter(function (p) { return piecePlayerId(p, s) === pid && !p.arrived; });
+    if (!list.length) return false;
+    for (var i = 0; i < list.length; i++) if (!inHangar(list[i])) return false;
+    return true;
+  }
+  function takeoffOf(s) {
+    var v = viewOf(s), t = v && v.takeoff;
+    if (t && typeof t === "object" && typeof t.pity === "boolean") return { pity: t.pity, misses: t.misses || null };
+    /* 旧引擎：takeoffMiss 达 2 且都在机坪 → 本回合保底 */
+    var pid = (s && s.turn) || "a";
+    var misses = (s && s.takeoffMiss) || {};
+    return { pity: clamp(num(misses[pid], 0), 0, 2) >= 2 && allUnarrivedInHangar(s, pid), misses: misses };
+  }
+  /* 胜者：win 事件 / state.winnerId 优先；都缺失时按「一方全部到家」兜底（V6.1 结束条件）。
+   * 安全词结束（safe-ended）不是胜负收尾，不显示胜者。 */
+  function winnerOf(s, hint) {
+    if (!s || s.phase === "safe-ended") return "";
+    var pid = (hint === "a" || hint === "b") ? hint : (s && (s.winnerId === "a" || s.winnerId === "b") ? s.winnerId : "");
+    if (pid !== "a" && pid !== "b") {
+      pid = "";
+      var home = planesHomeOf(s);
+      ["a", "b"].forEach(function (x) { if (!pid && home.total[x] > 0 && home[x] >= home.total[x]) pid = x; });
+    }
+    return (pid === "a" || pid === "b") ? pid : "";
   }
   function cardsProcessedOf(s) {
     if (s && typeof s.cardsProcessed === "number") return Math.max(0, s.cardsProcessed);
@@ -309,6 +379,8 @@
       var landing = { text: "—", square: "" };
       var hintText = "";
       var hintReason = "";
+      var winnerId = (state.winnerId === "a" || state.winnerId === "b") ? state.winnerId : null;
+                                  /* V6.1：win 事件 / state.winnerId 记住的胜者（"a"|"b"|null） */
       var receiptText = "";
       var receiptNote = "";
       var heatDeltaText = "";
@@ -324,6 +396,7 @@
       var ticker = null;
       var finishTimer = null;
       var owner = U.uid();
+      tableOwner = owner;
 
       root.innerHTML =
         '<div class="v6-table" data-test="table">' +
@@ -338,10 +411,14 @@
             '<div class="v6-status-line">' +
               '<span data-test="round">第 1 回合</span> · ' +
               '<span data-test="duration">今晚 0:00</span> · ' +
-              '<span data-test="flying">在飞 0 架</span>' +
+              '<span data-test="flying">在飞 0 架</span> · ' +
+              '<span data-test="status-cards">第 0 张</span>' +
             '</div>' +
             '<div class="v6-status-main">' +
-              '<span data-test="status-cards">第 0/4 张</span><span> · </span>' +
+              '<span data-test="status-home">' +
+                '<span data-test="status-home-a">红 0/2</span><span> · </span>' +
+                '<span data-test="status-home-b">黄 0/2</span>' +
+              '</span><span> · </span>' +
               '<span data-test="status-heat">心动值 0</span><span> · </span>' +
               '<span data-test="status-streak">连击 0</span>' +
               '<i class="v6-stage" data-test="heat-stage">灯刚亮</i>' +
@@ -362,6 +439,8 @@
                 '<span class="v6-llabel">落点</span>' +
                 '<button type="button" class="v6-landing-btn" data-act="legend" data-test="landing">—</button>' +
               "</div>" +
+              '<div class="v6-winner" data-test="winner-text" hidden></div>' +
+              '<div class="v6-pity" data-test="takeoff-pity" hidden></div>' +
               '<div class="v6-hint" data-test="hint"></div>' +
             "</div>" +
           "</div>" +
@@ -492,11 +571,36 @@
         setText(root.querySelector("[data-test=round]"), "第 " + roundOf(state) + " 回合");
         paintDuration();
         setText(root.querySelector("[data-test=flying]"), "在飞 " + flyingOf(state) + " 架");
-        setText(root.querySelector("[data-test=status-cards]"), "第 " + cardsProcessedOf(state) + "/" + targetCardsOf(state) + " 张");
+        /* V6.1：状态条改读「已到家」；「第 N 张」只作过程计数，不再和目标数比较（不暗示结束） */
+        setText(root.querySelector("[data-test=status-cards]"), "第 " + cardsProcessedOf(state) + " 张");
+        var home = planesHomeOf(state);
+        ["a", "b"].forEach(function (pid) {
+          setText(root.querySelector("[data-test=status-home-" + pid + "]"),
+            colorName(colorOf(pid)) + " " + home[pid] + "/" + home.total[pid]);
+        });
         setText(root.querySelector("[data-test=status-heat]"), "心动值 " + heatOf(state));
         setText(root.querySelector("[data-test=status-streak]"), "连击 " + streakOf(state));
         setText(root.querySelector("[data-test=heat-stage]"), st.name);
         paintTurns();
+      }
+
+      /* 起飞保底（impl-freeze §3.2）：只在「本回合还没掷骰」时提示；掷骰结果文本仍是「掷出 N」 */
+      function paintPity() {
+        var el = root.querySelector("[data-test=takeoff-pity]");
+        if (!el) return;
+        var wait = (state && state.awaiting) || {};
+        var show = !finishing && wait.type === "roll" && takeoffOf(state).pity;
+        el.hidden = !show;
+        setText(el, show ? "连续两次没起飞 · 这一掷任意点数保底起飞" : "");
+      }
+
+      /* 胜者（impl-freeze §3.2）：win 事件 / state.winnerId → 「{姓名} 先到家」；不出现输/赢/胜/负 */
+      function paintWinner() {
+        var el = root.querySelector("[data-test=winner-text]");
+        if (!el) return;
+        var pid = winnerOf(state, winnerId);
+        el.hidden = !pid;
+        setText(el, pid ? (nameOf(pid) + " 先到家") : "");
       }
 
       function paintTurns() {
@@ -575,6 +679,8 @@
       function paint() {
         paintHud();
         paintTexts();
+        paintPity();
+        paintWinner();
         paintDie();
         syncBoard();
       }
@@ -731,6 +837,18 @@
       }
 
       /* ---------- 引擎编排（busy 单飞 + 先落盘后动画） ---------- */
+      /* 胜者：win 事件优先，其次 state.winnerId；都没有时 winnerOf 按「一方全部到家」兜底。
+       * 只用于文案与回顾（不加分、不惩罚另一方）。 */
+      function pickWinner(events) {
+        var i = 0, e = null;
+        for (i = 0; i < (events || []).length; i++) {
+          e = events[i];
+          if (e && e.type === "win" && (e.playerId === "a" || e.playerId === "b")) winnerId = e.playerId;
+        }
+        if (state && (state.winnerId === "a" || state.winnerId === "b")) winnerId = state.winnerId;
+        return winnerId;
+      }
+
       function playBoard(events) {
         var bv = App.BoardView;
         if (!boardReady || !bv || typeof bv.play !== "function" || !events || !events.length) return Promise.resolve(null);
@@ -790,6 +908,7 @@
         }
         state = ret.state;
         var events = ret.events || [];
+        pickWinner(events);                                /* ⑥ V6.1：win 事件 → 胜者文案 */
         var ended = (state.phase === "ended" || state.phase === "safe-ended");
         saveSession();                                    /* ⑤ 先落盘，再动画 */
         readResult(opts, prev, ret, events, prevHeat);     /* 文本即时更新（≤500ms） */
@@ -840,7 +959,8 @@
             hintText = state.turn !== prev.turn
               ? "没有飞机能动，换 " + nameOf(state.turn) + " 掷骰"
               : "没有飞机能动，" + nameOf(state.turn) + " 再掷一次";
-            hintReason = reasonOf(legal, prev);
+            /* 保底提示已经写明起飞规则，这里不再重复一整行（避免三行叠在一起） */
+            hintReason = takeoffOf(state).pity ? "" : reasonOf(legal, prev);
             sfx("warn");
           }
           receiptText = "";
@@ -899,7 +1019,7 @@
           else if (r && r !== "NONE") other++;
         });
         if (exact) return "进终点要刚好，这步先停";
-        if (needSix) return "都还在机坪，得掷出 6 才能起飞";
+        if (needSix) return "都还在机坪：掷出 6 起飞；连续两次没起飞后，这一掷任意点数保底起飞";
         if (other) return "这步走不了";
         return "";
       }
@@ -1134,8 +1254,12 @@
         try { boardEl.removeEventListener("board-event", onBoardEvent); } catch (e) {}
         try { window.removeEventListener("resize", onResize); } catch (e) {}
         closeHosts();
-        if (App.BoardView && typeof App.BoardView.unmount === "function") {
-          try { App.BoardView.unmount(); } catch (e) {}
+        /* 只有仍是「当前主桌」时才拆棋盘（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。 */
+        if (tableOwner === owner) {
+          tableOwner = null;
+          if (App.BoardView && typeof App.BoardView.unmount === "function") {
+            try { App.BoardView.unmount(); } catch (e) {}
+          }
         }
         try {
           if (window.__V6_TEST__ && window.__V6_TEST__.__owner === owner) delete window.__V6_TEST__;

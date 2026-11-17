@@ -4,12 +4,29 @@
   var App = window.App;
   var U = App.util;
 
+  /* V6.1（impl-freeze-v6.1 §3.3）：win-a/win-b 写「<姓名> 先到家」；
+     shared 旧档保持「今晚一起走到这里」；不写任何评判性结论文案。 */
+  function winnerName(entry) {
+    var ledger = (entry && entry.ledger) || {};
+    var w = ledger.winnerId;
+    if (w !== "a" && w !== "b") {
+      if (ledger.ending === "win-a") w = "a";
+      else if (ledger.ending === "win-b") w = "b";
+    }
+    if (w !== "a" && w !== "b") return "";
+    var names = ledger.names || (entry && entry.names) || {};
+    var n = names[w];
+    if (n == null || !String(n).trim()) n = w === "a" ? "你" : "对方";
+    return String(n).trim();
+  }
+
   function statusOf(entry) {
     var ledger = entry && entry.ledger;
     if (ledger && ledger.ending === "safe") return ledger.v === 2 ? "今晚就到这" : "安全词收棋";
     if (entry && entry.safe) return "安全词收棋";
-    if (ledger && ledger.ending === "shared") return "今晚完成";
-    if (ledger && (ledger.ending === "win-a" || ledger.ending === "win-b")) return "今晚完成";
+    var who = winnerName(entry);
+    if (who) return who + " 先到家";
+    if (ledger && ledger.ending === "shared") return "今晚一起走到这里";
     return (entry && entry.endingName) || "今晚完成";
   }
 

@@ -14,6 +14,7 @@
     "minigame-truth-wheel": "真心话转盘", "minigame-dare-wheel": "大冒险转盘"
   };
   var SCALE = { gentle: "温柔", warm: "暧昧", hot: "热烈", open: "不设限" };
+  var COLOR_NAME = { red: "红", yellow: "黄", blue: "蓝", green: "绿" };
 
   var state = { el: null, open: false, prevScreen: null, view: "actions", reason: "button", cleanup: null };
 
@@ -23,17 +24,37 @@
 
   function scaleName(id) { return SCALE[id] || "暧昧"; }
 
-  function targetCards(s) {
-    if (s && s.targetCards) return s.targetCards;
-    if (s && s.mode) return s.mode === "long" ? 8 : 4;
-    return s && s.planeCount === 2 ? 4 : 8;
-  }
-
   function doneCount(s) {
     if (s && typeof s.cardsProcessed === "number") return s.cardsProcessed;
     var n = 0;
     ((s && s.log) || []).forEach(function (e) { if (e && e.outcome) n += 1; });
     return n;
+  }
+
+  /* V6.1（impl-freeze-v6.1 §2.2 / §3.2）：结束只看「一方全部飞机到家」，
+     暂停页不再显示「第 N/目标 张」（targetCards 不再决定结束），改为双方「已到家 X/Y」。 */
+  function planeTotal(s) {
+    var n = Number(s && s.planeCount);
+    if (n > 0) return n;
+    var counted = 0;
+    ((s && s.pieces) || []).forEach(function (p) { if (p && p.playerId === "a") counted += 1; });
+    return counted || 2;
+  }
+
+  function homeOf(s, pid) {
+    var view = null;
+    try { view = (App.Flight && App.Flight.view) ? App.Flight.view(s) : null; } catch (e) { view = null; }
+    if (view && view.planesHome && typeof view.planesHome[pid] === "number") return view.planesHome[pid];
+    var n = 0;
+    ((s && s.pieces) || []).forEach(function (p) { if (p && p.playerId === pid && p.arrived) n += 1; });
+    return n;
+  }
+
+  function homeText(s) {
+    var total = planeTotal(s);
+    var ca = COLOR_NAME[(s && s.colors && s.colors.a) || "red"] || "红";
+    var cb = COLOR_NAME[(s && s.colors && s.colors.b) || "yellow"] || "黄";
+    return "已到家 " + ca + " " + homeOf(s, "a") + "/" + total + " · " + cb + " " + homeOf(s, "b") + "/" + total;
   }
 
   function heatOf(s) {
@@ -53,7 +74,7 @@
   function statLine(s) {
     if (!s) return "今晚还没有摆上棋盘。";
     return U.escape(s.names.a) + " 和 " + U.escape(s.names.b) + " · " + scaleName(s.scale) +
-      " · 第 " + doneCount(s) + "/" + targetCards(s) + " 张 · 心动值 " + heatOf(s);
+      ' · <span data-test="pause-home">' + U.escape(homeText(s)) + "</span>";
   }
 
   function promptsOf(s) {
@@ -90,7 +111,8 @@
       (s ? '<div class="glass pause-status" data-test="pause-recap-stats">' +
         '<div class="ps-line"><span><b>' + U.escape(s.names.a) + "</b> 和 <b>" + U.escape(s.names.b) + "</b></span>" +
         "<span>" + scaleName(s.scale) + "</span>" +
-        "<span>第 <b>" + doneCount(s) + "/" + targetCards(s) + "</b> 张</span></div>" +
+        "<span>第 <b>" + doneCount(s) + "</b> 张</span>" +
+        '<span data-test="pause-recap-home">' + U.escape(homeText(s)) + "</span></div>" +
         '<div class="ps-heat">' + App.UI.heatPill(heatOf(s)) +
         '<span class="small dim">连击 <b class="gold">' + streakOf(s) + "</b></span></div>" +
         '<div class="ps-time">今晚 ' + App.UI.fmtDuration(Date.now() - startedAt(s)) + "</div>" +

@@ -1,18 +1,18 @@
-# 今晚飞行棋 V6 · 规则与数值
+# 今晚飞行棋 V6.1 · 规则与数值
 
 > 唯一事实来源：本文写「规则是什么、数值是多少」。实现细节看 `app/src/`，构建与发版看 `docs/REBUILD.md`，UI 文案看 `docs/v6/copy.md`。
-> 口径优先级：`docs/v6/impl-freeze.md`（Lead 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
+> 口径优先级：`docs/v6/impl-freeze-v6.1.md`（V6.1 规则调整）> `docs/v6/impl-freeze.md`（V6.0 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
 
-一句话：两个人、一部手机、一枚环形星轨棋盘。题卡一起做，心动值一起涨，玩到「今晚最后一段」——**没有输赢**。
+一句话：两个人、一部手机、一枚环形星轨棋盘。题卡一起做，心动值一起涨，**谁先把自己的飞机全部送回家，谁「先到家」**；之后两张收尾卡一人一张——只写「先到家」，不写输赢。
 
 ## 1. 一局的结构
 
 | 阶段 | 屏幕 | 发生什么 |
 |---|---|---|
-| 门厅 | `boot` | 选快局 / 长夜、两个名字、两种颜色、四档尺度、边界；有存档时「继续今晚飞行棋」 |
+| 门厅 | `boot` | 选快局 / 长夜（先送完 2 / 4 架）、两个名字、两种颜色、四档尺度、边界；有存档时「继续今晚飞行棋」 |
 | 主桌 | `table` | 掷骰、走子、抽题卡 / 小游戏 / 命运、心动值与连击、暂停入口、安全词常驻 |
-| 收尾 | `table`（收尾卡） | 满足收尾条件后，两张收尾卡一人一张；处理完进回顾 |
-| 回顾 | `ledger` | 6 类信息 + 题卡明细；「保存到以前的夜」「再开一夜」；可「存成图片」 |
+| 收尾 | `table`（收尾卡） | **一方全部飞机到家**后，两张收尾卡一人一张；处理完进回顾 |
+| 回顾 | `ledger` | 「<姓名> 先到家」+「已到家 X/Y」、6 类信息 + 题卡明细；「保存到以前的夜」「再开一夜」；可「存成图片」 |
 | 其他 | `nights` / `settings` / `minigame` | 以前的夜、设置、单独玩的小游戏 |
 
 - 进行中的一局存在 `couple2.session`（`kind:"flight"`，结构版本 `v:2`）。
@@ -53,23 +53,26 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 ## 3. 回合与走子
 
 1. 点「掷骰」：1–6，页面显示点数文字；骰子动画 ≤1.6s。
-2. **6 起飞**：只有掷出 6，才有一架飞机从机坪起飞。
+2. **6 起飞 + 两回合保底**：掷出 6 才有一架飞机从机坪起飞；但同一个玩家**连续 2 个自己的回合都没掷出 6**（且该玩家所有未到家的飞机都在机坪），**第 3 个自己的回合任意点数都可起飞**。起飞成功或掷出 6 后保底计数清零（`takeoffMiss`，0–2）。
 3. **6 可再掷**：掷出 6，走完这一步后还能再掷一次（`rerollOnEverySix: true`）。
 4. **选子**：有多个合法走子时给文字按钮（「红 · 第 1 架 · 从机坪起飞」这类），不自动替玩家选。
-5. **无子可走**：明确写出原因（例如四架都在机坪、没掷到 6），然后换人；不静默换人。
+5. **无子可走**：明确写出原因（例如飞机都在机坪、没掷到 6，并提示「连续两次没起飞后，这一掷任意点数保底起飞」），然后换人；不静默换人。
 6. **击落**：落在对方飞机所在格，对方飞机回机坪，并抽一张对应题卡。
 7. **叠机**：落在自己飞机所在格，叠成一摞，抽「两人一起」的卡；叠机后有 1 步奖励（放过也保留，见 §8）。
 8. **进航**：落到进航格抽一张进航题卡；**放过也照样进军**。
-9. **到达**：走完 5 格航线到终点即 `arrived`；HUD 显示「在飞 N 架」。
+9. **到达**：走完 5 格航线到终点即 `arrived`；HUD 状态条显示双方「已到家 X/N」与「在飞 N 架」。
 
 规则开关在 `app/src/engine/flight-rules.js`。V6 冻结的两条：`skipHomeEntryBlocksEntry: false`（放过仍进军）、`skipStackKeepsBonusStep: true`（放过仍得叠机奖励步）；其余开关沿用暂定值，**进行中的旧局按 `state.rules` 快照走**。
+
+> 起飞保底（V6.1）的边界：保底计数在**换手前**按本回合点数记账（`noteTakeoffMiss`），`computePlan` 读的是本回合开始前的计数，所以第 1、2 个没 6 的回合不会提前起飞、第 3 个回合才保底；**掷出 6 一律清零**、实际起飞也清零；非 6 时只有「该玩家所有未到家的飞机都在机坪」才 +1（有子在外面就不累计）。
 
 ## 4. 题卡
 
 - 每张卡都有归属：格位题 / 击落 / 进航 → 当前行动方姓名；叠机 → 「两人一起」；收尾 → 收尾卡指定的人。
 - 卡面显示类型、星级、来源。动作固定为 **做了 / 放过**。
 - 「做了」：心动值 +8、连击 +1；「放过」：心动值 +3、连击不清零、不挡路、不扣分。
-- 计入「目标题卡数」的只有 6 类普通卡：真心话 / 大冒险 / 靠近 / 击落 / 叠机 / 进航。**小游戏、命运卡、收尾卡不计入**，但都会结算心动值与连击。
+- 计入 `cardsProcessed` 的只有 6 类普通卡：真心话 / 大冒险 / 靠近 / 击落 / 叠机 / 进航。**小游戏、命运卡、收尾卡不计入**，但都会结算心动值与连击。
+- **V6.1：题卡数不决定结束。** `cardsProcessed` 只是过程计数（状态条「第 N 张」），`targetCards / targetHeat` 字段保留但 `shouldEnd` 不再读；一局何时结束只看「一方全部飞机到家」（见 §8）。
 - 题卡原文只存在本机；回顾页里默认收起，分享图默认不画原文。
 
 ## 5. 心动值 / 连击
@@ -100,12 +103,13 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 - 连击是全局限定在「做了」上的累计：`done` +1，`skipped` 不变；`streakBest` 记录最高值。
 - 每 3 次「做了」由引擎发一个 `milestone` 事件并存进 `meta.milestones`。**V6 界面只显示连击数**；「连击里程碑换双人选卡」是 P1 奖励，尚未上线。
 - 状态条、暂停页、回顾页显示同一个心动值与阶段名。
+- **V6.1：心动值只作过程记录**，不再触发结束（V6.0 的 `heat >= targetHeat` 已废弃，`targetHeat` 仅作历史兼容）。
 
 ## 6. 命运格（第 5、29 格）
 
 - 落上后同时给两张**不同池**的卡，二选一；另一张放回池子。
 - 池子随尺度变：温柔/暧昧 = 靠近 + 真心话；热烈 = 大冒险 + 真心话；不设限 = spark + 真心话。
-- 选择「做了」+8、「今晚先不选」+3（不惩罚），都不计入目标题卡数。
+- 选择「做了」+8、「今晚先不选」+3（不惩罚），都不计入 `cardsProcessed`（过程计数，不影响结束）。
 - 不选不会失败，也不会扣心动值。
 
 ## 7. 小游戏
@@ -120,26 +124,28 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 - 温度计是「谁猜得近谁更热」，不是比赛，不记输赢。
 - 独立入口（门厅「小游戏」，旧 hash 链接 `#/door` 也可达）可以单独玩；结果可「带回今晚」写进当前这一夜。
 
-## 8. 目标与收尾（无输赢）
+## 8. 结束与收尾（先到家，不判输赢）
 
-| 模式 | 飞机 | 目标题卡 | 目标心动值 | 预计时长 |
+> V6.1 起结束条件 = **飞行棋胜负**：任意一方把本局全部飞机送进终点。题卡张数 / 心动值 / 单架到家都不再结束（`impl-freeze-v6.1.md` §1）。
+
+| 模式 | 每人飞机 | 收尾条件 | 预计时长 | `targetCards` / `targetHeat`（历史字段） |
 |---|---|---|---|---|
-| 快局 `quick` | 2 架/人 | 4 张 | 40 | 8–12 分钟 |
-| 长夜 `long` | 4 架/人 | 8 张 | 80 | 25–40 分钟 |
+| 快局 `quick` | 2 架 | 一方 2 架全部 `arrived` | 15–25 分钟 | 4 / 40，只兼容，不参与判定 |
+| 长夜 `long` | 4 架 | 一方 4 架全部 `arrived` | 30–50 分钟 | 8 / 80，只兼容，不参与判定 |
 
-**收尾条件（任一满足）**：
+**结束判定（`shouldEnd`）**：`allHome(a) || allHome(b)` —— 该玩家本局**所有** `pieces` 的 `arrived === true`。
 
-1. `cardsProcessed >= targetCards`；或
-2. `meta.heat >= targetHeat`；或
-3. 长夜：任意一方有 1 架飞机到达终点。
+判定发生在每次走子 / 题卡结算之后（`afterAction` / `resolvePrompt` 之后）；最后一步落格题卡先结算，再进收尾。
 
-判定发生在**普通题卡 / 小游戏的结算之后**，不发生在掷骰或走子时。命中后不再抽普通题卡，进入「今晚最后一段」：
+命中后（`enterEnding`）：
 
+- 先写 `s.winnerId`，事件顺序固定 `win → prompt(收尾卡 a) → ending-start`。
 - 从 `ending` 池按 mild 权重抽 **2 张收尾卡**，一人一张（顺序：先 a 再 b；允许同池）。
 - 两张都可以「放过」；放过不减 heat、不判失败。
 - 两张处理完 → `phase='ended'` → 生成 ledger → 进入今晚回顾。
-- 结束页**不判输赢**：`winnerId` 保留字段但 V6 不展示；ledger 的 `ending` 为 `'shared'`（走到收尾）或 `'safe'`（安全词/主动结束）。
-- 「输赢」只在 P2 的「长夜记录谁先到家」彩蛋里可能出现，不影响结束页。
+- 文案：主桌 `data-test=winner-text` 显示「<姓名> 先到家」；回顾首屏「<姓名> 先到家」+「已到家 X/N 架」，汇总里另有一格「已到家」；旧档 `ending='shared'`（V6.0 合作收尾）或没有赢家时显示「今晚一起走到这里」，`safe` 显示「安全词收棋 / 今晚就到这」。
+- **不惩罚**：赢家不额外加心动值、输家不扣分；界面不出现「输/赢/胜/负」（「先到家」不算判定词）。
+- `winnerId` 只用于文案与 ledger（`ending: 'win-a' | 'win-b' | 'safe'`；`stats.planesHome: {a, b}`），不参与其它逻辑。
 
 ### 不惩罚「放过」（红线，逐条）
 
@@ -148,7 +154,7 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 3. 不丢奖励步：叠机题放过 → 仍得固定奖励步。
 4. 连击不清零。
 5. 回顾只写「今晚先放过」，不写失败 / 未完成 / 扣分。
-6. 放过也计入目标张数，所以全放过的局也能按目标收尾。
+6. 放过不影响结束判定：V6.1 只看「一方全部飞机到家」，所以全放过局同样能收尾。
 
 ## 9. 暂停 / 安全词 / 今晚就到这
 
@@ -177,7 +183,7 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 
 ## 11. 今晚回顾与分享图
 
-回顾页固定 6 类信息（`docs/v6/copy.md` §6.2 为文案口径）：
+回顾页固定 6 类信息（`docs/v6/copy.md` §6.2 为文案口径），V6.1 另加「先到家 / 已到家」：
 
 | 项 | 内容 |
 |---|---|
@@ -187,12 +193,14 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 | 心动值 | 数值 · 阶段名 |
 | 最高连击 | `streakBest` |
 | 小游戏 | 次数 · 完成 X · 跳过 Y |
+| 已到家（V6.1） | `<姓名> X/N · <姓名> Y/N · 共 X+Y/2N 架`（`data-test=ledger-home`）；旧档缺数据用 `—` |
 
+- 首屏另写「<姓名> 先到家」+「已到家 X/N 架」；`ending='shared'` 旧档写「今晚一起走到这里」。
 - 下方「今晚的每一张」按时间列出每张卡的归属、类型、星级、结果；原文默认收起，点「展开原文」才显示。
 - 小游戏明细写成「温度计 · 完成」「转盘 · 跳过」，**不允许出现「（这一笔没有句子）」**。
 - 「存成图片」：本机 Canvas 生成 1080×1350 PNG（暗夜星轨 + 暖光纸感）；不请求网络、不上传、不生成外链；默认不画题卡原文（显式 `includeText` 才画，且最多 4 条）。
 - 「以前的夜」最多保留 **60 局**；旧条目缺字段时按兜底逻辑渲染。
-- 回顾页**没有输赢**：只有「一起完成 / 放过 / 心动值」，不写失败。
+- 回顾页**不判输赢**：写「<姓名> 先到家」与「已到家 X/Y」，只有「做了 / 放过 / 心动值 / 连击」，不写失败或惩罚。
 
 ## 12. 存档结构（v2）与迁移
 
@@ -215,8 +223,10 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
   names: { a, b }, colors: { a, b }, scale: 'gentle'|'warm'|'hot'|'open',
   boundaries: string[],                     // 生效中的边界（含暂停页后加的）
   planeCount: 2|4, mode: 'quick'|'long',
-  targetCards: number, targetHeat: number,  // quick 4/40，long 8/80
-  cardsProcessed: number,                   // 6 类普通卡结算数（做了/放过都算）
+  targetCards: number, targetHeat: number,  // V6.1 起只作历史兼容（quick 4/40，long 8/80），shouldEnd 不读
+  cardsProcessed: number,                   // 6 类普通卡结算数（做了/放过都算）；只是过程计数
+  takeoffMiss: { a: number, b: number },    // V6.1 起飞保底：连续未掷出 6 的回合数，0..2
+  winnerId: 'a' | 'b' | null,               // V6.1 先到家的一方；只用于文案与 ledger
   meta: { heat, stage, streak, streakBest, milestones, updatedAt },
   endingQueue: Prompt[] | null, endingIndex: number,
   phase: 'playing'|'ended'|'safe-ended', turn: 'a'|'b',
@@ -224,13 +234,16 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 }
 ```
 
+`view`（只读投影）在 V6.1 额外给：`planesHome: {a,b}`、`takeoff: { misses: {a,b}, pity: boolean }`；`progress.targetCards / targetHeat` 仍返回但只作兼容，界面不要再拿来做「进度目标」。
+
 `ledger`（写进 history 的回顾数据）：
 
 ```ts
 {
   v: 2, date, startedAt, endedAt, durationMs, names, colors, scale, mode, planeCount,
-  boundaries, ending: 'shared'|'safe', winnerId: null,
-  stats: { cardsDone, cardsSkipped, heat, bestStreak, minigames, planesHome },
+  boundaries, ending: 'win-a'|'win-b'|'safe',  // 旧档可能仍是 'shared'（V6.0 合作收尾）
+  winnerId: 'a'|'b'|null,
+  stats: { cardsDone, cardsSkipped, heat, bestStreak, minigames, planesHome: {a,b} },
   prompts: [{ kind, outcome, actorId, cardId, text, star, pool, source }],
   minigames: [{ kind, outcome, actorId }]
 }
@@ -239,7 +252,9 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 迁移规则（`Flight.validate()`）：
 
 - 只接受 `kind:"flight"`、`v:1` 或 `v:2`；`v:1`（V5）**原样续玩**：补 `mode / targetCards / targetHeat / cardsProcessed / meta / endingQueue` 等可选默认值，**永不新增必填项**，读不出也不丢数据（先备份再移除）。
+- **V6.1 补丁**：旧档（`v:1` / `v:2`）缺 `takeoffMiss` 时补 `{a:0, b:0}`，缺 `winnerId` 时补 `null`；两者都不算必填项。
 - V5 停在「赢家收尾」的单卡局面：保留已发的那张，按单卡收束。
+- 旧 ledger：`ending` 缺值或不认识时按 `winnerId` 兜底（`win-a` / `win-b`），都没有按 `shared` 显示「今晚一起走到这里」；`stats.planesHome` 兼容旧的总数（number）与完全不存在的档（显示 `—`）。
 - 公寓局（`kind:"apartment"`）与更早的升温夜航：`Archive.archiveForeign()` 收进 history，清 session，不按 V6 规则续玩。
 - 设置里的公寓遗留 `maxStar / gentleOnly`：清掉并给 `suggestScale` 建议；`boardView` 默认 `"svg"`。
 - 导出：`{ app:"couple-flight", v:6, exportedAt, settings, session, history, standalone, pending }`；导入兼容 `couple-flight / couple-apartment / couple-voyage`，对 `flight` session 先 `validate()`，不通过整体拒绝、不覆盖现状。
@@ -268,7 +283,8 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 | 想改 | 改哪里 |
 |---|---|
 | 心动值计分 / 阶段阈值 / 连击里程碑间隔 | `engine/flight-meta.js` 的 `HEAT_GAIN` / `THRESHOLDS` / `MILESTONE_EVERY` |
-| 快局长夜的目标张数 / 目标心动值 / 收尾条件 | `engine/flight-engine.js` 的 `targetsFor()` / `shouldEnd()` |
+| 结束条件（一方全部到家）/ 每人飞机数 | `engine/flight-engine.js` 的 `allHome()` / `shouldEnd()` / `winnerOf()`；门厅架数在 `engine/flight-engine.js` 的 `targetsFor()`（`targetCards/targetHeat` 只作兼容） |
+| 起飞保底（几回合保底、计数上限） | `engine/flight-engine.js` 的 `noteTakeoffMiss()` / `takeoffPity()` / `missOf()`（当前写死 2：0..2） |
 | 尺度上限、过滤词、抽卡权重、命运池 | `engine/flight-draw.js` 的 `SCALE_CAP` / `band()` / `weightOf()` / `allowed()` / `fatePools()` |
 | 棋盘格型、命运格位置 | `engine/flight-board.js` 的 `CELL_KIND` / `FATE_CELLS` |
 | 规则开关（放过/叠机/再掷/选子） | `engine/flight-rules.js` 的 `DEFAULTS` |
@@ -293,5 +309,10 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 3. **连击里程碑奖励**：引擎发 `milestone` 事件，但「双人选卡」P1 奖励未在 V6 UI 落地；界面只显示连击数。
 4. **卡面星级标签**：门厅的 ★ 数（1 / 1–2 / 1–3 / 1–4）是简化提示；引擎实际最高星级以 §10 为准。
 5. **安全词长按**：1.6 秒；实现里短按（>120ms 且 <1.6s）只显示「按住 1.6 秒」提示，不进入暂停。
+6. **`targetCards / targetHeat` 保留但不参与判定**（V6.1）：仍出现在 `view.progress` 与旧档里，仅作历史兼容；主桌状态条已改为「双方已到家」。
+7. **`takeoffMiss` 不追溯历史**（V6.1）：旧档补 `{a:0,b:0}` 后从下一个回合重新累计保底，不根据 `log` 反推。
+8. **暂停页状态卡仍是旧文案**（V6.1，待对齐）：`app/src/ui/screens/pause.js` 仍写「第 N/目标 张」，未改成本文的「双方已到家」；见 `docs/v6/copy.md` §9-D9。
+9. **安全词收尾的回顾标题**（V6.1，待对齐）：`app/src/ui/screens/ledger.js` 当前对 `safe` 结局写「安全词收棋」，`copy.md` §5.3 要求「今晚就到这」；见 `docs/v6/copy.md` §9-D11。
+10. **规则速览 6 条结构**（V6.1）：第 1 条合并为「6 起飞 · 6 可再掷」，第 4 条新增「先到家就收尾」（`data-test="rules-end"`），条数仍为 6；见 `copy.md` §1.6 / §9-D10。
 
 > 改上面任何一条之前，先改 `docs/v6/impl-freeze.md`（或让 Lead 出 ADR），再改本文与实现，避免文档和代码各说各话。

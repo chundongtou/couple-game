@@ -22,12 +22,15 @@
     { max: 100, id: "blazing", name: "今晚可以更近" }
   ];
 
-  /* 玩法速览 6 条（copy.md §1.6；AC-A5-1 断言这 6 条标题） */
+  /* 玩法速览 6 条（copy.md §1.6；AC-A5-1 断言这 6 条标题）
+     V6.1（impl-freeze-v6.1 §3.1 / spec AC-A5-1）：①「6 起飞 · 6 可再掷」合为一条并补
+     「连续两次没掷出 6，第三次任意点数保底起飞」；新增 ④「先到家就收尾」（一方把全部飞机送进终点
+     → 今晚收尾，题卡数/心动值不再触发结束）。数量仍是 6 条，六个标题文本全在。 */
   var RULES = [
-    { t: "6 起飞", d: "掷出 6，才有一架飞机从机坪起飞。" },
-    { t: "6 可再掷", d: "掷出 6，走完还能再掷一次。" },
+    { t: "6 起飞 · 6 可再掷", d: "掷出 6，才有一架飞机从机坪起飞，走完还能再掷一次；连续两次没掷出 6，第三次任意点数保底起飞。" },
     { t: "跳/飞/进航", d: "落在跳格向前 4 格，飞点向前 12 格；进航格转进自己的航线。" },
     { t: "击落回机坪", d: "落在对方飞机所在的格子，对方的飞机回机坪。" },
+    { t: "先到家就收尾", d: "一方把全部飞机送进终点 → 今晚收尾；快局 2 架、长夜 4 架。题卡数与心动值只作过程记录。", end: true },
     { t: "放过不惩罚", d: "题卡可以放过：心动值不减少、不挡路、连击不清零。" },
     { t: "安全词随时可停", d: "按住右上角「先收棋」1.6 秒，任何屏幕都能先停一下。" }
   ];
@@ -171,9 +174,17 @@
   }
 
   /* ---------- 规则速览（首次进局 + 主桌「规则」共用） ---------- */
+  /* V6.1：「先到家就收尾」这一条用暖色描边强调（样式随 ui.js 注入，不改 base.css） */
+  var RULES_END_CSS =
+    ".recap-row.end{border-color:rgba(243,192,119,.34);" +
+    "background:linear-gradient(100deg,rgba(243,192,119,.12),rgba(255,236,214,.03))}" +
+    ".recap-row.end .rk{color:#F3C077}";
+
   function rulesSheet() {
+    injectStyle("rules-end", RULES_END_CSS);
     var items = RULES.map(function (r, i) {
-      return '<div class="recap-row"><div class="rk">' + (i + 1) + " · " + U.escape(r.t) + "</div>" +
+      return '<div class="recap-row' + (r.end ? " end" : "") + '"' + (r.end ? ' data-test="rules-end"' : "") + ">" +
+        '<div class="rk">' + (i + 1) + " · " + U.escape(r.t) + "</div>" +
         '<div class="rt">' + U.escape(r.d) + "</div></div>";
     }).join("");
     var ref = sheet({

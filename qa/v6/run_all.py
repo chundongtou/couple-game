@@ -38,15 +38,18 @@ NODE = "node"
 DIST = ROOT / "dist" / "rebuild"
 
 # spec §4 的 P0 AC（用于覆盖率矩阵；P1 不逐条列，结果见各自报告）
+# V6.1（2026-11-17）：结束=一方全部到家；起飞保底；题卡/心动值不再结束；回顾写「先到家/已到家」。
 P0_ACS = [
     "AC-A1-1", "AC-A1-2", "AC-A2-1", "AC-A2-2", "AC-A2-3", "AC-A3-1", "AC-A3-4",
     "AC-A4-1", "AC-A4-3", "AC-A5-1", "AC-A5-2", "AC-A5-3", "AC-A6-1", "AC-A6-2",
+    "AC-A6-3",
     "AC-B1-1", "AC-B1-2", "AC-B1-3", "AC-B2-1", "AC-B3-1", "AC-B3-3",
     "AC-B4-1", "AC-B4-2", "AC-B5-1", "AC-B5-2", "AC-B6-1", "AC-B6-2",
     "AC-C1-1", "AC-C1-2", "AC-C1-3", "AC-C2-1", "AC-C2-2", "AC-C2-5", "AC-C3-1",
     "AC-D1-1", "AC-D1-3", "AC-D2-1", "AC-D2-2", "AC-D3-1",
-    "AC-E1-1", "AC-E1-2", "AC-E2-1", "AC-E2-3", "AC-E3-1",
-    "AC-F1-1", "AC-F2-1", "AC-F2-2", "AC-F2-3",
+    "AC-E1-1", "AC-E1-2", "AC-E2-1", "AC-E2-3", "AC-E2-5",
+    "AC-E3-1", "AC-E3-2", "AC-E3-3", "AC-E3-4",
+    "AC-F1-1", "AC-F2-1", "AC-F2-2", "AC-F2-3", "AC-F2-5",
     "AC-G1-1", "AC-G1-2", "AC-G1-3", "AC-G2-1", "AC-G2-2", "AC-G2-3", "AC-G5-1",
     "AC-H1-1", "AC-H1-2", "AC-H2-1", "AC-H3-1", "AC-H4-1", "AC-H4-2", "AC-H6-1",
 ]
@@ -58,17 +61,18 @@ AC_TEXT = {
     "AC-A1-1": "360×640 首屏可见「摆上棋盘」",
     "AC-A1-2": "390×844 首屏可见开始按钮",
     "AC-A2-1": "门厅有快局/长夜",
-    "AC-A2-2": "模式显示目标/时长/飞机数",
+    "AC-A2-2": "模式卡写「先送完 N 架飞机 · 约 X–Y 分钟 · 每人 N 架」（V6.1）",
     "AC-A2-3": "开始后引擎状态与模式一致",
     "AC-A3-1": "空名字行内报错不进主桌",
     "AC-A3-4": "修复后进主桌",
     "AC-A4-1": "尺度四档各一句说明",
     "AC-A4-3": "尺度选择被记住",
-    "AC-A5-1": "首次规则速览 6 条",
+    "AC-A5-1": "规则速览 6 条（含保底起飞 / 先到家就收尾）",
     "AC-A5-2": "知道了后不再出现",
     "AC-A5-3": "主桌可再次打开规则",
     "AC-A6-1": "刷新后显示继续",
     "AC-A6-2": "继续回到同一状态",
+    "AC-A6-3": "旧档缺 takeoffMiss → 补 {a:0,b:0} 且可续玩",
     "AC-B1-1": "掷骰 ≤800ms 出现点数文本",
     "AC-B1-2": "点数文本保留到下次掷骰",
     "AC-B1-3": "6 点提示再掷一次",
@@ -79,7 +83,7 @@ AC_TEXT = {
     "AC-B4-2": "主桌按钮不被安全词遮挡",
     "AC-B5-1": "主桌暂停按钮进 pause",
     "AC-B5-2": "返回后状态不变",
-    "AC-B6-1": "状态条四项",
+    "AC-B6-1": "状态条：双方已到家 + 心动值 + 连击 + 回合（V6.1）",
     "AC-B6-2": "结算后 ≤500ms 同步",
     "AC-C1-1": "题卡 100% 带人名",
     "AC-C1-2": "击落卡显示被击落方",
@@ -95,13 +99,18 @@ AC_TEXT = {
     "AC-D3-1": "小游戏结束回原状态",
     "AC-E1-1": "心动值数值严格",
     "AC-E1-2": "心动值不下降",
-    "AC-E2-1": "收尾出现「今晚最后一段」",
+    "AC-E2-1": "收尾出现「今晚最后一段」+ 两张收尾卡归属正确",
     "AC-E2-3": "回顾无输赢词",
-    "AC-E3-1": "第 4 张后 ≤1s 收尾",
+    "AC-E2-5": "收尾卡 +10，不惩罚任一方",
+    "AC-E3-1": "一方全部到家 → win/先到家/两张收尾卡（≤1s）",
+    "AC-E3-2": "题卡 20 张未全到家 → 不结束",
+    "AC-E3-3": "心动值 100 未全到家 → 不结束",
+    "AC-E3-4": "长夜只 1 架到家 → 不结束",
     "AC-F1-1": "完成文本",
     "AC-F2-1": "回顾 6 类信息",
     "AC-F2-2": "明细含归属/类型/结果/星级",
     "AC-F2-3": "无占位文案",
+    "AC-F2-5": "回顾「先到家」+「已到家 X/Y」+ ledger win-a/win-b",
     "AC-G1-1": "任意屏可暂停",
     "AC-G1-2": "暂停页四动作",
     "AC-G1-3": "继续回原状态",
@@ -325,11 +334,14 @@ def main():
 
     # 写 MD
     lines = []
-    lines.append("# 今晚飞行棋 V6 · QA 验收报告")
+    lines.append("# 今晚飞行棋 V6.1 · QA 验收报告")
     lines.append("")
     lines.append("- 结论：**%s**" % conclusion)
     lines.append("- 是否可发布：**%s**（发布门 = P0 全绿 + 构建 --check + 引擎 0 failed）" %
                  ("可以发布" if publishable else "暂不可发布"))
+    lines.append("- 本版规则（V6.1）：结束 = **一方全部飞机到家**（快局 2 / 长夜 4）；"
+                 "起飞 = 6 + **连续两次没掷出 6 后第 3 个回合任意点数保底**；"
+                 "题卡数 / 心动值不再触发结束；回顾只写「<姓名> 先到家 / 已到家 X/Y」。")
     if p1_fail:
         lines.append("- P1 遗留（不阻塞发布）：%d 条，见第 2 节缺陷清单（severity=P1）" % len(p1_fail))
     lines.append("- 生成时间：%s" % meta["generated_at"])
@@ -403,12 +415,24 @@ def main():
     lines.append("")
     lines.append("```powershell")
     lines.append("$py=\"C:\\Users\\xiaohu\\.dsh\\dsh-runtimes\\dsh-primary-runtime\\dependencies\\python\\python.exe\"")
+    lines.append("$env:PYTHONIOENCODING='utf-8'; $env:PYTHONUTF8='1'")
     lines.append("& $py qa/v6/run_all.py --final")
     lines.append("```")
     lines.append("")
-    lines.append("- 红线：安全词 7 屏可达（B4）、题卡 100% 人名（C1）、放过不阻断进军/全放过能收尾（C2/E3）、边界 100 次抽题无命中（H5）、刷新续玩（A6）、断网开局（H3）。")
-    lines.append("- 引擎：`node qa/rebuild/flight-engine.test.mjs` 0 failed。")
-    lines.append("- 构建：`python tools/rebuild/build_app.py --out dist/rebuild --check` 退出 0。")
+    lines.append("- V6.1 必跑（P0）：")
+    lines.append("  - 主路径 `--only main`：注入「一方差一步全到家」→ 掷骰/选子到家 → `winner-text`「<姓名> 先到家」"
+                 "→ 两张收尾卡 → 回顾 `ledger.ending=win-a` + `已到家 X/Y`（3 视口，点击 ≤22）。")
+    lines.append("  - 起飞保底 `--only takeoff`：第 1/2 个自己的回合非 6 **不提前起飞**、第 3 个回合任意点数可起飞、"
+                 "起飞后 / 掷 6 均清零、`takeoff-pity` 提示只跟随当前行动方。")
+    lines.append("  - 结束判定 `--only notend`：题卡 20 张、心动值 100、长夜只 1 架到家 → 均**不**结束。")
+    lines.append("  - 另一方先到家 `--only win`：`winnerId=b` 时文案与 `ledger.ending=win-b`。")
+    lines.append("  - 旧档兼容 `--only legacy`：缺 `takeoffMiss` 补 `{a:0,b:0}` 可续玩；旧 `ending='shared'` "
+                 "回顾写「今晚一起走到这里」。")
+    lines.append("  - 全放过 `--only skip`：放过不惩罚 + 两张收尾卡都放过仍进回顾，明细写「今晚先放过」。")
+    lines.append("- 红线：安全词 7 屏可达（B4）、题卡 100% 人名（C1）、放过不阻断进军/全放过能收尾（C2/E3）、"
+                 "边界 100 次抽题无命中（H5）、刷新续玩（A6）、断网开局（H3）。")
+    lines.append("- 引擎：`node qa/rebuild/flight-engine.test.mjs` 0 failed（含 V6.1 §15/§20 全到家与保底用例）。")
+    lines.append("- 构建：`python tools/rebuild/build_app.py --out dist/rebuild --check` 退出 0（27 项检查）。")
     lines.append("")
     lines.append("## 6. 偏差与遗留")
     lines.append("")

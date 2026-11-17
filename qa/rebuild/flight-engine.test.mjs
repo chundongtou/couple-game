@@ -3,19 +3,17 @@
  * node qa/rebuild/flight-engine.test.mjs
  * 坐标与 75 条以 T-003 清单为准。A1/A3 与 stackCapturedBySingle 仍为待确认，不是已批准规则。
  *
- * ============================ V6 语义变更（spec §5.8 / impl-freeze §2） ============================
- * 1) 规则修复：skipHomeEntryBlocksEntry=false（进航题「放过」仍进军）、
- *    skipStackKeepsBonusStep=true（叠机题「放过」仍得奖励步）。旧测试里断言
- *    「跳过停在原地 / 跳过不多走一步」的用例已按 V6 语义改写。
- * 2) 合作收尾：V6 不再判输赢（无 win 事件、winnerId 恒 null、ledger ending='shared'|'safe'）；
- *    收尾触发 = 处理题卡数达 targetCards OR 心动值达 targetHeat OR（长夜任一棋进终点），
- *    然后两张收尾卡各给一人，都可放过。旧「赢家给对方一张收尾卡」的用例已改写。
- * 3) 心动值/连击 meta 随 state 落盘；heat 只增不降（上限 100）；streak 放过不清零。
- * 4) state.v=2；v:1（V5）存档 validate 时补默认并升级，不丢档。
- * 5) 命运格：FATE_CELLS 候选 7/31 中的 7 是飞点 → 用冻结单退路 [5,29]；
- *    prompt.kind='fate' + prompt.options + resolvePrompt(state,outcome,opts.cardIndex) 为 P1 接口。
- * 测试辅助 place() 默认把对局切成 quick + 高目标，只用于隔离单个棋规场景；
- * 需要测收尾触发时显式传 opts（见 §13/§14）。
+ * ====================== V6.1 语义变更（impl-freeze-v6.1，覆盖 impl-freeze.md） ======================
+ * 1) 结束条件改为「一方全部飞机到家」：allHome(a)||allHome(b) → winnerId + win 事件 → 两张收尾卡。
+ *    题卡数 / 心动值 / 长夜单架到家都不再结束（cardsProcessed、meta.heat、targetCards、targetHeat 仍记录）。
+ *    旧「cards/heat 触发收尾」断言已按新语义改为「不结束」或改为注入 allHome 触发。
+ * 2) 起飞保底：仍要 6 起飞；连续 2 个自己的回合没掷出 6（且所有未到家飞机都在机坪），
+ *    第 3 个回合任意点数保底起飞；takeoffMiss 0..2，实际起飞或掷出 6 清零。
+ * 3) ledger：ending='win-a'|'win-b'|'safe'（旧无赢家档兼容 'shared'）；stats.planesHome={a,b}。
+ * 4) 合作收尾流程不变：两张收尾卡各给一人、都可放过；安全词仍是 safe。
+ * 5) 命运格 / 心动值 / 连击 / 小游戏 / 进航放过不惩罚均不变。
+ * 测试辅助 place() 默认把「行动方」没点名的棋子放终点、「对方」放机坪，只用于隔离单个棋规场景；
+ * 需要测「一方全部到家」收尾时用 lastPlaneComing() 注入最后一架。见 §6/§13/§15/§20。
  * ==============================================================================================
  */
 import fs from 'node:fs';
@@ -124,29 +122,52 @@ function place(state, turn, map, opts) {
   s.result = null;
   s.endingQueue = null;
   s.endingIndex = 0;
-  /* V6：place() 会把「没点名的棋子」直接放到终点，若保持 long 会误触「长夜任一棋进终点」收尾。
-   * 因此隔离场景默认 quick + 高目标；要测收尾请显式传 opts。 */
-  s.mode = opts.mode || 'quick';
+  s.takeoffMiss = opts.takeoffMiss
+    ? { a: Number(opts.takeoffMiss.a) || 0, b: Number(opts.takeoffMiss.b) || 0 }
+    : { a: 0, b: 0 };
+  /* V6.1：结束条件是「一方全部到家」。place() 只隔离单个棋规场景：
+   *  - 行动方没点名的棋子放终点（arrived），保证只有 map 里的棋子可动；
+   *  - 对方没点名的棋子留在机坪（未到家），避免误触 allHome 提前收尾。 */
+  s.mode = opts.mode || s.mode || 'quick';
   s.targetCards = opts.targetCards != null ? opts.targetCards : 99;
   s.targetHeat = opts.targetHeat != null ? opts.targetHeat : 999;
   if (opts.cardsProcessed != null) s.cardsProcessed = opts.cardsProcessed;
   if (opts.heat != null) s.meta = Meta.normalize(Object.assign({}, s.meta, { heat: opts.heat }));
+  const actor = s.turn;
   s.pieces.forEach((p) => {
     const m = map[p.id];
     if (m) {
       p.squareId = m.squareId;
       p.arrived = !!m.arrived;
       p.stackGroupId = m.stackGroupId || null;
-    } else {
+    } else if (p.playerId === actor) {
       p.squareId = 'home:' + p.color + ':goal';
       p.arrived = true;
+      p.stackGroupId = null;
+    } else {
+      p.squareId = 'hangar:' + p.color + ':' + (String(p.id).split(':')[1] || 0);
+      p.arrived = false;
       p.stackGroupId = null;
     }
   });
   return s;
 }
 
-/* 所有棋子留在机坪（不预置 arrived），再按 map 放指定棋子。用于测「长夜进终点」触发。 */
+/* V6.1 收尾注入：pid 的最后一架在 home:*:4，其余己方已到家、对方全在机坪。掷 1 即「一方全部到家」。 */
+function lastPlaneComing(state, pid) {
+  const who = pid || 'a';
+  const s = place(state, who, {});
+  const color = s.colors[who];
+  s.pieces.forEach((p) => {
+    if (p.playerId !== who) return;
+    p.arrived = p.id !== who + ':0';
+    p.squareId = p.id === who + ':0' ? 'home:' + color + ':4' : 'home:' + color + ':goal';
+    p.stackGroupId = null;
+  });
+  return s;
+}
+
+/* 所有棋子留在机坪（不预置 arrived），再按 map 放指定棋子。用于「只到家部分飞机」场景。 */
 function parked(state, turn, map) {
   const s = clone(state);
   s.turn = turn || 'a';
@@ -158,6 +179,7 @@ function parked(state, turn, map) {
   s.result = null;
   s.endingQueue = null;
   s.endingIndex = 0;
+  s.takeoffMiss = { a: 0, b: 0 };
   s.pieces.forEach((p) => {
     p.squareId = 'hangar:' + p.color + ':' + (String(p.id).split(':')[1] || 0);
     p.arrived = false;
@@ -599,15 +621,15 @@ section('6. 终点航线与收尾');
   const arrived = F.roll(goal, 1);
   ok(at(arrived.state, 'a:0').arrived === true && at(arrived.state, 'a:0').squareId === 'home:red:goal', '37 到达后 arrived');
 
-  /* V6：进终点不再判胜；长夜任一棋进终点 → 合作收尾（两张收尾卡、无输赢）。 */
-  const longArrival = () => parked(stateOf({ boundaries: ['蒙眼'], scale: 'warm' }, 26), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  /* V6.1：一方全部到家才结束；最后一架在 home:red:4，掷 1 到家 → win-a + 两张收尾卡。 */
+  const longArrival = (seed) => lastPlaneComing(stateOf({ boundaries: ['蒙眼'], scale: 'warm' }, seed || 26));
   const start = F.roll(longArrival(), 1);
-  ok(at(start.state, 'a:0').arrived === true, '38 长夜进终点');
-  ok(start.state.winnerId === null && !hasType(start.events, 'win'), '38 V6 不判输赢（无 win 事件）');
-  ok(start.state.phase === 'playing' && start.state.awaiting.type === 'ending-prompt', '38 进终点触发合作收尾');
+  ok(at(start.state, 'a:0').arrived === true, '38 长夜最后一架到家');
+  ok(start.state.winnerId === 'a' && hasType(start.events, 'win'), '38 V6.1 一方全部到家判胜（win 事件）');
+  ok(hasType(start.events, 'prompt') && hasType(start.events, 'ending-start'), '38 收尾开始事件');
+  ok(start.state.phase === 'playing' && start.state.awaiting.type === 'ending-prompt', '38 全部到家触发收尾');
   ok(Array.isArray(start.state.endingQueue) && start.state.endingQueue.length === 2, '38 两张收尾卡');
   ok(start.state.endingQueue[0].actorId === 'a' && start.state.endingQueue[1].actorId === 'b', '38 两张各给一人');
-  ok(hasType(start.events, 'prompt') && hasType(start.events, 'ending-start'), '38 收尾开始事件');
   const firstEnd = F.resolvePrompt(start.state, 'done');
   ok(firstEnd.state.phase === 'playing' && firstEnd.state.endingIndex === 1, '42 第一张结算后仍在进行');
   ok(firstEnd.state.awaiting.type === 'ending-prompt' && firstEnd.state.awaiting.prompt.id === start.state.endingQueue[1].id, '42 第二张给另一人');
@@ -616,10 +638,10 @@ section('6. 终点航线与收尾');
   const ledger = ended.state.result;
   ok(ledger.names.a === '阿岚' && ledger.colors.a === 'red' && ledger.scale === 'warm', '41 名字颜色尺度');
   ok(ledger.boundaries.indexOf('蒙眼') >= 0 && ledger.planeCount === 4 && ledger.mode === 'long', '41 边界/架数/模式');
-  ok(ledger.ending === 'shared' && ledger.winnerId === null, '41 V6 棋谱合作收尾（无输赢）');
+  ok(ledger.ending === 'win-a' && ledger.winnerId === 'a', '41 V6.1 棋谱记胜者 win-a');
   ok(ledger.prompts.filter((p) => p.kind === 'ending').length === 2, '41 两张收尾卡都进回顾');
   ok(ledger.prompts.some((p) => p.kind === 'ending' && p.actorId === 'a') && ledger.prompts.some((p) => p.kind === 'ending' && p.actorId === 'b'), '41 收尾卡归属正确');
-  ok(ledger.stats.cardsDone === 1 && ledger.stats.cardsSkipped === 1 && ledger.stats.planesHome === 1, '41 stats：收尾卡做/放过与进终点');
+  ok(ledger.stats.cardsDone === 1 && ledger.stats.cardsSkipped === 1 && ledger.stats.planesHome.a === 4 && ledger.stats.planesHome.b === 0, '41 stats：收尾卡做/放过与已到家');
   ok(ledger.v === 2 && ledger.startedAt === ended.state.ts && ledger.durationMs >= 0, '41 v2/起始时间/时长');
   ok(/^\d{4}-\d{2}-\d{2}$/.test(ledger.date), '41 日期');
   const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -628,22 +650,22 @@ section('6. 终点航线与收尾');
 
   let fast = parked(stateOf({ planeCount: 2 }, 27), 'a', { 'a:0': { squareId: 'home:red:4' } });
   const fastArrive = F.roll(fast, 1);
-  ok(fastArrive.state.phase === 'playing' && fastArrive.state.awaiting.type === 'roll' && fastArrive.state.winnerId === null, '39 快局进终点不判胜、不触发收尾');
+  ok(fastArrive.state.phase === 'playing' && fastArrive.state.awaiting.type === 'roll' && fastArrive.state.winnerId === null, '39 快局只到家 1/2：不判胜、不触发收尾');
   ok(at(fastArrive.state, 'a:0').arrived === true, '39 快局棋子确实到了终点');
 
   const allSkipped = settleEnding(F.roll(longArrival(), 1).state, 'skipped', 'skipped');
-  ok(allSkipped.ok && allSkipped.state.phase === 'ended' && allSkipped.state.result.ending === 'shared', '40 两张收尾卡都可放过，仍正常结束');
+  ok(allSkipped.ok && allSkipped.state.phase === 'ended' && allSkipped.state.result.ending === 'win-a', '40 两张收尾卡都可放过，仍正常结束');
 
   const midSafe = F.safeWord(F.roll(longArrival(), 1).state);
   ok(midSafe.ok && midSafe.state.phase === 'safe-ended' && midSafe.state.result.ending === 'safe', '40 收尾中触发安全词也能收棋（ending=safe）');
   ok(!hasType(midSafe.events, 'win'), '40 安全词无输赢事件');
 
-  let hard = parked(stateOf({ rules: { endingPromptSkippable: false } }, 28), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  let hard = lastPlaneComing(stateOf({ rules: { endingPromptSkippable: false } }, 28));
   const hardStart = F.roll(hard, 1).state;
   const denied = F.resolvePrompt(hardStart, 'skipped');
   ok(!denied.ok && denied.error.code === 'PROMPT_NOT_SKIPPABLE' && denied.state === hardStart, '40 不可跳过时失败且不改入参');
 
-  let replay = parked(stateOf({ rules: { ledgerIncludeMoveReplay: true } }, 29), 'a', { 'a:0': { squareId: 'home:red:4' } });
+  let replay = lastPlaneComing(stateOf({ rules: { ledgerIncludeMoveReplay: true } }, 29));
   const replayLedger = settleEnding(F.roll(replay, 1).state, 'done', 'done').state.result;
   ok(Array.isArray(replayLedger.moves) && replayLedger.moves.length > 0, '41 待确认：打开回放才写 moves');
 }
@@ -952,8 +974,8 @@ section('11. 错误码、事件、快照、待确认反相');
   ok(hasType(played.events, 'dice') && hasType(played.events, 'move') && hasType(played.events, 'fly') && hasType(played.events, 'jump'), '74 跳与飞事件按序可播');
   ok(played.events.findIndex((e) => e.type === 'fly') < played.events.findIndex((e) => e.type === 'jump'), '74 先飞后跳');
   ok(hasType(played.events, 'capture') && hasType(played.events, 'prompt'), '74 击落与出题');
-  const won = F.roll(parked(stateOf({}, 75), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
-  ok(hasType(won.events, 'ending-start') && !hasType(won.events, 'win'), '74 V6 合作收尾（无 win 事件）');
+  const won = F.roll(lastPlaneComing(stateOf({}, 75)), 1);
+  ok(hasType(won.events, 'win') && hasType(won.events, 'ending-start') && won.state.winnerId === 'a', '74 V6.1 一方全部到家：win + 收尾');
   const wonFirst = F.resolvePrompt(won.state, 'done');
   ok(hasType(wonFirst.events, 'prompt') && wonFirst.state.phase === 'playing', '74 第二张收尾卡');
   ok(hasType(F.resolvePrompt(wonFirst.state, 'done').events, 'ledger'), '74 棋谱事件');
@@ -1073,13 +1095,14 @@ section('13. V6 规则修复：放过不阻断进军 / 不丢奖励步（P0 红�
   const duoSkip = F.resolvePrompt(moved.state, 'skipped');
   ok(at(duoSkip.state, 'a:0').squareId === 'ring:50' && at(duoSkip.state, 'a:1').squareId === 'ring:50', '77 放过叠机仍得奖励步');
 
+  /* V6.1：题卡数不再触发结束（用户反馈「一局结束太快」），只记录。 */
   const all = playAllSkipped(210, 8);
-  ok(all.state.phase === 'playing' && all.state.awaiting.type === 'ending-prompt', '78 全放过局在目标内进入收尾（修 AUD-03「永不结束」）');
-  ok(all.state.cardsProcessed === 4 && all.cards.length === 4, '78 全放过也计满目标 4 张');
-  ok(all.state.endingQueue.length === 2, '78 收尾仍是两张卡');
-  const fin = settleEnding(all.state, 'skipped', 'skipped');
-  ok(fin.ok && fin.state.phase === 'ended' && fin.state.result.ending === 'shared', '78 全放过也能正常收尾');
-  ok(fin.state.result.stats.cardsSkipped === 6 && fin.state.result.stats.cardsDone === 0, '78 回顾记 6 张放过（4 普通 + 2 收尾）');
+  ok(all.state.phase === 'playing' && all.state.awaiting.type === 'roll', '78 V6.1：全放过满旧目标 4 张也不再收尾');
+  ok(all.state.cardsProcessed === 8 && all.cards.length === 8, '78 全放过仍记账（超过旧目标 4 张也不结束）');
+  ok(all.state.winnerId === null && all.state.endingQueue === null, '78 没有胜者、没有收尾队列');
+  const fin = settleEnding(F.roll(lastPlaneComing(all.state, 'a'), 1).state, 'skipped', 'skipped');
+  ok(fin.ok && fin.state.phase === 'ended' && fin.state.result.ending === 'win-a', '78 只有「一方全部到家」才收尾');
+  ok(fin.state.result.stats.cardsSkipped === 10 && fin.state.result.stats.cardsDone === 0, '78 回顾记 10 张放过（8 普通 + 2 收尾）');
   ok(fin.state.result.prompts.every((p) => p.outcome === 'skipped' && p.text), '78 回顾保留每题文本');
   ok(!/失败|未完成|扣分/.test(JSON.stringify(fin.state.result.prompts)), '78 回顾不写失败/扣分');
 }
@@ -1184,30 +1207,33 @@ section('14. V6 心动值 / 连击 / 里程碑（meta 纯函数 + 结算点更�
   ok(capEv && capEv.delta === 1, '81 封顶后 delta 是实际增量');
 }
 
-section('15. V6 合作收尾：三条件触发 + 两张卡 + 回顾数据');
+section('15. V6.1 结束条件：一方全部到家 + 两张卡 + 回顾数据');
 {
-  /* ① 题卡数达标：§13 全放过局已覆盖；这里验证「心动值达标」可在题卡未达标时触发 */
+  /* ① 题卡数/心动值达标不再收尾（只记录） */
   const heatTrigger = place(stateOf({ planeCount: 2 }, 231), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 4, targetHeat: 40, cardsProcessed: 1, heat: 37 });
   const ht = F.resolvePrompt(F.roll(heatTrigger, 1).state, 'done');
   ok(ht.state.meta.heat === 45 && ht.state.cardsProcessed === 2, '83 心动值到 45');
-  ok(ht.state.awaiting.type === 'ending-prompt' && ht.state.endingQueue.length === 2, '83 心动值达标触发收尾（题卡只处理 2 张/目标 4）');
+  ok(ht.state.phase === 'playing' && ht.state.awaiting.type === 'roll' && ht.state.winnerId === null, '83 V6.1：心动值/题卡达标不再收尾');
 
-  /* ② 长夜进终点触发 */
+  /* ② 长夜只到家一架不结束 */
   const longStart = F.roll(parked(stateOf({ planeCount: 4 }, 232), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
   ok(longStart.state.cardsProcessed === 0 && longStart.state.meta.heat === 0, '84 触发时 0 题卡 / 0 心动值');
-  ok(longStart.state.awaiting.type === 'ending-prompt', '84 长夜任一棋进终点触发收尾');
+  ok(longStart.state.phase === 'playing' && longStart.state.awaiting.type === 'roll', '84 V6.1：长夜只到家 1/4 不结束');
   ok(longStart.state.mode === 'long', '84 长夜 mode');
 
-  /* ③ 快局进终点不触发 */
+  /* ③ 快局只到家一架不结束 */
   const quickStart = F.roll(parked(stateOf({ planeCount: 2 }, 233), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
-  ok(quickStart.state.awaiting.type === 'roll' && quickStart.state.winnerId === null, '84 快局进终点不触发收尾、不判胜');
+  ok(quickStart.state.awaiting.type === 'roll' && quickStart.state.winnerId === null, '84 快局只到家 1/2 不触发收尾、不判胜');
 
-  const startState = longStart.state;
+  /* ④ 一方全部到家 → win + 两张收尾卡 */
+  const startRes = F.roll(lastPlaneComing(stateOf({ planeCount: 4 }, 236)), 1);
+  const startState = startRes.state;
   const queue = startState.endingQueue;
+  ok(startState.winnerId === 'a', '85 胜者 winnerId=a');
   ok(queue.length === 2 && queue.every((p) => p.kind === 'ending' && p.card && p.card.id), '85 两张都是带卡的收尾卡');
   ok(queue[0].actorId === 'a' && queue[0].targetId === 'a' && queue[1].actorId === 'b' && queue[1].targetId === 'b', '85 两张各给一人');
   ok(queue[0].id !== queue[1].id, '85 两张卡 prompt 不同（同池允许）');
-  ok(hasType(longStart.events, 'ending-start') && !hasType(longStart.events, 'win'), '85 收尾开始事件、无 win');
+  ok(hasType(startRes.events, 'win') && hasType(startRes.events, 'ending-start'), '85 收尾开始事件、带 win');
   ok(F.roll(startState, 6).error.code === 'AWAITING_OTHER', '85 收尾中不能再掷骰（不再产生普通题卡）');
   ok(F.resolveMinigame(startState).error.code === 'AWAITING_OTHER', '85 收尾中没有小游戏');
 
@@ -1226,27 +1252,31 @@ section('15. V6 合作收尾：三条件触发 + 两张卡 + 回顾数据');
   const r1 = F.resolvePrompt(resumed, 'skipped');
   ok(r1.state.endingIndex === 1, '86 续玩后进入第二张');
   const r2 = F.resolvePrompt(r1.state, 'skipped');
-  ok(r2.state.phase === 'ended' && r2.state.result.ending === 'shared', '86 续玩后正常收尾（两张都可放过）');
+  ok(r2.state.phase === 'ended' && r2.state.result.ending === 'win-a' && r2.state.result.winnerId === 'a', '86 续玩后正常收尾（win-a）');
   ok(r2.state.result.stats.heat === 6, '86 两张放过共 +6');
+  ok(r2.state.result.stats.planesHome.a === 4 && r2.state.result.stats.planesHome.b === 0, '86 回顾已到家数');
 
-  /* ledger 六类信息 + 小游戏记录 */
+  /* ledger 六类信息 + 小游戏记录：先做小游戏与一张题卡，再注入「一方全部到家」收尾 */
   let mg = place(stateOf({ planeCount: 2 }, 234), 'a', { 'a:0': { squareId: 'ring:9' } }, { targetCards: 4, targetHeat: 40, cardsProcessed: 3 });
   const mgDone = F.resolveMinigame(F.roll(mg, 1).state, 'done');
   ok(mgDone.state.cardsProcessed === 3, '87 小游戏不计入目标题卡数');
   ok(mgDone.state.meta.heat === 5, '87 小游戏完成 +5');
   const mgPrompt = F.roll(place(mgDone.state, 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 4, targetHeat: 40 }), 1);
-  const mgEnding = F.resolvePrompt(mgPrompt.state, 'skipped');
-  ok(mgEnding.state.awaiting.type === 'ending-prompt', '87 第 4 张普通题卡后进入收尾');
-  const mgFin = settleEnding(mgEnding.state, 'done', 'done').state.result;
+  const mgEnding = F.resolvePrompt(mgPrompt.state, 'done');
+  ok(mgEnding.state.phase === 'playing' && mgEnding.state.awaiting.type === 'roll', '87 题卡达标也不再收尾');
+  const mgWin = F.roll(lastPlaneComing(mgEnding.state, 'a'), 1);
+  ok(mgWin.state.awaiting.type === 'ending-prompt' && mgWin.state.winnerId === 'a', '87 一方全部到家才进入收尾');
+  const mgFin = settleEnding(mgWin.state, 'done', 'done').state.result;
   ok(mgFin.stats.minigames === 1 && mgFin.minigames[0].kind === 'thermo' && mgFin.minigames[0].outcome === 'done' && mgFin.minigames[0].actorId === 'a', '87 回顾含小游戏记录');
-  ok(mgFin.stats.cardsSkipped === 1 && mgFin.stats.cardsDone === 2, '87 回顾统计题卡做/放过（含两张收尾卡）');
-  ok(mgFin.stats.heat === 5 + 3 + 10 + 10 && mgFin.stats.bestStreak === 2, '87 回顾 heat/bestStreak');
+  ok(mgFin.stats.cardsSkipped === 0 && mgFin.stats.cardsDone === 3, '87 回顾统计题卡做/放过（含两张收尾卡）');
+  ok(mgFin.stats.heat === 5 + 8 + 10 + 10 && mgFin.stats.bestStreak === 3, '87 回顾 heat/bestStreak');
   ok(mgFin.prompts.some((p) => p.kind === 'cell-truth' && p.text && p.cardId && p.star && p.pool && p.source), '87 题卡明细带文本/卡号/星级/池/来源');
   ok(mgFin.prompts.filter((p) => p.kind === 'ending').every((p) => p.text && p.actorId), '87 收尾卡明细带归属');
   ok(/^\d{4}-\d{2}-\d{2}$/.test(mgFin.date) && mgFin.names.a === '阿岚' && mgFin.durationMs >= 0, '87 回顾六类：日期/姓名/时长/题卡/小游戏/心动');
   ok(mgFin.startedAt === mgDone.state.ts && mgFin.endedAt - mgFin.startedAt === mgFin.durationMs, '87 时长按 session 起止');
   ok(!JSON.stringify(mgFin).includes('这一笔没有句子'), '87 回顾无占位文案');
-  ok(mgFin.ending === 'shared' && mgFin.winnerId === null, '87 回顾不判输赢');
+  ok(mgFin.ending === 'win-a' && mgFin.winnerId === 'a', '87 回顾记胜者（不判输赢文案）');
+  ok(mgFin.stats.planesHome.a === 2 && mgFin.stats.planesHome.b === 0, '87 回顾已到家 X/Y');
 
   /* 安全词：不改热度，ending='safe' */
   const live = F.resolvePrompt(F.roll(place(stateOf({ planeCount: 2 }, 235), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999 }), 1).state, 'done').state;
@@ -1265,7 +1295,7 @@ section('16. V6 存档迁移（V5 v:1 → v2，不丢档）');
   ];
   const stripV6 = (raw) => {
     const out = clone(raw);
-    ['mode', 'targetCards', 'targetHeat', 'cardsProcessed', 'meta', 'endingQueue', 'endingIndex'].forEach((k) => delete out[k]);
+    ['mode', 'targetCards', 'targetHeat', 'cardsProcessed', 'meta', 'endingQueue', 'endingIndex', 'takeoffMiss'].forEach((k) => delete out[k]);
     out.v = 1;
     out.log = log;
     return out;
@@ -1278,6 +1308,7 @@ section('16. V6 存档迁移（V5 v:1 → v2，不丢档）');
   ok(up.meta && up.meta.heat === 16, '89 从 log 重建 meta（8+3+5）');
   ok(up.meta.streak === 1 && up.meta.streakBest === 1 && up.meta.stage === 'cold', '89 重建连击/阶段');
   ok(up.endingQueue === null && up.endingIndex === 0, '89 收尾字段补默认');
+  ok(up.takeoffMiss && up.takeoffMiss.a === 0 && up.takeoffMiss.b === 0, '89 V6.1 旧档补 takeoffMiss=0');
   ok(up.pieces.length === 8 && up.names.a === '阿岚' && up.log.length === 3, '89 其余数据不丢');
   ok(F.validate(up).meta.heat === 16, '89 升级后再 validate 幂等');
 
@@ -1292,6 +1323,12 @@ section('16. V6 存档迁移（V5 v:1 → v2，不丢档）');
   delete v2NoMeta.cardsProcessed;
   const up2 = F.validate(v2NoMeta);
   ok(up2 && up2.meta.heat === 16 && up2.cardsProcessed === 2, '90 v2 缺 meta/cardsProcessed 也宽容补全');
+
+  const v2BadMiss = clone(modern);
+  v2BadMiss.log = log;
+  v2BadMiss.takeoffMiss = { a: 9, b: -3 };
+  const upBadMiss = F.validate(v2BadMiss);
+  ok(upBadMiss.takeoffMiss.a === 2 && upBadMiss.takeoffMiss.b === 0, '90 takeoffMiss 越界/缺失归一（0..2）');
 
   const midEnd = stripV6(modern);
   midEnd.awaiting = {
@@ -1333,10 +1370,12 @@ section('16. V6 存档迁移（V5 v:1 → v2，不丢档）');
   const rolled = Flight.roll(place(s, 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: s.targetCards, targetHeat: 999 }), 1);
   ok(rolled.ok && rolled.state.awaiting.type === 'prompt', '93 V5 读入后能继续出题');
   const skippedTurn = Flight.resolvePrompt(rolled.state, 'skipped');
-  ok(skippedTurn.ok && skippedTurn.state.awaiting.type === 'ending-prompt', '93 V5 局在目标内进入收尾');
-  const end1 = Flight.resolvePrompt(skippedTurn.state, 'done');
+  ok(skippedTurn.ok && skippedTurn.state.phase === 'playing' && skippedTurn.state.awaiting.type === 'roll', '93 V6.1：V5 局题卡达标也不再收尾');
+  const winTurn = Flight.roll(lastPlaneComing(skippedTurn.state, 'a'), 1);
+  ok(winTurn.ok && winTurn.state.awaiting.type === 'ending-prompt' && winTurn.state.winnerId === 'a', '93 V5 读入后能被「一方全部到家」收尾');
+  const end1 = Flight.resolvePrompt(winTurn.state, 'done');
   const end2 = Flight.resolvePrompt(end1.state, 'done');
-  ok(end2.ok && end2.state.phase === 'ended' && end2.state.result.ending === 'shared', '93 V5 局最终收尾（无输赢）');
+  ok(end2.ok && end2.state.phase === 'ended' && end2.state.result.ending === 'win-a', '93 V5 局最终收尾（win-a）');
   ok(end2.state.result.stats.cardsSkipped === 2 && end2.state.result.prompts.length >= 5, '93 收尾后回顾含 V5 期间记录');
 
   const importRes = Store.importAll({ app: 'couple-flight', settings: { names: { a: '甲', b: '乙' } }, session: v1 });
@@ -1441,7 +1480,7 @@ section('18. V6 尺度区分（热烈 vs 不设限）');
   ok(Draw.weightOf(card4, Draw.band(stateOf({ scale: 'open' }, 1)), false) > Draw.weightOf(card4, Draw.band(stateOf({ scale: 'hot' }, 1)), false), '100 不设限对高星权重更高');
 }
 
-section('19. V6 快照与 meta 落盘');
+section('19. V6.1 快照与 meta 落盘');
 {
   let s = place(stateOf({}, 320), 'a', { 'a:0': { squareId: 'ring:1' } }, { targetCards: 99, targetHeat: 999 });
   s = F.resolvePrompt(F.roll(s, 1).state, 'done').state;
@@ -1450,7 +1489,9 @@ section('19. V6 快照与 meta 落盘');
   ok(v.awaiting && v.awaiting.type === 'roll' && Array.isArray(v.choices) && v.choices.length === 0, '101 view 带 awaiting/choices');
   ok(v.meta && v.meta.heat === 8 && v.meta.heatStage === 'cold' && v.meta.stage === 'cold' && v.meta.stageLabel === '灯刚亮', '101 view 带 meta 投影（heat/stage/label）');
   ok(v.meta.max === 100 && v.meta.thresholds && v.meta.thresholds.warm === 20, '101 meta 阈值投影');
-  ok(v.progress && v.progress.cardsProcessed === 1 && v.progress.targetCards === 99 && v.progress.mode === 'quick', '101 view 带进度投影');
+  ok(v.progress && v.progress.cardsProcessed === 1 && v.progress.targetCards === 99 && v.progress.mode === 'long', '101 view 带进度投影');
+  ok(v.planesHome && v.planesHome.a === 3 && v.planesHome.b === 0, '101 view.planesHome（a 已到家 3）');
+  ok(v.takeoff && v.takeoff.misses && v.takeoff.misses.a === 0 && v.takeoff.misses.b === 0 && v.takeoff.pity === false, '101 view.takeoff{misses,pity}');
   ok(v.pending === null && v.reduced === true, '101 view pending/reduced');
   ok(!Object.prototype.hasOwnProperty.call(v, 'rng') && !Object.prototype.hasOwnProperty.call(v, 'log'), '101 view 不泄 rng/log');
   v.awaiting.type = 'none';
@@ -1465,19 +1506,96 @@ section('19. V6 快照与 meta 落盘');
   Store.saveSession(s);
   const got = Store.getSession();
   ok(got && got.v === 2 && got.meta.heat === 8 && got.meta.streak === 1 && got.cardsProcessed === 1, '103 Store 落盘保留 heat/连击/进度');
+  ok(got.takeoffMiss && got.takeoffMiss.a === 0 && got.takeoffMiss.b === 0, '103 Store 落盘保留 takeoffMiss');
   const dumped = Store.exportAll();
   ok(dumped.session.meta.heat === 8 && dumped.v === 6, '103 导出含 meta（v6）');
 
   /* 收尾中途存档可续玩 */
-  const endingState = F.roll(parked(stateOf({}, 321), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1).state;
+  const endingState = F.roll(lastPlaneComing(stateOf({}, 321)), 1).state;
+  ok(endingState.phase === 'playing' && endingState.winnerId === 'a' && endingState.awaiting.type === 'ending-prompt', '103 收尾中途状态（win-a）');
   Store.saveSession(endingState);
   const endReload = Store.getSession();
-  ok(endReload && endReload.awaiting.type === 'ending-prompt' && endReload.endingQueue.length === 2 && endReload.endingIndex === 0, '103 收尾中途存档可续玩');
+  ok(endReload && endReload.awaiting.type === 'ending-prompt' && endReload.endingQueue.length === 2 && endReload.endingIndex === 0 && endReload.winnerId === 'a', '103 收尾中途存档可续玩');
   const endResume = F.resolvePrompt(endReload, 'done');
   ok(endResume.ok && endResume.state.endingIndex === 1, '103 续玩后进入第二张收尾卡');
 
   Store.resetAll();
   ok(Store.importAll(dumped).ok && Store.getSession().meta.heat === 8, '103 导入后 meta 不丢');
+}
+
+section('20. V6.1 结束条件与起飞保底（用户试玩反馈：结束太快 / 摇 6 太难）');
+{
+  /* ---------- ① 一方全部到家 → 结束（快局 2 架 / 长夜 4 架） ---------- */
+  const quickWin = F.roll(lastPlaneComing(stateOf({ planeCount: 2 }, 400)), 1);
+  ok(quickWin.ok && quickWin.state.phase === 'playing' && quickWin.state.awaiting.type === 'ending-prompt', '104 快局 2/2 到家 → 收尾');
+  ok(quickWin.state.winnerId === 'a' && hasType(quickWin.events, 'win'), '104 winnerId=a 且发 win');
+  ok(quickWin.events.findIndex((e) => e.type === 'win') >= 0
+    && quickWin.events.findIndex((e) => e.type === 'win') < quickWin.events.findIndex((e) => e.type === 'ending-start'), '104 win 在 ending-start 之前');
+  ok(F.view(quickWin.state).planesHome.a === 2 && F.view(quickWin.state).takeoff.pity === false, '104 view.planesHome 2/2');
+  const qDone = settleEnding(quickWin.state, 'done', 'done');
+  ok(qDone.ok && qDone.state.phase === 'ended', '104 两张收尾卡后结束');
+  ok(qDone.state.result.ending === 'win-a' && qDone.state.result.winnerId === 'a', '104 ledger ending=win-a');
+  ok(qDone.state.result.stats.planesHome.a === 2 && qDone.state.result.stats.planesHome.b === 0, '104 stats.planesHome={a:2,b:0}');
+  ok(qDone.state.result.prompts.filter((p) => p.kind === 'ending').length === 2, '104 两张收尾卡都保留');
+
+  const bWin = F.roll(lastPlaneComing(stateOf({ planeCount: 4 }, 401), 'b'), 1);
+  ok(bWin.state.winnerId === 'b' && bWin.state.awaiting.type === 'ending-prompt', '105 乙方 4/4 到家 → win-b');
+  const bDone = settleEnding(bWin.state, 'skipped', 'skipped');
+  ok(bDone.state.result.ending === 'win-b' && bDone.state.result.winnerId === 'b', '105 ledger ending=win-b');
+  ok(bDone.state.result.stats.planesHome.a === 0 && bDone.state.result.stats.planesHome.b === 4, '105 stats.planesHome={a:0,b:4}');
+
+  /* ---------- ② 只有部分到家 / 题卡 20 张 / 心动值 100 → 都不结束 ---------- */
+  const oneOfFour = F.roll(parked(stateOf({ planeCount: 4 }, 402), 'a', { 'a:0': { squareId: 'home:red:4' } }), 1);
+  ok(oneOfFour.state.phase === 'playing' && oneOfFour.state.awaiting.type === 'roll' && oneOfFour.state.winnerId === null, '106 长夜只到家 1/4 不结束');
+
+  const manyCards = place(stateOf({ planeCount: 2 }, 403), 'a', { 'a:0': { squareId: 'ring:1' } },
+    { cardsProcessed: 20, targetCards: 4, targetHeat: 40, heat: 100 });
+  const mc = F.resolvePrompt(F.roll(manyCards, 1).state, 'done');
+  ok(mc.state.phase === 'playing' && mc.state.awaiting.type === 'roll', '107 20 张题卡 + 心动值 100 不结束');
+  ok(mc.state.cardsProcessed === 21 && mc.state.meta.heat === 100, '107 题卡/心动值仍记录在状态里');
+  ok(mc.state.targetCards === 4 && mc.state.targetHeat === 40, '107 目标字段保留（仅历史兼容）');
+
+  /* ---------- ③ 起飞保底：连续 2 回合非 6 → 第 3 回合任意点数 ---------- */
+  let s = place(stateOf({ planeCount: 2 }, 404), 'a', { 'a:0': { squareId: 'hangar:red:0' } });
+  ok(s.takeoffMiss && s.takeoffMiss.a === 0 && s.takeoffMiss.b === 0, '108 新局 takeoffMiss={a:0,b:0}');
+  const m1 = F.roll(s, 3);
+  ok(m1.state.takeoffMiss.a === 1 && m1.state.turn === 'b', '108 第 1 回合非 6 → miss=1 且换手');
+  const m2 = F.roll(m1.state, 3);
+  ok(m2.state.turn === 'a' && m2.state.takeoffMiss.a === 1 && m2.state.takeoffMiss.b === 1, '108 对方也没 6 → miss.b=1');
+  ok(F.legalMoves(m2.state, 3).blocked['a:0'].blockedReason === 'NEED_SIX_TO_TAKEOFF', '108 miss<2 仍需 6');
+  const m3 = F.roll(m2.state, 3);
+  ok(m3.state.takeoffMiss.a === 2 && m3.state.turn === 'b', '108 第 2 回合非 6 → miss=2 且换手');
+  const m4 = F.roll(m3.state, 3);
+  ok(m4.state.turn === 'a' && m4.state.takeoffMiss.a === 2 && m4.state.takeoffMiss.b === 2, '108 轮到 a，保底就绪');
+  ok(F.view(m4.state).takeoff.pity === true && F.view(m4.state).takeoff.misses.a === 2, '108 view.takeoff.pity=true');
+  const m5 = F.roll(m4.state, 3);
+  ok(m5.ok && at(m5.state, 'a:0').squareId === 'ring:0', '108 第 3 回合任意点数（3）保底起飞');
+  ok(m5.events.some((e) => e.type === 'dice' && e.pity === true), '108 pity 掷骰事件带 pity:true');
+  ok(hasType(m5.events, 'takeoff'), '108 起飞事件');
+  ok(m5.state.takeoffMiss.a === 0, '108 实际起飞后清零');
+  ok(m5.state.takeoffMiss.b === 2, '108 不影响对方计数');
+
+  /* 掷出 6 也清零（仍只在「连续没起飞」时才可能带 pity） */
+  const six = F.roll(m4.state, 6);
+  ok(six.state.takeoffMiss.a === 0 && at(six.state, 'a:0').squareId === 'ring:0', '109 掷 6 起飞清零');
+  ok(six.state.turn === 'a' && six.state.awaiting.type === 'roll', '109 掷 6 后同一人再掷');
+
+  /* 6 点选择走棋盘上的子（不起飞）也清零 */
+  const onBoard6 = place(stateOf({ planeCount: 2 }, 405), 'a', { 'a:0': { squareId: 'ring:1' }, 'a:1': { squareId: 'hangar:red:1' } });
+  onBoard6.takeoffMiss = { a: 2, b: 0 };
+  const sixChoose = F.roll(onBoard6, 6);
+  ok(sixChoose.state.awaiting.type === 'choose-piece' && sixChoose.state.awaiting.pieceIds.indexOf('a:1') >= 0, '110 6 点两架都能走');
+  const walked = F.move(sixChoose.state, 'a:0');
+  ok(walked.ok && at(walked.state, 'a:0').squareId === 'ring:7', '110 选了棋盘上的子');
+  ok(walked.state.takeoffMiss.a === 0, '110 6 点走棋盘子（不起飞）也清零');
+
+  /* 有飞机在棋盘上（未到家且不在机坪）时不累计保底 */
+  const onBoard = place(stateOf({ planeCount: 2 }, 406), 'a', { 'a:0': { squareId: 'home:red:4' }, 'a:1': { squareId: 'hangar:red:1' } });
+  const ob = F.roll(onBoard, 3);
+  ok(ob.state.takeoffMiss.a === 0, '111 未到家飞机不全在机坪 → 不累计');
+
+  /* 上限 2：连续非 6 再多也不超过 2 */
+  ok(m3.state.takeoffMiss.a === 2 && m4.state.takeoffMiss.a === 2, '112 miss 上限 2');
 }
 
 console.log('\n' + passed + ' passed, ' + failed.length + ' failed');
