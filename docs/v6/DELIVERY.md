@@ -1,13 +1,23 @@
-# 今晚飞行棋 V6 · 交付报告
+# 今晚飞行棋 V6.1 · 交付报告
 
-- 交付日期：2026-11-16
-- 提交：`0ec5a4b`（已推送到 `main`，2026-11-16 19:19；GitHub Actions run 133 部署成功）
-- 线上地址：https://chundongtou.github.io/couple-game/ （已发布 V6）
+- 交付日期：2026-11-17
+- 提交：`c257b46`（已推送到 `main`，2026-11-17 12:31；GitHub Actions run 135 部署成功）
+- 线上地址：https://chundongtou.github.io/couple-game/ （已发布 V6.1.0）
 - 本地预览（可选）：`http://127.0.0.1:8900/`（命令：`cd couple-game && <DSH python> -m http.server 8900 --bind 127.0.0.1`）
+
+## 0. V6.1 用户试玩反馈后的规则调整
+
+- 反馈：一局结束太快；开局只有 6 能起飞，一家容易卡住。
+- 改动：
+  - **结束**：任意一方把本局全部飞机送进终点即结束（快局每人 2 架 / 长夜每人 4 架）；题卡数/心动值不再触发结束。
+  - **起飞**：保留 6 起飞；连续 2 个自己的回合没掷出 6，第 3 回合任意点数保底起飞；起飞成功或掷出 6 清零。
+  - **收尾**：赢家出现后仍发两张「今晚最后一张」（各给一人），回顾写「<姓名> 先到家」与「已到家 X/Y」，无羞辱性输赢文案。
+- 验收：引擎 **745 passed / 0 failed**；构建 `--check` **27/27 GREEN**（index 95.4KB gzip）；QA **499 PASS / 0 FAIL**（e2e 436、perf 12、visual 49）；线上冒烟通过。
+- 按 300 局随机模拟：快局（2 架）中位约 **20 张题卡 / 44 掷**，长夜（4 架）中位约 **38 张 / 76 掷**；实际会因跳/飞/击落和策略更短。若还觉得长/短，可继续调「快局/长夜」的架数或棋盘速度。
 
 ## 1. 一句话
 
-把 V5「能玩的原型」改成暗光下好看、反馈清楚、20 分钟内能收尾的双人升温棋：视觉 A「午夜星轨·暖光纸感」、SVG 2.5D 棋盘替换 three.js、心动值/连击/命运格/合作收尾/今晚回顾全部落地，首屏不再加载 511KB 的 `assets/board.js`。
+把 V5「能玩的原型」改成暗光下好看、反馈清楚、能玩完一整盘的双人升温棋：视觉 A「午夜星轨·暖光纸感」、SVG 2.5D 棋盘替换 three.js、心动值/连击/命运格/全到家收尾/今晚回顾全部落地，首屏不再加载 511KB 的 `assets/board.js`。
 
 ## 2. 交付物
 
@@ -67,19 +77,20 @@
 
 ## 6. 发布（已完成）
 
-- 推送：`git push origin main` → `382ebf4..0ec5a4b  main -> main`（本机直连 GitHub 443 不通，经本机代理 `127.0.0.1:26800` 完成）
-- GitHub Actions：run 133「Deploy to GitHub Pages」`completed / success`
+- V6.0 推送：`382ebf4..0ec5a4b`；V6.1 推送：`1cae888..c257b46`（本机直连 GitHub 443 不通时经本机代理完成；2026-11-17 直连恢复）
+- GitHub Actions：V6.0 run 133、V6.1 run 135 均 `completed / success`
 - 线上地址：https://chundongtou.github.io/couple-game/
-- 线上冒烟（2026-11-16 19:22，Playwright + Edge，430×932）：
-  - `title = 今晚飞行棋 V6`、`App.version = 6.0.0`、`CARDS` 6 池加载
-  - 门厅 → 主桌：`[data-square]=92`、`.bv-piece[data-piece]=4`、规则按钮存在、状态条「第 0/4 张」
-  - 暂停层 `data-screen=pause` 可开/继续；`__V6_TEST__.forceDie(6)` → 「掷出 6 · 再掷一次」
-  - SW：scope `https://chundongtou.github.io/couple-game/`、active、controller 接管；`caches.keys()` = `couple-flight-v6-d4a5a966`
+- V6.1 线上冒烟（2026-11-17 12:33，Playwright + Edge，430×932）：
+  - `App.version = 6.1.0`、门厅快局「先送完 2 架飞机 · 约 15–25 分钟 · 每人 2 架」
+  - 主桌 `[data-square]=92`、`status-home = 红 0/2 · 黄 0/2`、`status-cards = 第 0 张`
+  - 连续两次自己的回合非 6 后：`takeoff-pity` 显示保底提示；第 3 次掷 3 可起飞，`takeoffMiss.a=0`
+  - 注入「一方最后一步到家」：`winner-text = 他 先到家` → 两张收尾卡 → 回顾「他 先到家 / 已到家 2/2」
+  - SW：scope `/couple-game/`、active；`caches.keys()` = `couple-flight-v6-beb8afe6`
   - **无 board.js 请求**、0 个 4xx/5xx、0 pageerror、0 console error
-  - 截图：`shots/live-v6/{boot,table,pause}.png`
+  - 截图：`shots/live-v61/{boot,table,pity,winner,ledger}.png`
 
 ## 7. 回滚
 
-- 最快：GitHub 上 revert 本次 commit（`0ec5a4b`），Pages 自动回到 V5。
+- 最快：GitHub 上 revert V6.1 提交（`c257b46`）或 V6.0 提交（`0ec5a4b`），Pages 自动回到上一版。
 - 整套回滚：`git checkout <old-commit> -- index.html manifest.webmanifest sw.js assets/ icons/`（index/assets/sw 必须同一构建）。
 - 旧 3D 资源 `assets/board.js`、`assets/cards.js` 与 `app/render/` 仍在仓库，作为回滚参考；V6 首屏与主桌都不加载它们。
