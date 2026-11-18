@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 """今晚飞行棋 V6 · 性能预算（对照 docs/v6/architecture.md §4.1 · PB-1~PB-13）。
 
+V6.2（2026-11-18）新增机舱运行时采样（冻结单 §5）：
+- 主桌空闲帧率 / 长帧（>25ms）≤5%；连续 20 次走子长帧；4×CPU 参考值；
+- reduced 下粒子/相机停止（.cb-dust 两帧一致 + board transform 为空）；
+- 页面隐藏暂停（data-cabin-paused=1、scene rAF 停、帧数不增）与恢复后继续。
+
 取样口径（与 AR 一致）：
 - 视口 390×844 DPR2；service_workers=block；CDP Network.emulateNetworkConditions slow4G
   （download 1.6Mbps / upload 750kbps / latency 150ms）；Emulation.setCPUThrottlingRate 4；
@@ -211,6 +216,283 @@ def measure_offline(browser, base_url: str):
         ctx.close()
 
 
+# ---------------------------------------------------------------- V6.2 机舱运行时性能
+# 口径：docs/v6/impl-freeze-cabin.md §5
+#   - 主桌空闲帧率 / 长帧（>25ms）≤5%；20 次连续走子同样看长帧；
+#   - reduced 下粒子/相机停止（静态 canvas + 无 transform）；
+#   - 页面隐藏暂停（data-cabin-paused=1、scene rAF 停、帧数不再增长），恢复后继续。
+CABIN_FRAME_JS = """() => {
+  var P = window.__qaPerf = window.__qaPerf || {};
+  P.frames = 0; P.long = 0; P.dts = []; P.t0 = 0; P.active = false;
+  P.start = function () {
+    P.frames = 0; P.long = 0; P.dts = []; P.t0 = performance.now(); P.active = true;
+    var last = performance.now();
+    function tick(ts) {
+      if (!P.active) return;
+      var dt = ts - last; last = ts;
+      P.frames += 1;
+      if (P.dts.length < 6000) P.dts.push(dt);
+      if (dt > 25) P.long += 1;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  };
+  P.stop = function () {
+    P.active = false;
+    var el = performance.now() - P.t0;
+    var arr = P.dts.slice().sort(function (a, b) { return a - b; });
+    return {
+      frames: P.frames, long: P.long, elapsed: el,
+      fps: P.frames / Math.max(1, el) * 1000,
+      longRatio: P.frames ? (P.long / P.frames) : 0,
+      p95: arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * 0.95))] : null,
+      max: arr.length ? arr[arr.length - 1] : null
+    };
+  };
+  return true;
+}"""
+
+CABIN_REDUCED_JS = """() => {
+  try { App.Store.saveSettings({reduced: true}); return true; } catch (e) { return false; }
+}"""
+
+CABIN_HIDE_JS = """() => {
+  try {
+    var flag = {v: true};
+    window.__qaHidden = flag;
+    Object.defineProperty(document, 'hidden', {configurable: true, get: function () { return flag.v; }});
+    Object.defineProperty(document, 'visibilityState', {configurable: true, get: function () { return flag.v ? 'hidden' : 'visible'; }});
+    document.dispatchEvent(new Event('visibilitychange'));
+    return {ok: true, hidden: !!document.hidden};
+  } catch (e) { return {ok: false, error: String(e)}; }
+}"""
+
+CABIN_SHOW_JS = """() => {
+  try {
+    if (!window.__qaHidden) return {ok: false};
+    window.__qaHidden.v = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    return {ok: true, hidden: !!document.hidden};
+  } catch (e) { return {ok: false, error: String(e)}; }
+}"""
+
+
+def _perf_start_table(browser, url, mode="quick", throttle=None):
+    """打开主桌（quick/long），可选 CPU 降频；返回 (ctx, ps, page)。"""
+    ctx = Q.new_context(browser, viewport=VIEWPORT, dsf=2, service_workers="block")
+    page = ctx.new_page()
+    ps = Q.PageSession(ctx, page)
+    if throttle:
+        cdp = ctx.new_cdp_session(page)
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": throttle})
+    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+    Q.ensure_boot(page, None, timeout=15000)
+    Q.try_click(page, Q.LONG_MODE if mode == "long" else Q.QUICK_MODE, timeout=1500)
+    Q.fill_names(page, ("阿岚", "阿策"))
+    Q.select_distinct_colors(page)
+    Q.click(page, Q.BOOT_START, timeout=8000, desc="摆上棋盘")
+    Q.wait_table(page, timeout=9000)
+    page.wait_for_timeout(900)
+    return ctx, ps, page
+
+
+def _perf_drive_moves(page, target, budget_s=120):
+    """连续走子驱动：只点 UI（骰子/选子/放过），用引擎事件计走子次数。"""
+    if not Q.install_event_recorder(page):
+        return 0
+    Q.recorded_events(page, clear=True)
+    guard = 0
+    deadline = time.time() + budget_s
+    while time.time() < deadline:
+        guard += 1
+        if guard > 400:
+            break
+        events = Q.recorded_events(page)
+        moves = len([e for e in events if e.get("type") in ("move", "takeoff", "jump", "fly")])
+        if moves >= target:
+            return moves
+        sess = Q.get_session(page) or {}
+        if sess.get("phase") in ("ended", "safe-ended"):
+            return moves
+        aw = sess.get("awaiting") or {}
+        typ = aw.get("type")
+        if typ in ("prompt", "ending-prompt"):
+            Q.try_click(page, ["test:prompt-skip", "role:button:/^放过$/", "text:/^放过$/"], timeout=1200)
+            page.wait_for_timeout(180)
+            continue
+        if typ == "minigame":
+            Q.try_click(page, ["test:minigame-skip", "role:button:/这次先跳过/"], timeout=1200)
+            page.wait_for_timeout(180)
+            continue
+        if typ == "choose-piece":
+            pids = aw.get("pieceIds") or []
+            clicked = False
+            btns, _ = Q.find_piece_buttons(page)
+            for b in btns:
+                try:
+                    dp = b.get_attribute("data-action-piece") or b.get_attribute("data-piece")
+                except Exception:
+                    dp = None
+                if dp and (not pids or dp in pids):
+                    try:
+                        b.click(timeout=3000)
+                        clicked = True
+                        break
+                    except Exception:
+                        pass
+            if not clicked and btns:
+                try:
+                    btns[0].click(timeout=3000)
+                except Exception:
+                    pass
+            page.wait_for_timeout(160)
+            continue
+        if typ in ("roll", None):
+            plan = Q.plan_die(page, target_kinds=["ring", "home", "goal", "hangar", "stop"])
+            die = plan.get("die") if isinstance(plan, dict) else None
+            Q.set_die(page, die if die else 3)
+            Q.try_click(page, ["test:roll", "role:button:/^掷骰$/", "text:/^掷骰$/"], timeout=2500)
+            page.wait_for_timeout(220)
+            continue
+        page.wait_for_timeout(160)
+    events = Q.recorded_events(page)
+    return len([e for e in events if e.get("type") in ("move", "takeoff", "jump", "fly")])
+
+
+def _cabin_debug(page):
+    data = Q.eval_js(page, "() => (window.App && App.CabinScene && App.CabinScene._debug) ? App.CabinScene._debug() : null")
+    return data if isinstance(data, dict) else {}
+
+
+def _dust_data_url(page):
+    return Q.eval_js(page, """() => {
+        var c = document.querySelector('.cabin-root .cb-dust');
+        try { return c ? c.toDataURL() : null; } catch (e) { return null; }
+    }""")
+
+
+def measure_cabin_runtime(browser, url):
+    """V6.2 主桌运行时性能：空闲帧率 / 20 次走子 / reduced 静态 / 页面隐藏暂停。"""
+    out = {"idle": None, "moves": None, "reduced": None, "hidden": None, "throttle_ref": None}
+
+    # ---- 空闲帧率（无 CPU 降频，主桌稳定后 3s）----
+    ctx, ps, page = _perf_start_table(browser, url, mode="quick")
+    try:
+        page.evaluate(CABIN_FRAME_JS)
+        page.wait_for_timeout(600)
+        page.evaluate("() => { window.__qaPerf.start(); return true; }")
+        page.wait_for_timeout(3000)
+        out["idle"] = page.evaluate("() => window.__qaPerf.stop()")
+        out["idle"]["canvas"] = _dust_data_url(page)
+        out["idle"]["errors"] = {"pageerrors": ps.pageerrors[:3], "console_errors": ps.console_errors[:3]}
+    finally:
+        ctx.close()
+
+    # ---- 20 次连续走子（长夜，避免 20 步内结束；帧采样跨多次开局累加）----
+    moves_done = 0
+    frames = 0
+    long_frames = 0
+    elapsed = 0.0
+    games = 0
+    move_meta = []
+    while moves_done < 20 and games < 3:
+        games += 1
+        ctx, ps, page = _perf_start_table(browser, url, mode="long")
+        try:
+            page.evaluate(CABIN_FRAME_JS)
+            page.wait_for_timeout(300)
+            page.evaluate("() => { window.__qaPerf.start(); return true; }")
+            got = _perf_drive_moves(page, 20 - moves_done, budget_s=110)
+            st = page.evaluate("() => window.__qaPerf.stop()")
+            moves_done += got
+            frames += st.get("frames") or 0
+            long_frames += st.get("long") or 0
+            elapsed += st.get("elapsed") or 0
+            move_meta.append({"game": games, "moves": got, "fps": round(st.get("fps") or 0, 1),
+                              "longRatio": round(st.get("longRatio") or 0, 4),
+                              "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]}})
+        finally:
+            ctx.close()
+    out["moves"] = {"moves": moves_done, "frames": frames, "long": long_frames,
+                    "elapsed_ms": round(elapsed, 1),
+                    "fps": frames / max(0.001, elapsed / 1000.0),
+                    "longRatio": (long_frames / frames) if frames else None,
+                    "games": move_meta}
+
+    # ---- reduced：粒子/相机停止（静态 canvas + 无 transform）----
+    ctx, ps, page = _perf_start_table(browser, url, mode="quick")
+    try:
+        Q.eval_js(page, CABIN_REDUCED_JS)
+        page.wait_for_timeout(600)
+        dbg0 = _cabin_debug(page)
+        page.evaluate(CABIN_FRAME_JS)
+        page.evaluate("() => { window.__qaPerf.start(); return true; }")
+        page.wait_for_timeout(800)
+        shot0 = _dust_data_url(page)
+        page.wait_for_timeout(800)
+        shot1 = _dust_data_url(page)
+        st = page.evaluate("() => window.__qaPerf.stop()")
+        dbg1 = _cabin_debug(page)
+        out["reduced"] = {
+            "reduced": dbg1.get("reduced"), "transform": dbg1.get("camTransform"),
+            "canvasStatic": bool(shot0 and shot1 and shot0 == shot1),
+            "sceneFramesDelta": (dbg1.get("sceneFrames") or 0) - (dbg0.get("sceneFrames") or 0),
+            "rafFrames": st.get("frames"), "fps": round(st.get("fps") or 0, 1),
+            "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]},
+        }
+    finally:
+        ctx.close()
+
+    # ---- 页面隐藏暂停 / 恢复 ----
+    ctx, ps, page = _perf_start_table(browser, url, mode="quick")
+    try:
+        page.wait_for_timeout(500)
+        dbg_a = _cabin_debug(page)
+        hide = Q.eval_js(page, CABIN_HIDE_JS) or {}
+        page.wait_for_timeout(500)
+        paused_attr = Q.eval_js(page, "() => { var r=document.querySelector('.cabin-root'); return r ? r.getAttribute('data-cabin-paused') : null; }")
+        dbg_b = _cabin_debug(page)
+        pause_shot0 = _dust_data_url(page)
+        page.wait_for_timeout(800)
+        pause_shot1 = _dust_data_url(page)
+        dbg_c = _cabin_debug(page)
+        show = Q.eval_js(page, CABIN_SHOW_JS) or {}
+        page.wait_for_timeout(900)
+        dbg_d = _cabin_debug(page)
+        out["hidden"] = {
+            "hide": hide, "show": show, "pausedAttr": paused_attr,
+            "hidden": dbg_b.get("hidden"),
+            "sceneFramesBefore": dbg_a.get("sceneFrames"),
+            "sceneFramesAtHide": dbg_b.get("sceneFrames"),
+            "sceneFramesAfterWait": dbg_c.get("sceneFrames"),
+            "sceneFramesAfterShow": dbg_d.get("sceneFrames"),
+            "sceneRafAtHide": dbg_b.get("sceneRaf"),
+            "sceneRafAfterShow": dbg_d.get("sceneRaf"),
+            "camTransformAtHide": dbg_b.get("camTransform"),
+            "canvasStaticWhileHidden": bool(pause_shot0 and pause_shot1 and pause_shot0 == pause_shot1),
+            "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]},
+        }
+    finally:
+        ctx.close()
+
+    # ---- 参考：4× CPU 降频下的空闲帧率（仅报告，不作为硬门槛）----
+    try:
+        ctx, ps, page = _perf_start_table(browser, url, mode="quick", throttle=4)
+        try:
+            page.evaluate(CABIN_FRAME_JS)
+            page.wait_for_timeout(600)
+            page.evaluate("() => { window.__qaPerf.start(); return true; }")
+            page.wait_for_timeout(2500)
+            ref = page.evaluate("() => window.__qaPerf.stop()")
+            ref["throttle"] = 4
+            out["throttle_ref"] = ref
+        finally:
+            ctx.close()
+    except Exception as e:  # noqa: BLE001
+        out["throttle_ref"] = {"error": str(e)}
+    return out
+
+
 def disk_budget(dist: pathlib.Path):
     """PB-1/2/3：index 体积与首屏总 gzip（以落盘为准；ADR-012 口径）。"""
     info = Q.build_info(dist)
@@ -288,6 +570,18 @@ def main():
                 offline = measure_offline(browser, gz_url)
                 print("[PERF] offline: ok=%s boot=%sms (%s)" %
                       (offline.get("ok"), offline.get("boot_ms"), offline.get("error") or ""))
+                print("[PERF] cabin runtime: idle/moves/reduced/hidden ...")
+                cabin = measure_cabin_runtime(browser, gz_url)
+                idle = cabin.get("idle") or {}
+                mv = cabin.get("moves") or {}
+                print("[PERF] cabin idle: fps=%.1f long25=%s%% frames=%s p95=%sms" % (
+                    idle.get("fps") or 0, round((idle.get("longRatio") or 0) * 100, 2),
+                    idle.get("frames"), idle.get("p95")))
+                print("[PERF] cabin 20moves: moves=%s fps=%.1f long25=%s%%" % (
+                    mv.get("moves"), mv.get("fps") or 0, round((mv.get("longRatio") or 0) * 100, 2)))
+                print("[PERF] cabin reduced=%s hiddenPaused=%s" % (
+                    (cabin.get("reduced") or {}).get("reduced"),
+                    (cabin.get("hidden") or {}).get("pausedAttr")))
             finally:
                 browser.close()
 
@@ -375,6 +669,133 @@ def main():
                          "slow4G+4xCPU" if key in ("PB-4", "PB-5", "PB-6", "PB-7", "PB-12") else "磁盘/gzip",
                          dist, args.samples),
                      detail="原始采样：%s" % samples_txt, owner="FE")
+    # ---------------- V6.2 机舱运行时（P0） ----------------
+    idle = cabin.get("idle") or {}
+    mv = cabin.get("moves") or {}
+    red = cabin.get("reduced") or {}
+    hid = cabin.get("hidden") or {}
+    thref = cabin.get("throttle_ref") or {}
+
+    idle_fps = idle.get("fps")
+    idle_long = idle.get("longRatio")
+    if idle_fps is None:
+        rec.skip("CABIN-PERF-idle-fps", "CABIN-PERF-01 · 主桌空闲帧率（60fps 目标）",
+                 "无法采样（面板/页面异常）", ac="AC-V6.2-5")
+        rec.skip("CABIN-PERF-idle-long", "CABIN-PERF-02 · 主桌空闲长帧（>25ms）≤5%",
+                 "无法采样（面板/页面异常）", ac="AC-V6.2-5")
+    else:
+        fps_ok = idle_fps >= 50
+        detail = "frames=%s elapsed=%sms fps=%.1f p95=%sms max=%sms" % (
+            idle.get("frames"), round(idle.get("elapsed") or 0), idle_fps,
+            round(idle.get("p95") or 0, 1), round(idle.get("max") or 0, 1))
+        if fps_ok:
+            rec.ok("CABIN-PERF-idle-fps", "CABIN-PERF-01 · 主桌空闲帧率（60fps 目标，门槛 ≥50fps）",
+                   "≥50fps", "%.1f fps（%s）" % (idle_fps, detail), ac="AC-V6.2-5",
+                   evidence="reports/v6/qa-perf.json", detail=detail)
+        else:
+            rec.fail("CABIN-PERF-idle-fps", "CABIN-PERF-01 · 主桌空闲帧率（60fps 目标，门槛 ≥50fps）",
+                     "≥50fps", "%.1f fps（%s）" % (idle_fps, detail), ac="AC-V6.2-5",
+                     repro="主桌稳定后空闲 3s→rAF 采样帧间隔", evidence="reports/v6/qa-perf.json",
+                     detail=detail, owner="FE-cabin")
+        long_ok = (idle_long or 0) <= 0.05
+        if long_ok:
+            rec.ok("CABIN-PERF-idle-long", "CABIN-PERF-02 · 主桌空闲长帧（>25ms）≤5%",
+                   "≤5%", "long=%s/%s（%.2f%%）p95=%sms" % (
+                       idle.get("long"), idle.get("frames"), (idle_long or 0) * 100,
+                       round(idle.get("p95") or 0, 1)), ac="AC-V6.2-5",
+                   evidence="reports/v6/qa-perf.json")
+        else:
+            rec.fail("CABIN-PERF-idle-long", "CABIN-PERF-02 · 主桌空闲长帧（>25ms）≤5%",
+                     "≤5%", "long=%s/%s（%.2f%%）p95=%sms" % (
+                         idle.get("long"), idle.get("frames"), (idle_long or 0) * 100,
+                         round(idle.get("p95") or 0, 1)), ac="AC-V6.2-5",
+                     repro="主桌稳定后空闲 3s→rAF 采样帧间隔", evidence="reports/v6/qa-perf.json",
+                     owner="FE-cabin")
+
+    moves_n = mv.get("moves") or 0
+    mv_long = mv.get("longRatio")
+    if moves_n < 20:
+        rec.check("CABIN-PERF-moves", "CABIN-PERF-03 · 20 次连续走子", "SKIP",
+                  "20 次连续走子完成", "仅完成 %s 次（3 局内未凑满）" % moves_n, ac="AC-V6.2-5")
+    else:
+        long_ok = (mv_long or 0) <= 0.05
+        detail = "moves=%s frames=%s long=%s fps=%.1f long25=%.2f%% games=%s" % (
+            moves_n, mv.get("frames"), mv.get("long"), mv.get("fps") or 0,
+            (mv_long or 0) * 100, json.dumps(mv.get("games") or [], ensure_ascii=False)[:400])
+        if long_ok:
+            rec.ok("CABIN-PERF-moves", "CABIN-PERF-03 · 20 次连续走子长帧（>25ms）≤5%",
+                   "20 moves，≤5%", detail, ac="AC-V6.2-5",
+                   evidence="reports/v6/qa-perf.json", detail=detail)
+        else:
+            rec.fail("CABIN-PERF-moves", "CABIN-PERF-03 · 20 次连续走子长帧（>25ms）≤5%",
+                     "20 moves，≤5%", detail, ac="AC-V6.2-5",
+                     repro="长夜开局→连续 20 次掷骰/选子（含跳过题卡）→rAF 采样",
+                     evidence="reports/v6/qa-perf.json", detail=detail, owner="FE-cabin")
+
+    red_ok = red.get("reduced") is True and not (red.get("transform") or "") and \
+        red.get("canvasStatic") is True and (red.get("sceneFramesDelta") or 0) == 0
+    detail = "reduced=%s transform=%r canvasStatic=%s sceneFramesDelta=%s rafFrames=%s" % (
+        red.get("reduced"), red.get("transform"), red.get("canvasStatic"),
+        red.get("sceneFramesDelta"), red.get("rafFrames"))
+    if red_ok:
+        rec.ok("CABIN-PERF-reduced", "CABIN-PERF-04 · reduced 下粒子/相机停止（canvas 静态 + 无 transform）",
+               "reduced=1、transform=''、canvas 两帧一致", detail, ac="AC-V6.2-5",
+               evidence="reports/v6/qa-perf.json", detail=detail)
+    else:
+        rec.fail("CABIN-PERF-reduced", "CABIN-PERF-04 · reduced 下粒子/相机停止（canvas 静态 + 无 transform）",
+                 "reduced=1、transform=''、canvas 两帧一致", detail, ac="AC-V6.2-5",
+                 repro="设置开减少动画→主桌→间隔 800ms 取两次 .cb-dust toDataURL 比对",
+                 evidence="reports/v6/qa-perf.json", detail=detail, owner="FE-cabin")
+
+    hidden_paused = hid.get("pausedAttr") == "1" and hid.get("hidden") is True
+    frames_frozen = hid.get("sceneFramesAtHide") == hid.get("sceneFramesAfterWait")
+    resumed = (hid.get("pausedAttr") == "1" and
+               (hid.get("sceneFramesAfterShow") or 0) > (hid.get("sceneFramesAtHide") or 0) and
+               hid.get("sceneRafAfterShow") is True)
+    hid_ok = hidden_paused and frames_frozen and resumed and hid.get("canvasStaticWhileHidden") is True
+    detail = "pausedAttr=%s hidden=%s frames=%s→%s→%s rafAtHide=%s rafAfterShow=%s canvasStatic=%s" % (
+        hid.get("pausedAttr"), hid.get("hidden"), hid.get("sceneFramesAtHide"),
+        hid.get("sceneFramesAfterWait"), hid.get("sceneFramesAfterShow"),
+        hid.get("sceneRafAtHide"), hid.get("sceneRafAfterShow"), hid.get("canvasStaticWhileHidden"))
+    if hid_ok:
+        rec.ok("CABIN-PERF-hidden", "CABIN-PERF-05 · 页面隐藏暂停 / 恢复后继续（H2/冻结单 §4.1）",
+               "data-cabin-paused=1、scene rAF 停、帧数不增；恢复后帧数增长", detail,
+               ac="AC-V6.2-6", evidence="reports/v6/qa-perf.json", detail=detail)
+    else:
+        rec.fail("CABIN-PERF-hidden", "CABIN-PERF-05 · 页面隐藏暂停 / 恢复后继续（H2/冻结单 §4.1）",
+                 "data-cabin-paused=1、scene rAF 停、帧数不增；恢复后帧数增长", detail,
+                 ac="AC-V6.2-6", repro="主桌→模拟 visibilitychange(hidden)→读 _debug().sceneFrames/属性→恢复",
+                 evidence="reports/v6/qa-perf.json", detail=detail, owner="FE-cabin")
+
+    if thref.get("fps") is not None:
+        rec.check("CABIN-PERF-throttle-ref", "CABIN-PERF-06 · 4×CPU 空闲帧率（参考，不设门槛）", "PASS",
+                  "参考值", "fps=%.1f long25=%.2f%% frames=%s" % (
+                      thref.get("fps") or 0, (thref.get("longRatio") or 0) * 100,
+                      thref.get("frames")),
+                  ac="AC-V6.2-5", severity="P2",
+                  detail="仅参考：本机 4×CPU 降频下主桌空闲采样，不参与发布门槛")
+
+    cabin_errors = []
+    for key in ("idle", "moves", "reduced", "hidden"):
+        block = cabin.get(key) or {}
+        errs = block.get("errors") or {}
+        cabin_errors.extend(errs.get("pageerrors") or [])
+        cabin_errors.extend(errs.get("console_errors") or [])
+    if cabin_errors:
+        rec.fail("CABIN-PERF-errors", "机舱性能路径 0 pageerror / console.error", "0/0",
+                 json.dumps(cabin_errors[:5], ensure_ascii=False), ac="AC-V6.2-5",
+                 repro="机舱性能采样路径", owner="FE-cabin")
+    else:
+        rec.ok("CABIN-PERF-errors", "机舱性能路径 0 pageerror / console.error", "0/0", "0/0",
+               ac="AC-V6.2-5")
+    rec.meta["cabin_runtime"] = {
+        "idle": {k: idle.get(k) for k in ("fps", "longRatio", "frames", "long", "elapsed", "p95", "max")},
+        "moves": {k: mv.get(k) for k in ("moves", "frames", "long", "fps", "longRatio", "elapsed_ms", "games")},
+        "reduced": red,
+        "hidden": hid,
+        "throttle_ref": thref,
+    }
+
     # 裸文件参考（不参与发布门槛）
     raw_refs = [
         ("PB-4raw", "DCL（裸文件参考）", 3500, raw_sample.get("dcl"), "ms"),
@@ -431,10 +852,43 @@ def main():
                      (key, label, limit, ("%s ms" % val) if val is not None else "-",
                       row[0]["status"] if row else "SKIP"))
     extra.append("")
+    extra.append("### V6.2 机舱运行时（E2E 冻结单 §5）")
+    extra.append("")
+    extra.append("| 项 | 实测 | 门槛 | 状态 |")
+    extra.append("|---|---|---|---|")
+    _idle = cabin.get("idle") or {}
+    _mv = cabin.get("moves") or {}
+    _red = cabin.get("reduced") or {}
+    _hid = cabin.get("hidden") or {}
+    _th = cabin.get("throttle_ref") or {}
+
+    def _st(cid):
+        return next((c["status"] for c in rec.checks if c["id"] == cid), "-")
+
+    extra.append("| 主桌空闲帧率 | %.1f fps（p95 %s ms / max %s ms） | ≥50 fps | %s |" % (
+        _idle.get("fps") or 0, round(_idle.get("p95") or 0, 1), round(_idle.get("max") or 0, 1),
+        _st("CABIN-PERF-idle-fps")))
+    extra.append("| 空闲长帧 >25ms | %.2f%%（%s/%s） | ≤5%% | %s |" % (
+        (_idle.get("longRatio") or 0) * 100, _idle.get("long"), _idle.get("frames"),
+        _st("CABIN-PERF-idle-long")))
+    extra.append("| 20 次连续走子 | moves=%s fps=%.1f long25=%.2f%% | 20 次，≤5%% | %s |" % (
+        _mv.get("moves"), _mv.get("fps") or 0, (_mv.get("longRatio") or 0) * 100,
+        _st("CABIN-PERF-moves")))
+    extra.append("| reduced 静止 | reduced=%s transform=%r canvasStatic=%s | 停止 | %s |" % (
+        _red.get("reduced"), _red.get("transform"), _red.get("canvasStatic"),
+        _st("CABIN-PERF-reduced")))
+    extra.append("| 页面隐藏暂停 | paused=%s frames %s→%s→%s | 停/恢复 | %s |" % (
+        _hid.get("pausedAttr"), _hid.get("sceneFramesAtHide"), _hid.get("sceneFramesAfterWait"),
+        _hid.get("sceneFramesAfterShow"), _st("CABIN-PERF-hidden")))
+    if _th.get("fps") is not None:
+        extra.append("| 4×CPU 参考 | fps=%.1f long25=%.2f%% | 仅参考 | - |" % (
+            _th.get("fps") or 0, (_th.get("longRatio") or 0) * 100))
+    extra.append("")
     extra.append("### 原始采样")
     extra.append("")
     extra.append("```json")
-    extra.append(json.dumps({"samples": samples, "offline": offline, "disk": disk},
+    extra.append(json.dumps({"samples": samples, "offline": offline, "disk": disk,
+                             "cabin_runtime": rec.meta.get("cabin_runtime")},
                             ensure_ascii=False, indent=1)[:12000])
     extra.append("```")
     json_path, md_path = Q.write_suite_report(rec, args.json, extra_md=extra)

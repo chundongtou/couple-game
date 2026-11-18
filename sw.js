@@ -2,7 +2,7 @@
  *
  * ⚠️ 本文件是**模板**，不要直接部署；仓库根的 `sw.js` 由
  *    `python tools/rebuild/build_app.py` 读本文件生成（占位符替换）。
- *    构建写入：couple-flight-v6-beb8afe6 / beb8afe6 / [
+ *    构建写入：couple-flight-v6-6883a9b3 / 6883a9b3 / [
   "./",
   "./index.html",
   "./manifest.webmanifest",
@@ -26,8 +26,8 @@
  * 发版：CACHE 版本 = "couple-flight-v6-" + 构建时 index.html 的 sha256 前 8 位，
  *       内容一变版本自动变，老用户下次打开即拿到新 SW。**禁止手改 sw.js。**
  */
-var CACHE = 'couple-flight-v6-beb8afe6';
-var BUILD = 'beb8afe6';
+var CACHE = 'couple-flight-v6-6883a9b3';
+var BUILD = '6883a9b3';
 
 /* 预缓存清单：相对路径，根目录 = 构建产物目录（GitHub Pages 子路径同样可用）。
  * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + PWA 图标。

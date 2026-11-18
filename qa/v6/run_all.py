@@ -52,10 +52,12 @@ P0_ACS = [
     "AC-F1-1", "AC-F2-1", "AC-F2-2", "AC-F2-3", "AC-F2-5",
     "AC-G1-1", "AC-G1-2", "AC-G1-3", "AC-G2-1", "AC-G2-2", "AC-G2-3", "AC-G5-1",
     "AC-H1-1", "AC-H1-2", "AC-H2-1", "AC-H3-1", "AC-H4-1", "AC-H4-2", "AC-H6-1",
+    # V6.2「夜航机舱」沉浸主桌（docs/v6/impl-freeze-cabin.md §5）
+    "AC-V6.2-1", "AC-V6.2-2", "AC-V6.2-3", "AC-V6.2-4", "AC-V6.2-5", "AC-V6.2-6",
 ]
 P1_ACS = ["AC-C5-1", "AC-C6-1", "AC-D4-1", "AC-D5-1", "AC-E4-1", "AC-E5-1", "AC-E5-2",
           "AC-E5-3", "AC-E6-1", "AC-E7-3", "AC-F3-1", "AC-G3-1", "AC-B7-1", "AC-B8-1",
-          "AC-B9-1", "AC-C4-1", "AC-H6-2", "AC-B5-3"]
+          "AC-B9-1", "AC-C4-1", "AC-H6-2", "AC-B5-3", "AC-V6.2-7"]
 
 AC_TEXT = {
     "AC-A1-1": "360×640 首屏可见「摆上棋盘」",
@@ -125,6 +127,14 @@ AC_TEXT = {
     "AC-H4-1": "320–430 无横向滚动",
     "AC-H4-2": "题卡正文 ≥15px",
     "AC-H6-1": "主路径 0 错误",
+    # V6.2「夜航机舱」（docs/v6/impl-freeze-cabin.md §5）
+    "AC-V6.2-1": "机舱层存在/pointer-events:none/Canvas≥1/92 格点击不落 cabin",
+    "AC-V6.2-2": "掷骰/走子/击落/换手/收家触发 .v6-board transform（reduced 无）",
+    "AC-V6.2-3": "减少动画（设置/系统偏好）无镜头 transform、无震动、无闪灯",
+    "AC-V6.2-4": "题卡/安全词/暂停不被 cabin 覆盖；320/360/390/430 无横向溢出",
+    "AC-V6.2-5": "门厅 DCL/FCP/gzip 达标；主桌空闲长帧≤5%、20 次走子、reduced 停止",
+    "AC-V6.2-6": "页面隐藏暂停（cabin 场景 rAF 停）且恢复后继续",
+    "AC-V6.2-7": "视觉基线更新（主桌/题卡有意变化；boot/ledger 无变化）",
 }
 
 
@@ -334,7 +344,7 @@ def main():
 
     # 写 MD
     lines = []
-    lines.append("# 今晚飞行棋 V6.1 · QA 验收报告")
+    lines.append("# 今晚飞行棋 V6.2 · QA 验收报告")
     lines.append("")
     lines.append("- 结论：**%s**" % conclusion)
     lines.append("- 是否可发布：**%s**（发布门 = P0 全绿 + 构建 --check + 引擎 0 failed）" %
@@ -342,6 +352,9 @@ def main():
     lines.append("- 本版规则（V6.1）：结束 = **一方全部飞机到家**（快局 2 / 长夜 4）；"
                  "起飞 = 6 + **连续两次没掷出 6 后第 3 个回合任意点数保底**；"
                  "题卡数 / 心动值不再触发结束；回顾只写「<姓名> 先到家 / 已到家 X/Y」。")
+    lines.append("- 本版画面（V6.2）：主桌新增「夜航机舱」沉浸场景（舱壁/舷窗/桌板/光效/粒子）"
+                 "与全动态镜头（掷骰推近、走子跟拍、击落震动、换手移侧、收家拉远+日出）；"
+                 "reduced 关闭镜头/震动/粒子，页面隐藏暂停。")
     if p1_fail:
         lines.append("- P1 遗留（不阻塞发布）：%d 条，见第 2 节缺陷清单（severity=P1）" % len(p1_fail))
     lines.append("- 生成时间：%s" % meta["generated_at"])
@@ -429,6 +442,17 @@ def main():
     lines.append("  - 旧档兼容 `--only legacy`：缺 `takeoffMiss` 补 `{a:0,b:0}` 可续玩；旧 `ending='shared'` "
                  "回顾写「今晚一起走到这里」。")
     lines.append("  - 全放过 `--only skip`：放过不惩罚 + 两张收尾卡都放过仍进回顾，明细写「今晚先放过」。")
+    lines.append("- V6.2 必跑（P0，新增）：")
+    lines.append("  - 机舱层 `--only cabin`：`[data-test=cabin]` 存在、`pointer-events:none`、Canvas≥1、"
+                 "92 格 `elementFromPoint` 全部命中棋盘层；320/360/390/430 无横向溢出。")
+    lines.append("  - 全动态镜头：掷骰 `cam=dice`（scale≥1.02）/走子 `cam=move`（位移≥4px）/击落 `cam=shake`/"
+                 "换手 `cam=turn`+`data-turn=b`/收家 `is-won`+`data-cabin-dawn>0`+scale<1。")
+    lines.append("  - reduced（设置 + 系统 `prefers-reduced-motion`）：无 transform、无 shake、无闪灯；"
+                 "题卡/安全词/暂停 hit-test 不被 cabin 覆盖。")
+    lines.append("  - 性能：门厅 DCL/FCP/gzip 达标；主桌空闲 fps≥50 且长帧≤5%；20 次连续走子长帧≤5%；"
+                 "reduced 下 `.cb-dust` 静止；页面隐藏 `data-cabin-paused=1`、scene 帧数不增、恢复后继续。")
+    lines.append("- 视觉：V6.2 主桌/题卡基线已重建（截图前测试侧冻结场景保证可复现）；"
+                 "boot/ledger 基线沿用 V6.1（对比 0 变化）。")
     lines.append("- 红线：安全词 7 屏可达（B4）、题卡 100% 人名（C1）、放过不阻断进军/全放过能收尾（C2/E3）、"
                  "边界 100 次抽题无命中（H5）、刷新续玩（A6）、断网开局（H3）。")
     lines.append("- 引擎：`node qa/rebuild/flight-engine.test.mjs` 0 failed（含 V6.1 §15/§20 全到家与保底用例）。")

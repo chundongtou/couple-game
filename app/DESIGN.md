@@ -1,9 +1,11 @@
-# 今晚飞行棋 V6.1 · 规则与数值
+# 今晚飞行棋 V6.2 · 规则与数值
 
 > 唯一事实来源：本文写「规则是什么、数值是多少」。实现细节看 `app/src/`，构建与发版看 `docs/REBUILD.md`，UI 文案看 `docs/v6/copy.md`。
-> 口径优先级：`docs/v6/impl-freeze-v6.1.md`（V6.1 规则调整）> `docs/v6/impl-freeze.md`（V6.0 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
+> 口径优先级：`docs/v6/impl-freeze-cabin.md`（V6.2 沉浸主桌）> `docs/v6/impl-freeze-v6.1.md`（V6.1 规则调整）> `docs/v6/impl-freeze.md`（V6.0 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
 
 一句话：两个人、一部手机、一枚环形星轨棋盘。题卡一起做，心动值一起涨，**谁先把自己的飞机全部送回家，谁「先到家」**；之后两张收尾卡一人一张——只写「先到家」，不写输赢。
+
+V6.2 起，主桌多了一层「夜航客舱」场景与一套全动态镜头；**规则、数值、存档与 V6.1 完全一致**，视觉与动画的实现口径见 §17。
 
 ## 1. 一局的结构
 
@@ -269,6 +271,7 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 | `App.FlightBoard` | `engine/flight-board.js` | 棋盘拓扑：`map()`、`FATE_CELLS`、格类型与跳/飞/进航坐标 |
 | `App.Minigames` | `engine/minigames.js` | 温度计 / 转盘纯逻辑 |
 | `App.BoardView` | `view/board.js` | SVG 棋盘：`mount / setState / play / setChoices / setReduced / setSound / unmount`；只读快照，不碰 `App.Flight` / localStorage |
+| `App.CabinScene` | `view/cabin.js` | V6.2 机舱场景 + 相机：`mount(host,{boardEl,reduced,sound,names}) / unmount / setMood / play(events,{state}) / setReduced / setSound`；只改 `boardEl.style.transform` 与场景 CSS 变量，不读引擎、不写 localStorage |
 | `App.PromptCard` | `ui/overlay/prompt-card.js` | `open(host, prompt, state, handlers)` |
 | `App.MiniGame` | `ui/overlay/minigame.js` | `open(...)`；面板关闭由 table 调 `Flight.resolveMinigame` |
 | `App.Pause` | `ui/screens/pause.js` | `open(reason) / close() / isOpen()` |
@@ -314,5 +317,91 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 8. **暂停页状态卡仍是旧文案**（V6.1，待对齐）：`app/src/ui/screens/pause.js` 仍写「第 N/目标 张」，未改成本文的「双方已到家」；见 `docs/v6/copy.md` §9-D9。
 9. **安全词收尾的回顾标题**（V6.1，待对齐）：`app/src/ui/screens/ledger.js` 当前对 `safe` 结局写「安全词收棋」，`copy.md` §5.3 要求「今晚就到这」；见 `docs/v6/copy.md` §9-D11。
 10. **规则速览 6 条结构**（V6.1）：第 1 条合并为「6 起飞 · 6 可再掷」，第 4 条新增「先到家就收尾」（`data-test="rules-end"`），条数仍为 6；见 `copy.md` §1.6 / §9-D10。
+11. **舷窗高度受 UI 限制**（V6.2）：舷窗放在顶部 HUD 与棋盘之间，小屏 / 棋盘偏上时会被压矮（最小约 64–66px），不是固定设计比例；见 §17.6。
+12. **桌面反馈落在桌板前沿**（V6.2）：涟漪 / 聚光 / 心形脉冲定位在棋盘下沿的桌板边（`board.top + board.height + 11~12px`），不压在棋盘格上；见 §17.6。
+13. **`setSound` 目前只记录状态**（V6.2）：`App.CabinScene.setSound` 接受并保存开关，但机舱场景没有新增独立音效；骰子 / 走子音效仍由 `App.BoardView` 负责，见 §17.6。
 
 > 改上面任何一条之前，先改 `docs/v6/impl-freeze.md`（或让 Lead 出 ADR），再改本文与实现，避免文档和代码各说各话。
+
+## 17. 视觉与动画：夜航客舱（V6.2）
+
+> 实现：`app/src/view/cabin.js`；集成：`app/src/ui/screens/table.js`。冻结口径：`docs/v6/impl-freeze-cabin.md`。
+> 本节只写「场景怎么分层、镜头对哪些事件有反应、reduced 与性能边界」，不重复 §15 的颜色令牌。
+
+### 17.1 场景分层（从后到前）
+
+宿主是 `.v6-table` 内的 `.v6-cabin`（`data-test="cabin"`）：`position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none`。`cabin.js` 再往里挂 `.cabin-root`（`data-test="cabin-scene"`，`aria-hidden="true"`），根节点与所有子元素都是 `pointer-events:none !important`。
+
+| 层 | 实现 | 内容 / 作用 |
+|---|---|---|
+| 舱壁 | `.cb-wall` / `.cb-seams` / `.cb-curve` / `.cb-bins` | 深靛→酒红渐变舱壁、竖向壁板接缝、顶部行李舱弧线与卡扣/小灯、四周压暗 |
+| 舷窗 | `.cb-window` ×2（左/右）+ `.cb-win-inner` canvas | 圆角窗框、遮光板、玻璃反光；Canvas 画夜空、月/晨光、星、云、地平线、机翼与机翼灯（约每 2.4s 闪一次） |
+| 阅读灯 / 顶部光 | `.cb-lampglow` ×2、`.cb-lampcone`、`.cb-toplight` | 阅读灯呼吸（4.5s）、灯锥落在桌板；收家时顶部灯带亮起 |
+| 小桌板 | `.cb-tray`（含 `.cb-mat` / `.cb-trayglow` / `.cb-tray-latch`） | 浅木桌板 + 垫布 + 厚度投影，向棋盘四周外扩（左右 14px、下 36px）；棋盘精确坐在垫布上，布局不变 |
+| 光效 | `.cb-warm` / `.cb-dawn` / `.cb-turnlamp` / `.cb-spot` / `.cb-ripple` / `.cb-heart` / `.cb-flash` / `.cb-dim` | 热度暖光、收家晨光、换手侧灯、题卡聚光、落点涟漪、叠机心形脉冲、击落闪白、题卡/暂停压暗 |
+| 前景 | `.cb-dust` canvas、`.cb-vignette`、`.cb-grain`、`.cb-reflect` | 灰尘 / 星尘、暗角、颗粒、玻璃反光；粒子数量随视口宽（16–32）与 reduced 调整 |
+| UI 层（不属于场景） | `.v6-boardwrap` z-index 1；HUD / 状态 / 回合条 / 掷骰条 / 行动区 z-index 2；题卡/小游戏宿主 z-index 30+ | 始终在场景之上；场景不接收点击，也不改棋盘 52 格与按钮的点击路径 |
+
+- 相机只改 `.v6-board`（`boardEl`）的 `transform`（`translate3d / scale / rotate`，跳/飞时加 `perspective + rotateX`），并在 mount / unmount 时保存、恢复原有 `transform / will-change / transform-origin / backface-visibility`。
+- 场景层通过 `--cb-cam-x / --cb-cam-y` 做视差：舷窗与桌板小幅反向/同向位移，制造「镜头在动」的层次，但不改布局。
+- `.v6-table` 背景改为暗色兜底（`#08060F`），场景缺席时主桌仍是可读的暗底，不会露白。
+
+### 17.2 相机事件表
+
+事件来自 `table.js` 的棋盘事件序列，`CabinScene.play(events)` 与 `BoardView.play(events)` 并行；场景只做画面回应，不等待、不阻塞棋局。
+
+| 事件 | 镜头 / 场景反应 | 关键参数（`cabin.js`） | reduced |
+|---|---|---|---|
+| `dice` 掷骰 | 轻推近 + 舱灯闪一下 | `translateY -4px, scale 1.03`；进入 260ms、保持 900ms、回位 420ms | 无 |
+| `takeoff` 起飞 | 跟拍落点 + 窗外云层加速 | `followTo(landing, scale 1.02)`；进入 360ms、保持 460ms、回位 560ms；`boost=1` | 无 |
+| `move` 走子 | 按落点方向平移 + 轻推近 + 落点涟漪 | 位移 6–12px（按方向长度），`scale 1.02`；进入 500ms、保持 280ms、回位 700ms | 无 |
+| `jump` / `fly` 跳/飞 | 跟拍 + 轻微仰角；飞时窗外星光拉线 | `scale 1.02, rotateX 0.6deg`；进入 420ms、保持 260/280ms、回位 560/600ms；`streak=1` | 无 |
+| `capture` 击落 | 画面震动 + 闪白 + 舱灯闪 + 桌沿红波纹 | 震动 `±6px / ±0.4deg / 320ms`；闪白 0.62 → 0（520ms 淡出） | 无 |
+| `stack` 叠机 | 轻推近 + 心形脉冲光 + 涟漪 | `scale 1.012`；进入 240ms、保持 240ms、回位 420ms | 无 |
+| `turn` 换手 | 镜头移向当前玩家一侧；该侧阅读灯亮起 | `x = -8px`（a 左）/ `+8px`（b 右）；进入 600ms、保持 240ms、回位 520ms | 无 |
+| `prompt` / `minigame` 题卡/小游戏 | 拉远 + 压暗 + 桌沿聚光 | base `scale 0.99`（520ms）；`is-overlay` 压暗；聚光落在落点或题卡格 | 只保留压暗/聚光的透明度过渡 |
+| `heat` 热度 | 舱灯从琥珀变暖、云层散开一点、轻推 | `warm = heat/100`（600ms）；跨阶段时 `cloudPart +0.32`；`scale 1.01` | 暖度直接到位，无推近 |
+| `win` 收家 | 拉远 + 窗外 8s 日出 + 顶灯亮起 + 星尘落下 | base `scale 0.97`（900ms）；`dawn 0→1`（8000ms） | 日出直接到位，无镜头 |
+| `safe` 安全词 | 压暗、镜头缓回正，无庆祝特效 | `is-safe` 压暗 0.85；base 回 0（800ms） | 只保留压暗 |
+| `ledger` / `ending-start` 收尾 | 压暗；若无赢家则轻微拉远 | `is-ended` 压暗 0.45；无赢家时 base `scale 0.99`（700/600ms） | 只保留压暗 |
+
+- 相机 `rAF` 只在动画期间运行，动画结束即释放；待机的 ±0.7px 轻浮动由场景循环在非 reduced 时叠加。
+- `data-cabin-cam` 记录最近一次 bump/shake 的标记（`rest` 表示回位）；`win` / `prompt` 使用 base 相机，不单独改这个标记——验收以 `.v6-board` 的 `style.transform` 是否变化为准。
+- 题卡 / 小游戏关闭后场景会恢复；另有 60s 定时清理作为防御（避免压暗态残留），真实题卡层不受影响。
+
+### 17.3 减少动画（reduced）
+
+- 触发条件：设置里的「减少动画」（`table.js` 转发 `setReduced`）**或**系统 `prefers-reduced-motion: reduce`；后者命中时即使设置关闭也保持 reduced（以系统为准）。
+- 生效表现：`data-cabin-reduced="1"`、根节点加 `is-reduced`；不创建相机动画、不震动、不闪白/波纹/心形脉冲；棋盘的 `transform` 被清空并保持空；场景只静态绘制一帧，不跑场景 rAF；以 reduced 挂载时粒子数量减半（运行中切换则粒子静止、不重建）；暖度/晨光直接到目标值；只保留 `opacity/filter` 的 100–200ms 过渡。
+- `play()` 在 reduced 下立即 resolve（返回 `{reduced:true, planned:0}`），不排队、不延迟棋局。
+- 运行时切换立即生效：关闭 reduced 会重启场景循环；开启 reduced 会停循环、清相机、重绘静态帧。
+
+### 17.4 性能预算
+
+| 项 | 做法 / 目标 |
+|---|---|
+| Canvas 分辨率 | 舷窗 DPR ≤ 2；灰尘层 DPR ≤ 1.5；两块窗 canvas + 一块灰尘 canvas，不额外建 canvas |
+| 绘制量 | 每窗 22 颗星 + 4 团云；热度高时最多再加 8 颗星；宽度决定粒子数 16–32（以 reduced 挂载时减半） |
+| 帧率 | 可见时场景约 30fps（帧间隔 <31ms 跳过绘制）；相机只在自己的动画期间跑 rAF，结束即释放 |
+| 页面隐藏 | `visibilitychange` → `data-cabin-paused="1"`，停场景 rAF、停相机、清 transform；回到前台再启动 |
+| 长帧目标 | 连续走子时长帧（>25ms）占比 ≤5%（冻结单目标；实测以 QA 的 `reports/v6/qa-perf.md` 为准） |
+| 布局抖动 | 相机只写 `transform` / CSS 变量；测量棋盘/格位时临时 `transform:none` 再恢复，不触发重排循环 |
+| 资源 | 不引外部图片 / 字体 / JS；噪点用内联 SVG data URI；首屏体积预算沿用 ADR-012（index gzip ≤140KB），实际体积与达标情况看 `reports/v6/` |
+
+### 17.5 集成契约与降级
+
+- `table.js` 在 `.v6-table` 里放 `<div class="v6-cabin" data-test="cabin">`；`mountCabin()` 调 `App.CabinScene.mount(cabinHost, { boardEl, reduced, sound, names })`，`boardEl` 是 `.v6-board`。
+- `commit` 时 `playBoard(events)` 与 `CabinScene.play(events, { state })` 并行；场景返回的 Promise 永不 reject（reduced 立即 resolve），`table.js` 仍挂 `.then(null, …)` 兜底。
+- 状态更新后调 `CabinScene.setMood({ heat, stage, turn, winner, phase, overlay })`；`overlay` 在题卡 / 小游戏打开时为 true。
+- `App.CabinScene` 缺失、`mount` 返回 `null` 或抛错：主桌照常工作（场景宿主保持空白 + 暗色兜底背景），不弹阻塞提示。`unmount()` 恢复宿主与棋盘的原始样式。
+- 调试钩子：`[data-test="cabin-scene"]`、`data-cabin-version="6.2.0"`、`data-cabin-reduced`、`data-cabin-cam`、`data-cabin-mood="night|dawn"`、`data-cabin-dawn`、`data-cabin-paused`；`App.CabinScene._debug()` 返回相机 / 场景 / 布局快照（仅自测，不是稳定契约）。
+
+### 17.6 已知限制（V6.2）
+
+1. **舷窗高度受 UI 限制**：舷窗只能放在顶部 HUD 与棋盘之间的空档里；棋盘偏上或屏幕矮（如 320×640）时窗高被压到最小约 64–66px，观感比设计稿扁——为了不挤占棋盘与按钮，这是有意的取舍。
+2. **桌面反馈在桌板前沿**：棋盘盖住了桌板中心，所以涟漪 / 聚光 / 心形脉冲被定位在棋盘下沿的桌板边上（`board.top + board.height + 11~12px`），读作「桌沿回应」，不是棋子脚下的精确位置。
+3. **相机只是棋盘的 2.5D transform**：没有真正的 3D 场景与景深；舷窗/桌板的视差只是 CSS 变量位移，幅度刻意很小。
+4. **`setSound` 只保存开关**：场景目前不新增独立音效；声音仍由棋盘/UI 层负责，关闭声音后所有状态文本仍完整。
+5. **收家 / 题卡的镜头是 base 相机**：`win` 与 `prompt` 走 base 动画，不写 `data-cabin-cam` 事件标记；验收看 transform 或 `data-cabin-mood="dawn"`，不要只等属性变化。
+6. **视觉基线会变**：V6.2 有意重做主桌背景，`table` 视觉基线需要更新；`boot / prompt / ledger` 只有在确有变化时才更新（见 `reports/v6/qa-visual.md`）。
+7. **场景是装饰层**：`aria-hidden`、不接收点击、不参与玩法；所有状态与操作仍在棋盘与 UI 层，关掉场景不影响一局。
