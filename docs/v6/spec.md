@@ -1,10 +1,10 @@
-# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 变更）
+# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 / V7 变更）
 
 - 作者：PA（产品分析）
-- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**
-- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**。§10 的旧拍板记录保留作历史，与 §0 / §0.1 冲突处一律以 §0 / §0.1 与对应冻结单为准。
-- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）；上游：`docs/v6/audit.md`（本文件每个模块都能回溯到 AUD 编号）；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
-- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`。
+- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**；**V7 同步：2026-11-18**
+- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**；**V7「云海机舱 · 45° 格子剧场」已实现**（镜头链 / 45° 格子舞台 / 三主题 / 小熊，规则不变），增量与 AC 见 **§0.2**。§10 的旧拍板记录保留作历史，与 §0 / §0.1 / §0.2 冲突处一律以 §0 / §0.1 / §0.2 与对应冻结单为准。
+- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）、`task-32`（V7 文档同步）；上游：`docs/v6/audit.md`、`docs/v7/impl-freeze.md`；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
+- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`；V7 的镜头 / 舞台 / 主题用 `AC-V7-<n>`。
 - **红线**：不修改 `app/src/data/cards.js` 题库原文；不新增露骨文案；不引入账号/云同步；不破坏现有存档与安全词；边界永远优先于尺度。
 
 ---
@@ -63,6 +63,56 @@
 - 不为机舱新增外部图片、字体、音效资源；`setSound` 仅沿用现有开关。
 - 不做横屏 / 平板布局；320–430 竖屏仍是验收范围。
 - 不在本版更新 `boot / prompt / ledger` 的视觉基线（除非确有变化）。
+
+---
+
+## 0.2 V7 变更（2026-11-18，云海机舱 · 45° 格子剧场）
+
+> 背景：用户拍板「**第三人称跟拍 + 第一人称 POV 两者都要**」；主题 = **云海机舱**；小熊 = **随主题换装**；每回合 **5–8 秒**；**直接全量**。
+> 唯一协调口径：`docs/v7/impl-freeze.md`。**本节只写表现层增量**：规则、数值、题库、存档结构、边界与安全词与 V6.2 完全一致，不因本版改变任何一局的结果或续玩方式。
+
+### 0.2.1 范围与不变量
+
+1. **每回合镜头链**：`overview → roll →（多子可走时回 overview 等选子）→ pov → chase → land → cell45 → bear → return`；状态写在 `.v6-table` 的 `data-cinema-state` 上；整条 **5–8 秒**（不含答题）。
+2. **第一人称 POV + 第三人称跟拍**：POV 是固定机位的前景（机头 / 机翼 / 速度线 / 云掠过 + 棋盘倾斜）；跟拍按目标格方向平移 / 缩放并让目标格发光；落地有尘土 / 涟漪 / 轻震。**不做自由视角**，不改棋盘可点区域。
+3. **45° 格子舞台（CellStage）**：落在题卡 / 命运 / 收尾 / 进航时，棋盘压暗、目标格升到 45° 舞台；左列 45° 格面 + 小熊，右列暖纸内容卡。430 宽约 28% / 68%，320 宽约 22% / 74%；长文本卡内滚动、按钮固定；安全词与暂停永远在舞台之上。
+4. **向导小熊**：单只程序化 SVG，随主题换装（`pilot / starlight / paper`）；探头 / 眨眼 / 耳朵抖 / 举牌；做了→点头、放过→放下牌子（不评判）；`aria-hidden`，不承载可读文本。
+5. **三个主题**：`cloud`（云海机舱，默认）/ `star`（星轨夜航）/ `paper`（纸雕童话）；门厅「今晚的桌面」三选一（`data-test="theme-cloud|star|paper"`），设置页也可切换；写 `settings.theme`，刷新记住；主题与玩家预设（名字 / 颜色 / 尺度）独立，可组合。
+6. **主题只改画面**：不改 52 格拓扑、题卡内容、规则、边界与安全词；主桌机舱 / 棋盘本体的固定配色不在本版重绘（见 §0.2.3）。
+7. **快进**：镜头动画中显示「快进」（`data-test="cinema-skip"`）；点按后当前阶段立即到终态，后续阶段各约 130ms 直接到终态，直到回 `overview`；不影响棋局结果。
+8. **reduced**：系统 `prefers-reduced-motion` 或设置「减少动画」命中时，无 POV / 跟拍 / 震动 / 闪白 / transform；各阶段 160ms 级淡入，格子舞台静态出现；`data-cinema-reduced="1"`、主桌 `data-reduced="1"`。
+9. **表现层解耦与降级**：`App.Cinema` 独占 `boardEl.transform`（`CabinScene.setCameraEnabled(false)` 后退到场景视差 / 灯光）；`CellStage` 缺失 → 回退 `PromptCard`；`Themes` 缺失 → `cloud`；`Bear` 缺失 → 无熊布局；任一层失败都不阻塞棋局。
+10. **构建 / 版本**：`App.version = "7.0.0"`；`app/index.template.html` 的 title/og 为 V7；`manifest.webmanifest` name 为 V7；构建模块表按 `themes → bear → … → cabin → cinema → … → prompt-card → cell-stage → table` 排列，并有顺序闸门。
+11. **性能**：首屏预算沿用 ADR-012（index gzip ≤140KB；首屏 ≤180KB）；20 回合连续走子长帧（>25ms）≤5%；页面隐藏暂停；主路径 0 pageerror / 0 console error。
+12. **V6 回归**：V6.1 / V6.2 全部 E2E 用例与引擎单测必须保持全绿；`couple2.*` 键名、`v:2` 存档结构、`takeoffMiss` 兼容、安全词机制不变。
+
+### 0.2.2 验收标准（V7）
+
+| ID | 优先级 | 需求 | 可执行验收标准 |
+|---|---|---|---|
+| V7-1 | P0 | 镜头链状态可断言 | AC-V7-1 一次普通回合的 `data-cinema-state` 依次出现 `overview → roll → pov → chase → land`，题卡打开后出现 `cell45 → bear`，处理完回到 `return → overview`；多子可走时在 `overview` 等待选子；每个状态至少 1 张截图，`App.Cinema._debug().chain` 可核对顺序 |
+| V7-2 | P0 | POV 与第三人称跟拍都出现 | AC-V7-2 `[data-test="cinema-pov"]` 在 POV 阶段可见（class `on` / opacity > 0），且 `.v6-board` 的 inline `transform` 与俯瞰时不同；`chase` 阶段 `transform` 继续随目标方向变化，目标格 `[data-test="cinema-glow"]` 可见；POV 期间棋盘仍不可被 Cinema 拦截点击 |
+| V7-3 | P0 | 落地与 45° 格子舞台 | AC-V7-3 落地时 `[data-test="cinema-dust"]` / `"cinema-ripple"` 出现；题卡等待时 `[data-test="cell-stage"]` 存在，`data-kind` / `data-theme` / `data-outfit` 可读，`cell-type` 与 `cell-index`（有格位信息时）可见；舞台根 `pointer-events:none`、内容卡可点；关闭后棋盘恢复可点 |
+| V7-4 | P0 | 小熊与随主题换装 | AC-V7-4 `[data-test="bear"]` 存在且 `aria-hidden="true"`；`data-outfit` 与主题对应（cloud→`pilot`、star→`starlight`、paper→`paper`）；点「做了」后 `data-mood="nod"`、点「放过」后 `data-mood="put"`；小熊节点不含可读正文 |
+| V7-5 | P0 | 三主题与记忆 | AC-V7-5 门厅有 `theme-cloud / theme-star / theme-paper` 三张卡；点选后 `<html>` / `<body>` / `.v6-table` 的 `data-theme` 与主题一致，主题变量（如 `--bg0`、`--v7-cta`）发生变化；刷新后仍选中同一主题（`settings.theme` 保留）；设置页 `settings-theme-*` 可切换；换主题不影响名字 / 颜色 / 尺度 |
+| V7-6 | P0 | 内容卡兼容与长文本 | AC-V7-6 CellStage 内存在 `prompt-card / prompt-kicker / prompt-actor / prompt-done / prompt-skip / prompt-fate-option / prompt-fate-skip / prompt-collapse / prompt-restore` 等旧选择器；做了 / 放过 / 命运二选一 / 收尾都能完成并回到俯瞰；长文本时 `data-scrollable="1"` 或滚动区 `scrollHeight > clientHeight`，底部按钮始终可见；安全词与暂停 hit-test 不被舞台遮挡 |
+| V7-7 | P0 | 快进到终态 | AC-V7-7 镜头动画期间 `[data-test="cinema-skip"]` 可见、`.v6-table` 的 `data-cinema-skip="1"`；点按后当前阶段在约 300ms 内结束，后续镜头不再等 5–8s；棋盘演出也到终态；快进后仍能正常开题卡 / 收尾，不悬挂 |
+| V7-8 | P0 | reduced 全关 | AC-V7-8 设置「减少动画」或系统 `prefers-reduced-motion` 下：`data-cinema-reduced="1"`、主桌 `data-reduced="1"`；无 POV 可见、`.v6-board` 的 `transform` 为空、无震动 / 闪白；各阶段 160ms 级淡入；格子舞台 `data-reduced="1"` 静态出现；关闭 reduced 后镜头链恢复 |
+| V7-9 | P0 | 320–430 不破版 | AC-V7-9 320×568 / 360×640 / 390×844 / 430×932 四种视口：无横向滚动；舞台左列 / 内容卡比例符合 22%/74%（≤360）与 28%/68%（430）；关键按钮 ≥44px；92 格（或当前可点格）不被 Cinema / CellStage 拦截；长文本可滚动；安全词 / 暂停不被遮挡 |
+| V7-10 | P0 | 性能与生命周期 | AC-V7-10 20 回合连续走子的长帧（>25ms）占比 ≤5%（目标值，实测以 `reports/v6/qa-perf.md` 为准）；页面切后台后当前阶段收束、rAF 停止，回前台恢复；主路径 0 pageerror / 0 console error；构建门 index gzip ≤140KB、首屏 ≤180KB |
+| V7-11 | P0 | 降级不阻塞 | AC-V7-11 强制 `App.Cinema = null`、`App.CellStage = null`、`App.Themes = null`、`App.Bear = null` 四种情况下，主桌仍能完成「掷骰 → 选子 / 自动走 → 题卡（回退 PromptCard）→ 收尾」；安全词仍可用；不出现白屏或阻塞弹窗 |
+| V7-12 | P0 | V6 规则零回归 | AC-V7-12 V6.1 / V6.2 的全量 E2E 用例（全到家结束、两回合保底、先到家、回顾、暂停 / 安全词、小游戏、响应式、离线、机舱场景）全部通过；引擎单测 0 failed；存档键名、`v:2` 结构、`takeoffMiss` 兼容逻辑不变 |
+| V7-13 | P0 | 验收以报告为准 | AC-V7-13 结论与数字引用 `reports/v6/qa-report.md`、`qa-e2e.md`、`qa-perf.md`、`qa-visual.md`（V7 用例）；spec / 发布说明不写未跑过的测试数字 |
+
+### 0.2.3 明确不做（V7）
+
+- 不改任何规则、数值、题库、文案与存档结构；不新增玩法事件；不改安全词交互。
+- 不做自由视角 / 转视角 / 手势控制相机；不做真 3D 引擎，45° 舞台只是 CSS 3D 透视。
+- 不改造小游戏面板本身；小游戏不进入 45° 舞台（沿用旧覆盖层）。
+- 不为主题重绘主桌机舱（舱壁 / 舷窗 / 桌板）与棋盘 SVG 本体；不按主题切换机舱 / 棋盘粒子（主题粒子是预留元数据）。
+- 不新增外部图片 / 字体 / 音效素材；小熊与格面全部程序化 SVG/CSS。
+- 不做横屏 / 平板专属布局；320–430 竖屏仍是验收范围。
+- 不换线上域名、发布方式与 SW 缓存策略；不引入新的数据上报。
 
 ---
 
@@ -387,6 +437,7 @@ V6.1 起结束条件是「一方全部飞机到家」，一局自然对局约 40
 5. **测试钩子**：关键控件与状态需有稳定标识（如 `data-test`），另需可注入的固定骰子/固定种子用于复现；这是对 FE/BE 的交付要求（不指定实现方式）。
 6. **人工验收**：真机 iOS Safari + Android Chrome 各一次（长按、安全区、PWA 安装、离线）；PA 不覆盖真机结论，QA 出具报告。
 7. **V6.2 沉浸主桌**：按 §0.1.2 的 `AC-V62-1..10` 增补机舱层、pointer-events、相机事件、reduced、320–430、性能与降级用例；现有 V6.1 用例必须全绿（V62-8）。视觉基线只更新 `table`（V62-9），性能与截图证据放 `reports/v6/`。
+8. **V7 镜头链 / 格子舞台 / 三主题**：按 §0.2.2 的 `AC-V7-1..13` 增补——① 用 `data-cinema-state` 断言 `overview → roll → pov → chase → land → cell45 → bear → return`；② POV / 跟拍 / 目标格发光 / 落地；③ CellStage 兼容旧 `prompt-*` 选择器与长文本滚动；④ 三主题切换、`data-theme` / 变量 / 小熊 `data-outfit` / 刷新保持；⑤ 快进与 reduced；⑥ 320–430 与安全词 / 暂停 hit-test；⑦ 性能与降级。旧 V6.2 的 CabinScene 相机断言改为以 `data-cinema-state` 和 `.v6-board` 的 `transform` 为准（V6.2 相机只在 Cinema 缺失时兜底）；V6.1 / V6.2 全量回归必须全绿，视觉基线按 V7 重建。
 
 ---
 

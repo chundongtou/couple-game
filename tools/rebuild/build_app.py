@@ -71,6 +71,8 @@ JS_MODULES = [
     "src/core/motion.js",
     "src/core/safe.js",
     "src/core/ui.js",
+    "src/ui/themes.js",          # V7：主题表/App.Themes（core 之后、boot/table 之前）
+    "src/ui/bear.js",            # V7：向导小熊（themes 之后、CellStage/table 之前）
     "src/engine/flight-rules.js",
     "src/engine/flight-board.js",
     "src/engine/flight-meta.js",
@@ -80,8 +82,10 @@ JS_MODULES = [
     "src/engine/flight-engine.js",
     "src/view/board.js",
     "src/view/cabin.js",
+    "src/view/cinema.js",        # V7：镜头链 App.Cinema（cabin 之后）
     "src/ui/router.js",
     "src/ui/overlay/prompt-card.js",
+    "src/ui/overlay/cell-stage.js",  # V7：45° 格子舞台 App.CellStage（prompt-card 之后，作旧卡 fallback 的替代）
     "src/ui/overlay/minigame.js",
     "src/ui/share.js",
     "src/ui/screens/boot.js",
@@ -352,6 +356,28 @@ def assert_module_order(mods):
         die("JS_MODULES 顺序错误：src/engine/flight-meta.js 必须在 src/engine/flight-engine.js 之前")
 
 
+# V7 依赖顺序闸门：先定义后使用（模块靠加载时赋值的 App.* 互相引用）。
+# 任一侧文件缺失（并行开发期）时跳过，交给 bundle() 的 WARN/--strict 处理。
+V7_ORDER_RULES = (
+    ("src/ui/themes.js", "src/ui/bear.js"),
+    ("src/ui/themes.js", "src/ui/screens/boot.js"),
+    ("src/ui/themes.js", "src/ui/screens/table.js"),
+    ("src/ui/bear.js", "src/ui/overlay/cell-stage.js"),
+    ("src/ui/bear.js", "src/ui/screens/table.js"),
+    ("src/view/cinema.js", "src/ui/screens/table.js"),
+    ("src/ui/overlay/prompt-card.js", "src/ui/overlay/cell-stage.js"),
+    ("src/ui/overlay/cell-stage.js", "src/ui/screens/table.js"),
+)
+
+
+def assert_v7_order(mods):
+    for first, later in V7_ORDER_RULES:
+        if first not in mods or later not in mods:
+            continue
+        if mods.index(first) > mods.index(later):
+            die("JS_MODULES 顺序错误：%s 必须在 %s 之前（V7 依赖）" % (first, later))
+
+
 # --------------------------------------------------------------------------- 构建
 def build(out, release, board, strict, split_screens=False,
           budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDGET,
@@ -369,6 +395,7 @@ def build(out, release, board, strict, split_screens=False,
         print("[WARN] JS_MODULES 有重复项，已去重（顺序不变）: %s"
               % ", ".join(deduped_js + deduped_screens))
     assert_module_order(modules)
+    assert_v7_order(modules)
     if split_screens:
         modules = [m for m in modules if m not in screens_mods]
     css, missing_css = bundle(CSS_FILES, "css", required=True, strict=strict)

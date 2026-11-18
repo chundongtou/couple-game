@@ -26,6 +26,9 @@
   ];
   var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   var MINI_NAME = { thermo: "温度计", "truth-wheel": "真心话转盘", "dare-wheel": "大冒险转盘" };
+  /* V7 镜头编排：把引擎事件流拆成 dice / motion / rest 三段（冻结单 §4.4）。
+   * motion 只放真正带空间位移的事件，chase 的终点格从这段里算。 */
+  var MOTION_TYPES = { takeoff: 1, move: 1, jump: 1, fly: 1, capture: 1, stack: 1 };
   /* 图例（copy §2.6 + §2.5 的格名说明；V6.1：起飞规则补保底） */
   var LEGEND = [
     ["起飞格", "从这里起飞：掷出 6；连续两次没起飞，这一掷任意点数保底起飞"],
@@ -191,7 +194,26 @@
   /* ---------- 小工具 ---------- */
   function now() { return Date.now(); }
   function settings() { try { return App.Store.getSettings() || {}; } catch (e) { return {}; } }
-  function reduced() { return !!settings().reduced; }
+  /* V7：系统「减少动画」也必须生效（QA P1）。设置开关与系统偏好是 OR 关系。 */
+  function systemReduced() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (e) { return false; }
+  }
+  function reduced() { return !!settings().reduced || systemReduced(); }
+  function docHidden() { try { return !!document.hidden; } catch (e) { return false; } }
+  /* 页面隐藏时等待恢复：table 的编排在下一段开始前必须经过这里 */
+  function whenVisible() {
+    if (!docHidden()) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var on = function () {
+        if (docHidden()) return;
+        try { document.removeEventListener("visibilitychange", on); } catch (e) {}
+        resolve();
+      };
+      try { document.addEventListener("visibilitychange", on); } catch (e) { resolve(); }
+    });
+  }
   function soundOn() { return settings().sound !== false; }
   function sfx(name) { try { if (App.Audio && App.Audio.play) App.Audio.play(name); } catch (e) {} }
   function haptic(kind) { try { if (App.UI && App.UI.haptic) App.UI.haptic(kind); } catch (e) {} }
@@ -400,6 +422,10 @@
       var miniClose = null;
       var openKey = null;
       var boardReady = false;
+      var cinemaReady = false;
+      var skipRequested = false;
+      var cellStageOpen = false;
+      var bearTimer = null;
       var ticker = null;
       var finishTimer = null;
       var owner = U.uid();
@@ -546,6 +572,11 @@
         var c = cabinApi();
         return !!(c && typeof c[fn] === "function");
       }
+      /* V7 性能：Cinema 的 POV/跟拍期间让 CabinScene 停画布/关重混合层 */
+      function cabinSetCinematic(on) {
+        if (!cabinHas("setCinematic")) return;
+        try { cabinApi().setCinematic(!!on); } catch (e) {}
+      }
       function mountCabin() {
         if (!cabinHost) return;
         var c = cabinApi();
@@ -555,10 +586,126 @@
             boardEl: boardEl,
             reduced: reduced(),
             sound: soundOn(),
-            names: (state && state.names) || null
+            names: (state && state.names) || null,
+            /* V7：默认先让 CabinScene 的 V6.2 相机兜底；Cinema 挂载成功后再 setCameraEnabled(false) */
+            cameraEnabled: true
           });
         } catch (e) {
           if (window.console) console.warn("[table] cabin mount 失败，主桌继续", e);
+        }
+      }
+      /* ---------- V7 电影镜头（App.Cinema，fe-director；缺席/抛错都不阻塞主桌） ----------
+       * 契约（docs/v7/impl-freeze.md §4.1）：mount(host,{boardEl,cabinHost,reduced,sound,theme,onSkip}) /
+       * overview / roll / pov / chase / land / returnToOverview / setTheme / setReduced / setSound / skip / unmount。
+       * 相机分工：Cinema 独占 .v6-board 的 transform；CabinScene 只做场景视差/灯光（setCameraEnabled(false)）。 */
+      function cinemaApi() {
+        try { return (App && App.Cinema) || null; } catch (e) { return null; }
+      }
+      function cinemaHas(fn) {
+        var c = cinemaApi();
+        return !!(c && typeof c[fn] === "function");
+      }
+      /* 所有 Cinema 调用都返回 Promise（永不 reject）；模块缺失时返回 resolved null，主桌照常走 V6.2 */
+      function cinemaCall(fn, a, b) {
+        if (!cinemaReady || !cinemaHas(fn)) return Promise.resolve(null);
+        try {
+          var p = cinemaApi()[fn](a, b);
+          if (p && typeof p.then === "function") return p.then(null, function () { return null; });
+          return Promise.resolve(p);
+        } catch (e) {
+          if (window.console) console.warn("[table] cinema " + fn + " 失败（已忽略）", e);
+          return Promise.resolve(null);
+        }
+      }
+      function cinemaStage(name) {
+        if (!cinemaReady || !cinemaHas("stage")) return;
+        try { cinemaApi().stage(name); } catch (e) {}
+      }
+      function themeId() {
+        try {
+          var t = App.Themes && App.Themes.get ? App.Themes.get() : null;
+          if (t && t.id) return t.id;
+        } catch (e) {}
+        try { return settings().theme || "cloud"; } catch (e2) { return "cloud"; }
+      }
+      function applyTheme() {
+        try {
+          if (App.Themes && typeof App.Themes.apply === "function") App.Themes.apply(rootEl, themeId());
+        } catch (e) {
+          if (window.console) console.warn("[table] themes apply 失败（已忽略）", e);
+        }
+        if (cinemaHas("setTheme")) {
+          try { cinemaApi().setTheme(themeId()); } catch (e2) {}
+        }
+        if (rootEl) rootEl.setAttribute("data-reduced", reduced() ? "1" : "0");
+      }
+      /* 系统 prefers-reduced-motion / 设置开关变化：一次同步给所有演出层（QA P1） */
+      function syncReduced() {
+        var r = reduced();
+        try {
+          if (App.BoardView && App.BoardView.setReduced) App.BoardView.setReduced(r);
+        } catch (e) {}
+        try {
+          if (cabinHas("setReduced")) cabinApi().setReduced(r);
+        } catch (e2) {}
+        try {
+          if (cinemaHas("setReduced")) cinemaApi().setReduced(r);
+        } catch (e3) {}
+        try {
+          if (App.CellStage && typeof App.CellStage.setReduced === "function") App.CellStage.setReduced(r);
+        } catch (e4) {}
+        try { if (App.Motion && typeof App.Motion.syncBodyClass === "function") App.Motion.syncBodyClass(); } catch (e5) {}
+        if (rootEl) rootEl.setAttribute("data-reduced", r ? "1" : "0");
+      }
+      /* Cinema 的「快进」：棋盘演出没有公开 skip 时，用 BoardView 支持的 Esc/pointerdown 中断到终态。
+       * 注意：BoardView 的监听器在它自己创建的 .board-v6 根节点上（不是宿主 .v6-board），
+       * 所以事件必须发到 .board-v6（dispatch 不会向下冒泡）。 */
+      function abortBoardNow() {
+        try {
+          var bv = App.BoardView;
+          if (bv && typeof bv.skip === "function") { bv.skip(); return; }
+          var root = (boardEl && boardEl.querySelector(".board-v6")) || boardEl;
+          if (!root) return;
+          if (typeof window.KeyboardEvent === "function") {
+            root.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+          }
+          if (typeof window.PointerEvent === "function") {
+            root.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerId: 1 }));
+          }
+        } catch (e) {}
+      }
+      function onCinemaSkip() {
+        skipRequested = true;
+        abortBoardNow();
+      }
+      /* 快进后，后续每一段棋盘演出也立即中断（BoardView.play 在微任务里才 playing=true） */
+      function playBoardShow(events) {
+        var p = playBoard(events);
+        if (!skipRequested || !events || !events.length) return p;
+        setTimeout(function () { if (alive) abortBoardNow(); }, 30);
+        return p;
+      }
+      function mountCinema() {
+        cinemaReady = false;
+        if (!boardEl) return;
+        var c = cinemaApi();
+        if (!c || typeof c.mount !== "function") return;     /* 模块未就绪：CabinScene 相机继续（V6.2） */
+        try {
+          var inst = c.mount(rootEl, {
+            boardEl: boardEl,
+            cabinHost: cabinHost,
+            reduced: reduced(),
+            sound: soundOn(),
+            theme: themeId(),
+            onSkip: onCinemaSkip
+          });
+          if (!inst) return;                                  /* mount 失败：留给 CabinScene 相机 */
+          cinemaReady = true;
+          /* Cinema 接管 boardEl transform；场景继续做视差/灯光 */
+          if (cabinHas("setCameraEnabled")) cabinApi().setCameraEnabled(false);
+        } catch (e) {
+          if (window.console) console.warn("[table] cinema mount 失败，主桌继续（相机留在 CabinScene）", e);
+          cinemaReady = false;
         }
       }
       /* 镜头遮罩位：true = 题卡/小游戏打开（cabin 会拉远压暗），其余 false（fe-cabin 2026-11-18 对齐） */
@@ -796,12 +943,19 @@
 
       /* ---------- 交互层宿主（题卡/小游戏组件自己是 fixed 层） ---------- */
       function closeHosts() {
+        cellStageOpen = false;
+        if (bearTimer) { clearTimeout(bearTimer); bearTimer = null; }
         try { if (typeof cardClose === "function") cardClose(); } catch (e) {}
         cardClose = null;
-        try { if (typeof miniClose === "function") miniClose(); } catch (e) {}
+        /* V7：CellStage 静态 close 兜底（幂等，不回调 handlers） */
+        try { if (App.CellStage && typeof App.CellStage.close === "function") App.CellStage.close(); } catch (e2) {}
+        try { if (typeof miniClose === "function") miniClose(); } catch (e3) {}
         miniClose = null;
         openKey = null;
-        if (cardHost) cardHost.innerHTML = "";
+        if (cardHost) {
+          cardHost.innerHTML = "";
+          cardHost.removeAttribute("data-ending-card");
+        }
         if (miniHost) miniHost.innerHTML = "";
         if (rootEl) rootEl.classList.remove("v6-overlay");
       }
@@ -829,25 +983,65 @@
         if (openKey === key && cardHost.firstChild) return;
         closeHosts();
         openKey = key;
-        var wrap = document.createElement("div");
-        wrap.className = "v6-cardwrap";
-        cardHost.appendChild(wrap);
         var handlers = {
           done: function () { resolvePrompt("done"); },
           skipped: function () { resolvePrompt("skipped"); },
           /* 命运格（P1）：prompt.options 二选一，另一张放回 */
-          choose: function (cardIndex) { resolvePrompt("done", { cardIndex: cardIndex }); }
+          choose: function (cardIndex) { resolvePrompt("done", { cardIndex: cardIndex }); },
+          /* 功能格/小游戏入口的「继续」：当前等待没有可结算项时只收起舞台，不调引擎 */
+          "continue": function () {
+            var w = state.awaiting || {};
+            if (w.type === "prompt" || w.type === "ending-prompt") resolvePrompt("done");
+            else closeHosts();
+          }
         };
-        if (App.PromptCard && typeof App.PromptCard.open === "function") {
-          try { cardClose = App.PromptCard.open(wrap, prompt, state, handlers); }
-          catch (e) {
-            if (window.console) console.error("[table] prompt", e);
+        /* V7：45° 格子舞台优先；模块缺席/抛错自动回退 PromptCard（V6 行为不变） */
+        var cell = null;
+        try { cell = App.CellStage; } catch (e0) { cell = null; }
+        if (cell && typeof cell.open === "function") {
+          try {
+            cardClose = cell.open(cardHost, prompt, state, handlers);
+            cellStageOpen = true;
+            cinemaStage("cell45");
+            /* 冻结单 §1：cell45 0.6–0.8s 后小熊探头（bear 0.5s） */
+            bearTimer = setTimeout(function () {
+              bearTimer = null;
+              if (!alive || !cellStageOpen) return;
+              cinemaStage("bear");
+            }, 640);
+            if (ending) {
+              cardHost.setAttribute("data-ending-card", "1");
+              /* 旧 QA 兼容：V6 在 wrap 上挂 data-test="ending-card"；CellStage 自己的根是 cell-stage，
+               * 这里补一个不可点的空标记（存在性/可见性断言都能过）。 */
+              var marker = document.createElement("span");
+              marker.className = "v6-ending-marker";
+              marker.setAttribute("data-test", "ending-card");
+              marker.setAttribute("aria-hidden", "true");
+              marker.style.cssText = "position:absolute;inset:0;pointer-events:none";
+              cardHost.appendChild(marker);
+            }
+          } catch (e) {
+            if (window.console) console.error("[table] cell-stage", e);
+            cellStageOpen = false;
+            cardClose = null;
+            if (cardHost) cardHost.innerHTML = "";
+          }
+        }
+        if (!cellStageOpen) {
+          var wrap = document.createElement("div");
+          wrap.className = "v6-cardwrap";
+          cardHost.appendChild(wrap);
+          if (App.PromptCard && typeof App.PromptCard.open === "function") {
+            try { cardClose = App.PromptCard.open(wrap, prompt, state, handlers); }
+            catch (e) {
+              if (window.console) console.error("[table] prompt", e);
+              promptFallback(wrap, prompt, handlers);
+            }
+          } else {
             promptFallback(wrap, prompt, handlers);
           }
-        } else {
-          promptFallback(wrap, prompt, handlers);
+          if (ending) wrap.setAttribute("data-test", "ending-card");
         }
-        if (ending) wrap.setAttribute("data-test", "ending-card");
       }
 
       /* 题卡组件缺席时的最小宿主（只有做了/放过；样式与内容不复制） */
@@ -956,9 +1150,128 @@
         });
       }
 
+      /* ---------- V7 电影编排（冻结单 §4.4） ----------
+       * roll：dice 段（BoardView 与 Cinema.roll 并行）→ choose-piece 回俯瞰等待；
+       *       否则 POV → motion（BoardView 与 Cinema.chase 并行）→ land → 其余事件。
+       * move：POV → motion（并行）→ land → 其余事件（玩家选完子后仍保留 POV，镜头链不断）。
+       * prompt/minigame：结算演出（heat/turn 等）→ returnToOverview。
+       * 每一段都先 playCabin（场景只做视差/灯光），保证舱内节奏与镜头同步。 */
+      function splitEvents(events) {
+        var out = { dice: [], motion: [], rest: [] };
+        var list = Array.isArray(events) ? events : [];
+        for (var i = 0; i < list.length; i++) {
+          var e = list[i];
+          if (!e || typeof e !== "object") continue;
+          if (e.type === "dice") out.dice.push(e);
+          else if (MOTION_TYPES[e.type]) out.motion.push(e);
+          else out.rest.push(e);
+        }
+        return out;
+      }
+
+      function cinematicMotion(motionEvents) {
+        /* 页面隐藏时不要启动下一段镜头；恢复可见后再继续 */
+        return whenVisible().then(function () {
+          if (!alive) return null;
+          if (!motionEvents || !motionEvents.length) {
+            /* 没有位移（不能动/再掷）：镜头直接回俯瞰 */
+            return cinemaCall("overview", { ms: 260 });
+          }
+          return cinemaCall("pov").then(function () {
+            if (!alive) return null;
+            playCabin(motionEvents);
+            return Promise.all([
+              playBoardShow(motionEvents),
+              cinemaCall("chase", motionEvents)
+            ]).then(function () {
+              if (!alive) return null;
+              return cinemaCall("land", motionEvents);
+            });
+          });
+        });
+      }
+
+      function runShow(opts, split, events) {
+        return whenVisible().then(function () {
+          /* V7 性能：整段镜头链（roll/pov/chase/land）让 Cabin 场景停画布，
+           * 结束后再恢复；只影响背景，不影响棋盘/舞台。 */
+          var pauseCabin = cinemaReady && (opts.kind === "roll" || opts.kind === "move");
+          if (pauseCabin) cabinSetCinematic(true);
+          return runShowNow(opts, split, events).then(function (res) {
+            if (pauseCabin) cabinSetCinematic(false);
+            return res;
+          }, function (e) {
+            if (pauseCabin) cabinSetCinematic(false);
+            throw e;
+          });
+        });
+      }
+
+      function runShowNow(opts, split, events) {
+        var kind = opts.kind;
+        var seq;
+        if (kind === "roll") {
+          playCabin(split.dice);
+          seq = Promise.all([
+            playBoardShow(split.dice),
+            cinemaCall("roll", split.dice)
+          ]).then(function () {
+            return whenVisible().then(function () {
+              if (!alive) return null;
+              var wait = state.awaiting || {};
+              if (wait.type === "choose-piece") {
+                /* 多子可走：回俯瞰，等玩家点/选子（镜头链在这里停住） */
+                return cinemaCall("overview", { ms: 320 });
+              }
+              return cinematicMotion(split.motion).then(function () {
+                if (!alive) return null;
+                if (split.rest.length) {
+                  return whenVisible().then(function () {
+                    if (!alive) return null;
+                    playCabin(split.rest);
+                    return playBoardShow(split.rest);
+                  });
+                }
+                return null;
+              });
+            });
+          });
+        } else if (kind === "move") {
+          seq = cinematicMotion(split.motion).then(function () {
+            if (!alive) return null;
+            if (split.rest.length) {
+              return whenVisible().then(function () {
+                if (!alive) return null;
+                playCabin(split.rest);
+                return playBoardShow(split.rest);
+              });
+            }
+            return null;
+          });
+        } else {
+          /* 题卡 / 小游戏 / 收尾结算：棋盘演出照旧；结束前把镜头拉回俯瞰 */
+          seq = whenVisible().then(function () {
+            if (!alive) return null;
+            playCabin(events);
+            return playBoardShow(events);
+          }).then(function () {
+            if (!alive) return null;
+            if (kind === "prompt" || kind === "minigame") {
+              return whenVisible().then(function () { return cinemaCall("returnToOverview"); });
+            }
+            return null;
+          });
+        }
+        return (seq || Promise.resolve(null)).then(null, function (e) {
+          if (window.console) console.warn("[table] 镜头编排失败（棋局继续）", e);
+          return null;
+        });
+      }
+
       function commit(opts) {
         if (busy || finishing) return Promise.resolve(null);
         closeHosts();
+        skipRequested = false;                 /* 每次结算重置「快进」标记 */
         busy = true;
         workText = opts.work || "正在走…";
         hintText = "";
@@ -989,9 +1302,9 @@
         readResult(opts, prev, ret, events, prevHeat);     /* 文本即时更新（≤500ms） */
         if (ended) armFinish();                           /* ⑥ 结束态：完成文本立刻出，不等演出 */
         render();
-        var boardP = playBoard(events);   /* 棋盘演出与机舱镜头并行：场景慢/失败都不拖棋局 */
-        playCabin(events);
-        return boardP.then(function () {
+        var split = splitEvents(events);
+        var showP = runShow(opts, split, events);   /* V7 镜头链：永不 reject；场景慢/失败都不拖棋局 */
+        return showP.then(function () {
           if (!alive) return null;
           busy = false;
           workText = "";
@@ -1283,16 +1596,23 @@
       function onBusSettings(s) {
         s = s || settings();
         try {
-          if (App.BoardView && App.BoardView.setReduced) App.BoardView.setReduced(!!s.reduced);
           if (App.BoardView && App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
         } catch (e) {}
         /* V6.2：设置变化转发给机舱（减少动画 / 音效） */
         try {
-          if (cabinHas("setReduced")) cabinApi().setReduced(!!s.reduced);
           if (cabinHas("setSound")) cabinApi().setSound(s.sound !== false);
         } catch (e) {
           if (window.console) console.warn("[table] cabin settings 失败", e);
         }
+        /* V7：减少动画 / 音效 / 主题 转发给 Cinema；主题同时重新 apply 到主桌根节点 */
+        try {
+          if (cinemaHas("setSound")) cinemaApi().setSound(s.sound !== false);
+          applyTheme();
+        } catch (e2) {
+          if (window.console) console.warn("[table] cinema settings 失败", e2);
+        }
+        /* 设置开关 OR 系统偏好：统一走 syncReduced（Board/Cabin/Cinema/CellStage/Motion） */
+        syncReduced();
       }
 
       rootEl.addEventListener("click", onRootClick);
@@ -1301,9 +1621,22 @@
       window.addEventListener("resize", onResize);
       var offSettings = null;
       try { if (App.Bus && App.Bus.on) offSettings = App.Bus.on("settings", onBusSettings); } catch (e) {}
+      /* 系统「减少动画」偏好变化（无需刷新）：重新同步所有演出层 */
+      var mqReduced = null, onMqReduced = null;
+      try {
+        if (window.matchMedia) {
+          mqReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+          onMqReduced = function () { syncReduced(); };
+          if (mqReduced.addEventListener) mqReduced.addEventListener("change", onMqReduced);
+          else if (mqReduced.addListener) mqReduced.addListener(onMqReduced);
+        }
+      } catch (e) {}
 
       mountBoard();
       mountCabin();
+      mountCinema();
+      applyTheme();
+      syncReduced();
       if (state.phase === "ended" || state.phase === "safe-ended") finish();
       else render();
       paintDuration();
@@ -1334,14 +1667,26 @@
         if (ticker) { clearInterval(ticker); ticker = null; }
         if (finishTimer) { clearTimeout(finishTimer); finishTimer = null; }
         try { if (offSettings) offSettings(); } catch (e) {}
+        try {
+          if (mqReduced && onMqReduced) {
+            if (mqReduced.removeEventListener) mqReduced.removeEventListener("change", onMqReduced);
+            else if (mqReduced.removeListener) mqReduced.removeListener(onMqReduced);
+          }
+        } catch (e) {}
         try { rootEl.removeEventListener("click", onRootClick); } catch (e) {}
         try { boardEl.removeEventListener("board-pick", onBoardPick); } catch (e) {}
         try { boardEl.removeEventListener("board-event", onBoardEvent); } catch (e) {}
         try { window.removeEventListener("resize", onResize); } catch (e) {}
         closeHosts();
-        /* 只有仍是「当前主桌」时才拆棋盘/机舱（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。 */
+        /* 只有仍是「当前主桌」时才拆棋盘/机舱（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。
+         * V7 顺序：Cinema → CabinScene → BoardView。Cinema 先还原 boardEl transform，
+         * 否则 CabinScene.unmount 的 boardPrev 还原会把镜头 transform 写回去。 */
         if (tableOwner === owner) {
           tableOwner = null;
+          if (cinemaHas("unmount")) {
+            try { cinemaApi().unmount(); } catch (e) {}
+          }
+          cinemaReady = false;
           if (cabinHas("unmount")) {
             try { cabinApi().unmount(); } catch (e) {}
           }

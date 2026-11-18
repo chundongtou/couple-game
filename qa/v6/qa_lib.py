@@ -30,7 +30,7 @@ from datetime import datetime
 ROOT = pathlib.Path(__file__).resolve().parents[2]      # couple-game/
 QA_DIR = ROOT / "qa"
 V6_DIR = QA_DIR / "v6"
-DEFAULT_DIST = ROOT / "dist" / "rebuild"
+DEFAULT_DIST = ROOT / "dist" / "rebuild-v7"   # V7 起统一用 dist/rebuild-v7（冻结单/任务卡）
 REPORTS = ROOT / "reports" / "v6"
 SHOTS = V6_DIR / "shots"
 
@@ -479,8 +479,19 @@ def v6_probe(page) -> dict:
 
 
 def is_v6(page) -> bool:
+    """V6+ 就绪判定（V7 复用同一套用例骨架）。
+
+    V7 的 App.version='7.0.0'，旧实现只认 '6' 开头会在探测时误判未就绪；
+    这里改为 major >= 6（探针跑在门厅，此时还没有 data-square）。
+    """
     p = v6_probe(page)
-    return bool(p.get("version", "").startswith("6") or p.get("has_test_hook") or p.get("squares", 0) > 0)
+    ver = str(p.get("version") or "")
+    major = ver.split(".")[0]
+    try:
+        v6_plus = int(major) >= 6
+    except (TypeError, ValueError):
+        v6_plus = False
+    return bool(v6_plus or p.get("has_test_hook") or p.get("squares", 0) > 0)
 
 
 def v6_gap_text(page) -> str:

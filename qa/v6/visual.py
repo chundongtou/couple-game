@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""今晚飞行棋 V6 · 视觉/结构回归（结构化断言 + 关键屏截图基线）。
+"""今晚飞行棋 V7 · 视觉/结构回归（结构化断言 + 关键屏截图基线）。
 
 覆盖：
 - 结构化断言：data-square / data-piece / 状态条 / 回合名 / 题卡 kicker / 回顾统计；
-- 关键屏截图：boot / table / prompt / ledger（390×844）；
+- 关键屏截图：boot / table / prompt（CellStage）/ ledger（390×844）；
+- V7 主题对照：star / paper 的 boot/table/cell 三屏（主题变化基线）；
 - 基线：首次运行写 reports/v6/visual/baseline/*.png（gitignore），后续运行做像素对比
   （容差 1.5% 像素，允许时钟/动画微差）；`--update-baseline` 可显式重建基线。
 
-V6.2（2026-11-18）：
-- 主桌新增「夜航机舱」动态场景（云/星/尘/镜头浮动），逐帧截图会让像素基线抖动；
-  因此 table/prompt 两屏在截图前做「测试侧冻结」：`App.CabinScene.setReduced(true)`
-  （场景静态化，相机复位）+ 暂停 CSS animation/transition；截图后原样解冻。
-  这只是让基线可复现，不改产品行为、不放宽断言；reduced/相机行为由 e2e cabin 组单独验证。
-- boot/ledger 无动态场景，沿用既有基线（仅当确有变化时才重建）。
+V7（2026-11-18）：
+- 主桌改为电影镜头链（Cinema）+ 45° 格子舞台，桌面/题卡视觉全部有意变化 → 基线按 V7 重建；
+- 截图前测试侧冻结：`App.CabinScene.setReduced(true)` + 暂停 CSS animation/transition（镜头不处于过渡期，
+  CellStage 入场动画已结束），只是为了基线可复现，不改产品行为；reduced/镜头行为由 e2e cinema 组验证。
+- boot/table/prompt/ledger + v7-theme-* 全部纳入基线；对比容差 1.5%。
 
 用法：
   python qa/v6/visual.py
@@ -37,6 +37,7 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 BASELINE = Q.REPORTS / "visual" / "baseline"
 ACTUAL = Q.REPORTS / "visual" / "actual"
+V7_AC_VISUAL = "AC-V7-10"   # docs/v7/impl-freeze.md §6：视觉基线按 V7 重建
 SEED_JS = """(() => {
   let s = 20261116;
   const rnd = () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
@@ -54,7 +55,7 @@ FREEZE_JS = """() => {
     if (!s) {
       s = document.createElement('style');
       s.id = 'qa-visual-freeze';
-      s.textContent = '*,*::before,*::after{animation-play-state:paused!important;transition:none!important}';
+      s.textContent = '*,*::before,*::after{animation:none!important;transition:none!important}';
       document.head.appendChild(s);
     }
     return true;
@@ -78,6 +79,10 @@ def ensure_dirs():
 def grab(page, name, full_page=False, freeze=False):
     ensure_dirs()
     path = ACTUAL / ("%s.png" % name)
+    # V7 CellStage 入场动画（0.34s/0.43s）结束再冻结，否则基线会停在中途 translateX/translateY；
+    # prompt 也等字体/卡高自适应（fitStage）稳定后再冻结。
+    if freeze and (str(name).startswith("v7-cell") or str(name) == "prompt"):
+        page.wait_for_timeout(550)
     frozen = False
     if freeze:
         frozen = bool(Q.eval_js(page, FREEZE_JS))
@@ -98,7 +103,7 @@ def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015, fre
         import shutil
         shutil.copyfile(actual, base)
         rec.ok("VIS-BASE-%s" % name, "视觉基线 %s" % name, "首次运行生成基线",
-               "baseline=%s" % base.relative_to(Q.ROOT), ac="AC-V6.2-7", severity="P1",
+               "baseline=%s" % base.relative_to(Q.ROOT), ac=V7_AC_VISUAL, severity="P1",
                evidence=str(actual.relative_to(Q.ROOT)))
         return
     try:
@@ -107,7 +112,7 @@ def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015, fre
         b = Image.open(base).convert("RGB")
         if a.size != b.size:
             rec.fail("VIS-DIFF-%s" % name, "视觉基线 %s 尺寸一致" % name,
-                     "尺寸 %s" % (b.size,), "实际 %s" % (a.size,), ac="AC-V6.2-7",
+                     "尺寸 %s" % (b.size,), "实际 %s" % (a.size,), ac=V7_AC_VISUAL,
                      severity="P1", repro="python qa/v6/visual.py", evidence=str(actual.relative_to(Q.ROOT)))
             return
         diff = ImageChops.difference(a, b)
@@ -118,15 +123,15 @@ def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015, fre
         if ratio <= tolerance:
             rec.ok("VIS-DIFF-%s" % name, "视觉基线 %s 像素差 ≤%.1f%%" % (name, tolerance * 100),
                    "≤%.1f%%" % (tolerance * 100), "changed=%.3f%%（%d px）" % (ratio * 100, changed),
-                   ac="AC-V6.2-7", severity="P1", evidence=str(actual.relative_to(Q.ROOT)))
+                   ac=V7_AC_VISUAL, severity="P1", evidence=str(actual.relative_to(Q.ROOT)))
         else:
             rec.fail("VIS-DIFF-%s" % name, "视觉基线 %s 像素差 ≤%.1f%%" % (name, tolerance * 100),
                      "≤%.1f%%" % (tolerance * 100), "changed=%.3f%%（%d px）" % (ratio * 100, changed),
-                     ac="AC-V6.2-7", severity="P1", repro="python qa/v6/visual.py；对比 reports/v6/visual/{baseline,actual}/%s.png" % name,
+                     ac=V7_AC_VISUAL, severity="P1", repro="python qa/v6/visual.py；对比 reports/v6/visual/{baseline,actual}/%s.png" % name,
                      evidence=str(actual.relative_to(Q.ROOT)))
     except Exception as e:  # noqa: BLE001
         rec.check("VIS-DIFF-%s" % name, "视觉基线 %s 对比" % name, "SKIP",
-                  "可对比", "Pillow 对比失败：%s" % e, ac="AC-V6.2-7", severity="P1")
+                  "可对比", "Pillow 对比失败：%s" % e, ac=V7_AC_VISUAL, severity="P1")
 
 
 def assert_boot(page, rec):
@@ -304,6 +309,80 @@ def assert_ledger(page, rec, names):
                severity="P1", viewport="390x844")
 
 
+def v7_reach_prompt(page):
+    """V7：夹具落到真心话格（ring:2）并点选子，等待 CellStage（bear）出现；返回是否到达。"""
+    if not E._fixture_move(page, "a:0", "ring:0", 2, "a"):
+        return False
+    Q.wait_screen(page, ["table"], timeout=6000)
+    page.wait_for_timeout(400)
+    btns, _ = Q.find_piece_buttons(page)
+    if not btns:
+        return False
+    try:
+        btns[0].click(timeout=4000)
+    except Exception:
+        return False
+    deadline = time.time() + 9
+    while time.time() < deadline:
+        facts = E.v7_cell_facts(page)
+        if facts.get("open") and (facts.get("attrs") or {}).get("bear") == "on":
+            page.wait_for_timeout(200)
+            return True
+        page.wait_for_timeout(100)
+    return False
+
+
+def v7_theme_visuals(browser, base, rec):
+    """V7 主题变化基线：star / paper 的 boot/table/cell 三屏（与 cloud 对照）。"""
+    for theme in ("star", "paper"):
+        seed_js = ("(() => { try { localStorage.setItem('couple2.settings', "
+                   "JSON.stringify({theme:'%s', sound:false})); } catch (e) {} })();" % theme)
+        # 固定随机数：题卡内容/骰子可复现（与主基线同一 seed）
+        ctx = Q.new_context(browser, viewport=(390, 844), dsf=2,
+                            init_script=(SEED_JS + "\n" + seed_js))
+        page = ctx.new_page()
+        ps = Q.PageSession(ctx, page)
+        try:
+            page.goto(base, wait_until="domcontentloaded", timeout=30000)
+            Q.ensure_boot(page, rec, timeout=15000)
+            if params_ok(page, theme):
+                compare_with_baseline(page, rec, "v7-boot-%s" % theme, full_page=True)
+            else:
+                rec.fail("VIS-THEME-%s" % theme, "门厅主题 %s 生效" % theme, "html[data-theme=%s]" % theme,
+                         "未生效", ac="AC-V7-10", severity="P1", viewport="390x844",
+                         repro="预置 theme=%s 打开门厅→读 html[data-theme]" % theme)
+            Q.try_click(page, ["test:mode-quick"], timeout=1500)
+            Q.fill_names(page, E.NAMES)
+            Q.try_click(page, ["test:start"], timeout=6000)
+            if Q.wait_screen(page, ["table"], timeout=9000) != "table":
+                rec.fail("VIS-THEME-%s-table" % theme, "主题主桌可进入", "data-screen=table",
+                         "未进入主桌", ac="AC-V7-10", severity="P1", viewport="390x844")
+                continue
+            page.wait_for_timeout(900)
+            compare_with_baseline(page, rec, "v7-table-%s" % theme, freeze=True)
+            if v7_reach_prompt(page):
+                compare_with_baseline(page, rec, "v7-cell-%s" % theme, freeze=True)
+                Q.try_click(page, E.SEL["prompt_skip"], timeout=3000)
+                page.wait_for_timeout(600)
+            else:
+                rec.skip("VIS-THEME-%s-cell" % theme, "主题格子舞台截图", "未到达题卡",
+                         ac="AC-V7-10", severity="P1", viewport="390x844")
+            if ps.pageerrors or ps.console_errors:
+                rec.fail("VIS-THEME-%s-errors" % theme, "主题视觉路径无 JS 错误", "0/0",
+                         json.dumps({"pageerrors": ps.pageerrors[:3],
+                                     "console_errors": ps.console_errors[:3]}, ensure_ascii=False),
+                         ac="AC-V7-10", severity="P1", viewport="390x844")
+        finally:
+            ctx.close()
+
+
+def params_ok(page, theme):
+    try:
+        return page.evaluate("() => document.documentElement.getAttribute('data-theme')") == theme
+    except Exception:
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", default=str(Q.DEFAULT_DIST))
@@ -423,6 +502,10 @@ def main():
                 else:
                     rec.skip("VIS-LEDGER-entry", "进入回顾", "无法通过暂停路径进入回顾",
                              ac="F2", severity="P1")
+                # V7：主题变化基线（star / paper 的 boot/table/cell）
+                ctx.close()
+                print("[VISUAL] V7 themes")
+                v7_theme_visuals(browser, base, rec)
                 # 错误
                 if ps.pageerrors or ps.console_errors:
                     rec.fail("VIS-ERRORS", "视觉路径无 JS 错误", "0/0",
@@ -433,7 +516,6 @@ def main():
                 else:
                     rec.ok("VIS-ERRORS", "视觉路径无 JS 错误", "0/0", "0/0", ac="H6",
                            severity="P1", viewport="390x844")
-                ctx.close()
             finally:
                 browser.close()
 
@@ -456,3 +538,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

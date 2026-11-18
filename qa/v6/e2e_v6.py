@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""今晚飞行棋 V6.1 · E2E 验收（Playwright + Edge / 360·390·430 三视口）。
+"""今晚飞行棋 V7「云海机舱 · 45° 格子剧场」· E2E 验收（Playwright + Edge / 320·360·390·430）。
 
-V6.1 口径（docs/v6/impl-freeze-v6.1.md / spec §0、§7）：
-- 结束条件 = 一方**全部飞机到家**（快局 2 / 长夜 4）；题卡数、心动值**不再**触发结束；
-- 起飞 = 6；连续 2 个自己的回合没掷出 6 且该方未到家飞机都在机坪，第 3 个回合任意点数保底起飞；
-- 收尾 = 两张「今晚最后一段」卡（各给一人）→ 今晚回顾；只写「<姓名> 先到家」「已到家 X/Y」。
+V7 口径（docs/v7/impl-freeze.md §1–§6）：
+- 每回合镜头链 overview→roll→pov→chase→land→cell45→bear→return（5–8s）；快进立即到终态；reduced 跳过 POV/跟拍/震动；
+- 45° 格子舞台 CellStage 接管题卡（兼容旧 prompt-* data-test）+ 随主题换装的小熊；
+- 三主题 cloud/star/paper（门厅三选一、data-theme/变量、刷新保持、小熊 pilot/starlight/paper）。
 
-覆盖（对应 spec §4/§7/§9）：
-- §7 主路径（快局 → 注入「差一步全到家」局面 → 掷骰 → 选子到家 → 先到家 → 两张收尾卡 → 回顾 → 保存）；
-- 门厅（首屏 CTA 在视口内 / 快局长夜新文案 / 尺度说明 / 规则速览 6 条 / 校验 / 续玩）；
-- 起飞保底（第 2 回合不提前起飞、第 3 回合任意点数保底、起飞/掷 6 清零）；
-- 结束判定（一方全到家 → win 事件 + winner-text + 两张收尾卡 + ledger win-a/win-b；题卡 20 张 / 心动值 100 / 长夜 1 架到家 → 不结束）；
-- 旧档兼容（缺 takeoffMiss → 补 0 可续玩；旧 ending='shared' 回顾文案）；
-- 暂停与安全词、小游戏、题卡归属/放过不惩罚、回顾 6 类信息、响应式、离线、0 pageerror。
+覆盖：
+- V7 新组：cinema（镜头链/快进/reduced）、cellstage（题卡变体/长文本/92 格/安全词）、theme、v7responsive；
+- V6.1 全量回归：main/skip/takeoff/win/notend/legacy/resume/pause/minigame/fate/events/responsive/offline/reduced；
+- V6.2 机舱层与浮层遮挡（相机断言已迁移到 cinema 组；旧实现留档 *_v62_legacy）。
 
 用法：
-  python qa/v6/e2e_v6.py                       # 跑全部（需先构建 dist/rebuild）
-  python qa/v6/e2e_v6.py --only main,takeoff   # 跑部分
-  python qa/v6/e2e_v6.py --dist dist/rebuild --headed
+  python qa/v6/e2e_v6.py                       # 跑全部（需先构建 dist/rebuild-v7）
+  python qa/v6/e2e_v6.py --only cinema,cellstage,theme
+  python qa/v6/e2e_v6.py --dist dist/rebuild-v7 --headed
 产物：
   reports/v6/qa-e2e.json / qa-e2e.md
   qa/v6/shots/e2e/**（gitignore）
@@ -172,6 +169,17 @@ def check_no_errors(rec: Recorder, ps: Q.PageSession, cid, label, stage=""):
 
 def wait_prompt(page, timeout=6000):
     return Q.find(page, SEL["prompt_card"] + ["role:button:/^做了$/"], timeout=timeout)
+
+
+def wait_prompt_ui(page, timeout=12.0):
+    """等题卡 UI 真正挂上（V7：落地镜头链 4–6s 后才挂 CellStage）。"""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if Q.eval_js(page, "() => !!(document.querySelector('[data-test=\"cell-stage\"]') || "
+                           "document.querySelector('.pc-root') || document.querySelector('[data-test=\"prompt-card\"]'))"):
+            return True
+        page.wait_for_timeout(120)
+    return False
 
 
 def prompt_dom(page):
@@ -668,9 +676,10 @@ class TableDriver:
         page = self.page
         p = aw.get("prompt") or {}
         kind = p.get("kind") or ("ending" if ending else "?")
-        # 动画期间题卡可能还没挂上：最多等 6s
+        # 动画期间题卡可能还没挂上：V7 镜头链（roll+pov+chase+land+return）≈5–6s，
+        # 因此等待窗口放宽到 12s（仍要求题卡必须出现，不放宽内容断言）。
         dom = None
-        deadline = time.time() + 6.0
+        deadline = time.time() + 12.0
         while time.time() < deadline:
             dom = prompt_dom(page)
             if dom:
@@ -792,26 +801,32 @@ class TableDriver:
                 self.rec.fail("AC-H1-1-%s/%s" % (name, self.label), "%s 按钮 ≥44×44" % name,
                               "≥44×44", json.dumps(r, ensure_ascii=False), ac="AC-H1-1",
                               viewport=self.label, repro="题卡出现后读取按钮 rect")
-        # 正文 ≥15px（H4-2）
+        # 正文 ≥15px（H4-2）：V7 CellStage 的正文是 [data-test=prompt-text]，优先按它断言；
+        # 旧 PromptCard 仍在时回落到「最长文本块」启发式。
         fs = page.evaluate(
             """() => {
+                var el = document.querySelector('[data-test="prompt-text"]');
+                if (el) {
+                    var t = (el.innerText || '').trim();
+                    if (t.length >= 8) return {len: t.length, size: parseFloat(getComputedStyle(el).fontSize), src: 'prompt-text'};
+                }
                 var root = document.querySelector('.pc-root, [data-test="prompt-card"], [data-prompt-card], .prompt-card');
                 if (!root) return null;
                 var cands = root.querySelectorAll('p, .text, .prompt-text, .body, div, span');
                 var best = null;
                 for (var i = 0; i < cands.length; i++) {
-                    var t = (cands[i].innerText || '').trim();
-                    if (t.length < 8) continue;
+                    var tx = (cands[i].innerText || '').trim();
+                    if (tx.length < 8) continue;
                     var cs = getComputedStyle(cands[i]);
                     var sz = parseFloat(cs.fontSize) || 0;
-                    if (!best || t.length > best.len) best = {len: t.length, size: sz};
+                    if (!best || tx.length > best.len) best = {len: tx.length, size: sz, src: 'heuristic'};
                 }
                 return best;
             }"""
         )
         if fs and fs.get("size", 0) >= 15:
             self.rec.ok("AC-H4-2/%s" % self.label, "题卡正文 ≥15px", "≥15px",
-                        "%.1fpx（最长文本块）" % fs["size"], ac="AC-H4-2", viewport=self.label)
+                        "%.1fpx（%s）" % (fs["size"], fs.get("src")), ac="AC-H4-2", viewport=self.label)
         else:
             self.rec.check("AC-H4-2/%s" % self.label, "题卡正文 ≥15px", "FAIL" if fs else "SKIP",
                            "≥15px", json.dumps(fs, ensure_ascii=False), ac="AC-H4-2",
@@ -1918,6 +1933,21 @@ def run_main_path(browser, url, rec, label, names=NAMES, screenshot_prefix="main
                          "今晚最后一段 · 第 %d/2 张 · 给 %s" % (idx, want_actor),
                          "kicker=%r（dom=%s）" % (kicker, bool(dom)), ac="AC-E2-1",
                          viewport=label, repro="收尾阶段读取题卡 kicker")
+            # V7：收尾卡由 CellStage 接管（cell-stage[data-kind=ending] + cs-card--ending + ending-card 标记）
+            cell_end = v7_cell_facts(page)
+            v7_check(rec, "V7-ENDING-CELL/%s/%d" % (label, idx),
+                     "收尾卡由 CellStage 接管（kind=ending / cs-card--ending / ending-card 标记）",
+                     bool(cell_end.get("open")) and (cell_end.get("attrs") or {}).get("kind") == "ending"
+                     and "cs-card--ending" in ((cell_end.get("card") or {}).get("cls") or "")
+                     and bool(cell_end.get("endingMarker")),
+                     "cell-stage kind=ending + cs-card--ending + [data-test=ending-card]",
+                     json.dumps({"open": cell_end.get("open"),
+                                 "attrs": cell_end.get("attrs"),
+                                 "cardCls": (cell_end.get("card") or {}).get("cls"),
+                                 "marker": cell_end.get("endingMarker")}, ensure_ascii=False),
+                     V7_AC_CELL, label,
+                     evidence=Q.this_shot(rec, page, "ending_cell_%d_%s" % (idx, label)),
+                     repro="收尾卡出现→读 [data-test=cell-stage] data-kind/class 与 ending-card 标记")
             heat_before = status_now(page).get("heat")
             click_and_count(drv, SEL["prompt_done"], "做了")
             if idx == 1:
@@ -3049,6 +3079,18 @@ def run_minigame_case(browser, url, rec, label="390x844"):
                 return
             before = Q.session_summary(page)
             sess = _fixture_to_awaiting(page, pid, from_sq, die, "b", "minigame")
+            # V7：落地后先走镜头链（pov/chase/land ≈4s）才打开小游戏面板；等面板真正挂上再断言。
+            # 仍要求面板必须出现（不改产品断言，只按真实时序等待）。
+            panel = page.locator("[data-test='minigame-panel']")
+            waited = 0.0
+            while waited < 12.0:
+                try:
+                    if panel.count() > 0 and panel.first.is_visible():
+                        break
+                except Exception:
+                    pass
+                page.wait_for_timeout(150)
+                waited += 0.15
             shot = Q.this_shot(rec, page, "minigame_%s_%s" % (kind, label))
             if not sess:
                 rec.fail("AC-D1-1/%s/%s" % (kind, label), "落到小游戏格进入可玩面板",
@@ -3059,7 +3101,6 @@ def run_minigame_case(browser, url, rec, label="390x844"):
             rec.ok("AC-D1-1/%s/%s" % (kind, label), "落到小游戏格直接进入可玩面板（%s）" % title_word,
                    "awaiting=minigame", "kind=%s" % await_rec.get("kind"), ac="AC-D1-1",
                    viewport=label, evidence=shot)
-            panel = page.locator("[data-test='minigame-panel']")
             n_panel = panel.count()
             body = Q.body_text(page)
             has_ops = (page.locator("[data-test='thermo-place'], [data-test='spin'], input[type=range]").count() > 0
@@ -3168,6 +3209,7 @@ def run_fate_case(browser, url, rec, label="390x844"):
         # 不选路径：red a:0 从 ring:4 走 1 步到 fate ring:5
         before = Q.session_summary(page)
         sess = _fixture_to_awaiting(page, "a:0", "ring:4", 1, "a", "prompt")
+        wait_prompt_ui(page, timeout=12.0)   # V7：等镜头链结束、CellStage 挂上
         if not sess:
             rec.fail("AC-E5-2/%s" % label, "落到命运格出现二选一", "awaiting prompt fate",
                      "夹具未进入命运格", ac="AC-E5-2", severity="P1", viewport=label,
@@ -3206,6 +3248,7 @@ def run_fate_case(browser, url, rec, label="390x844"):
                      severity="P1", viewport=label, repro="命运格点「今晚先不选」→对比状态")
         # 选卡路径：再走一次，选第一张 → +8、回桌
         sess = _fixture_to_awaiting(page, "a:0", "ring:4", 1, "a", "prompt")
+        wait_prompt_ui(page, timeout=12.0)   # V7：等镜头链结束、CellStage 挂上
         if sess:
             h2 = (sess.get("meta") or {}).get("heat")
             opts = page.locator("[data-test='prompt-fate-option']")
@@ -3294,6 +3337,7 @@ def run_event_prompts_case(browser, url, rec, label="390x844"):
             frm, dest = _fixture_squares(page, 12, 2)  # 落点与目标同格 → 击落
             sess = _fixture_to_awaiting(page, "a:0", frm, 2, "a", "prompt",
                                         placements={"b:0": dest})
+            wait_prompt_ui(page, timeout=12.0)   # V7：等镜头链结束、CellStage 挂上
             if sess:
                 kind = ((sess.get("awaiting") or {}).get("prompt") or {}).get("kind")
                 kicker, _ = Q.find(page, ["test:prompt-kicker"], timeout=2500)
@@ -3334,6 +3378,7 @@ def run_event_prompts_case(browser, url, rec, label="390x844"):
             frm, dest = _fixture_squares(page, 12, 2)  # 落点与自己另一架同格 → 叠机
             sess = _fixture_to_awaiting(page, "a:0", frm, 2, "a", "prompt",
                                         placements={"a:1": dest})
+            wait_prompt_ui(page, timeout=12.0)   # V7：等镜头链结束、CellStage 挂上
             if sess:
                 kind = ((sess.get("awaiting") or {}).get("prompt") or {}).get("kind")
                 kicker, _ = Q.find(page, ["test:prompt-kicker"], timeout=2500)
@@ -3378,6 +3423,7 @@ def run_event_prompts_case(browser, url, rec, label="390x844"):
             # 进度 49 + 2 越过进航格（>50）才会触发进航题；此前用 ring:49+1 恰停在进航格，永远 SKIP
             frm, _dest = _fixture_squares(page, 49, 2)
             sess = _fixture_to_awaiting(page, "a:0", frm, 2, "a", "prompt")
+            wait_prompt_ui(page, timeout=12.0)   # V7：等镜头链结束、CellStage 挂上
             if sess:
                 kind = ((sess.get("awaiting") or {}).get("prompt") or {}).get("kind")
                 if kind == "home-entry":
@@ -3729,7 +3775,8 @@ def cabin_hit_squares(page):
         page,
         """() => {
             var els = Array.prototype.slice.call(document.querySelectorAll('[data-square]'));
-            var out = {total: els.length, inCabin: 0, board: 0, outside: 0, bad: [], other: []};
+            var out = {total: els.length, inCabin: 0, inCinema: 0, inCell: 0, board: 0,
+                       outside: 0, bad: [], other: []};
             els.forEach(function (el) {
                 var r = el.getBoundingClientRect();
                 var x = Math.round(r.x + r.width / 2), y = Math.round(r.y + r.height / 2);
@@ -3742,6 +3789,11 @@ def cabin_hit_squares(page):
                     out.inCabin += 1;
                     if (out.bad.length < 5) out.bad.push(el.getAttribute('data-square'));
                     return;
+                }
+                /* V7：Cinema 覆盖层 / CellStage 根也不得拦截棋盘点击 */
+                if (hit.closest && hit.closest('[data-test="cinema"]')) { out.inCinema += 1; return; }
+                if (hit.closest && (hit.closest('.cs-root') || hit.closest('[data-test="cell-stage"]'))) {
+                    out.inCell += 1; return;
                 }
                 var inBoard = !!(hit.closest && hit.closest('.v6-board, [data-test="board"]'));
                 if (inBoard || hit === el || (el.contains && el.contains(hit)) ||
@@ -3950,14 +4002,17 @@ def run_cabin_layer_case(browser, url, rec, label="390x844"):
                      "rect=%s viewport=%sx%s" % (json.dumps(r), f.get("vw"), f.get("vh")),
                      ac=CABIN_AC, viewport=label, evidence=shot,
                      repro="进入主桌→读 .cabin-root getBoundingClientRect")
-        if hit.get("total") == 92 and hit.get("inCabin") == 0 and hit.get("board") == 92:
-            rec.ok("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin（全部命中棋盘层）", "92/92 命中棋盘",
-                   json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "outside")}, ensure_ascii=False),
+        if hit.get("total") == 92 and hit.get("inCabin") == 0 and hit.get("inCinema") == 0 \
+                and hit.get("inCell") == 0 and hit.get("board") == 92:
+            rec.ok("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin/cinema/cell（全部命中棋盘层）", "92/92 命中棋盘",
+                   json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "inCinema", "inCell", "outside")},
+                              ensure_ascii=False),
                    ac=CABIN_AC, viewport=label, evidence=shot)
         else:
-            rec.fail("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin（全部命中棋盘层）",
-                     "92/92 命中棋盘，inCabin=0",
-                     json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "outside", "bad", "other")},
+            rec.fail("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin/cinema/cell（全部命中棋盘层）",
+                     "92/92 命中棋盘，inCabin/inCinema/inCell=0",
+                     json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "inCinema", "inCell",
+                                                         "outside", "bad", "other")},
                                 ensure_ascii=False)[:400],
                      ac=CABIN_AC, viewport=label, evidence=shot,
                      repro="进入主桌→对每个 [data-square] 中心做 elementFromPoint")
@@ -3973,8 +4028,10 @@ def run_cabin_layer_case(browser, url, rec, label="390x844"):
         ctx.close()
 
 
-def run_cabin_camera_case(browser, url, rec, label="390x844"):
-    """V6.2 §5：掷骰/走子/击落/换手/收家时 .v6-board inline transform 变化。"""
+def run_cabin_camera_case_v62_legacy(browser, url, rec, label="390x844"):
+    """[V6.2 旧口径 · 保留备查，不再由用例组调用]
+    旧断言读 data-cabin-cam + .v6-board transform；V7 起 board transform 归 App.Cinema，
+    已迁移到 run_cinema_chain_case（data-cinema-state 状态链）。"""
     # ---- 掷骰（dice）----
     ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
     try:
@@ -4194,7 +4251,9 @@ def run_cabin_camera_case(browser, url, rec, label="390x844"):
         ctx.close()
 
 
-def run_cabin_reduced_case(browser, url, rec, label="390x844"):
+def run_cabin_reduced_case_v62_legacy(browser, url, rec, label="390x844"):
+    """[V6.2 旧口径 · 保留备查，不再由用例组调用]
+    V7 已迁移到 run_cinema_reduced_case（data-cinema-reduced / 无 pov·chase / 无 transform）。"""
     """V6.2 §3.9/§5：reduced（设置或系统偏好）下无镜头 transform、无震动、无闪灯。"""
     results = []
     for mode in ("settings", "media"):
@@ -4411,6 +4470,1501 @@ def run_cabin_responsive_case(browser, url, rec):
                 ctx.close()
 
 
+# ================================================================ V7「云海机舱 · 45° 格子剧场」
+# 口径：docs/v7/impl-freeze.md §1（镜头链）/§2（主题）/§3（CellStage）/§6（验收）
+# AC 映射（run_all.P0_ACS 同步登记）：
+#   AC-V7-1 镜头状态链 overview→roll→(pov→chase→land→cell45→bear)→return，5–8s
+#   AC-V7-2 POV + 第三人称跟拍 + 目标格发光
+#   AC-V7-3 落地后 CellStage（cell45/bear）+ 小熊 data-test=bear 随主题换装
+#   AC-V7-4 CellStage 接管题卡（data-test 对齐 / 做了 / 放过 / 命运 / 收尾 / 功能格 / 长文本）
+#   AC-V7-5 三主题切换 + data-theme/变量 + 刷新保持
+#   AC-V7-6 320/360/390/430 无溢出 + 92 格不被 cinema/cell 拦截 + 安全词/暂停 hit-test
+#   AC-V7-7 reduced 无 POV/跟拍/震动 + data-cinema-reduced=1 + 格子舞台静态
+#   AC-V7-8 快进：动画中可点、点按立即到终态
+#   AC-V7-9 性能：门厅 DCL/FCP/gzip + 20 回合长帧≤5% + 页面隐藏暂停（见 perf_budget.py）
+#   AC-V7-10 视觉基线按 V7 重建（见 visual.py）
+#   AC-V7-11 V6.1 全量回归（main/skip/takeoff/win/notend/legacy/resume/pause/minigame/fate/events/responsive/offline/reduced）
+V7_AC_CHAIN = "AC-V7-1"
+V7_AC_POV = "AC-V7-2"
+V7_AC_CELL = "AC-V7-3"
+V7_AC_TAKEOVER = "AC-V7-4"
+V7_AC_THEME = "AC-V7-5"
+V7_AC_LAYOUT = "AC-V7-6"
+V7_AC_REDUCED = "AC-V7-7"
+V7_AC_SKIP = "AC-V7-8"
+V7_AC_PERF = "AC-V7-9"
+V7_AC_VISUAL = "AC-V7-10"
+V7_AC_REGRESS = "AC-V7-11"
+
+V7_STATES = ("overview", "roll", "pov", "chase", "land", "cell45", "bear", "return")
+V7_THEME_EXPECT = {
+    "cloud": {"name": "云海机舱", "outfit": "pilot", "bg0": "#071320", "rim": "#8FC7E8"},
+    "star": {"name": "星轨夜航", "outfit": "starlight", "bg0": "#08060F", "rim": "#B9A4F0"},
+    "paper": {"name": "纸雕童话", "outfit": "paper", "bg0": "#140F0B", "rim": "#E3C79A"},
+}
+V7_CELL_KINDS = ("cell-truth", "cell-dare", "cell-touch", "capture", "stack-duo",
+                 "home-entry", "ending", "fate")
+
+# 一次快照：镜头状态 + POV/光晕/尘土 + 棋盘 transform + 题卡舞台（尽量轻量，供 80ms 轮询）
+V7_SNAPSHOT_JS = """() => {
+  var host = document.querySelector('.v6-table');
+  var cv = document.querySelector('[data-test="cinema"]');
+  var board = document.querySelector('.v6-board');
+  var pov = document.querySelector('[data-test="cinema-pov"]');
+  var glow = document.querySelector('[data-test="cinema-glow"]');
+  var dust = document.querySelector('[data-test="cinema-dust"]');
+  var ripple = document.querySelector('[data-test="cinema-ripple"]');
+  var skip = document.querySelector('[data-test="cinema-skip"]');
+  var cell = document.querySelector('[data-test="cell-stage"]');
+  function op(el) { return el ? parseFloat(getComputedStyle(el).opacity) : null; }
+  return {
+    state: host ? host.getAttribute('data-cinema-state') : null,
+    reduced: host ? host.getAttribute('data-cinema-reduced') : null,
+    theme: host ? host.getAttribute('data-cinema-theme') : null,
+    skip: host ? host.getAttribute('data-cinema-skip') : null,
+    cinema: !!cv,
+    cinemaPE: cv ? getComputedStyle(cv).pointerEvents : null,
+    povOpacity: op(pov),
+    povOn: pov ? pov.classList.contains('on') : null,
+    wingCount: cv ? cv.querySelectorAll('.cv7-wing').length : 0,
+    cloudCount: cv ? cv.querySelectorAll('.cv7-clouds i').length : 0,
+    speed: cv ? !!cv.querySelector('.cv7-speed') : false,
+    glowOn: glow ? glow.classList.contains('on') : null,
+    glowOpacity: op(glow),
+    dustOn: dust ? dust.classList.contains('on') : null,
+    rippleOn: ripple ? ripple.classList.contains('on') : null,
+    skipVisible: skip ? skip.classList.contains('on') : false,
+    skipOpacity: op(skip),
+    skipPE: skip ? getComputedStyle(skip).pointerEvents : null,
+    boardTransform: board ? (board.style.transform || '') : null,
+    boardComputed: board ? getComputedStyle(board).transform : null,
+    cellOpen: !!cell,
+    cellKind: cell ? cell.getAttribute('data-kind') : null,
+    cellBear: cell ? cell.getAttribute('data-bear') : null,
+    cellAttrs: cell ? {
+      theme: cell.getAttribute('data-theme'), outfit: cell.getAttribute('data-outfit'),
+      reduced: cell.getAttribute('data-reduced'), scrollable: cell.getAttribute('data-scrollable'),
+      stageH: cell.getAttribute('data-stage-h'), fate: cell.getAttribute('data-fate')
+    } : null,
+    aw: (function () { try { var s = App.Store.getSession(); return s && s.awaiting ? s.awaiting.type : null; } catch (e) { return null; } })(),
+    debug: (window.App && App.Cinema && App.Cinema._debug) ? App.Cinema._debug() : null
+  };
+}"""
+
+V7_CINEMA_FACTS_JS = """() => {
+  var host = document.querySelector('.v6-table');
+  var cv = document.querySelector('[data-test="cinema"]');
+  var cabin = document.querySelector('[data-test="cabin-scene"]');
+  var board = document.querySelector('.v6-board');
+  var skip = document.querySelector('[data-test="cinema-skip"]');
+  var pov = document.querySelector('[data-test="cinema-pov"]');
+  function op(el) { return el ? parseFloat(getComputedStyle(el).opacity) : null; }
+  function pe(el) { return el ? getComputedStyle(el).pointerEvents : null; }
+  return {
+    host: !!host, state: host ? host.getAttribute('data-cinema-state') : null,
+    version: host ? host.getAttribute('data-cinema-version') : null,
+    reduced: host ? host.getAttribute('data-cinema-reduced') : null,
+    theme: host ? host.getAttribute('data-cinema-theme') : null,
+    skipAttr: host ? host.getAttribute('data-cinema-skip') : null,
+    cinema: !!cv, cinemaPE: pe(cv), rootTest: cv ? cv.getAttribute('data-test') : null,
+    rootAria: cv ? cv.getAttribute('aria-hidden') : null,
+    cinemaRect: cv ? (function (r) { return { x: r.x, y: r.y, w: r.width, h: r.height }; })(cv.getBoundingClientRect()) : null,
+    povOpacity: op(pov), povOn: pov ? pov.classList.contains('on') : null,
+    wingCount: cv ? cv.querySelectorAll('.cv7-wing').length : 0,
+    cloudCount: cv ? cv.querySelectorAll('.cv7-clouds i').length : 0,
+    speed: cv ? !!cv.querySelector('.cv7-speed') : false,
+    dustOn: (function () { var el = document.querySelector('[data-test="cinema-dust"]'); return el ? el.classList.contains('on') : null; })(),
+    rippleOn: (function () { var el = document.querySelector('[data-test="cinema-ripple"]'); return el ? el.classList.contains('on') : null; })(),
+    glowOn: (function () { var el = document.querySelector('[data-test="cinema-glow"]'); return el ? el.classList.contains('on') : null; })(),
+    glowOpacity: op(document.querySelector('[data-test="cinema-glow"]')),
+    skipVisible: skip ? skip.classList.contains('on') : false,
+    skipPE: pe(skip),
+    boardTransform: board ? (board.style.transform || '') : null,
+    boardComputed: board ? getComputedStyle(board).transform : null,
+    cabinScene: !!cabin, cabinCamera: cabin ? cabin.getAttribute('data-cabin-camera') : null,
+    cabinCam: cabin ? cabin.getAttribute('data-cabin-cam') : null,
+    cabinPaused: cabin ? cabin.getAttribute('data-cabin-paused') : null,
+    debug: (window.App && App.Cinema && App.Cinema._debug) ? App.Cinema._debug() : null
+  };
+}"""
+
+V7_CELL_FACTS_JS = """() => {
+  var root = document.querySelector('[data-test="cell-stage"]');
+  if (!root) return { open: false };
+  var card = root.querySelector('[data-test="prompt-card"]');
+  var floor = root.querySelector('.cs-cell-floor');
+  var text = root.querySelector('[data-test="prompt-text"]');
+  var bear = root.querySelector('[data-test="bear"]');
+  var scroll = root.querySelector('.cs-scroll');
+  var stage = root.querySelector('.cs-stage');
+  function rect(el) { if (!el) return null; var b = el.getBoundingClientRect();
+    return { x: Math.round(b.x * 10) / 10, y: Math.round(b.y * 10) / 10,
+             w: Math.round(b.width * 10) / 10, h: Math.round(b.height * 10) / 10 }; }
+  function hit(el) {
+    if (!el) return null;
+    var b = el.getBoundingClientRect();
+    if (!b.width || !b.height) return null;
+    var node = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    var t = node && node.closest ? node.closest('[data-test]') : null;
+    var cs = node && node.closest ? node.closest('.cs-root') : null;
+    return { test: t ? t.getAttribute('data-test') : null,
+             cls: node ? String(node.className || '').slice(0, 48) : null,
+             inCell: !!cs, tag: node ? node.tagName : null };
+  }
+  var safety = document.querySelector('[data-test="safety-word"]');
+  var pause = document.querySelector('[data-test="pause"]');
+  var cssBtn = {};
+  Array.prototype.forEach.call(root.querySelectorAll('button[data-act]'), function (b) {
+    var r = rect(b);
+    cssBtn[b.getAttribute('data-act')] = { test: b.getAttribute('data-test'), rect: r,
+      visible: !!(r && r.w > 0 && r.h > 0) };
+  });
+  return {
+    open: true,
+    attrs: {
+      theme: root.getAttribute('data-theme'), kind: root.getAttribute('data-kind'),
+      outfit: root.getAttribute('data-outfit'), reduced: root.getAttribute('data-reduced'),
+      bear: root.getAttribute('data-bear'), stageH: root.getAttribute('data-stage-h'),
+      scrollable: root.getAttribute('data-scrollable'), fate: root.getAttribute('data-fate'),
+      actor: root.getAttribute('data-actor')
+    },
+    zIndex: getComputedStyle(root).zIndex, pe: getComputedStyle(root).pointerEvents,
+    cls: String(root.className || ''),
+    card: card ? { rect: rect(card), pe: getComputedStyle(card).pointerEvents,
+                   cls: String(card.className || ''), test: card.getAttribute('data-test'),
+                   role: card.getAttribute('role'), aria: card.getAttribute('aria-label') } : null,
+    stageRect: rect(stage), rootRect: rect(root),
+    cellRect: rect(root.querySelector('[data-test="cell-stage-cell"]')),
+    floorTransform: floor ? getComputedStyle(floor).transform : null,
+    textTransform: text ? getComputedStyle(text).transform : null,
+    textSize: text ? parseFloat(getComputedStyle(text).fontSize) : null,
+    textScroll: scroll ? { sh: scroll.scrollHeight, ch: scroll.clientHeight,
+                           overflowY: getComputedStyle(scroll).overflowY,
+                           scrollTop: scroll.scrollTop } : null,
+    bear: bear ? { rect: rect(bear), outfit: bear.getAttribute('data-outfit'),
+                   mood: bear.getAttribute('data-mood'), aria: bear.getAttribute('aria-hidden'),
+                   pe: getComputedStyle(bear).pointerEvents } : null,
+    texts: {
+      kicker: (root.querySelector('[data-test="prompt-kicker"]') || {}).innerText || '',
+      actor: (root.querySelector('[data-test="prompt-actor"]') || {}).innerText || '',
+      type: (root.querySelector('[data-test="cell-type"]') || {}).innerText || '',
+      index: (root.querySelector('[data-test="cell-index"]') || {}).innerText || '',
+      theme: (root.querySelector('[data-test="cell-theme"]') || {}).innerText || '',
+      stars: (root.querySelector('[data-test="prompt-stars"]') || {}).innerText || '',
+      source: (root.querySelector('[data-test="prompt-source"]') || {}).innerText || '',
+      meta: (root.querySelector('[data-test="prompt-meta"]') || {}).innerText || '',
+      body: (root.querySelector('[data-test="prompt-text"]') || {}).innerText || '',
+      attrib: (root.querySelector('[data-test="prompt-attrib"]') || {}).innerText || '',
+      foot: (root.querySelector('[data-test="prompt-foot"]') || {}).innerText || ''
+    },
+    buttons: cssBtn,
+    fateOptions: root.querySelectorAll('[data-test="prompt-fate-option"]').length,
+    endingMarker: !!document.querySelector('[data-test="ending-card"]'),
+    hostWrap: document.querySelectorAll('.v6-cardwrap').length,
+    hostPC: document.querySelectorAll('.pc-root').length,
+    csRoots: document.querySelectorAll('.cs-root').length,
+    safety: { rect: rect(safety), hit: hit(safety), z: safety ? getComputedStyle(safety).zIndex : null },
+    pause: { rect: rect(pause), hit: hit(pause), z: pause ? getComputedStyle(pause).zIndex : null },
+    vw: window.innerWidth, vh: window.innerHeight,
+    debug: (window.App && App.Cinema && App.Cinema._debug) ? App.Cinema._debug() : null
+  };
+}"""
+
+V7_HIT92_JS = """() => {
+  var els = Array.prototype.slice.call(document.querySelectorAll('[data-square]'));
+  var out = { total: els.length, board: 0, cinema: 0, cell: 0, cabin: 0, outside: 0, other: [] };
+  els.forEach(function (el) {
+    var r = el.getBoundingClientRect();
+    var x = Math.round(r.x + r.width / 2), y = Math.round(r.y + r.height / 2);
+    if (!r.width || !r.height || x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) { out.outside += 1; return; }
+    var hit = document.elementFromPoint(x, y);
+    if (!hit) { out.outside += 1; return; }
+    if (hit.closest && hit.closest('[data-test="cinema"]')) { out.cinema += 1; return; }
+    if (hit.closest && (hit.closest('.cs-root') || hit.closest('[data-test="cell-stage"]'))) { out.cell += 1; return; }
+    if (hit.closest && hit.closest('[data-test="cabin"], .cabin-root')) { out.cabin += 1; return; }
+    var inBoard = !!(hit.closest && hit.closest('.v6-board, [data-test="board"]'));
+    if (inBoard || hit === el || (el.contains && el.contains(hit)) ||
+        (hit.closest && hit.closest('[data-square]') === el)) { out.board += 1; }
+    else { out.other.push({ sq: el.getAttribute('data-square'),
+      cls: String((hit.className && hit.className.baseVal !== undefined) ? hit.className.baseVal : (hit.className || '')).slice(0, 40) }); }
+  });
+  return out;
+}"""
+
+V7_THEME_FACTS_JS = """() => {
+  var de = document.documentElement;
+  var body = document.body;
+  var table = document.querySelector('.v6-table');
+  var cards = Array.prototype.map.call(document.querySelectorAll('[data-theme-pick]'), function (el) {
+    return { id: el.getAttribute('data-theme-pick'), pressed: el.getAttribute('aria-pressed'),
+             cls: String(el.className || '') };
+  });
+  return {
+    htmlTheme: de ? de.getAttribute('data-theme') : null,
+    bodyTheme: body ? body.getAttribute('data-theme') : null,
+    tableTheme: table ? table.getAttribute('data-theme') : null,
+    cinemaTheme: table ? table.getAttribute('data-cinema-theme') : null,
+    settingsTheme: (function () { try { return (App.Store.getSettings() || {}).theme || null; } catch (e) { return null; } })(),
+    themesRoot: !!document.querySelector('[data-test="themes"]'),
+    cards: cards,
+    desc: (document.querySelector('[data-test="theme-desc"]') || {}).textContent || '',
+    bg0: de ? getComputedStyle(de).getPropertyValue('--bg0').trim() : null,
+    rim: de ? getComputedStyle(de).getPropertyValue('--v7-board-rim').trim() : null,
+    tableRim: table ? getComputedStyle(table).getPropertyValue('--v7-board-rim').trim() : null,
+    themeColor: (function () { var m = document.querySelector('meta[name="theme-color"]'); return m ? m.getAttribute('content') : null; })(),
+    squares: document.querySelectorAll('[data-square]').length,
+    themesAPI: (function () {
+      try {
+        return { version: App.Themes.version, ids: App.Themes.ids, current: App.Themes.get().id,
+                 outfit: App.Themes.bearOutfit() };
+      } catch (e) { return null; }
+    })()
+  };
+}"""
+
+
+def v7_new_page(browser, url, rec, label, theme=None, reduced=False, reduced_motion=None,
+                init_script=None, extra_ctx=None):
+    vp = Q.VIEWPORTS[label]
+    script = init_script
+    seed = {}
+    if theme:
+        seed["theme"] = theme
+    if reduced:
+        seed["reduced"] = True
+    if seed:
+        seed_js = "(() => { try { localStorage.setItem('couple2.settings', JSON.stringify(%s)); } catch (e) {} })();" % json.dumps(seed, ensure_ascii=False)
+        ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion,
+                            init_script=seed_js)
+    else:
+        ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion)
+    if extra_ctx:
+        extra_ctx(ctx, page=None)
+    page = ctx.new_page()
+    ps = Q.PageSession(ctx, page)
+    if reduced_motion:
+        try:
+            cdp = ctx.new_cdp_session(page)
+            cdp.send("Emulation.setEmulatedMedia", {
+                "media": "",
+                "features": [{"name": "prefers-reduced-motion", "value": "reduce"}],
+            })
+        except Exception as e:  # noqa: BLE001
+            rec.add_note("prefers-reduced-motion 模拟失败：%s" % e)
+    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+    Q.ensure_boot(page, rec, timeout=15000)
+    return ctx, ps, page
+
+
+def v7_start_table(page, drv, rec, quick=True):
+    if quick:
+        Q.try_click(page, SEL["quick"], timeout=2000)
+    Q.fill_names(page, drv.names)
+    Q.select_distinct_colors(page)
+    Q.try_click(page, SEL["start"], timeout=8000)
+    screen = Q.wait_screen(page, ["table"], timeout=9000)
+    if screen == "table":
+        drv.started = True
+        page.wait_for_timeout(500)
+        drv.hook = Q.install_die_hook(page)
+    return screen == "table"
+
+
+def v7_shot(rec, page, name):
+    return Q.this_shot(rec, page, name)
+
+
+def v7_collect(page, duration_ms, interval=80, rec=None, prefix=None, label=""):
+    """轮询 data-cinema-state：返回 (状态转移列表, 采样列表)；可按首现状态截图存证。"""
+    states = []
+    samples = []
+    captured = set()
+    t0 = time.time()
+    last = "__init__"
+    while (time.time() - t0) * 1000.0 < duration_ms:
+        snap = Q.eval_js(page, V7_SNAPSHOT_JS)
+        t = int((time.time() - t0) * 1000)
+        if isinstance(snap, dict):
+            s = snap.get("state")
+            if s != last:
+                row = {"t": t, "s": s}
+                if rec is not None and prefix and s in V7_STATES and s not in captured:
+                    captured.add(s)
+                    row["shot"] = v7_shot(rec, page, "%s_%s_%s" % (prefix, s, label))
+                states.append(row)
+                last = s
+            samples.append({
+                "t": t, "state": s, "povOpacity": snap.get("povOpacity"),
+                "povOn": snap.get("povOn"), "glowOn": snap.get("glowOn"),
+                "glowOpacity": snap.get("glowOpacity"), "dustOn": snap.get("dustOn"),
+                "rippleOn": snap.get("rippleOn"), "skipVisible": snap.get("skipVisible"),
+                "skip": snap.get("skip"), "skipPE": snap.get("skipPE"),
+                "boardTransform": snap.get("boardTransform"),
+                "reduced": snap.get("reduced"), "cellOpen": snap.get("cellOpen"),
+                "cellKind": snap.get("cellKind"), "cellBear": snap.get("cellBear"),
+                "wingCount": snap.get("wingCount"), "cloudCount": snap.get("cloudCount"),
+                "speed": snap.get("speed"),
+                "aw": snap.get("aw"),
+            })
+        page.wait_for_timeout(interval)
+    return states, samples
+
+
+def v7_state(page):
+    return Q.eval_js(page, "() => { var h = document.querySelector('.v6-table'); return h ? h.getAttribute('data-cinema-state') : null; }")
+
+
+def v7_wait_state(page, names, timeout=4000, interval=80):
+    names = (names,) if isinstance(names, str) else tuple(names)
+    deadline = time.time() + timeout / 1000.0
+    while time.time() < deadline:
+        s = v7_state(page)
+        if s in names:
+            return s
+        page.wait_for_timeout(interval)
+    return v7_state(page)
+
+
+def v7_wait_debug(page, pred, timeout=4000, interval=80):
+    """按 App.Cinema._debug() 的字段等待（如 pending=False / state='overview'）。"""
+    deadline = time.time() + timeout / 1000.0
+    dbg = {}
+    while time.time() < deadline:
+        dbg = Q.eval_js(page, "() => (window.App && App.Cinema && App.Cinema._debug) ? App.Cinema._debug() : null") or {}
+        try:
+            if pred(dbg):
+                return dbg
+        except Exception:
+            pass
+        page.wait_for_timeout(interval)
+    return dbg
+
+
+def v7_cinema_facts(page):
+    data = Q.eval_js(page, V7_CINEMA_FACTS_JS)
+    return data if isinstance(data, dict) else {}
+
+
+def v7_cell_facts(page):
+    data = Q.eval_js(page, V7_CELL_FACTS_JS)
+    return data if isinstance(data, dict) else {}
+
+
+def v7_theme_facts(page):
+    data = Q.eval_js(page, V7_THEME_FACTS_JS)
+    return data if isinstance(data, dict) else {}
+
+
+def v7_hit92(page):
+    data = Q.eval_js(page, V7_HIT92_JS)
+    return data if isinstance(data, dict) else {}
+
+
+def v7_scale_of(transform):
+    m = re.search(r"scale\(([\d.]+)\)", transform or "")
+    return float(m.group(1)) if m else None
+
+
+def v7_phase_ms(dbg, name):
+    """从 _debug().stats.log 取某阶段最近一次耗时（ms）。"""
+    log = ((dbg or {}).get("stats") or {}).get("log") or []
+    for row in reversed(log):
+        if row.get("name") == name:
+            return row.get("ms")
+    return None
+
+
+def v7_state_ms(states, name):
+    """按轮询日志取某状态出现的首个时间戳（相对本轮采集起点）。"""
+    for row in states or []:
+        if row.get("s") == name:
+            return row.get("t")
+    return None
+
+
+def v7_check(rec, cid, name, ok, expected, actual, ac, label, severity="P0",
+             evidence="", repro="", detail=""):
+    if ok:
+        rec.ok(cid, name, expected, actual, ac=ac, severity=severity, viewport=label,
+               evidence=evidence, detail=detail)
+    else:
+        rec.fail(cid, name, expected, actual, ac=ac, severity=severity, viewport=label,
+                 evidence=evidence, detail=detail, repro=repro)
+    return ok
+
+
+def _v7_fixture_to_prompt(page, pid="a:0", frm="ring:0", die=2, turn="a", placements=None):
+    """夹具到「普通题卡」：落点 ring:2 是真心话格（CELL_KIND[2]='truth'）。
+    返回 (session, await_type)；失败返回 (None, None)。"""
+    sess = _fixture_to_awaiting(page, pid, frm, die, turn, "prompt", placements=placements)
+    if not sess:
+        return None, None
+    return sess, ((sess.get("awaiting") or {}).get("type"))
+
+
+def run_cinema_chain_case(browser, url, rec, label="390x844"):
+    """AC-V7-1/2/3：一回合镜头链（overview→roll→pov→chase→land→cell45→bear→return）
+    + POV 前景 + 第三人称跟拍 + 目标格发光 + 落地 dust/ripple + 回俯瞰。
+
+    回合 A（roll）：骰 6 → 两架可起飞 → roll 镜头 + choose-piece 回俯瞰；
+    回合 B（move）：夹具 a:0 在 ring:0、骰 2 → 落 ring:2（真心话格）→ 全链到 CellStage；
+    点「做了」→ return → overview。
+    """
+    ctx, ps, page = v7_new_page(browser, url, rec, label)
+    drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=30)
+    try:
+        if not v7_start_table(page, drv, rec):
+            return
+        f0 = v7_cinema_facts(page)
+        shot0 = v7_shot(rec, page, "cinema_overview_%s" % label)
+        # ---- 挂载契约（Cinema 存在 / 不吃点击 / 版本 / 接手机舱相机）----
+        v7_check(rec, "V7-CINEMA-01/%s" % label, "Cinema 层挂载且 pointer-events:none",
+                 bool(f0.get("cinema")) and f0.get("cinemaPE") == "none",
+                 "存在 [data-test=cinema] 且 PE=none",
+                 json.dumps({k: f0.get(k) for k in ("cinema", "cinemaPE", "rootAria", "cinemaRect")}, ensure_ascii=False),
+                 V7_AC_LAYOUT, label, evidence=shot0,
+                 repro="进入主桌→查询 [data-test=cinema] 与 computed pointer-events")
+        v7_check(rec, "V7-CINEMA-02/%s" % label, "Cinema 版本 7.0.0 且初始 overview / 棋盘无 transform",
+                 f0.get("version") == "7.0.0" and f0.get("state") == "overview"
+                 and (f0.get("boardTransform") or "") == "",
+                 "version=7.0.0 state=overview transform=''",
+                 "version=%s state=%s transform=%r" % (f0.get("version"), f0.get("state"),
+                                                       (f0.get("boardTransform") or "")[:60]),
+                 V7_AC_CHAIN, label, evidence=shot0,
+                 repro="进入主桌→读 data-cinema-version / data-cinema-state / .v6-board.style.transform")
+        v7_check(rec, "V7-CINEMA-03/%s" % label, "CabinScene 相机让位（data-cabin-camera=off）",
+                 f0.get("cabinCamera") == "off",
+                 "data-cabin-camera=off（Cinema 独占 board transform）",
+                 "cabinCamera=%s cabinCam=%s" % (f0.get("cabinCamera"), f0.get("cabinCam")),
+                 V7_AC_CHAIN, label, evidence=shot0,
+                 repro="进入主桌→读 [data-test=cabin-scene] 的 data-cabin-camera")
+        # ---- 回合 A：roll 镜头 ----
+        Q.set_die(page, 6)
+        Q.try_click(page, SEL["roll"], timeout=4000)
+        states_a, samples_a = v7_collect(page, 1800, rec=rec, label=label)
+        roll_seen = any(x.get("s") == "roll" for x in states_a)
+        roll_samples = [s for s in samples_a if s.get("state") == "roll"]
+        roll_scales = [v7_scale_of(s.get("boardTransform")) for s in roll_samples]
+        roll_scale = max([v for v in roll_scales if v is not None], default=None)
+        roll_fact = next((s for s in roll_samples if s.get("skipVisible")), roll_samples[0] if roll_samples else {})
+        v7_check(rec, "V7-ROLL-01/%s" % label, "掷骰进入 roll 镜头（棋盘推近 scale≥1.02）",
+                 roll_seen and (roll_scale or 0) >= 1.02,
+                 "state=roll 且 scale≥1.02",
+                 "states=%s scaleMax=%s frames=%d" % ([x.get("s") for x in states_a], roll_scale,
+                                                     len(roll_samples)),
+                 V7_AC_CHAIN, label,
+                 evidence="qa/v6/shots/e2e/cinema_state_roll_%s.png" % label,
+                 repro="主桌→注入骰 6→点掷骰→轮询 data-cinema-state / .v6-board transform")
+        v7_check(rec, "V7-ROLL-02/%s" % label, "roll 阶段「快进」按钮可见可点",
+                 bool(roll_fact.get("skipVisible")) and roll_fact.get("skipPE") == "auto",
+                 "data-cinema-skip=1 且 button pointer-events:auto",
+                 "skipVisible=%s skipPE=%s skip=%s" % (roll_fact.get("skipVisible"),
+                                                      roll_fact.get("skipPE"), roll_fact.get("skip")),
+                 V7_AC_SKIP, label,
+                 evidence="qa/v6/shots/e2e/cinema_state_roll_%s.png" % label,
+                 repro="掷骰动画中点查 [data-test=cinema-skip] 的 class/pointer-events")
+        # 等 choose-piece（多子可走 → 回俯瞰等待）
+        choose_ok = Q.wait_until(
+            page,
+            "() => { try { var s=App.Store.getSession(); var aw=(s&&s.awaiting)||{}; return aw.type==='choose-piece'; } catch(e){ return false; } }",
+            timeout=4000)
+        dbg_roll = Q.eval_js(page, "() => App.Cinema._debug()")
+        roll_ms = v7_phase_ms(dbg_roll, "roll")
+        v7_check(rec, "V7-ROLL-03/%s" % label, "roll 时长 0.9–1.2s",
+                 roll_ms is not None and 850 <= float(roll_ms) <= 1350,
+                 "850–1350ms（冻结单 0.9–1.2s，含调度开销）",
+                 "roll=%sms states=%s aw=%s" % (roll_ms, [x.get("s") for x in states_a],
+                                                (Q.get_session(page) or {}).get("awaiting", {}).get("type")),
+                 V7_AC_CHAIN, label, evidence="reports/v6/qa-e2e.json",
+                 repro="掷骰后读 App.Cinema._debug().stats.log")
+        v7_check(rec, "V7-ROLL-04/%s" % label, "多子可走时回到 overview 等待选子",
+                 choose_ok and v7_state(page) == "overview" and (v7_cinema_facts(page).get("boardTransform") or "") == "",
+                 "awaiting=choose-piece + state=overview + transform=''",
+                 "choose=%s state=%s transform=%r" % (choose_ok, v7_state(page),
+                                                      (v7_cinema_facts(page).get("boardTransform") or "")[:60]),
+                 V7_AC_CHAIN, label, severity="P1",
+                 repro="掷出 6 多子可走→读 awaiting 与 data-cinema-state")
+
+        # ---- 回合 B：move 全链 ----
+        # 夹具到 choose-piece（单子可走），随后像用户一样点选子按钮；注意不能用
+        # _fixture_to_awaiting(expect='choose-piece')：它会替用户点掉选子按钮。
+        _fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if not btns:
+            v7_check(rec, "V7-CHAIN-00/%s" % label, "构造普通题卡回合（选子按钮）",
+                     False, "选子按钮可点", "夹具后未找到选子按钮", V7_AC_CHAIN, label,
+                     repro="夹具 a:0 ring:0 骰 2→读选子按钮")
+            return
+        btns[0].click(timeout=4000)
+        states_b, samples_b = v7_collect(page, 5600, rec=rec, label=label)
+        seq = [x.get("s") for x in states_b]
+        dbg_move = Q.eval_js(page, "() => App.Cinema._debug()") or {}
+        # 状态链（只要求出现顺序，允许开头 overview / 结尾 cell45/bear 停留）
+        need = ["pov", "chase", "land", "cell45", "bear"]
+        idx = -1
+        order_ok = True
+        for nm in need:
+            try:
+                pos = seq.index(nm)
+            except ValueError:
+                order_ok = False
+                break
+            if pos <= idx:
+                order_ok = False
+                break
+            idx = pos
+        v7_check(rec, "V7-CHAIN-01/%s" % label,
+                 "镜头状态链含 pov→chase→land→cell45→bear 且顺序正确",
+                 order_ok, "pov,chase,land,cell45,bear 依次出现",
+                 "states=%s" % json.dumps(seq, ensure_ascii=False), V7_AC_CHAIN, label,
+                 evidence="qa/v6/shots/e2e/cinema_state_cell45_%s.png" % label,
+                 repro="夹具普通题卡→点选子→轮询 data-cinema-state")
+        # POV 前景
+        pov_samples = [s for s in samples_b if s.get("state") == "pov"]
+        pov_fact = next((s for s in pov_samples
+                         if (s.get("povOpacity") or 0) > 0.5), pov_samples[0] if pov_samples else {})
+        pov_op_max = max([(s.get("povOpacity") or 0) for s in pov_samples], default=0)
+        v7_check(rec, "V7-POV-01/%s" % label, "POV 第一人称前景出现（机翼 2 片 / 云 5 团 / 速度线 / 不透明度>0.5）",
+                 pov_op_max > 0.5 and (pov_fact.get("povOn") is True)
+                 and (pov_fact.get("wingCount") or 0) >= 2 and (pov_fact.get("cloudCount") or 0) >= 3
+                 and pov_fact.get("speed") is True,
+                 "pov 前景 opacity>0.5 且 .on + 机翼×N + 云×N + 速度线",
+                 "povOpacityMax=%.3f povOn=%s wings=%s clouds=%s speed=%s frames=%d" % (
+                     pov_op_max, pov_fact.get("povOn"), pov_fact.get("wingCount"),
+                     pov_fact.get("cloudCount"), pov_fact.get("speed"), len(pov_samples)),
+                 V7_AC_POV, label,
+                 evidence="qa/v6/shots/e2e/cinema_state_pov_%s.png" % label,
+                 repro="镜头链进入 pov→读 [data-test=cinema-pov] 的 opacity/class 与 .cv7-wing/.cv7-clouds i/.cv7-speed")
+        # 第三人称跟拍 / 目标格发光
+        chase_fact = next((s for s in samples_b if s.get("state") == "chase"), {})
+        chase_scale = v7_scale_of(chase_fact.get("boardTransform"))
+        v7_check(rec, "V7-CHASE-01/%s" % label, "第三人称跟拍：棋盘放大/偏移且目标格发光",
+                 (chase_scale or 0) >= 1.05 and bool(chase_fact.get("glowOn")),
+                 "chase 时 scale≥1.05 且 .cv7-glow.on",
+                 "scale=%s glowOn=%s transform=%r" % (chase_scale, chase_fact.get("glowOn"),
+                                                      (chase_fact.get("boardTransform") or "")[:70]),
+                 V7_AC_POV, label,
+                 evidence="qa/v6/shots/e2e/cinema_state_chase_%s.png" % label,
+                 repro="镜头链进入 chase→读 board transform 与 [data-test=cinema-glow].class")
+        # 落地 dust / ripple
+        land_fact = next((s for s in samples_b if s.get("state") == "land"
+                          and (s.get("dustOn") or s.get("rippleOn"))), None)
+        v7_check(rec, "V7-LAND-01/%s" % label, "落地反馈：尘土/涟漪动画触发",
+                 land_fact is not None,
+                 "land 状态内 .cv7-dust.on 或 .cv7-ripple.on",
+                 "land 帧=%s" % json.dumps([{k: s.get(k) for k in ("t", "dustOn", "rippleOn")}
+                                            for s in samples_b if s.get("state") == "land"],
+                                           ensure_ascii=False)[:500],
+                 V7_AC_CHAIN, label, severity="P1",
+                 evidence="qa/v6/shots/e2e/cinema_state_land_%s.png" % label,
+                 repro="轮询 land 状态的 dust/ripple class")
+        # 状态时序
+        pov_ms = v7_phase_ms(dbg_move, "pov")
+        chase_ms = v7_phase_ms(dbg_move, "chase")
+        land_ms = v7_phase_ms(dbg_move, "land")
+        gap_cell_bear = (v7_state_ms(states_b, "bear") or 0) - (v7_state_ms(states_b, "cell45") or 0)
+        v7_check(rec, "V7-CHAIN-02/%s" % label, "POV 1.0–1.3s · 跟拍 1.4–2.6s · 落地 0.4–0.7s",
+                 all(v is not None for v in (pov_ms, chase_ms, land_ms))
+                 and 950 <= float(pov_ms) <= 1300 and 1350 <= float(chase_ms) <= 2600
+                 and 380 <= float(land_ms) <= 720,
+                 "pov 1.0–1.2s / chase 1.5–2.5s / land 0.4–0.6s（含调度开销放宽）",
+                 "pov=%sms chase=%sms land=%sms" % (pov_ms, chase_ms, land_ms),
+                 V7_AC_CHAIN, label, evidence="reports/v6/qa-e2e.json",
+                 repro="镜头链结束后读 App.Cinema._debug().stats.log")
+        v7_check(rec, "V7-CHAIN-03/%s" % label, "cell45→bear 约 0.5–0.8s（小熊探头）",
+                 gap_cell_bear is not None and 350 <= gap_cell_bear <= 1100,
+                 "350–1100ms（冻结单 0.5s 量级）", "gap=%sms" % gap_cell_bear,
+                 V7_AC_CELL, label, evidence="reports/v6/qa-e2e.json",
+                 repro="按状态时间戳计算 cell45 首现→bear 首现")
+        # 落地后 CellStage 与 bear
+        cell = v7_cell_facts(page)
+        # 状态截图：cell45（真实题卡停留在 bear；用 stage('cell45') 回放一帧取证，再回 bear）
+        Q.eval_js(page, "() => { try { App.Cinema.stage('cell45'); return true; } catch (e) { return false; } }")
+        page.wait_for_timeout(160)
+        shot_cell45 = v7_shot(rec, page, "cinema_state_cell45_%s" % label)
+        Q.eval_js(page, "() => { try { App.Cinema.stage('bear'); return true; } catch (e) { return false; } }")
+        page.wait_for_timeout(160)
+        shot_cell = v7_shot(rec, page, "cinema_bear_%s" % label)
+        bear = cell.get("bear") or {}
+        v7_check(rec, "V7-CELL-01/%s" % label, "落地后 CellStage 出现（cell-stage + 45° 格子）",
+                 bool(cell.get("open")) and bool(cell.get("cellRect")) and (cell.get("cellRect") or {}).get("w", 0) > 0,
+                 "cell-stage 根 + cell-stage-cell 可见",
+                 json.dumps({"open": cell.get("open"), "cellRect": cell.get("cellRect"),
+                             "stageRect": cell.get("stageRect")}, ensure_ascii=False),
+                 V7_AC_CELL, label, evidence=shot_cell45,
+                 repro="落地后查询 [data-test=cell-stage]/[data-test=cell-stage-cell]")
+        v7_check(rec, "V7-CELL-02/%s" % label, "小熊 data-test=bear 可见且 data-outfit=pilot（cloud）",
+                 bool(bear.get("rect")) and bear.get("outfit") == "pilot"
+                 and bear.get("aria") == "true" and cell.get("attrs", {}).get("bear") == "on",
+                 "bear 可见 / data-outfit=pilot / aria-hidden=true / data-bear=on",
+                 json.dumps({k: bear.get(k) for k in ("rect", "outfit", "mood", "aria")}, ensure_ascii=False),
+                 V7_AC_CELL, label, evidence=shot_cell,
+                 repro="题卡出现→查询 [data-test=bear]")
+        v7_check(rec, "V7-CELL-03/%s" % label, "CellStage 接管题卡（prompt-card 在 cell-stage 内，无旧 .pc-root）",
+                 cell.get("card") is not None and (cell.get("hostPC") or 0) == 0
+                 and (cell.get("csRoots") or 0) >= 1,
+                 "prompt-card 属于 cell-stage；hostPC=0",
+                 "card=%s hostPC=%s csRoots=%s" % (bool(cell.get("card")), cell.get("hostPC"),
+                                                   cell.get("csRoots")),
+                 V7_AC_TAKEOVER, label, evidence=shot_cell,
+                 repro="题卡出现→检查 .cs-root / .pc-root / [data-test=prompt-card]")
+        v7_check(rec, "V7-CELL-04/%s" % label, "内容卡 data-test 与旧 PromptCard 对齐（kicker/actor/done/skip/stars/meta）",
+                 all(k in (cell.get("texts") or {}) for k in ("kicker", "actor", "stars", "meta"))
+                 and "done" in (cell.get("buttons") or {}) and "skipped" in (cell.get("buttons") or {}),
+                 "kicker/actor/stars/meta + done/skip 按钮",
+                 json.dumps({"texts": {k: (cell.get("texts") or {}).get(k) for k in
+                                       ("kicker", "actor", "type", "stars", "source")},
+                             "buttons": cell.get("buttons")}, ensure_ascii=False)[:600],
+                 V7_AC_TAKEOVER, label, evidence=shot_cell,
+                 repro="题卡出现→读取 data-test 节点")
+        # 点「做了」→ return → overview
+        t_click = time.time()
+        Q.try_click(page, SEL["prompt_done"], timeout=4000)
+        states_r, samples_r = v7_collect(page, 2600, rec=rec, label=label)
+        ret_seen = any(x.get("s") == "return" for x in states_r)
+        end_state = v7_state(page)
+        dbg_after = Q.eval_js(page, "() => App.Cinema._debug()") or {}
+        return_ms = v7_phase_ms(dbg_after, "return")
+        elapsed = int((time.time() - t_click) * 1000)
+        f_after = v7_cinema_facts(page)
+        v7_check(rec, "V7-RETURN-01/%s" % label, "选「做了」后卡片收起、镜头回 overview",
+                 (ret_seen or end_state == "overview") and end_state == "overview"
+                 and (f_after.get("boardTransform") or "") == ""
+                 and not Q.exists(page, ["test:cell-stage"], timeout=300),
+                 "return 出现（或 ≤2.6s 到 overview）+ transform='' + cell-stage 收起",
+                 "states=%s end=%s transform=%r elapsed=%sms return=%sms" % (
+                     [x.get("s") for x in states_r], end_state,
+                     (f_after.get("boardTransform") or "")[:60], elapsed, return_ms),
+                 V7_AC_CHAIN, label, evidence="reports/v6/qa-e2e.json",
+                 repro="题卡点「做了」→轮询 data-cinema-state 到 overview")
+        v7_check(rec, "V7-RETURN-02/%s" % label, "return 时长 0.6–1.1s",
+                 return_ms is not None and 550 <= float(return_ms) <= 1150,
+                 "600–1100ms（冻结单 0.7–0.9s，含调度开销）", "return=%sms" % return_ms,
+                 V7_AC_CHAIN, label, severity="P1", evidence="reports/v6/qa-e2e.json",
+                 repro="题卡结算后读 _debug().stats.log 的 return 阶段")
+        # 5–8s 总时长（不含用户答题）：roll+pov+chase+land+return + cell45→bear 间隔
+        total = float(roll_ms or 0) + sum(
+            float(v7_phase_ms(dbg_after, k) or 0) for k in ("pov", "chase", "land", "return"))
+        total += gap_cell_bear if gap_cell_bear and gap_cell_bear > 0 else 0
+        v7_check(rec, "V7-CHAIN-04/%s" % label, "整条镜头链 5–8s（不含用户答题）",
+                 5000 <= total <= 8200,
+                 "5000–8000ms", "total=%sms（roll=%s + pov/chase/land/return + cell45→bear=%s）" % (
+                     total, roll_ms, gap_cell_bear),
+                 V7_AC_CHAIN, label, evidence="reports/v6/qa-e2e.json",
+                 repro="汇总 _debug().stats.log 各阶段与 cell45→bear 间隔")
+        # 补充证据截图：roll/pov/chase/land 用 Cinema 公开方法回放（仅取证，不改产品时序）
+        for nm, expr, wait_ms in (
+                ("roll", "App.Cinema.roll([])", 1150),
+                ("pov", "App.Cinema.pov()", 1250),
+                ("chase", "App.Cinema.chase([{type:'move', path:['ring:2']}])", 1750),
+                ("land", "App.Cinema.land([{type:'move', path:['ring:2']}])", 620)):
+            Q.eval_js(page, "() => { try { %s; return true; } catch (e) { return false; } }" % expr)
+            page.wait_for_timeout(wait_ms)
+            v7_shot(rec, page, "cinema_state_%s_%s" % (nm, label))
+        Q.eval_js(page, "() => { try { App.Cinema.overview({ms:0}); return true; } catch (e) { return false; } }")
+        page.wait_for_timeout(200)
+        check_no_errors(rec, ps, "AC-H6-1-cinema/%s" % label, label, "镜头链")
+    finally:
+        ctx.close()
+
+
+def run_cinema_skip_case(browser, url, rec, label="390x844"):
+    """AC-V7-8：动画中「快进」可见，点按立即到终态（roll / move 两种）。"""
+    ctx, ps, page = v7_new_page(browser, url, rec, label)
+    drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=20)
+    try:
+        if not v7_start_table(page, drv, rec):
+            return
+        # ---- roll 阶段快进：骰 6 → roll → skip → 回俯瞰等待 ----
+        Q.set_die(page, 6)
+        Q.try_click(page, SEL["roll"], timeout=4000)
+        st = v7_wait_state(page, ("roll",), timeout=1200)
+        page.wait_for_timeout(260)   # 等按钮淡入完成（160ms）再做点击，避免 actionability 抖动
+        f = v7_cinema_facts(page)
+        skip_btn, _ = Q.find(page, ["test:cinema-skip"], timeout=1500)
+        v7_check(rec, "V7-SKIP-01/%s" % label, "roll 动画中「快进」按钮可见可点",
+                 st == "roll" and skip_btn is not None and f.get("skipVisible") is True,
+                 "state=roll + cinema-skip 可见",
+                 "state=%s skip=%s visible=%s" % (st, bool(skip_btn), f.get("skipVisible")),
+                 V7_AC_SKIP, label, evidence="qa/v6/shots/e2e/skip_roll_%s.png" % label,
+                 repro="掷骰后立即查找 [data-test=cinema-skip]")
+        t0 = time.time()
+        clicked = False
+        if skip_btn is not None:
+            try:
+                skip_btn.click(timeout=2500)
+                clicked = True
+            except Exception:
+                clicked = False
+        if not clicked:
+            # 兜底：页内点击（按钮 click 监听在真实 DOM 上，等价用户点按；仅规避 Playwright 可点性抖动）
+            clicked = bool(Q.eval_js(page, "() => { var b=document.querySelector('[data-test=\"cinema-skip\"]'); if(!b) return false; b.click(); return true; }"))
+        dbg = v7_wait_debug(page, lambda d: (d.get("pending") is False and d.get("state") in ("overview", "land", "cell45", "bear")), timeout=2500)
+        elapsed = int((time.time() - t0) * 1000)
+        skipped_n = (dbg.get("stats") or {}).get("skipped", 0)
+        v7_shot(rec, page, "skip_roll_%s" % label)
+        v7_check(rec, "V7-SKIP-02/%s" % label, "快进 roll：≤2.5s 到终态且 stats.skipped≥1",
+                 clicked and skipped_n >= 1 and elapsed <= 2500,
+                 "skipped≥1 且 ≤2500ms 到终态",
+                 "clicked=%s elapsed=%sms state=%s pending=%s stats=%s" % (
+                     clicked, elapsed, dbg.get("state"), dbg.get("pending"),
+                     json.dumps(dbg.get("stats"), ensure_ascii=False)[:220]),
+                 V7_AC_SKIP, label, evidence="reports/v6/qa-e2e.json",
+                 repro="掷骰画面点「快进」→读 state/pending/stats")
+        v7_check(rec, "V7-SKIP-03/%s" % label, "快进后按钮收起（data-cinema-skip=0）",
+                 (v7_cinema_facts(page).get("skipAttr") == "0"),
+                 "data-cinema-skip=0",
+                 "skip=%s" % v7_cinema_facts(page).get("skipAttr"),
+                 V7_AC_SKIP, label, severity="P1",
+                 repro="快进后读宿主 data-cinema-skip")
+
+        # ---- move 阶段快进：单子可走 → pov → skip → land 立即到 ----
+        _fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if not btns:
+            return
+        btns[0].click(timeout=4000)
+        st2 = v7_wait_state(page, ("pov",), timeout=1500)
+        page.wait_for_timeout(240)   # 等快进按钮淡入完成
+        f2 = v7_cinema_facts(page)
+        t1 = time.time()
+        skip2 = Q.eval_js(page, "() => { var b=document.querySelector('[data-test=\"cinema-skip\"]'); if(!b) return false; b.click(); return true; }")
+        if not skip2:
+            Q.try_click(page, ["test:cinema-skip"], timeout=2000)
+        st_after = v7_wait_state(page, ("land", "cell45", "bear"), timeout=2200)
+        elapsed2 = int((time.time() - t1) * 1000)
+        dbg2 = Q.eval_js(page, "() => App.Cinema._debug()") or {}
+        log2 = (dbg2.get("stats") or {}).get("log") or []
+        fast_phases = [x.get("name") for x in log2 if x.get("skipped")]
+        log_tail = log2[-3:] if log2 else []
+        shot2 = v7_shot(rec, page, "skip_move_%s" % label)
+        v7_check(rec, "V7-SKIP-04/%s" % label, "快进 move：pov 中点按后 ≤2.2s 到 land/cell45",
+                 st2 == "pov" and st_after in ("land", "cell45", "bear") and elapsed2 <= 2200,
+                 "pov→skip 后 ≤2200ms 进入 land/cell45/bear",
+                 "pov=%s after=%s elapsed=%sms fastPhases=%s" % (st2, st_after, elapsed2, fast_phases),
+                 V7_AC_SKIP, label, evidence=shot2,
+                 repro="走子镜头 pov 中点「快进」→轮询 state")
+        # P1：move 快进语义 = 当前 pov 立即收束，后续 chase 以 130ms 级自动收束（skipAll），不再要求
+        # 每条日志都标 skipped=true（V7 修复后自动收束阶段记为 skipped=false，耗时≈130ms）。
+        chase_ms_fast = next((x.get("ms") for x in log_tail if x.get("name") == "chase"), None)
+        v7_check(rec, "V7-SKIP-05/%s" % label, "快进 move：pov 立即收束，chase 也以 ≤350ms 级到终态",
+                 "pov" in fast_phases and chase_ms_fast is not None and chase_ms_fast <= 350,
+                 "pov skipped=true；chase 耗时 ≤350ms",
+                 "fastPhases=%s chaseMs=%s log=%s" % (fast_phases, chase_ms_fast,
+                                                      json.dumps(log_tail, ensure_ascii=False)[:400]),
+                 V7_AC_SKIP, label, severity="P1", evidence="reports/v6/qa-e2e.json",
+                 repro="走子 pov 中快进→读 _debug().stats.log 的 skipped 标记")
+        # 清理：若进了题卡则放过，回俯瞰
+        Q.try_click(page, SEL["prompt_skip"], timeout=3000)
+        page.wait_for_timeout(2000)
+        check_no_errors(rec, ps, "AC-H6-1-skip/%s" % label, label, "快进")
+    finally:
+        ctx.close()
+
+
+def run_cinema_reduced_case(browser, url, rec, label="390x844"):
+    """AC-V7-7：reduced（产品设置开关）下无 POV/跟拍/震动，棋盘无 transform，
+    格子舞台静态出现；data-cinema-reduced=1。系统偏好路径见 run_cinema_reduced_system_case。"""
+    for mode in ("settings",):
+        ctx = ps = page = None
+        try:
+            ctx, ps, page = v7_new_page(
+                browser, url, rec, label,
+                reduced=(mode == "settings"),
+                reduced_motion=(True if mode == "media" else None))
+            drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=20)
+            if not v7_start_table(page, drv, rec):
+                continue
+            f0 = v7_cinema_facts(page)
+            idle = {"reduced": f0.get("reduced"), "state": f0.get("state"),
+                    "transform": f0.get("boardTransform"), "skip": f0.get("skipAttr"),
+                    "debugReduced": (f0.get("debug") or {}).get("reduced")}
+            v7_check(rec, "V7-REDUCED-01-%s/%s" % (mode, label),
+                     "reduced 挂载：data-cinema-reduced=1 / 无 transform / 快进隐藏（%s）" % mode,
+                     f0.get("reduced") == "1" and (f0.get("boardTransform") or "") == ""
+                     and f0.get("skipAttr") == "0" and (f0.get("debug") or {}).get("reduced") is True,
+                     "reduced=1 transform='' skip=0 debug.reduced=true",
+                     json.dumps(idle, ensure_ascii=False), V7_AC_REDUCED, label,
+                     evidence=v7_shot(rec, page, "reduced_idle_%s_%s" % (mode, label)),
+                     repro="开减少动画→进主桌→读 data-cinema-reduced/transform")
+            # 夹具走一子到真心话格：观察整条链
+            _fixture_move(page, "a:0", "ring:0", 2, "a")
+            Q.wait_screen(page, ["table"], timeout=6000)
+            page.wait_for_timeout(400)
+            btns, _ = Q.find_piece_buttons(page)
+            if btns:
+                btns[0].click(timeout=4000)
+            states, samples = v7_collect(page, 4200, rec=rec, label=label)
+            seq = [x.get("s") for x in states]
+            cell = v7_cell_facts(page)
+            anim = Q.eval_js(page, """() => {
+                var el = document.querySelector('.cs-stage');
+                if (!el) return null;
+                var cs = getComputedStyle(el);
+                return { duration: cs.animationDuration, delay: cs.animationDelay,
+                         iterations: cs.animationIterationCount };
+            }""")
+            transforms = [s.get("boardTransform") for s in samples if (s.get("boardTransform") or "")]
+            dust_on = [s for s in samples if s.get("dustOn") or s.get("rippleOn")]
+            v7_check(rec, "V7-REDUCED-02-%s/%s" % (mode, label), "reduced 无 POV / 无第三人称跟拍",
+                     "pov" not in seq and "chase" not in seq and "return" not in seq,
+                     "状态不出现 pov/chase", "states=%s" % json.dumps(seq, ensure_ascii=False),
+                     V7_AC_REDUCED, label,
+                     evidence=next((x.get("shot") for x in states if x.get("s") == "cell45"), ""),
+                     repro="reduced 下走子→轮询 data-cinema-state")
+            v7_check(rec, "V7-REDUCED-03-%s/%s" % (mode, label), "reduced 全程棋盘 transform 为空 / 无尘土震动",
+                     not transforms and not dust_on,
+                     "boardTransform 始终 ''，dust/ripple 不触发",
+                     "transformFrames=%d dustFrames=%d" % (len(transforms), len(dust_on)),
+                     V7_AC_REDUCED, label, evidence="reports/v6/qa-e2e.json",
+                     repro="reduced 下采样 .v6-board.style.transform 与 dust class")
+            v7_check(rec, "V7-REDUCED-04-%s/%s" % (mode, label), "格子舞台静态出现（data-reduced=1，动画≤1ms）",
+                     bool(cell.get("open")) and cell.get("attrs", {}).get("reduced") == "1"
+                     and anim is not None and float((anim.get("duration") or "9s").replace("s", "")) <= 0.01,
+                     "cell-stage[data-reduced=1] + animation-duration≤10ms",
+                     json.dumps({"open": cell.get("open"), "attrs": cell.get("attrs"),
+                                 "anim": anim}, ensure_ascii=False), V7_AC_REDUCED, label,
+                     evidence=next((x.get("shot") for x in states if x.get("s") == "bear"), ""),
+                     repro="reduced 题卡→读 data-reduced 与 .cs-stage animation-duration")
+            # 收卡：不再做抖动；等待回 overview
+            Q.try_click(page, SEL["prompt_done"], timeout=3500)
+            page.wait_for_timeout(1200)
+            end = v7_cinema_facts(page)
+            v7_check(rec, "V7-REDUCED-05-%s/%s" % (mode, label), "reduced 收卡后回 overview 且无 transform",
+                     end.get("state") == "overview" and (end.get("boardTransform") or "") == "",
+                     "state=overview transform=''",
+                     "state=%s transform=%r" % (end.get("state"), (end.get("boardTransform") or "")[:60]),
+                     V7_AC_REDUCED, label, severity="P1",
+                     repro="reduced 题卡点做了→读 data-cinema-state")
+            check_no_errors(rec, ps, "AC-H6-1-reduced-%s/%s" % (mode, label), label, "reduced 镜头")
+        finally:
+            if ctx is not None:
+                ctx.close()
+
+
+def run_cinema_reduced_system_case(browser, url, rec, label="390x844"):
+    """P1（AC-V7-7 继承 V6.2 §3.9）：系统 prefers-reduced-motion=reduce 时，
+    table/Cinema/CellStage/Motion 全部进入 reduced；镜头链跳过 POV/跟拍，棋盘无 transform。"""
+    ctx, ps, page = v7_new_page(browser, url, rec, label, reduced_motion=True)
+    drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=15)
+    try:
+        if not v7_start_table(page, drv, rec):
+            return
+        f0 = v7_cinema_facts(page)
+        mp = Q.eval_js(page, """() => {
+            var t = document.querySelector('.v6-table');
+            return {
+                tableReduced: t ? t.getAttribute('data-reduced') : null,
+                tableCinemaReduced: t ? t.getAttribute('data-cinema-reduced') : null,
+                paused: t ? t.getAttribute('data-cinema-paused') : null,
+                motionReduced: !!(window.App && App.Motion && typeof App.Motion.reduced === 'function' && App.Motion.reduced()),
+                bodyReduce: document.body.classList.contains('reduce'),
+                cabinReduced: (function(){ var r=document.querySelector('[data-test="cabin-scene"]'); return r?r.getAttribute('data-cabin-reduced'):null; })()
+            };
+        }""")
+        Q.install_die_hook(page)
+        Q.set_die(page, 6)
+        Q.try_click(page, SEL["roll"], timeout=4000)
+        states_a, _ = v7_collect(page, 1800)
+        btns, _ = Q.find_piece_buttons(page)
+        if btns:
+            btns[0].click(timeout=4000)
+        states_b, _ = v7_collect(page, 4200)
+        seq = [x.get("s") for x in states_a + states_b]
+        cell = v7_wait_cell(page, timeout=2500, need_bear=False)
+        if not cell.get("open"):
+            # 首掷 6 起飞后可能落在无题卡格：再构造一次「ring:0 → ring:2（真心话）」，
+            # 确保 reduced 下也覆盖 land→cell45 的静态舞台。
+            _fixture_move(page, "a:0", "ring:0", 2, "a")
+            Q.wait_screen(page, ["table"], timeout=6000)
+            page.wait_for_timeout(400)
+            btns2, _ = Q.find_piece_buttons(page)
+            if btns2:
+                btns2[0].click(timeout=4000)
+                states_c, _ = v7_collect(page, 4200)
+                seq += [x.get("s") for x in states_c]
+                cell = v7_wait_cell(page, timeout=3500, need_bear=False)
+        cell_reduced = (cell.get("attrs") or {}).get("reduced")
+        ok = (f0.get("reduced") == "1" and (f0.get("debug") or {}).get("reduced") is True
+              and (mp or {}).get("tableReduced") == "1" and (mp or {}).get("motionReduced") is True
+              and (mp or {}).get("cabinReduced") == "1"
+              and "pov" not in seq and "chase" not in seq
+              and (f0.get("boardTransform") or "") == ""
+              and cell_reduced == "1")
+        v7_check(rec, "V7-REDUCED-SYS/%s" % label,
+                 "系统 prefers-reduced-motion 下全链路 reduced（table/Cinema/CellStage/Motion/Cabin）且无 POV/跟拍",
+                 ok, "table/Cinema/Cabin data-reduced=1 + Motion.reduced=true + 无 pov/chase + cell[data-reduced=1]",
+                 "cinema=%s debug=%s table=%s motion=%s cabin=%s paused=%s cell=%s states=%s transform=%r" % (
+                     f0.get("reduced"), (f0.get("debug") or {}).get("reduced"),
+                     (mp or {}).get("tableReduced"), (mp or {}).get("motionReduced"),
+                     (mp or {}).get("cabinReduced"), (mp or {}).get("paused"), cell_reduced,
+                     json.dumps(seq, ensure_ascii=False), (f0.get("boardTransform") or "")[:40]),
+                 V7_AC_REDUCED, label, severity="P1",
+                 evidence=v7_shot(rec, page, "reduced_system_%s" % label),
+                 repro="CDP Emulation.setEmulatedMedia(prefers-reduced-motion=reduce)→开局掷骰/走子→读 table/Cinema/Cabin/Motion/CellStage 与状态链")
+        check_no_errors(rec, ps, "AC-H6-1-reduced-system/%s" % label, label, "系统 reduced")
+    finally:
+        ctx.close()
+
+
+def v7_wait_cell(page, timeout=6000, need_bear=True):
+    deadline = time.time() + timeout / 1000.0
+    facts = {}
+    while time.time() < deadline:
+        facts = v7_cell_facts(page)
+        if facts.get("open") and (not need_bear or facts.get("attrs", {}).get("bear") == "on"):
+            # 等入场动画（.cs-stage 0.34s / .cs-card 0.38s+0.05s）结束，避免把 translateX(18px) 当成布局越界
+            page.wait_for_timeout(520)
+            return v7_cell_facts(page)
+        page.wait_for_timeout(100)
+    return facts if facts else v7_cell_facts(page)
+
+
+def _v7_open_cell_component(page, prompt, state=None):
+    arg = {"prompt": prompt,
+           "state": state or {"names": {"a": "阿岚", "b": "阿策"}, "turn": "a"}}
+    return Q.eval_js(
+        page,
+        """(arg) => {
+            try {
+                window.__csEv = [];
+                var host = document.querySelector('[data-test="prompt-host"]');
+                if (!host) return { ok: false, error: 'no-prompt-host' };
+                App.CellStage.open(host, arg.prompt, arg.state, {
+                    done: function () { window.__csEv.push('done'); },
+                    skipped: function () { window.__csEv.push('skipped'); },
+                    choose: function (i) { window.__csEv.push('choose:' + i); },
+                    'continue': function () { window.__csEv.push('continue'); },
+                    minigame: function () { window.__csEv.push('minigame'); }
+                });
+                return { ok: true };
+            } catch (e) { return { ok: false, error: String(e) }; }
+        }""",
+        arg,
+    )
+
+
+def _v7_cell_events(page):
+    data = Q.eval_js(page, "() => Array.isArray(window.__csEv) ? window.__csEv.slice() : []")
+    return data if isinstance(data, list) else []
+
+
+def _v7_close_cell(page):
+    Q.eval_js(page, "() => { try { App.CellStage.close(); return true; } catch (e) { return false; } }")
+    page.wait_for_timeout(320)
+
+
+def _v7_click_cell(page, test):
+    loc, _ = Q.find(page, ["test:%s" % test], timeout=2500)
+    if loc is None:
+        return False
+    try:
+        loc.click(timeout=3000)
+        page.wait_for_timeout(320)
+        return True
+    except Exception:
+        return False
+
+
+def run_cell_stage_case(browser, url, rec, label="390x844"):
+    """AC-V7-4/3/6：CellStage 接管题卡（普通题 / 放过 / 命运 / 收尾 / 功能格 /
+    小游戏入口 / 长文本滚动）+ 45° 格子 + 小熊 + 安全词/暂停 hit-test + 92 格。"""
+    ctx, ps, page = v7_new_page(browser, url, rec, label)
+    drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=20)
+    try:
+        if not v7_start_table(page, drv, rec):
+            return
+        # ---- 普通题卡（真心话，ring:2）----
+        _fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if not btns:
+            v7_check(rec, "V7-CS-00/%s" % label, "构造普通题卡", False, "选子按钮",
+                     "夹具后无选子按钮", V7_AC_TAKEOVER, label, repro="夹具后读选子按钮")
+            return
+        btns[0].click(timeout=4000)
+        cell = v7_wait_cell(page, timeout=7000)
+        shot = v7_shot(rec, page, "cellstage_normal_%s" % label)
+        attrs = cell.get("attrs") or {}
+        card = cell.get("card") or {}
+        texts = cell.get("texts") or {}
+        bear = cell.get("bear") or {}
+        buttons = cell.get("buttons") or {}
+        v7_check(rec, "V7-CS-01/%s" % label, "CellStage 接管题卡：根节点/内容卡/旧 PromptCard 不出现",
+                 bool(cell.get("open")) and card.get("test") == "prompt-card"
+                 and (cell.get("hostWrap") or 0) == 0 and (cell.get("hostPC") or 0) == 0
+                 and (cell.get("csRoots") or 0) == 1,
+                 "cell-stage + prompt-card；.v6-cardwrap/.pc-root = 0",
+                 json.dumps({"open": cell.get("open"), "card": card.get("test"),
+                             "hostWrap": cell.get("hostWrap"), "hostPC": cell.get("hostPC"),
+                             "csRoots": cell.get("csRoots")}, ensure_ascii=False),
+                 V7_AC_TAKEOVER, label, evidence=shot,
+                 repro="题卡出现→检查 .cs-root/.pc-root/[data-test=prompt-card]")
+        v7_check(rec, "V7-CS-02/%s" % label, "覆盖层不吃棋盘点击（root PE=none / card PE=auto）",
+                 cell.get("pe") == "none" and card.get("pe") == "auto",
+                 "root pointer-events:none；card auto",
+                 "rootPE=%s cardPE=%s" % (cell.get("pe"), card.get("pe")),
+                 V7_AC_LAYOUT, label, severity="P1", evidence=shot,
+                 repro="题卡出现→读 .cs-root / .cs-card computed pointer-events")
+        v7_check(rec, "V7-CS-03/%s" % label, "45° 格子舞台（3D 透视倾斜）+ 文字不倾斜",
+                 "matrix3d" in (cell.get("floorTransform") or "")
+                 and cell.get("textTransform") == "none",
+                 ".cs-cell-floor transform 含 matrix3d；.cs-text transform=none",
+                 "floor=%r text=%r" % ((cell.get("floorTransform") or "")[:40],
+                                       cell.get("textTransform")),
+                 V7_AC_CELL, label, evidence=shot,
+                 repro="题卡出现→读 .cs-cell-floor/.cs-text computed transform")
+        v7_check(rec, "V7-CS-04/%s" % label, "格子类型/来源/主题标签 + 归属人名 + 星级",
+                 bool(texts.get("type")) and bool(texts.get("source"))
+                 and "云海机舱" in (texts.get("theme") or "")
+                 and "阿岚" in (texts.get("kicker") or "")
+                 and bool(re.search(r"[★☆]", texts.get("stars") or "")),
+                 "type/来源/云海机舱/kicker 含阿岚/★",
+                 json.dumps({k: texts.get(k) for k in ("type", "index", "source", "theme", "kicker",
+                                                       "actor", "stars")}, ensure_ascii=False),
+                 V7_AC_CELL, label, evidence=shot,
+                 repro="题卡出现→读取 [data-test=cell-type/prompt-source/cell-theme/prompt-kicker/prompt-stars]")
+        v7_check(rec, "V7-CS-05/%s" % label, "小熊可见（data-test=bear / data-bear=on / aria-hidden）",
+                 bool(bear.get("rect")) and bear.get("outfit") == "pilot"
+                 and bear.get("aria") == "true" and attrs.get("bear") == "on",
+                 "bear 可见 + outfit=pilot + aria-hidden=true",
+                 json.dumps({k: bear.get(k) for k in ("rect", "outfit", "mood", "aria")}, ensure_ascii=False),
+                 V7_AC_CELL, label, evidence=shot,
+                 repro="题卡出现→查询 [data-test=bear]")
+        v7_check(rec, "V7-CS-06/%s" % label, "做了/放过按钮 ≥44×44 且正文 ≥15px",
+                 (buttons.get("done") or {}).get("visible") and (buttons.get("skipped") or {}).get("visible")
+                 and ((buttons.get("done") or {}).get("rect", {}).get("h") or 0) >= 44
+                 and ((buttons.get("skipped") or {}).get("rect", {}).get("h") or 0) >= 44
+                 and (cell.get("textSize") or 0) >= 15,
+                 "两个按钮 h≥44；正文 ≥15px",
+                 json.dumps({"done": (buttons.get("done") or {}).get("rect"),
+                             "skip": (buttons.get("skipped") or {}).get("rect"),
+                             "textSize": cell.get("textSize")}, ensure_ascii=False),
+                 V7_AC_LAYOUT, label,
+                 evidence=shot, repro="题卡出现→读按钮 rect 与正文 font-size")
+        v7_check(rec, "V7-CS-07/%s" % label, "安全词/暂停在题卡上仍可点（hit-test 不落 CellStage）",
+                 (cell.get("safety") or {}).get("hit") and not (cell.get("safety") or {}).get("hit", {}).get("inCell")
+                 and (cell.get("pause") or {}).get("hit") and not (cell.get("pause") or {}).get("hit", {}).get("inCell"),
+                 "elementFromPoint 命中 safety-word/pause，不落 .cs-root",
+                 json.dumps({"safety": cell.get("safety"), "pause": cell.get("pause")},
+                            ensure_ascii=False),
+                 V7_AC_LAYOUT, label, evidence=shot,
+                 repro="题卡出现→对安全词/暂停中心做 elementFromPoint")
+        v7_check(rec, "V7-CS-08/%s" % label, "320–430 无横向溢出，卡片在视口内",
+                 (not Q.overflow(page)) and (card.get("rect") or {}).get("x", -1) >= -1
+                 and ((card.get("rect") or {}).get("x", 0) + (card.get("rect") or {}).get("w", 0))
+                 <= (cell.get("vw") or 0) + 1.5,
+                 "scrollWidth≤clientWidth；卡片左右在视口内",
+                 json.dumps({"overflow": Q.overflow(page), "card": card.get("rect"),
+                             "vw": cell.get("vw")}, ensure_ascii=False),
+                 V7_AC_LAYOUT, label, evidence=shot,
+                 repro="题卡出现→读 scrollWidth/card rect")
+        # 「先看棋盘」收起/回到这张
+        collapsed = _v7_click_cell(page, "prompt-collapse")
+        page.wait_for_timeout(250)
+        cls_after = (v7_cell_facts(page).get("cls") or "")
+        restore, _ = Q.find(page, ["test:prompt-restore"], timeout=1500)
+        v7_check(rec, "V7-CS-09/%s" % label, "「先看棋盘」收起舞台且「回到这张」可恢复",
+                 collapsed and "cs-collapsed" in cls_after and restore is not None,
+                 "cs-collapsed + prompt-restore 可见",
+                 "collapsed=%s cls=%s restore=%s" % (collapsed, cls_after, bool(restore)),
+                 V7_AC_TAKEOVER, label, severity="P1",
+                 repro="题卡点「先看棋盘」→读 root class / prompt-restore")
+        _v7_click_cell(page, "prompt-restore")
+        page.wait_for_timeout(250)
+        # 做了 → 结算 + 回俯瞰
+        before = Q.get_session(page) or {}
+        c0 = before.get("cardsProcessed")
+        h0 = (before.get("meta") or {}).get("heat")
+        Q.try_click(page, SEL["prompt_done"], timeout=4000)
+        closed = Q.wait_until(page, "() => !document.querySelector('[data-test=cell-stage]')", timeout=3000)
+        end_state = v7_wait_state(page, ("overview",), timeout=3500)
+        page.wait_for_timeout(300)
+        s2 = Q.get_session(page) or {}
+        c1 = s2.get("cardsProcessed")
+        h1 = (s2.get("meta") or {}).get("heat")
+        end = v7_cinema_facts(page)
+        v7_check(rec, "V7-CS-10/%s" % label, "「做了」结算 +1 张并收起舞台、回 overview",
+                 bool(closed) and c1 == (c0 + 1 if isinstance(c0, int) else c1)
+                 and end_state == "overview" and end.get("state") == "overview",
+                 "cards+1 / cell-stage 收起 / state=overview",
+                 "closed=%s cards=%s→%s state=%s/%s heat=%s→%s" % (
+                     closed, c0, c1, end_state, end.get("state"), h0, h1),
+                 V7_AC_TAKEOVER, label, evidence="reports/v6/qa-e2e.json",
+                 repro="题卡点「做了」→等待 data-cinema-state=overview 后读 cardsProcessed")
+        # 镜头回位后再做 92 格 hit-test（避免 land/return 位移期把格心算到视口外）
+        page.wait_for_timeout(400)
+        # 92 格不被 cinema/cell 拦截（卡片收起后）
+        hit = v7_hit92(page)
+        v7_check(rec, "V7-HIT92-01/%s" % label, "92 格点击全部命中棋盘（cinema/cell/cabin 0 拦截）",
+                 hit.get("total") == 92 and hit.get("board") == 92 and hit.get("cinema") == 0
+                 and hit.get("cell") == 0 and hit.get("cabin") == 0 and hit.get("outside") == 0,
+                 "92/92 命中棋盘层",
+                 json.dumps({k: hit.get(k) for k in ("total", "board", "cinema", "cell", "cabin", "outside")},
+                            ensure_ascii=False) + json.dumps(hit.get("other") or [], ensure_ascii=False)[:300],
+                 V7_AC_LAYOUT, label, evidence=shot,
+                 repro="卡片收起后→92 个 [data-square] 中心 elementFromPoint")
+
+        # ---- 放过路径（大冒险 ring:4）----
+        _fixture_move(page, "a:0", "ring:2", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if btns:
+            btns[0].click(timeout=4000)
+            cell2 = v7_wait_cell(page, timeout=7000)
+            h_skip0 = (Q.get_session(page) or {}).get("meta", {}).get("heat")
+            v7_check(rec, "V7-CS-11/%s" % label, "第二张普通题卡类型正确（大冒险格）",
+                     "大冒险" in ((cell2.get("texts") or {}).get("type") or ""),
+                     "cell-type 含「大冒险」",
+                     json.dumps((cell2.get("texts") or {}), ensure_ascii=False)[:300],
+                     V7_AC_TAKEOVER, label, evidence=v7_shot(rec, page, "cellstage_skip_%s" % label),
+                     repro="夹具 ring:2→ring:4（dare）→读 cell-type")
+            Q.try_click(page, SEL["prompt_skip"], timeout=4000)
+            Q.wait_until(page, "() => !document.querySelector('[data-test=cell-stage]')", timeout=3000)
+            page.wait_for_timeout(1000)
+            h_skip1 = (Q.get_session(page) or {}).get("meta", {}).get("heat")
+            v7_check(rec, "V7-CS-12/%s" % label, "「放过」结算：心动值不减少且回主桌",
+                     h_skip1 is not None and h_skip0 is not None and h_skip1 >= h_skip0
+                     and v7_state(page) in ("overview", "land", "return"),
+                     "Δheat≥0，cell-stage 收起",
+                     "heat=%s→%s state=%s" % (h_skip0, h_skip1, v7_state(page)),
+                     V7_AC_TAKEOVER, label,
+                     repro="第二张卡点「放过」→对比心动值与 data-cinema-state")
+
+        # ---- 组件级变体（数据进 / 事件出；主题与长文本为产品契约）----
+        state = {"names": {"a": "阿岚", "b": "阿策"}, "turn": "a"}
+        long_text = "这一格想请你们慢慢说：先各自说一件今天最想被对方知道的小事，" * 8
+        variants = []
+        # 长文本
+        Q.eval_js(page, "() => { window.__csEv = []; return true; }")
+        res = _v7_open_cell_component(page, {
+            "kind": "cell-truth", "actorId": "a", "targetId": "a", "squareIndex": 2,
+            "card": {"text": long_text, "star": 3, "pool": "truth"}}, state)
+        v7_wait_cell(page, timeout=2500, need_bear=False)
+        lf = v7_cell_facts(page)
+        scroll = lf.get("textScroll") or {}
+        btn_done = (lf.get("buttons") or {}).get("done") or {}
+        scrollable = scroll.get("sh", 0) > scroll.get("ch", 0) + 1
+        Q.eval_js(page, "() => { var s=document.querySelector('.cs-scroll'); if(s){s.scrollTop=s.scrollHeight;} return true; }")
+        page.wait_for_timeout(200)
+        btn_done_after = ((v7_cell_facts(page).get("buttons") or {}).get("done") or {})
+        variants.append(("longtext",
+                         bool(res.get("ok")) and scrollable and (lf.get("attrs", {}).get("scrollable") == "1")
+                         and btn_done.get("visible") and btn_done_after.get("visible")
+                         and abs((btn_done.get("rect") or {}).get("y", 0) - (btn_done_after.get("rect") or {}).get("y", 0)) <= 2,
+                         "长文本内部滚动、按钮固定",
+                         "res=%s scroll=%s scrollableAttr=%s btn=%s→%s" % (
+                             res, json.dumps(scroll, ensure_ascii=False),
+                             lf.get("attrs", {}).get("scrollable"), btn_done.get("rect"),
+                             btn_done_after.get("rect"))))
+        _v7_close_cell(page)
+        # 功能格
+        res = _v7_open_cell_component(page, {
+            "type": "function", "kind": "jump", "squareIndex": 7,
+            "text": "落在跳格 · 沿航线向前 4 格。"}, state)
+        v7_wait_cell(page, timeout=2500, need_bear=False)
+        ff = v7_cell_facts(page)
+        v7_state_btn = (ff.get("buttons") or {}).get("continue")
+        clicked = _v7_click_cell(page, "prompt-continue")
+        evs = _v7_cell_events(page)
+        variants.append(("function",
+                         bool(res.get("ok")) and "跳格" in ((ff.get("texts") or {}).get("type") or "")
+                         and bool(v7_state_btn and v7_state_btn.get("visible"))
+                         and clicked and "continue" in evs,
+                         "功能格显示短说明 + 继续；continue 回调",
+                         "res=%s type=%s btn=%s clicked=%s ev=%s" % (
+                             res, (ff.get("texts") or {}).get("type"), bool(v7_state_btn), clicked, evs)))
+        _v7_close_cell(page)
+        # 命运格
+        res = _v7_open_cell_component(page, {
+            "kind": "fate", "actorId": "a", "squareIndex": 5,
+            "options": [{"card": {"text": "第一张命运卡", "star": 2, "pool": "truth"}},
+                        {"card": {"text": "第二张命运卡", "star": 4, "pool": "dare"}}]}, state)
+        v7_wait_cell(page, timeout=2500, need_bear=False)
+        fate = v7_cell_facts(page)
+        opts, _ = Q.find(page, ["test:prompt-fate-option"], timeout=2000)
+        fate_none, _ = Q.find(page, ["test:prompt-fate-skip"], timeout=1500)
+        if opts is not None:
+            try:
+                page.locator("[data-test='prompt-fate-option']").nth(1).click(timeout=3000)
+                page.wait_for_timeout(320)
+            except Exception:
+                pass
+        evs = _v7_cell_events(page)
+        variants.append(("fate",
+                         bool(res.get("ok")) and (fate.get("fateOptions") or 0) >= 2
+                         and fate_none is not None and "choose:1" in evs,
+                         "两张卡二选一 + 今晚先不选；choose(1) 回调",
+                         "res=%s options=%s none=%s ev=%s" % (
+                             res, fate.get("fateOptions"), bool(fate_none), evs)))
+        _v7_close_cell(page)
+        # 收尾
+        res = _v7_open_cell_component(page, {
+            "kind": "ending", "actorId": "a", "targetId": "b", "endingIndex": 0,
+            "card": {"text": "给阿策的一句话：今晚想怎么记住这一刻？", "star": 3}},
+            {"names": {"a": "阿岚", "b": "阿策"}, "turn": "a", "endingIndex": 0})
+        v7_wait_cell(page, timeout=2500, need_bear=False)
+        ef = v7_cell_facts(page)
+        v7_check(rec, "V7-CS-13/%s" % label, "收尾卡 CellStage：今晚最后一段 · 第 1/2 张 · 给 阿策",
+                 bool(res.get("ok")) and (ef.get("attrs", {}).get("kind") == "ending")
+                 and ("今晚最后一段" in (ef.get("texts", {}).get("kicker") or ""))
+                 and ("第 1/2 张" in (ef.get("texts", {}).get("kicker") or ""))
+                 and ("阿策" in (ef.get("texts", {}).get("kicker") or "")),
+                 "kind=ending + kicker 完整",
+                 "attrs=%s kicker=%s" % ((ef.get("attrs") or {}).get("kind"),
+                                         (ef.get("texts") or {}).get("kicker")),
+                 V7_AC_CELL, label, evidence=v7_shot(rec, page, "cellstage_ending_%s" % label),
+                 repro="组件级 open(ending prompt) → 读 kind/kicker")
+        clicked = _v7_click_cell(page, "prompt-done")
+        evs = _v7_cell_events(page)
+        variants.append(("ending", clicked and "done" in evs, "收尾卡做了回调",
+                         "clicked=%s ev=%s" % (clicked, evs)))
+        _v7_close_cell(page)
+        # 小游戏入口（组件级；产品主流程仍由 V6 D1/D2 覆盖）
+        res = _v7_open_cell_component(page, {
+            "type": "minigame", "kind": "minigame-thermo", "actorId": "a",
+            "text": "这一格是小游戏（温度计）。手机放中间，一起玩。"}, state)
+        v7_wait_cell(page, timeout=2500, need_bear=False)
+        mf = v7_cell_facts(page)
+        mini_btn = (mf.get("buttons") or {}).get("minigame")
+        clicked = _v7_click_cell(page, "prompt-minigame")
+        evs = _v7_cell_events(page)
+        variants.append(("minigame", bool(res.get("ok")) and bool(mini_btn and mini_btn.get("visible"))
+                         and "minigame" in evs, "小游戏格显示「开始小游戏」并回调",
+                         "res=%s btn=%s clicked=%s ev=%s" % (res, bool(mini_btn), clicked, evs)))
+        _v7_close_cell(page)
+        for name, ok, expected, actual in variants:
+            v7_check(rec, "V7-CS-V-%s/%s" % (name, label), "CellStage 变体：%s" % expected,
+                     ok, expected, actual, V7_AC_TAKEOVER, label,
+                     evidence="reports/v6/qa-e2e.json",
+                     repro="组件级 App.CellStage.open(%s prompt) 后按按钮/读取面板" % name)
+        # 关掉组件后：92 格仍不被拦截
+        hit2 = v7_hit92(page)
+        v7_check(rec, "V7-HIT92-02/%s" % label, "组件变体关闭后 92 格仍不被拦截",
+                 hit2.get("total") == 92 and hit2.get("board") == 92 and hit2.get("cell") == 0
+                 and hit2.get("cinema") == 0,
+                 "92/92 命中棋盘", json.dumps({k: hit2.get(k) for k in
+                 ("total", "board", "cell", "cinema", "outside")}, ensure_ascii=False),
+                 V7_AC_LAYOUT, label, severity="P1",
+                 repro="关闭 CellStage 后重做 92 格 elementFromPoint")
+        check_no_errors(rec, ps, "AC-H6-1-cellstage/%s" % label, label, "CellStage")
+    finally:
+        ctx.close()
+
+
+def run_theme_case(browser, url, rec, label="390x844"):
+    """AC-V7-5：三主题（cloud/star/paper）切换、data-theme/变量、小熊 outfit、刷新保持。"""
+    # ---- 默认 cloud + 切 star + 刷新保持 + 主桌/题卡继承 ----
+    ctx, ps, page = v7_new_page(browser, url, rec, label)
+    try:
+        f_cloud = v7_theme_facts(page)
+        shot_cloud = v7_shot(rec, page, "theme_boot_cloud_%s" % label)
+        ids = [c.get("id") for c in (f_cloud.get("cards") or [])]
+        pressed = {c.get("id"): c.get("pressed") for c in (f_cloud.get("cards") or [])}
+        v7_check(rec, "V7-THEME-01/%s" % label, "门厅「今晚的桌面」三选一（cloud/star/paper），默认 cloud",
+                 f_cloud.get("themesRoot") and ids == ["cloud", "star", "paper"]
+                 and pressed.get("cloud") == "true"
+                 and f_cloud.get("htmlTheme") == "cloud"
+                 and f_cloud.get("settingsTheme") in (None, "cloud"),
+                 "themes 根 + 3 卡；cloud 选中；data-theme=cloud",
+                 json.dumps({"root": f_cloud.get("themesRoot"), "ids": ids, "pressed": pressed,
+                             "html": f_cloud.get("htmlTheme"),
+                             "settings": f_cloud.get("settingsTheme")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=shot_cloud,
+                 repro="全新上下文打开门厅→读 [data-test=themes]/[data-theme-pick]")
+        Q.try_click(page, ["test:theme-star"], timeout=2500)
+        page.wait_for_timeout(400)
+        f_star = v7_theme_facts(page)
+        star_exp = V7_THEME_EXPECT["star"]
+        shot_star = v7_shot(rec, page, "theme_boot_star_%s" % label)
+        v7_check(rec, "V7-THEME-02/%s" % label, "切到星轨夜航：html/body/root data-theme + 变量 + 落盘",
+                 f_star.get("htmlTheme") == "star" and f_star.get("bodyTheme") == "star"
+                 and f_star.get("settingsTheme") == "star"
+                 and f_star.get("bg0") == star_exp["bg0"] and f_star.get("rim") == star_exp["rim"]
+                 and star_exp["name"] in (f_star.get("desc") or "")
+                 and (f_star.get("themesAPI") or {}).get("current") == "star",
+                 "data-theme=star；--bg0=%s；--v7-board-rim=%s；settings.theme=star" % (
+                     star_exp["bg0"], star_exp["rim"]),
+                 json.dumps({k: f_star.get(k) for k in
+                             ("htmlTheme", "bodyTheme", "settingsTheme", "bg0", "rim", "desc",
+                              "themesAPI", "themeColor")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=shot_star,
+                 repro="门厅点 [data-test=theme-star]→读 data-theme/CSS 变量/Store settings")
+        # 刷新保持
+        page.reload(wait_until="domcontentloaded", timeout=30000)
+        Q.ensure_boot(page, rec, timeout=15000)
+        page.wait_for_timeout(500)
+        f_reload = v7_theme_facts(page)
+        v7_check(rec, "V7-THEME-03/%s" % label, "刷新后主题保持 star（html data-theme + 门厅选中）",
+                 f_reload.get("htmlTheme") == "star"
+                 and f_reload.get("settingsTheme") == "star"
+                 and any(c.get("id") == "star" and c.get("pressed") == "true"
+                         for c in (f_reload.get("cards") or [])),
+                 "刷新后仍为 star",
+                 json.dumps({k: f_reload.get(k) for k in ("htmlTheme", "settingsTheme", "cards")},
+                            ensure_ascii=False), V7_AC_THEME, label, evidence="reports/v6/qa-e2e.json",
+                 repro="刷新页面→读 html[data-theme]/门厅 aria-pressed/settings.theme")
+        drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=20)
+        if not v7_start_table(page, drv, rec):
+            return
+        f_table = v7_theme_facts(page)
+        v7_check(rec, "V7-THEME-04/%s" % label, "主桌与 Cinema 继承 star（data-theme / data-cinema-theme / 变量）",
+                 f_table.get("tableTheme") == "star" and f_table.get("cinemaTheme") == "star"
+                 and f_table.get("tableRim") == star_exp["rim"] and f_table.get("squares") == 92,
+                 "table data-theme/cinema-theme=star，rim=%s，92 格" % star_exp["rim"],
+                 json.dumps({k: f_table.get(k) for k in
+                             ("tableTheme", "cinemaTheme", "tableRim", "squares")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=v7_shot(rec, page, "theme_table_star_%s" % label),
+                 repro="star 主题开局→读 .v6-table data-theme/data-cinema-theme")
+        _fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if btns:
+            btns[0].click(timeout=4000)
+        cell = v7_wait_cell(page, timeout=7000)
+        shot_cell = v7_shot(rec, page, "theme_cell_star_%s" % label)
+        v7_check(rec, "V7-THEME-05/%s" % label, "星轨题卡：cell-stage data-theme=star / outfit=starlight / 小熊换装",
+                 (cell.get("attrs") or {}).get("theme") == "star"
+                 and (cell.get("attrs") or {}).get("outfit") == "starlight"
+                 and (cell.get("bear") or {}).get("outfit") == "starlight",
+                 "cell-stage[data-theme=star][data-outfit=starlight]；bear data-outfit=starlight",
+                 json.dumps({"attrs": cell.get("attrs"),
+                             "bear": (cell.get("bear") or {}).get("outfit")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=shot_cell,
+                 repro="star 主题落到题格→读 cell-stage 与 bear 的 data-outfit")
+        Q.try_click(page, SEL["prompt_skip"], timeout=4000)
+        page.wait_for_timeout(800)
+        check_no_errors(rec, ps, "AC-H6-1-theme-star/%s" % label, label, "主题 star")
+    finally:
+        ctx.close()
+
+    # ---- paper：刷新后保持 + 主桌/题卡 outfit ----
+    ctx, ps, page = v7_new_page(browser, url, rec, label, theme="paper")
+    try:
+        f0 = v7_theme_facts(page)
+        paper_exp = V7_THEME_EXPECT["paper"]
+        v7_check(rec, "V7-THEME-06/%s" % label, "刷新保持 paper：启动即 html[data-theme=paper]",
+                 f0.get("htmlTheme") == "paper" and f0.get("settingsTheme") == "paper"
+                 and f0.get("bg0") == paper_exp["bg0"] and f0.get("rim") == paper_exp["rim"],
+                 "paper 主题落盘值生效",
+                 json.dumps({k: f0.get(k) for k in ("htmlTheme", "settingsTheme", "bg0", "rim")},
+                            ensure_ascii=False), V7_AC_THEME, label,
+                 evidence=v7_shot(rec, page, "theme_boot_paper_%s" % label),
+                 repro="预置 settings.theme=paper→打开门厅→读 data-theme/变量")
+        drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=20)
+        if not v7_start_table(page, drv, rec):
+            return
+        f_table = v7_theme_facts(page)
+        v7_check(rec, "V7-THEME-07/%s" % label, "纸雕主桌：data-theme/cinema-theme=paper + 92 格不变",
+                 f_table.get("tableTheme") == "paper" and f_table.get("cinemaTheme") == "paper"
+                 and f_table.get("squares") == 92,
+                 "table data-theme/cinema-theme=paper，squares=92",
+                 json.dumps({k: f_table.get(k) for k in
+                             ("tableTheme", "cinemaTheme", "squares")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=v7_shot(rec, page, "theme_table_paper_%s" % label),
+                 repro="paper 开局→读 table data-theme/cinema-theme/squares")
+        _fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        btns, _ = Q.find_piece_buttons(page)
+        if btns:
+            btns[0].click(timeout=4000)
+        cell = v7_wait_cell(page, timeout=7000)
+        shot_cell2 = v7_shot(rec, page, "theme_cell_paper_%s" % label)
+        v7_check(rec, "V7-THEME-08/%s" % label, "纸雕题卡：data-theme=paper / outfit=paper / 小熊换装",
+                 (cell.get("attrs") or {}).get("theme") == "paper"
+                 and (cell.get("attrs") or {}).get("outfit") == "paper"
+                 and (cell.get("bear") or {}).get("outfit") == "paper",
+                 "cell-stage[data-theme=paper][data-outfit=paper]；bear data-outfit=paper",
+                 json.dumps({"attrs": cell.get("attrs"),
+                             "bear": (cell.get("bear") or {}).get("outfit")}, ensure_ascii=False),
+                 V7_AC_THEME, label, evidence=shot_cell2,
+                 repro="paper 主题落到题格→读 cell-stage 与 bear 的 data-outfit")
+        Q.try_click(page, SEL["prompt_skip"], timeout=4000)
+        page.wait_for_timeout(800)
+        check_no_errors(rec, ps, "AC-H6-1-theme-paper/%s" % label, label, "主题 paper")
+    finally:
+        ctx.close()
+
+
+def run_v7_responsive_case(browser, url, rec):
+    """AC-V7-6：320/360/390/430 门厅/主桌/格子舞台无横向溢出；92 格不被拦截；
+    长文本卡内部滚动、按钮固定；安全词/暂停 hit-test 可达。"""
+    long_text = "想请你们各自说一件今天没来得及说的小事，再听对方说完。" * 10
+    for label in ("320x568", "360x640", "390x844", "430x932"):
+        vp = Q.VIEWPORTS[label]
+        ctx, ps, page = v7_new_page(browser, url, rec, label)
+        try:
+            v7_check(rec, "V7-RWD-01/%s" % label, "门厅无横向溢出",
+                     not Q.overflow(page), "scrollWidth≤clientWidth",
+                     json.dumps(Q.viewport_metrics(page), ensure_ascii=False),
+                     V7_AC_LAYOUT, label, severity="P1",
+                     repro="打开门厅→读 scrollWidth/clientWidth")
+            drv = TableDriver(ps, rec, label, prompt_outcome="done", max_steps=12)
+            if not v7_start_table(page, drv, rec):
+                continue
+            page.wait_for_timeout(500)
+            f = v7_cinema_facts(page)
+            v7_check(rec, "V7-RWD-02/%s" % label, "主桌无横向溢出；Cinema 层仍不吃点击",
+                     not Q.overflow(page) and f.get("cinemaPE") == "none",
+                     "无 overflow + cinema PE=none",
+                     json.dumps({"overflow": Q.overflow(page), "pe": f.get("cinemaPE")},
+                                ensure_ascii=False), V7_AC_LAYOUT, label,
+                     evidence=v7_shot(rec, page, "v7_table_%s" % label),
+                     repro="进入主桌→读 overflow 与 cinema pointer-events")
+            hit = v7_hit92(page)
+            v7_check(rec, "V7-RWD-03/%s" % label, "92 格点击不被 cinema/cell/cabin 拦截",
+                     hit.get("total") == 92 and hit.get("board") == 92 and hit.get("cinema") == 0
+                     and hit.get("cell") == 0 and hit.get("cabin") == 0,
+                     "92/92 命中棋盘",
+                     json.dumps({k: hit.get(k) for k in
+                                 ("total", "board", "cinema", "cell", "cabin", "outside")},
+                                ensure_ascii=False), V7_AC_LAYOUT, label,
+                     repro="主桌→92 格中心 elementFromPoint")
+            res = _v7_open_cell_component(page, {
+                "kind": "cell-truth", "actorId": "a", "targetId": "a", "squareIndex": 2,
+                "card": {"text": long_text, "star": 3, "pool": "truth"}},
+                {"names": {"a": "阿岚", "b": "阿策"}, "turn": "a"})
+            cell = v7_wait_cell(page, timeout=2500, need_bear=False)
+            scroll = cell.get("textScroll") or {}
+            card = cell.get("card") or {}
+            buttons = cell.get("buttons") or {}
+            btn_y = (buttons.get("done") or {}).get("rect") or {}
+            safety = cell.get("safety") or {}
+            pause = cell.get("pause") or {}
+            ok = (bool(res.get("ok")) and (cell.get("attrs") or {}).get("scrollable") == "1"
+                  and scroll.get("sh", 0) > scroll.get("ch", 0) + 1
+                  and (not Q.overflow(page))
+                  and (card.get("rect") or {}).get("x", -1) >= -1
+                  and ((card.get("rect") or {}).get("x", 0) + (card.get("rect") or {}).get("w", 0))
+                  <= (cell.get("vw") or vp[0]) + 1.5
+                  and btn_y.get("y", 0) >= 0
+                  and btn_y.get("y", 0) + btn_y.get("h", 0) <= (cell.get("vh") or vp[1]) + 1
+                  and safety.get("hit") and not (safety.get("hit") or {}).get("inCell")
+                  and pause.get("hit") and not (pause.get("hit") or {}).get("inCell"))
+            v7_check(rec, "V7-RWD-04/%s" % label, "320–430 长文本格子舞台：可滚动/按钮固定/卡片在视口/安全词可点",
+                     ok, "scrollable=1 + 按钮在视口 + 卡片不越界 + hit-test 可达",
+                     json.dumps({"res": res, "attrs": cell.get("attrs"), "scroll": scroll,
+                                 "card": card.get("rect"), "btn": btn_y,
+                                 "safety": safety.get("hit"), "pause": pause.get("hit"),
+                                 "vw": cell.get("vw"), "vh": cell.get("vh")},
+                                ensure_ascii=False)[:900],
+                     V7_AC_LAYOUT, label,
+                     evidence=v7_shot(rec, page, "cellstage_long_%s" % label),
+                     repro="组件级 open(长文本) → 读滚动/按钮 rect/卡片 rect/hit-test")
+            _v7_close_cell(page)
+            check_no_errors(rec, ps, "AC-H6-1-v7rwd/%s" % label, label, "V7 响应式")
+        finally:
+            ctx.close()
+
+
 # ---------------------------------------------------------------- 主入口
 CASE_GROUPS = {
     "env": "基础加载/首屏/错误/截图",
@@ -4429,7 +5983,11 @@ CASE_GROUPS = {
     "responsive": "H4/H1 响应式与触控",
     "offline": "H3 离线",
     "reduced": "H2 减少动画",
-    "cabin": "V6.2 机舱层/相机/reduced/浮层遮挡/响应式（AC-V6.2-1~4）",
+    "cabin": "V6.2 机舱层/浮层遮挡/响应式（相机断言已迁移到 cinema 组）",
+    "cinema": "V7 镜头链：roll→pov→chase→land→cell45→bear→return + 快进 + reduced（AC-V7-1/2/7/8）",
+    "cellstage": "V7 CellStage 接管题卡：做了/放过/命运/收尾/功能格/小游戏/长文本 + 92 格/安全词（AC-V7-3/4/6）",
+    "theme": "V7 三主题 cloud/star/paper + 小熊 outfit + 刷新保持（AC-V7-5）",
+    "v7responsive": "V7 320/360/390/430 格子舞台无溢出 + 长文本滚动 + hit-test（AC-V7-6）",
 }
 
 
@@ -4438,7 +5996,8 @@ def main():
     ap.add_argument("--dist", default=str(Q.DEFAULT_DIST))
     ap.add_argument("--only", default="",
                     help="逗号分隔：env,boot,main,skip,takeoff,win,notend,legacy,resume,pause,"
-                         "minigame,fate,events,responsive,offline,reduced")
+                         "minigame,fate,events,responsive,offline,reduced,cabin,"
+                         "cinema,cellstage,theme,v7responsive")
     ap.add_argument("--viewports", default="", help="main 组视口，逗号分隔（默认 390x844,360x640,430x932）")
     ap.add_argument("--skip-reduced", action="store_true")
     ap.add_argument("--headed", action="store_true")
@@ -4583,10 +6142,19 @@ def main():
                                 run_reduced_case(browser, base_url, rec)
                             elif g == "cabin":
                                 run_cabin_layer_case(browser, base_url, rec)
-                                run_cabin_camera_case(browser, base_url, rec)
-                                run_cabin_reduced_case(browser, base_url, rec)
                                 run_cabin_overlay_case(browser, base_url, rec)
                                 run_cabin_responsive_case(browser, base_url, rec)
+                            elif g == "cinema":
+                                run_cinema_chain_case(browser, base_url, rec, "390x844")
+                                run_cinema_skip_case(browser, base_url, rec, "390x844")
+                                run_cinema_reduced_case(browser, base_url, rec, "390x844")
+                                run_cinema_reduced_system_case(browser, base_url, rec, "390x844")
+                            elif g == "cellstage":
+                                run_cell_stage_case(browser, base_url, rec, "390x844")
+                            elif g == "theme":
+                                run_theme_case(browser, base_url, rec, "390x844")
+                            elif g == "v7responsive":
+                                run_v7_responsive_case(browser, base_url, rec)
                         except Exception as e:  # noqa: BLE001
                             tb = traceback.format_exc()
                             print("[E2E] group %s crashed: %s" % (g, e))

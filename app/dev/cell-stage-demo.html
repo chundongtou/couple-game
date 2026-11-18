@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>V7 CellStage 自测 · 45° 格子舞台 + 小熊 + 内容卡（不进构建）</title>
+<link rel="stylesheet" href="../src/styles/base.css">
+<style>
+  /* ===== demo 外壳：与桌边视觉同构，只为截图/断言，不进构建 ===== */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#07050E}
+  body{font-family:var(--font-body);color:var(--ink)}
+  .demo-phone{position:relative;width:100%;max-width:430px;height:100%;margin:0 auto;overflow:hidden;
+    background:radial-gradient(120% 62% at 50% -8%,#14324A 0%,#0C1E2E 42%,#071320 100%),
+      radial-gradient(90% 60% at 50% 60%,rgba(20,50,74,.4),rgba(4,8,12,.9) 80%),#071320}
+  .demo-phone[data-theme="star"]{background:radial-gradient(120% 62% at 50% -8%,#241540 0%,#120D24 46%,#08060F 100%),
+    radial-gradient(80% 50% at 72% 52%,rgba(142,123,216,.22),transparent 70%),#08060F}
+  .demo-phone[data-theme="paper"]{background:radial-gradient(120% 62% at 50% -8%,#3A2A1C 0%,#241A12 46%,#120D0A 100%),
+    radial-gradient(80% 50% at 40% 60%,rgba(233,196,150,.16),transparent 70%),#120D0A}
+  .demo-hud{position:absolute;left:0;right:0;top:0;height:56px;z-index:5;display:flex;align-items:flex-start;justify-content:space-between;
+    padding:8px 10px 0}
+  .demo-pause{min-width:62px;min-height:44px;padding:0 12px;border-radius:14px;border:1px solid var(--line,rgba(255,226,196,.13));
+    background:var(--glass,rgba(38,27,58,.42));color:var(--dim,#C9B6CE);font-size:12px;letter-spacing:.08em;font-family:inherit;
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .demo-safe-slot{width:102px;height:48px;flex:none}
+  .demo-status{position:absolute;left:0;right:0;top:58px;z-index:4;padding:0 14px;font-size:10.5px;letter-spacing:.05em;
+    color:var(--dim2,#8E7C9E);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .demo-board{position:absolute;left:50%;top:96px;width:min(86vw,360px);aspect-ratio:1;transform:translateX(-50%);
+    border-radius:50%;background:radial-gradient(50% 50% at 50% 46%,rgba(243,192,119,.08),transparent 62%),
+      radial-gradient(48% 48% at 50% 50%,rgba(38,27,58,.52),rgba(10,7,18,.68) 72%);
+    border:1px solid rgba(255,226,196,.1);box-shadow:inset 0 0 60px rgba(3,2,10,.5)}
+  .demo-board .demo-center{position:absolute;left:50%;top:50%;width:22%;height:22%;transform:translate(-50%,-50%);
+    border-radius:50%;border:1px dashed rgba(243,192,119,.36);display:grid;place-items:center;font-size:10px;letter-spacing:.2em;
+    color:rgba(243,192,119,.7);font-family:var(--font-display)}
+  .demo-board .demo-sq{position:absolute;width:10px;height:10px;border-radius:2px;background:var(--c,rgba(255,226,196,.2));
+    transform:translate(-50%,-50%) rotate(45deg);opacity:.55;box-shadow:0 0 0 1px rgba(8,6,15,.6)}
+  .demo-action{position:absolute;left:12px;right:12px;bottom:calc(16px + var(--safe-b));z-index:5;transition:opacity .2s}
+  .demo-phone:has(.cs-root) .demo-action{opacity:0;pointer-events:none}
+  .demo-phone:has(.cs-root) .demo-board{transition:filter .2s}
+  .demo-phone:has(.cs-root) .demo-board{filter:brightness(.86)}
+  .demo-roll{width:100%;min-height:50px;border-radius:999px;border:0;font-family:inherit;font-size:15px;font-weight:800;
+    letter-spacing:.14em;color:#2B1710;background:linear-gradient(100deg,#F8D29A,#F2B77C 42%,#E98D7F);
+    box-shadow:0 10px 28px rgba(233,136,122,.24)}
+  .demo-receipt{margin-top:8px;text-align:center;font-size:11px;letter-spacing:.06em;color:var(--amber,#F3C077)}
+
+  /* demo 控制条（ui=0 时隐藏，不影响截图） */
+  .demo-tools{position:fixed;right:8px;top:50%;transform:translateY(-50%);z-index:500;width:58px;
+    display:flex;flex-direction:column;gap:4px;max-height:96vh;overflow-y:auto;scrollbar-width:none}
+  .demo-tools::-webkit-scrollbar{display:none}
+  .demo-tools .grp{display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:10px;
+    background:rgba(8,6,15,.76);border:1px solid rgba(255,226,196,.16);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .demo-tools button{font-family:var(--font-body);font-size:9.5px;letter-spacing:.02em;padding:5px 2px;border-radius:7px;
+    border:1px solid rgba(243,192,119,.22);background:rgba(18,11,32,.82);color:#E8D8C2;min-height:24px}
+  .demo-tools button.on{background:rgba(243,192,119,.26);color:#FFF3E6;border-color:rgba(243,192,119,.6)}
+  .demo-tools .cap{font-size:8px;letter-spacing:.1em;color:#8E7C9E;text-align:center}
+  .demo-log{position:fixed;left:8px;bottom:8px;z-index:500;max-width:280px;padding:7px 9px;border-radius:10px;
+    background:rgba(6,4,14,.9);border:1px solid rgba(255,226,196,.18);color:#D8C7E2;font-size:10px;line-height:1.5;
+    white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;pointer-events:none}
+  body.ui-off .demo-tools,body.ui-off .demo-log{display:none}
+
+  /* 影子题卡宿主：与 table 的 .v6-cardhost 同构（absolute inset:0; pointer-events:none） */
+  .demo-cardhost{position:absolute;inset:0;z-index:30;pointer-events:none}
+  .demo-cardhost>*{pointer-events:auto}
+
+  @media (max-width:360px){
+    .demo-board{top:88px;width:88vw}
+    .demo-tools{display:none}
+  }
+</style>
+</head>
+<body>
+<script>
+/* 主题/开关在库加载前决定（themes.js 会读 Store.getSettings().theme） */
+(function () {
+  var p = new URLSearchParams(location.search || "");
+  window.__DEMO__ = {
+    theme: p.get("theme") || "cloud",
+    prompt: p.get("prompt") || "normal",
+    long: p.get("long") === "1",
+    nobear: p.get("nobear") === "1",
+    notheme: p.get("notheme") === "1",
+    reduced: p.get("reduced") === "1",
+    ui: p.get("ui") !== "0"
+  };
+  window.App = window.App || {};
+  window.App.Store = {
+    getSettings: function () { return { theme: window.__DEMO__.theme, reduced: window.__DEMO__.reduced, sound: false, haptics: false }; },
+    saveSettings: function () {}
+  };
+  window.__demoErrors = [];
+  window.addEventListener("error", function (e) { window.__demoErrors.push(String(e && e.message || e)); });
+  window.addEventListener("unhandledrejection", function (e) { window.__demoErrors.push("unhandledrejection: " + String(e && e.reason)); });
+})();
+</script>
+
+<div class="demo-phone" id="phone">
+  <header class="demo-hud">
+    <button class="demo-pause" id="demo-pause" data-test="pause" type="button">暂停</button>
+    <div class="demo-safe-slot" aria-hidden="true"></div>
+  </header>
+  <div class="demo-status" data-test="demo-status">第 3 回合 · 红 1/2 · 黄 0/2 · 心动值 24 · 连击 2</div>
+  <div class="demo-board" id="demo-board" aria-hidden="true"><div class="demo-center">终点</div></div>
+  <div class="demo-action">
+    <button class="demo-roll" type="button" data-test="roll">掷骰</button>
+    <div class="demo-receipt" data-test="landing">落点 · 真心话格 · 第 5 格</div>
+  </div>
+  <div class="demo-cardhost" data-test="prompt-host" id="prompt-host"></div>
+</div>
+
+<button class="global-safe" id="demo-safe" data-test="safety-word" type="button" aria-label="安全词：按住约一秒半，先停一下">
+  <span class="gs-ring" data-test="safe-progress" aria-hidden="true"></span>
+  <span class="gs-dot" aria-hidden="true"></span><span>先收棋</span>
+</button>
+
+<div class="demo-tools" id="tools">
+  <div class="grp"><div class="cap">主题</div>
+    <button type="button" data-theme-btn="cloud">云海</button>
+    <button type="button" data-theme-btn="star">星轨</button>
+    <button type="button" data-theme-btn="paper">纸雕</button>
+  </div>
+  <div class="grp"><div class="cap">题卡</div>
+    <button type="button" data-prompt-btn="normal">普通</button>
+    <button type="button" data-prompt-btn="long">长文</button>
+    <button type="button" data-prompt-btn="fate">命运</button>
+    <button type="button" data-prompt-btn="ending">收尾</button>
+    <button type="button" data-prompt-btn="jump">功能</button>
+    <button type="button" data-prompt-btn="minigame">游戏</button>
+    <button type="button" data-prompt-btn="stack">叠机</button>
+    <button type="button" data-prompt-btn="capture">击落</button>
+  </div>
+  <div class="grp"><div class="cap">开关</div>
+    <button type="button" id="t-nobear">无熊</button>
+    <button type="button" id="t-notheme">无主题</button>
+    <button type="button" id="t-reduced">减少动画</button>
+  </div>
+</div>
+<div class="demo-log" id="log" hidden></div>
+
+<!-- 真实核心/主题/小熊/舞台（与主包同源；不含引擎） -->
+<script src="../src/core/util.js"></script>
+<script src="../src/core/motion.js"></script>
+<script src="../src/ui/themes.js"></script>
+<script src="../src/ui/bear.js"></script>
+<script src="../src/ui/overlay/cell-stage.js"></script>
+<script>
+(function () {
+  var D = window.__DEMO__ || {};
+  var App = window.App || {};
+  var params = new URLSearchParams(location.search || "");
+
+  /* 关闭「无主题」时的 App.Themes，验证 CellStage 的 cloud/pilot 兜底 */
+  var phone = document.getElementById("phone");
+  if (D.notheme) {
+    try { delete App.Themes; } catch (e) { App.Themes = null; }
+    try {
+      document.documentElement.removeAttribute("data-theme");
+      document.body.removeAttribute("data-theme");
+      phone.removeAttribute("data-theme");
+    } catch (e2) {}
+  }
+  if (D.nobear) { try { delete App.Bear; } catch (e) { App.Bear = null; } }
+
+  /* 减少动画：走动作层的标准开关（body.reduce + data-reduced） */
+  if (D.reduced && App.Motion && App.Motion.setReduced) App.Motion.setReduced(true);
+
+  /* 主题：真实 App.Themes.apply（html/body/phone 上写 data-theme 并注入变量） */
+  if (!D.notheme && App.Themes && App.Themes.apply) {
+    try { App.Themes.apply(phone, D.theme); } catch (e) { if (window.console) console.warn("[demo] themes.apply", e); }
+  }
+
+  /* 假的 52 格环形棋盘（只为压暗背景） */
+  (function paintBoard() {
+    var board = document.getElementById("demo-board");
+    if (!board) return;
+    var colors = ["rgba(240,140,128,.8)", "rgba(240,200,119,.8)", "rgba(143,166,232,.8)", "rgba(127,201,168,.8)"];
+    for (var i = 0; i < 52; i++) {
+      var a = (i / 52) * Math.PI * 2 - Math.PI / 2;
+      var r = 45.5;
+      var sp = document.createElement("span");
+      sp.className = "demo-sq";
+      sp.style.left = (50 + Math.cos(a) * r) + "%";
+      sp.style.top = (50 + Math.sin(a) * r) + "%";
+      sp.style.setProperty("--c", colors[Math.floor(i / 13) % 4]);
+      board.appendChild(sp);
+    }
+  })();
+
+  var LONG_TEXT = "先不急着回答。你可以把今天发生的一件小事讲给对方听：路上看到的一朵云、手机里存着却没发出去的一句话、或者刚才那一步棋你为什么那样走。讲完再听对方说一遍，中间不用急着接话。如果一时想不起来，就从最近三天里挑一个还记得的瞬间。窗外的云正在往后退，桌上的灯还亮着，这一格可以停久一点。" +
+    "\n等两个人都说完了，再一起决定这一格算不算过。放着不答也可以，心动值不会少，也不会影响接下来的路。想先看棋盘的话，点右上角的「先看棋盘」，舞台会收起来，回到桌边。";
+
+  var MOCK = {
+    normal: {
+      kind: "cell-truth", actorId: "a", targetId: "a", squareIndex: 5, preSquareId: "a:ring:5",
+      card: { id: "demo-tr1", text: "今晚最想让对方先做的一件小事是什么？", star: 2, pool: "truth" }
+    },
+    long: {
+      kind: "cell-touch", actorId: "b", targetId: "b", squareIndex: 18,
+      card: { id: "demo-touch1", text: LONG_TEXT, star: 3, pool: "touch" }
+    },
+    fate: {
+      kind: "fate", actorId: "a", targetId: "a", squareIndex: 7, preSquareId: "a:ring:7",
+      options: [
+        { id: "demo-f1", text: "用一个词，说出现在看见对方的样子。", star: 1, pool: "truth" },
+        { id: "demo-f2", text: "坐近一点，说你今晚想把灯留到多晚。", star: 2, pool: "touch" }
+      ]
+    },
+    ending: {
+      kind: "ending", actorId: "b", targetId: "b",
+      card: { id: "demo-end1", text: "今晚到这里。把手机放下，抱一下，再说一句明天想一起做的事。", star: 3, pool: "ending" }
+    },
+    jump: { kind: "jump", actorId: "a", targetId: "a", text: "落在跳格 · 沿航线向前 4 格。" },
+    minigame: { type: "minigame", kind: "thermo", actorId: "a", targetId: "a", text: "两个人各自标一下，再把手机放中间。" },
+    stack: {
+      kind: "stack-duo", actorId: "a", targetId: "both", squareIndex: 22,
+      card: { id: "demo-sync1", text: "两张飞机叠在一起了。说一件你们俩都记得的小事。", star: 2, pool: "sync" }
+    },
+    capture: {
+      kind: "capture", actorId: "b", targetId: "b", squareIndex: 31,
+      card: { id: "demo-cap1", text: "飞机回机坪了。说一个你最近想被对方夸的地方。", star: 1, pool: "truth" }
+    }
+  };
+
+  var state = {
+    turn: "a",
+    names: { a: "阿岚", b: "小满" },
+    endingIndex: 0,
+    rerollsLeft: 2,
+    scale: "warm"
+  };
+
+  var currentClose = null;
+  var lastAction = null;
+  window.__demoLastAction = null;
+
+  function log(line) {
+    lastAction = line;
+    window.__demoLastAction = line;
+    var el = document.getElementById("log");
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = "action: " + line;
+  }
+
+  function openScenario(key) {
+    key = key || D.prompt || "normal";
+    if (key === "long" || D.long) key = "long";
+    var prompt = MOCK[key];
+    if (!prompt) prompt = MOCK.normal;
+    if (currentClose) { try { currentClose(); } catch (e) {} currentClose = null; }
+    lastAction = null;
+    window.__demoLastAction = null;
+    var host = document.getElementById("prompt-host");
+    currentClose = App.CellStage.open(host, prompt, state, {
+      done: function () { log("done"); },
+      skipped: function () { log("skipped"); },
+      choose: function (i) { log("choose:" + i); },
+      reroll: function () { log("reroll"); setTimeout(function () { openScenario((D.long ? "long" : D.prompt) || "normal"); }, 260); },
+      minigame: function () { log("minigame"); },
+      continue: function () { log("continue"); },
+      close: function () { log("close"); }
+    });
+    window.__demoOpen = true;
+  }
+
+  function reopen() {
+    var key = (D.prompt === "long" || D.long) ? "long" : D.prompt;
+    openScenario(key || "normal");
+  }
+
+  function setTheme(id) {
+    D.theme = id;
+    if (!D.notheme && App.Themes && App.Themes.apply) {
+      try { App.Themes.apply(phone, id); } catch (e) {}
+    }
+    var btns = document.querySelectorAll("[data-theme-btn]");
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("on", btns[i].getAttribute("data-theme-btn") === id);
+    reopen();
+  }
+
+  /* 控制条（ui=0 时整体隐藏） */
+  if (!D.ui) document.body.classList.add("ui-off");
+  document.querySelectorAll("[data-theme-btn]").forEach(function (b) {
+    b.addEventListener("click", function () { setTheme(b.getAttribute("data-theme-btn")); });
+  });
+  document.querySelectorAll("[data-prompt-btn]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      D.prompt = b.getAttribute("data-prompt-btn");
+      D.long = false;
+      openScenario(D.prompt);
+    });
+  });
+  document.getElementById("t-nobear").addEventListener("click", function () {
+    try { delete App.Bear; } catch (e) { App.Bear = null; }
+    D.nobear = true;
+    reopen();
+  });
+  document.getElementById("t-notheme").addEventListener("click", function () {
+    try { delete App.Themes; } catch (e) { App.Themes = null; }
+    D.notheme = true;
+    reopen();
+  });
+  document.getElementById("t-reduced").addEventListener("click", function () {
+    D.reduced = !D.reduced;
+    if (App.Motion && App.Motion.setReduced) App.Motion.setReduced(D.reduced);
+    reopen();
+  });
+  document.getElementById("demo-pause").addEventListener("click", function () { log("pause"); });
+  document.getElementById("demo-safe").addEventListener("click", function () { log("safe"); });
+
+  /* 查询参数驱动：Playwright 打开后直接截舞台 */
+  var initial = D.prompt || (D.long ? "long" : "normal");
+  if (D.ui) {
+    var btns = document.querySelectorAll("[data-prompt-btn], [data-theme-btn]");
+    for (var bi = 0; bi < btns.length; bi++) {
+      var tb = btns[bi].getAttribute("data-theme-btn");
+      var pb = btns[bi].getAttribute("data-prompt-btn");
+      if (tb && tb === D.theme) btns[bi].classList.add("on");
+      if (pb && pb === initial) btns[bi].classList.add("on");
+    }
+    document.getElementById("t-nobear").classList.toggle("on", !!D.nobear);
+    document.getElementById("t-notheme").classList.toggle("on", !!D.notheme);
+    document.getElementById("t-reduced").classList.toggle("on", !!D.reduced);
+  }
+  setTimeout(function () { openScenario(initial); }, 90);
+
+  /* QA 钩子 */
+  window.__demo = {
+    open: openScenario,
+    reopen: reopen,
+    setTheme: setTheme,
+    close: function () { if (currentClose) currentClose(); App.CellStage.close(); },
+    currentTheme: function () { return D.theme; },
+    errors: function () { return (window.__demoErrors || []).slice(); },
+    stage: function () { return App.CellStage.current && App.CellStage.current(); },
+    isOpen: function () { return !!(App.CellStage && App.CellStage.isOpen && App.CellStage.isOpen()); }
+  };
+})();
+</script>
+</body>
+</html>

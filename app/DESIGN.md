@@ -1,11 +1,11 @@
-# 今晚飞行棋 V6.2 · 规则与数值
+# 今晚飞行棋 V7 · 规则与数值（含 V6.2 场景、V7 镜头与格子剧场）
 
-> 唯一事实来源：本文写「规则是什么、数值是多少」。实现细节看 `app/src/`，构建与发版看 `docs/REBUILD.md`，UI 文案看 `docs/v6/copy.md`。
-> 口径优先级：`docs/v6/impl-freeze-cabin.md`（V6.2 沉浸主桌）> `docs/v6/impl-freeze-v6.1.md`（V6.1 规则调整）> `docs/v6/impl-freeze.md`（V6.0 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
+> 唯一事实来源：本文写「规则是什么、数值是多少」，以及 V7 的表现层口径。实现细节看 `app/src/`，构建与发版看 `docs/REBUILD.md`，UI 文案看 `docs/v6/copy.md`。
+> 口径优先级：`docs/v7/impl-freeze.md`（V7 镜头/主题/格子舞台）> `docs/v6/impl-freeze-cabin.md`（V6.2 沉浸主桌）> `docs/v6/impl-freeze-v6.1.md`（V6.1 规则调整）> `docs/v6/impl-freeze.md`（V6.0 冻结）> 本文 > `docs/v6/spec.md` / `docs/v6/api-contract.md`。改数值 = 改 `app/src/engine/**` 里的常量，然后跑引擎测试。
 
 一句话：两个人、一部手机、一枚环形星轨棋盘。题卡一起做，心动值一起涨，**谁先把自己的飞机全部送回家，谁「先到家」**；之后两张收尾卡一人一张——只写「先到家」，不写输赢。
 
-V6.2 起，主桌多了一层「夜航客舱」场景与一套全动态镜头；**规则、数值、存档与 V6.1 完全一致**，视觉与动画的实现口径见 §17。
+V6.2 起，主桌多了一层「云海机舱」场景；V7 起，每回合再套一条电影镜头链，题卡改在 45° 格子舞台上呈现。**V7 与 V6.2 的规则、数值、题库、存档完全一致**；V6.2 的场景口径见 §17，V7 的镜头 / 舞台 / 主题见 §18。
 
 ## 1. 一局的结构
 
@@ -20,6 +20,7 @@ V6.2 起，主桌多了一层「夜航客舱」场景与一套全动态镜头；
 - 进行中的一局存在 `couple2.session`（`kind:"flight"`，结构版本 `v:2`）。
 - 暂停层（`data-screen=pause`）覆盖当前屏但**不卸载**它；继续后回到原状态。
 - 安全词只暂停；只有「今晚就到这」才归档并结束这一局。
+- V7 只改主桌的呈现：每回合多一条镜头链（§18.1），题卡在 45° 格子舞台打开（§18.3）；门厅多一排「今晚的桌面」（§18.4）。阶段、按钮、引擎接口与结束条件都不变。
 
 ## 2. 棋盘
 
@@ -271,8 +272,12 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 | `App.FlightBoard` | `engine/flight-board.js` | 棋盘拓扑：`map()`、`FATE_CELLS`、格类型与跳/飞/进航坐标 |
 | `App.Minigames` | `engine/minigames.js` | 温度计 / 转盘纯逻辑 |
 | `App.BoardView` | `view/board.js` | SVG 棋盘：`mount / setState / play / setChoices / setReduced / setSound / unmount`；只读快照，不碰 `App.Flight` / localStorage |
-| `App.CabinScene` | `view/cabin.js` | V6.2 机舱场景 + 相机：`mount(host,{boardEl,reduced,sound,names}) / unmount / setMood / play(events,{state}) / setReduced / setSound`；只改 `boardEl.style.transform` 与场景 CSS 变量，不读引擎、不写 localStorage |
-| `App.PromptCard` | `ui/overlay/prompt-card.js` | `open(host, prompt, state, handlers)` |
+| `App.CabinScene` | `view/cabin.js` | V6.2 机舱场景 + 灯光/视差：`mount / unmount / setMood / play / setReduced / setSound / setCameraEnabled`；V7 起 Cinema 接管 `boardEl` 后 `setCameraEnabled(false)`，场景只做视差/灯光 |
+| `App.Cinema` | `view/cinema.js` | V7 镜头链：`mount / unmount / overview / roll / pov / chase / land / returnToOverview / stage / setTheme / setReduced / setSound / skip / _debug`；只改 `boardEl.style.transform` 与宿主 `--cv7-*` 变量，不调引擎、不写 localStorage |
+| `App.CellStage` | `ui/overlay/cell-stage.js` | V7 45° 格子舞台 + 内容卡：`open(host, prompt, state, handlers)` → `close()`；兼容旧 PromptCard 的 `data-test`；不调引擎 |
+| `App.Bear` | `ui/bear.js` | V7 向导小熊（程序化 SVG）：`render({outfit,mood,glyph,reduced}) / play / destroy / html`；装饰层（`aria-hidden`），不承载可读文本 |
+| `App.Themes` | `ui/themes.js` | V7 三主题：`list / get / apply / set / bearOutfit / tokens / varsText / particles / ids / version`；`get()` 读 `settings.theme`，默认 `cloud` |
+| `App.PromptCard` | `ui/overlay/prompt-card.js` | `open(host, prompt, state, handlers)`；V7 起作为 CellStage 缺失/抛错时的回退（V6 行为保留） |
 | `App.MiniGame` | `ui/overlay/minigame.js` | `open(...)`；面板关闭由 table 调 `Flight.resolveMinigame` |
 | `App.Pause` | `ui/screens/pause.js` | `open(reason) / close() / isOpen()` |
 | `App.Safe` | `core/safe.js` | `init / sync / trigger`；长按时长常量 `holdMs = 1600` |
@@ -294,6 +299,12 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 | UI 文案 | `docs/v6/copy.md`（改完同步 QA 断言） |
 | 视觉令牌（颜色/圆角/缓动/字体） | `app/src/styles/base.css` 的 `:root` |
 | 题库 | `app/data/raw.json` → `python tools/rebuild/make_cards.py`；产物 `app/src/data/cards.js` 不要手改 |
+| 镜头时长 / 位置 / 震动幅度（V7） | `app/src/view/cinema.js` 的 `ROLL_MS / POV_MS / LAND_MS / RETURN_MS / REDUCED_MS`、`rollPose() / povPose() / chasePose() / landPose()`、`chaseMs()`、`shake()` |
+| 每回合镜头链的编排（V7） | `app/src/ui/screens/table.js` 的 `splitEvents()` / `cinematicMotion()` / `runShow()` / `openPrompt()` |
+| 45° 舞台布局、变体、长文本（V7） | `app/src/ui/overlay/cell-stage.js` 的 `.cs-stage` / `.cs-card` / `.cs-scroll`、`buildMarkup()`、`fitStage()` |
+| 主题表、主题令牌、小熊服装（V7） | `app/src/ui/themes.js` 的 `THEMES` / `palette()` / `bearOutfit()`；`app/src/ui/bear.js` 的 `OUTFITS` |
+| 门厅 / 设置的主题入口（V7） | `app/src/ui/screens/boot.js`、`app/src/ui/screens/settings.js` 的 `[data-theme-pick]` 处理 |
+| 构建模块顺序（V7） | `tools/rebuild/build_app.py` 的 `JS_MODULES` 与 `V7_ORDER_RULES`（先定义后使用） |
 
 ## 15. 视觉令牌（摘要）
 
@@ -304,6 +315,8 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 - 字体：标题/数字 `"Noto Serif SC","Songti SC","STSong",serif`；正文 `"Noto Sans SC","Microsoft YaHei","PingFang SC",sans-serif`（不引外链字体）。
 - 动效时长：`--t-fast:160ms / --t-mid:320ms / --t-slow:640ms`；减少动画时关键反馈 ≤100ms。
 - 骰子 / 走子 / 题卡动画上限：1.6s / 2.0s / 0.4s（`docs/v6/impl-freeze.md` §3.1）。
+- V7 主题令牌：`App.Themes.tokens()` 下发 `--v7-board-rim / --v7-board-rim-2 / --v7-square-glow / --v7-card-paper / --v7-scene-tint / --v7-cta` 等；主题样式由 `ui/themes.js` 注入 `<style id="style-v7-themes">`，**不重写 `base.css`**，同时保留 V6 旧令牌（`--bg0 / --amber / --ink / --line`…）以兼容旧组件。
+- V7 45° 舞台配色：`CellStage` 优先用 `App.Themes.tokens()` 把 `--v7-card-* / --v7-board-rim*` 映射到 `--cs-paper* / --cs-accent*`；主题模块缺失时用模块内置的三套配色。
 
 ## 16. 本版已知偏离（实现与文案/规格的差异，登记不藏）
 
@@ -320,6 +333,11 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 11. **舷窗高度受 UI 限制**（V6.2）：舷窗放在顶部 HUD 与棋盘之间，小屏 / 棋盘偏上时会被压矮（最小约 64–66px），不是固定设计比例；见 §17.6。
 12. **桌面反馈落在桌板前沿**（V6.2）：涟漪 / 聚光 / 心形脉冲定位在棋盘下沿的桌板边（`board.top + board.height + 11~12px`），不压在棋盘格上；见 §17.6。
 13. **`setSound` 目前只记录状态**（V6.2）：`App.CabinScene.setSound` 接受并保存开关，但机舱场景没有新增独立音效；骰子 / 走子音效仍由 `App.BoardView` 负责，见 §17.6。
+14. **POV 是固定机位**（V7）：`App.Cinema.pov()` 只做一段前景（机头 / 机翼 / 速度线 / 云）+ 棋盘倾斜，不做自由视角、不能转头环顾；见 §18.2 / §18.6。
+15. **小游戏与功能格没有进 45° 舞台**（V7）：`CellStage` 已能渲染「开始小游戏」和功能格说明两种变体，但 `table.js` 只对 `prompt / ending-prompt` 调用 `CellStage.open`；落在小游戏格仍直接开旧 `App.MiniGame` 面板，跳 / 飞 / 进航走棋盘事件或进航题卡。见 §18.6。
+16. **格子序号只部分显示**（V7）：内容卡能读「来自 真心话格」，但「第 N 格」只在引擎带上 `preSquareId`（如进航）或调用方另传 `squareIndex / cellIndex` 时出现；普通题卡不保证有序号。见 §18.6。
+17. **主题不重绘主桌机舱与棋盘本体**（V7）：`App.Themes` 主要作用于门厅 / 设置 / 回顾的全局背景层、文字与按钮令牌、45° 舞台与内容卡、小熊服装、Cinema 的 POV 前景色；主桌的舱壁 / 舷窗 / 小桌板（`cabin.js`）与棋盘 SVG（`board.js`）仍是 V6.2 固定配色，只有继承到的 `--ink` 等通用令牌会变。`--v7-board-rim / --v7-square-glow` 已下发，当前由 `CellStage` 消费。见 §18.4 / §18.6。
+18. **主题粒子是预留元数据**（V7）：`App.Themes.particles()` 暴露 `{kind,count,speed,colors}`，但机舱 Canvas 与棋盘粒子仍按 V6.2 的方式绘制，尚未按主题切换粒子种类 / 数量。见 §18.6。
 
 > 改上面任何一条之前，先改 `docs/v6/impl-freeze.md`（或让 Lead 出 ADR），再改本文与实现，避免文档和代码各说各话。
 
@@ -327,6 +345,7 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 
 > 实现：`app/src/view/cabin.js`；集成：`app/src/ui/screens/table.js`。冻结口径：`docs/v6/impl-freeze-cabin.md`。
 > 本节只写「场景怎么分层、镜头对哪些事件有反应、reduced 与性能边界」，不重复 §15 的颜色令牌。
+> **V7 起，`boardEl` 的 `transform` 由 `App.Cinema` 独占**（`table.js` 在 Cinema 挂载成功后调 `CabinScene.setCameraEnabled(false)`）；本节 17.2 的相机事件表只作为 V6.2 回退路径与场景光效的参考，镜头位置与时长以 §18.1–§18.2 为准。
 
 ### 17.1 场景分层（从后到前）
 
@@ -405,3 +424,106 @@ SVG 绘制的环形星轨棋盘，俯视 + 明暗/投影的 2.5D 质感，viewBo
 5. **收家 / 题卡的镜头是 base 相机**：`win` 与 `prompt` 走 base 动画，不写 `data-cabin-cam` 事件标记；验收看 transform 或 `data-cabin-mood="dawn"`，不要只等属性变化。
 6. **视觉基线会变**：V6.2 有意重做主桌背景，`table` 视觉基线需要更新；`boot / prompt / ledger` 只有在确有变化时才更新（见 `reports/v6/qa-visual.md`）。
 7. **场景是装饰层**：`aria-hidden`、不接收点击、不参与玩法；所有状态与操作仍在棋盘与 UI 层，关掉场景不影响一局。
+
+---
+
+## 18. V7：云海机舱 · 45° 格子剧场
+
+> 实现：`app/src/view/cinema.js`（镜头链）、`app/src/ui/overlay/cell-stage.js`（45° 舞台 + 内容卡）、`app/src/ui/bear.js`（向导小熊）、`app/src/ui/themes.js`（三主题）；集成：`app/src/ui/screens/table.js`（每回合编排）、`boot.js` / `settings.js`（主题入口）。
+> 冻结口径：`docs/v7/impl-freeze.md`；需求与 AC：`docs/v6/spec.md` §0.2。
+> **V7 不改规则、数值、题库、存档结构、边界与安全词**（与 V6.2 完全一致），本章只写表现层。
+
+### 18.1 每回合镜头链（状态机）
+
+`App.Cinema` 在 `.v6-table` 内挂 `[data-cinema]`（`z-index:1`），在宿主上写 `data-cinema-state`；`table.js` 按事件把一回合拆成 `dice / motion / rest` 三段再编排。
+
+| # | `data-cinema-state` | 画面 | 代码里的时长 |
+|---|---|---|---|
+| 1 | `overview` | 整个棋盘俯瞰；回位、清 POV / 光晕 / 压暗 | 回位过渡约 300–320ms（常驻态） |
+| 2 | `roll` | 骰子落桌：棋盘轻推近 + 560ms 处一次极轻震动 | `ROLL_MS = 1000` |
+| — | `overview`（多子可走时） | 回俯瞰等玩家选子，选完后继续 `pov` | 约 320ms + 用户操作 |
+| 3 | `pov` | 第一人称：机头 / 机翼 / 速度线 / 云掠过，棋盘倾斜 | `POV_MS = 1100` |
+| 4 | `chase` | 第三人称跟拍：目标格发光，飞机由远到近 | `chaseMs()`：`clamp(1420 + 步数×26, 1500, 2300)` |
+| 5 | `land` | 目标格尘土 / 涟漪 + 轻震，镜头落到落点方向 | `LAND_MS = 520` |
+| 6 | `cell45` | 棋盘压暗 + 目标格发光；舞台由 `CellStage` 画 | 打开舞台即进入（`table.js` 在 `openPrompt` 里调 `stage('cell45')`） |
+| 7 | `bear` | 小熊探头、右侧内容卡滑入 | 舞台打开后 `640ms` 切到 `bear` |
+| 8 | `return` | 卡片收起、小熊挥手、拉回俯瞰 | `RETURN_MS = 800` |
+
+- 整条镜头链的冻结目标是 **5–8s**（不含用户答题）；上表是各段代码参数，棋盘骰子 / 走子演出可能更长，实测以 QA 报告为准。
+- `choose-piece` 不是 Cinema 状态：`table.js` 调 `overview` 回俯瞰等待（`data-cinema-state="overview"`），选完子再走 `pov`。
+- 没有位移（不能动 / 再掷）时 `cinematicMotion()` 直接 `overview({ms:260})`，不放 POV / 跟拍。
+- 题卡 / 小游戏 / 收尾结算：棋盘演出结束后 `returnToOverview()` 把镜头拉回俯瞰。
+
+### 18.2 POV 与跟拍实现
+
+- **只动两处**：`boardEl.style.transform` 与宿主上的 CSS 变量 `--cv7-cam-x / --cv7-cam-y / --cv7-cam-s / --cv7-tx / --cv7-ty`；不写布局、不拦点击（`.cv7` 与子元素 `pointer-events:none`，只有「快进」按钮可点）。
+- **transform 形式**：`translate3d(x,y,0) scale(s) rotate(rz)`；有俯仰时前置 `perspective(1000px)` 并追加 `rotateX(rx)`。`boardBox()` 测量时临时把 `transform` 置 `none`，量完恢复，避免累积位移。
+- **POV**：`povPose()` = 向下 `board.height × 5.2%`、`scale 1.13`、`rotate -2.4deg`、`rotateX 21deg`；前景 `.cv7-pov` 含座舱顶框、左右窗框、机头/仪表台、左右机翼、速度线、5 团掠过的云和暗角。它是**固定机位**，不随手指或设备方向变化。
+- **跟拍**：`endpointOf(events)` 从 `takeoff / move` 的 `path` 末尾、`jump / fly` 的 `to`、`stack` 的 `at` 取目标格；`squareDir()` / `squareCenter()` 把目标格换算成方向与像素坐标；`chasePose()` 位移最多 `board.width × 20%` / `board.height × 17.5%`、`scale 1.095`、轻微旋转与 `rotateX -4.2deg`。目标格由 `.cv7-glow` 发光（`--cv7-tx/ty` 定位）。
+- **落地**：`pulseLand()` 在目标格触发 `.cv7-dust` / `.cv7-ripple`，再 `shake(4.5px, 0.42deg, 260ms)`；快进到终态时不再补震动。`landPose()` 位移最多 `board.width × 24.5%` / `board.height × 21.5%`、`scale 1.115`。
+- **生命周期**：`mount()` 保存并改写 `boardEl` 的 `transform / will-change / transform-origin / backface-visibility`；`unmount()` 还原。页面 `visibilitychange` 隐藏时把当前阶段收束到终态，避免回来时间跳变。
+- **状态 / 调试钩子**：`data-cinema-state`、`data-cinema-version="7.0.0"`、`data-cinema-reduced="0|1"`、`data-cinema-theme="cloud|star|paper"`、`data-cinema-skip="0|1"`；`data-test="cinema" / "cinema-pov" / "cinema-skip" / "cinema-glow" / "cinema-dust" / "cinema-ripple"`；`App.Cinema._debug()` 返回 pose / chain / stats 等快照（自测用，不是稳定契约）。
+
+### 18.3 CellStage：45° 格子舞台与内容卡
+
+- **层级**：根节点 `.cs-root`（`data-test="cell-stage"`）`position:fixed; inset:0; z-index:320`，高于题卡宿主（30）与 `#overlay`（300），低于暂停（340）与安全词（380）；根节点 `pointer-events:none`，只有内容卡 `.cs-card` 与「回到这张」按钮可点，所以棋盘、安全词、暂停都不被拦截。
+- **布局**：`.cs-stage` 最大宽 520px、高 `min(520px, 100vh - 104px)`；宽 430 时 `grid-template-columns: 28% + 4% 间距 + 68% 内容卡`；`@media (max-width:360px)` 收成 `22% + 4% + 74%`，卡内边距更小。`fitStage()` 量内容自然高度后把舞台高度钳在 `[min(330, 上限), min(520, 视口高 - 104)]`，写 `data-stage-h` 与 `data-scrollable`。
+- **45° 格子**：左列 `.cs-cell` + `.cs-cell-persp`（`perspective:560px`）+ `.cs-cell-floor`（`rotateX(52deg) rotateZ(-45deg)`，带厚度投影与网格线）→ 读作一个斜 45° 立起来的格面；上方是类型徽章 / 「来自 真心话格 · 第 N 格」标签，下面是探头的小熊。格子按主题换材质（云纹 / 星点 / 纸纹）。
+- **内容卡**：暖纸底 + 类型色 kicker；`data-test` 与旧 `PromptCard` 对齐：`prompt-card / prompt-kicker / prompt-actor / prompt-meta / prompt-stars / prompt-source / prompt-reroll / prompt-stars-help / prompt-text / prompt-attrib / prompt-done / prompt-skip / prompt-fate-option / prompt-fate-skip / prompt-collapse / prompt-restore / prompt-foot`；新增 `cell-stage / cell-stage-cell / cell-type / cell-index / cell-theme / bear-host`。
+- **变体**：普通题卡（类型/星级/来源/归属 + 做了/放过 + 先看棋盘）；命运格（两张二选一 + 今晚先不选）；收尾信（一人一张，可放过）；进航题卡（`home-entry`）。**小游戏格与功能格说明变体已渲染但当前流程未接入**（见 §18.6）。
+- **长文本**：`.cs-scroll` 是卡内唯一的滚动区（`flex:1; overflow-y:auto`），按钮区 `.cs-acts` 在卡底固定；「先看棋盘」把舞台收成右下角「回到这张」，按 Esc 也可切换；关闭时 `.cs-exit` 淡出约 220ms。
+- **降级**：`App.CellStage` 缺失或 `open()` 抛错 → `table.js` 回退 `App.PromptCard`；`App.Themes` 缺失 → `cloud` + `pilot`；`App.Bear` 缺失 → `.cs-nobear` 无熊布局；`App.Themes.get()` 抛错按 `cloud/pilot` 处理，不读 DOM 兜底。
+
+### 18.4 主题与向导小熊
+
+**三主题**（`App.Themes.list`，`cloud` 在首位；`get()` 无参读 `Store.getSettings().theme`，未知值回落 `cloud`）：
+
+| id | 名字 | 小熊 outfit | 观感 / 令牌 |
+|---|---|---|---|
+| `cloud`（默认） | 云海机舱 | `pilot` 机长小熊（帽子 / 围巾 / 护目镜） | 冷蓝云海 + 暖阅读灯；令牌 `--bg0 #071320`、`--amber #F2C98A`、`--v7-cta` 冷蓝→暖金 |
+| `star` | 星轨夜航 | `starlight` 星轨小熊（披风 / 星星别针） | 深紫星空 + 金色星轨；`--bg0 #08060F`、`--amber #F3C077` |
+| `paper` | 纸雕童话 | `paper` 纸雕小熊（纸围巾 / 圆眼镜） | 暖纸层叠 + 台灯；`--bg0 #140F0B`、`--amber #D8A46A` |
+
+- **apply / set**：`apply(rootEl, id)` 在 `<html>`、`<body>` 与传入根节点上写 `data-theme`，注入 `<style id="style-v7-themes">`（只覆盖变量与背景层，不重写 `base.css`），并同步 `<meta name="theme-color">`；`set(id, rootEl)` 同 apply 并写 `Store.saveSettings({theme:id})`。同一主题重复 apply 不重复 emit（幂等）。
+- **主题改变什么**：`#bg` 背景 / 星云 / 星轨 / 颗粒、通用文字与玻璃令牌、主按钮渐变、45° 舞台与内容卡材质、小熊服装、Cinema 的 POV 前景色（Cinema 内部三套 `accent/sky/wing/instrument`）。
+- **主题不改变什么**：52 格拓扑、题卡内容、规则、边界、安全词；主桌机舱与棋盘 SVG 的固定配色（见 §16 第 17 条）。
+- **入口**：门厅「今晚的桌面」在「摆上棋盘」之前，`data-test="theme-cloud|star|paper"`（容器 `data-test="themes"`、说明 `theme-desc`）；点一下立即 `App.Themes.set()` 落盘并换肤，刷新记住。设置页同一排 `data-test="settings-theme-*"`（容器 `settings-themes`），说明 `settings-theme-desc`，当前主题名 + 「题目、规则、你们的边界都不变」。
+- **小熊**：`App.Bear.render({outfit, mood, glyph, className, reduced})` 返回 `data-test="bear"`、`aria-hidden="true"`、`data-outfit`、`data-mood`、`data-glyph` 的节点；`play(el, mood)` 触发 `nod / put / wave / happy / blink / ear / peek`；`destroy(el)` 清计时器。CellStage 在「做了」→ `nod`、「放过」→ `put`、「二选一 / 小游戏」→ `happy`、「继续」→ `wave`；小熊始终不承载可读文本，文字都在内容卡里。
+- **reduced**：小熊与 45° 舞台的循环动画静止；`data-reduced="1"`，只保留淡入。
+
+### 18.5 编排、快进、reduced 与性能
+
+- **table 编排**：`splitEvents()` 把事件分成 `dice / motion / rest`。`roll`：`BoardView` 的 dice 段与 `Cinema.roll()` 并行 → 若 `awaiting=choose-piece` 则 `Cinema.overview()` 等待 → 否则 `cinematicMotion()`（`POV` → `BoardView.play(motion)` 与 `Cinema.chase()` 并行 → `Cinema.land()`）→ 其余事件。`move`：选子后同样走 `POV → 跟拍 → 落地 → 其余`。题卡 / 小游戏：棋盘演出后 `Cinema.returnToOverview()`。所有 Cinema 调用都防御式（缺失 / 抛错 / reject → resolved `null`，棋局照常）。
+- **CellStage 接入**：`openPrompt()` 优先 `App.CellStage.open()`，成功即 `Cinema.stage('cell45')`，`640ms` 后 `stage('bear')`；`handlers.done / skipped / choose / continue` 交给 `resolvePrompt` 或收起舞台。`resolve` 后 `table.js` 关舞台 → `Cinema.returnToOverview()`（由 `runShow` 的 prompt 分支触发）。
+- **快进**：镜头动画期间显示「快进」（`data-test="cinema-skip"`，宿主 `data-cinema-skip="1"`）；`Cinema.skip()` 把当前阶段直接推到终态、resolve、并回调 `onSkip`，`table.js` 用 `BoardView` 的 Esc/pointerdown / `skip()` 让棋盘演出也到终态；`skipAll` 让后续阶段各约 130ms 直接到终态，直到回 `overview`。快进后不再补震动。
+- **reduced**：`prefers-reduced-motion` 或设置「减少动画」→ `data-cinema-reduced="1"`、Cinema 零 `rAF`、零 `transform`、无 POV / 跟拍 / 震动；`pov()` / `chase()` 立即 resolve，`land()` / `overview()` / `return` 走 `REDUCED_MS = 160ms` 淡入；舞台 `data-reduced="1"` 静态出现；棋盘 / 场景的 reduced 规则沿用 §17.3。
+- **性能**：全部走 `transform / opacity`，不跑滤镜 / 大层模糊；一条 `rAF` 只在过渡期间运行，结束释放；页面隐藏收束当前阶段；卸载顺序 `Cinema → CabinScene → BoardView`（Cinema 先还原 `boardEl`，避免场景还原把镜头写回）。长帧（>25ms）目标占比 ≤5%，实际以 `reports/v6/qa-perf.md` 的 V7 报告为准。
+- **构建 / 版本**：`App.version = "7.0.0"`；`index.template.html` 的 title/og 为 V7；`manifest.webmanifest` name 为 V7；`build_app.py` 的 `JS_MODULES` 按 `themes → bear → … → cabin → cinema → … → prompt-card → cell-stage → table` 排列，并有 `V7_ORDER_RULES` 闸门防止「先使用后定义」。
+
+### 18.6 已知限制（V7）
+
+1. **POV 不是自由视角**：固定机位前景，不能转头 / 环顾 / 跟手指，也不改变可点区域；本质是「坐在驾驶舱里往前看」的一段镜头。
+2. **小游戏没进 45° 舞台**：落在温度计 / 转盘格仍直接开旧 `App.MiniGame` 面板；`CellStage` 的「开始小游戏」变体已渲染但 `table.js` 未接线。
+3. **功能格说明变体未接入**：引擎的 `awaiting` 只有 `prompt / ending-prompt / minigame / choose-piece / roll`，没有「功能格 prompt」；跳 / 飞走棋盘事件，进航走 `home-entry` 题卡，`CellStage` 的 `jump / fly / function` 变体当前不会被真实流程打开。
+4. **格子序号只部分显示**：`squareIndexOf()` 依次读 `squareIndex → cellIndex+1 → preSquareId`（如 `ring:12`）；普通题卡的引擎 `prompt` 不带这些字段，所以只显示「来自 真心话格」。
+5. **主题不重绘主桌机舱 / 棋盘本体**：`cabin.js` 的舱壁 / 舷窗 / 桌板与 `board.js` 的 SVG 格位是 V6.2 固定配色；主题主要改变全局背景层、文字 / 按钮令牌、45° 舞台与内容卡、小熊服装与 POV 前景。`--v7-board-rim*` 等变量已下发，当前由 `CellStage` 使用。
+6. **主题粒子是预留元数据**：`App.Themes.particles()` 已暴露种类 / 数量，但场景与棋盘粒子没接，视觉上不随主题变化。
+7. **45° 是 CSS 3D 透视，不是真 3D 引擎**：`perspective 560px + rotateX(52deg) + rotateZ(-45deg)` 的块面 + 投影；小屏（≤360）格子与卡片按 22% / 74% 收紧。
+8. **层级是固定数值**：舞台 320 < 暂停 340 < 安全词 380；改层级要同时核对 §17 的机舱层与题卡宿主，别把安全词压下去。
+9. **视觉基线需要按 V7 重建**：主桌、45° 舞台、三主题的门厅/设置都可能变；`boot / prompt / ledger` 只在确有像素变化时更新（以 `reports/v6/qa-visual.md` 为准）。
+10. **回退是能力降级**：`Cinema` 缺失 → V6.2 的 CabinScene 相机；`CellStage` 缺失 → 旧 `PromptCard`；`Themes` 缺失 → `cloud`；`Bear` 缺失 → 无熊布局。降级后能玩，但不再有 V7 的镜头 / 舞台 / 小熊。
+11. **真机未验**：iOS Safari / Android Chrome 的 CSS 3D、长按、安全区仍未真机验证（沿用 V6.2 遗留）。
+
+### 18.7 QA 钩子与自测页
+
+| 钩子 | 位置 | 用途 |
+|---|---|---|
+| `data-cinema-state / version / reduced / theme / skip` | `.v6-table`（与 `.cv7` 根） | 断言镜头链、reduced、主题、快进可用性 |
+| `[data-test="cinema"] / "cinema-pov" / "cinema-skip" / "cinema-glow" / "cinema-dust" / "cinema-ripple"` | Cinema 覆盖层 | POV / 光晕 / 落地 / 快进断言 |
+| `[data-test="cell-stage"]`、`data-kind / data-theme / data-outfit / data-bear / data-fate / data-reduced / data-scrollable / data-stage-h` | CellStage 根 | 舞台、主题、服装、滚动与降级断言 |
+| `[data-test="cell-stage-cell"] / "cell-type" / "cell-index" / "cell-theme" / "bear-host"` | CellStage 内部 | 格面、类型、序号、主题 chip、小熊宿主 |
+| `[data-test="bear"]` + `data-outfit / data-mood / data-glyph / data-reduced` | 小熊节点 | 随主题换装与动作 |
+| `[data-test="theme-cloud|star|paper"]`、`settings-theme-*`、`data-theme` | 门厅 / 设置 / html+body+`.v6-table` | 主题选择、落盘、刷新保持 |
+| `App.Cinema._debug()` / `root.__cellStage` / `App.Themes.get()/tokens()` | 运行时 | 自测用；不是稳定契约 |
+
+自测页（不进构建）：`app/dev/cinema-demo.html`（mock 棋盘 + 各阶段按钮）、`app/dev/cell-stage-demo.html`（三主题 × 普通 / 命运 / 收尾 × 320/390/430）。
