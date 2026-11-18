@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>V7 电影镜头自测 · Cinema（不进构建）</title>
+<style>
+  :root{
+    --bg0:#08060F;--amber:#F3C077;--amber-deep:#E2965E;--rose:#E9887A;
+    --ink:#FBF3E7;--dim:#C9B6CE;--dim2:#8E7C9E;
+    --paper:#F7EAD6;--paper2:#F1DFC4;--paper-ink:#2C1C15;
+    --glass:rgba(38,27,58,.42);--line:rgba(255,226,196,.13);
+    --red:#F08C80;--yellow:#F0C877;--blue:#8FA6E8;--green:#7FC9A8;
+    --font-display:"Noto Serif SC","Songti SC","STSong",serif;
+    --font-body:"Noto Sans SC","Microsoft YaHei","PingFang SC",-apple-system,sans-serif;
+    --safe-t:0px;--safe-b:0px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#07050E}
+  body{font-family:var(--font-body);color:var(--ink)}
+  .stage{position:relative;width:100vw;max-width:430px;height:100vh;max-height:932px;margin:0 auto;overflow:hidden;background:#08060F}
+
+  /* ===== 与 app/src/ui/screens/table.js 的 .v6-table 同构（dev 脚手架） ===== */
+  .v6-table{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
+    padding:calc(8px + var(--safe-t)) 12px calc(8px + var(--safe-b));
+    color:var(--ink);font-family:var(--font-body);background:#08060F}
+  .v6-cabin{position:absolute;inset:0;z-index:0;pointer-events:none}
+  .v6-hud{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:8px}
+  .v6-hud-tools{display:flex;gap:6px;flex:1;min-width:0}
+  .v6-safe-slot{width:96px;height:56px;flex:none;display:flex;justify-content:flex-end;align-items:flex-start}
+  .v6-icon-btn{min-width:44px;min-height:44px;padding:0 10px;border-radius:14px;cursor:pointer;
+    border:1px solid var(--line);background:var(--glass);color:var(--dim);font-size:12px;letter-spacing:.08em;
+    font-family:inherit;display:inline-flex;align-items:center;justify-content:center}
+  .safe-pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;
+    border:1px solid rgba(243,192,119,.28);background:linear-gradient(180deg,rgba(243,192,119,.14),rgba(243,192,119,.05));
+    color:#F0D6B4;font-size:11px;letter-spacing:.08em;white-space:nowrap}
+  .safe-pill i{width:7px;height:7px;border-radius:50%;background:var(--rose);box-shadow:0 0 10px 2px rgba(233,136,122,.55)}
+  .v6-status{position:relative;z-index:2;flex:none;padding:6px 2px 0;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .v6-status-line{font-size:11px;letter-spacing:.06em;color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v6-status-main{font-size:12.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v6-status-main i{font-style:normal;margin-left:6px;font-size:11px;font-weight:700;color:var(--amber)}
+  .v6-turns{position:relative;z-index:2;flex:none;display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px;border-radius:20px;
+    background:var(--glass);border:1px solid var(--line)}
+  .v6-turn{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:15px}
+  .v6-turn .v6-tdot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--dim2)}
+  .v6-turn .v6-tnm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .v6-turn .v6-tclr{font-size:10px;letter-spacing:.08em;color:var(--dim2);flex:none}
+  .v6-turn .v6-tstate{margin-left:auto;font-size:10px;letter-spacing:.1em;color:var(--dim2);flex:none}
+  .v6-turn.on{background:rgba(240,140,128,.12)}
+  .v6-turn-sep{width:1px;height:22px;background:rgba(255,226,196,.16);flex:none}
+  .v6-rollstrip{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:9px;margin-top:6px;padding:7px 9px;border-radius:16px;
+    background:var(--glass);border:1px solid var(--line)}
+  .v6-die{position:relative;width:38px;height:38px;flex:none;border-radius:10px;display:grid;padding:6px;gap:2px;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+    background:linear-gradient(160deg,#3A2418,#24150E);box-shadow:0 1px 0 rgba(255,226,196,.25) inset}
+  .v6-die i{width:6px;height:6px;border-radius:50%;background:transparent;align-self:center;justify-self:center}
+  .v6-die i.on{background:#FBEBD2;box-shadow:0 0 6px rgba(251,235,210,.45)}
+  .v6-rollinfo{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+  .v6-roll-line{display:flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap}
+  .v6-dietext{font-size:13px;font-weight:600;white-space:nowrap}
+  .v6-lsep{color:var(--dim2);font-size:11px}
+  .v6-llabel{font-size:10.5px;letter-spacing:.1em;color:var(--dim2);flex:none}
+  .v6-landing{font-size:12px;font-weight:600;color:var(--amber);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .v6-hint{font-size:11.5px;line-height:1.35;color:var(--rose)}
+  .v6-boardwrap{flex:1;min-height:0;position:relative;z-index:1;margin:4px 0 0;display:flex;align-items:center;justify-content:center}
+  .v6-board{position:relative;z-index:1;width:100%;aspect-ratio:720/750;max-height:100%;min-height:0;margin-top:-26px}
+  .v6-action{position:relative;z-index:2;flex:none;display:flex;flex-direction:column;gap:6px;padding-top:2px}
+  .v6-actions{display:flex;flex-direction:column;gap:8px}
+  .v6-btn{min-height:48px;border-radius:999px;border:0;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.1em}
+  .v6-btn-primary{background:linear-gradient(180deg,var(--amber),var(--amber-deep));color:#2C1C15}
+  .v6-receipt{font-size:12px;letter-spacing:.04em;color:var(--amber);text-align:center;min-height:14px}
+
+  /* ===== demo 工具条（ui=0 隐藏，不影响截图布局） ===== */
+  .tools{position:absolute;right:10px;top:46%;transform:translateY(-50%);z-index:40;display:flex;flex-direction:column;gap:5px;width:58px}
+  .tools button{font-family:var(--font-body);font-size:10px;letter-spacing:.02em;padding:6px 2px;border-radius:10px;
+    border:1px solid rgba(243,192,119,.25);background:rgba(18,11,32,.82);color:#E8D8C2}
+  .tools button.on{background:rgba(243,192,119,.25);color:#FFF3E6}
+  .demo-triggers{position:absolute;left:12px;right:12px;bottom:84px;z-index:40;display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+  .demo-triggers button{flex:1;min-width:44px;height:30px;padding:0 4px;border-radius:999px;font-family:var(--font-body);
+    font-size:10px;letter-spacing:.02em;border:1px solid rgba(243,192,119,.22);
+    background:rgba(16,10,28,.78);color:#E8D8C2}
+  .demo-triggers button.wide{flex:2.2}
+  .demo-triggers button:active{background:rgba(243,192,119,.22)}
+  .metrics{position:absolute;left:10px;top:10px;z-index:41;max-width:340px;padding:8px 10px;border-radius:12px;
+    background:rgba(6,4,14,.92);border:1px solid rgba(255,226,196,.18);color:#D8C7E2;font-size:10px;line-height:1.5;
+    white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;pointer-events:none}
+  .metrics[hidden]{display:none}
+  body.no-ui .tools,body.no-ui .demo-triggers{display:none}
+  body.no-ui .cv7-skip{display:none}
+  /* demo 的 45° 格子舞台替身：仅用于给 Cinema 状态链截图，真实舞台由 fe-cellstage 提供 */
+  .demo-cell{position:absolute;inset:0;z-index:20;display:none;pointer-events:none;
+    background:radial-gradient(120% 80% at 50% 48%,rgba(10,7,20,.28),rgba(6,4,14,.66))}
+  .demo-cell.on{display:block}
+  .demo-cell .card{position:absolute;left:14px;right:14px;bottom:92px;border-radius:22px;padding:16px 18px 14px;
+    background:linear-gradient(160deg,var(--paper),var(--paper2));color:var(--paper-ink);pointer-events:auto;
+    box-shadow:0 18px 44px rgba(3,2,10,.55)}
+  .demo-cell .k{font-size:10.5px;letter-spacing:.14em;font-weight:700;color:#9A6A46}
+  .demo-cell .q{margin-top:6px;font-family:var(--font-display);font-size:18px;line-height:1.5;color:#2B1A12}
+  .demo-cell .row{display:flex;gap:8px;margin-top:12px}
+  .demo-cell .row button{flex:1;height:42px;border-radius:999px;border:0;font-family:inherit;font-size:14px;font-weight:700}
+  .demo-cell .ok{background:#2C1C15;color:#FFF4E4}
+  .demo-cell .no{background:transparent;border:1px solid rgba(60,35,24,.28);color:#6E4A33}
+  .demo-cell .bear{position:absolute;left:50%;top:24%;width:96px;height:96px;transform:translateX(-50%);
+    border-radius:50% 50% 46% 46%;background:radial-gradient(circle at 50% 38%,#C8925E,#8A5B36 62%,#5E3A22);
+    box-shadow:0 12px 30px rgba(0,0,0,.4);opacity:0;transition:opacity .4s,transform .4s}
+  .demo-cell.on.bear .bear{opacity:1;transform:translate(-50%,10px)}
+  .demo-cell .bear:before,.demo-cell .bear:after{content:"";position:absolute;top:-10px;width:30px;height:30px;border-radius:50%;
+    background:#8A5B36;border:4px solid #C8925E}
+  .demo-cell .bear:before{left:6px}.demo-cell .bear:after{right:6px}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="v6-table" data-test="table" id="table">
+    <div class="v6-cabin" data-test="cabin" id="cabin"></div>
+
+    <header class="v6-hud">
+      <div class="v6-hud-tools">
+        <button class="v6-icon-btn" type="button">暂停</button>
+        <button class="v6-icon-btn" type="button">规则</button>
+      </div>
+      <div class="v6-safe-slot"><span class="safe-pill"><i></i>先收棋</span></div>
+    </header>
+
+    <div class="v6-status">
+      <div class="v6-status-line"><span>第 3 回合</span> · <span>今晚 0:18</span> · <span>在飞 2 架</span> · <span>第 2 张</span></div>
+      <div class="v6-status-main"><span>红 0/2 · 黄 0/2</span> · <span>心动值 42</span> · <span>连击 3</span><i>靠近了</i></div>
+    </div>
+
+    <div class="v6-turns">
+      <div class="v6-turn on"><i class="v6-tdot" style="background:#F08C80"></i><span class="v6-tnm">他 的回合</span><span class="v6-tclr">红方</span><span class="v6-tstate"></span></div>
+      <span class="v6-turn-sep"></span>
+      <div class="v6-turn"><i class="v6-tdot" style="background:#F0C877"></i><span class="v6-tnm">她</span><span class="v6-tclr">黄方</span><span class="v6-tstate">下一手</span></div>
+    </div>
+
+    <div class="v6-rollstrip">
+      <div class="v6-die" id="die" data-value="0" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="v6-rollinfo">
+        <div class="v6-roll-line"><span class="v6-dietext" id="die-text">还没掷骰</span><span class="v6-lsep">·</span><span class="v6-llabel">落点</span><span class="v6-landing" id="landing">—</span></div>
+        <div class="v6-hint">掷到 6 起飞；连续两次没 6，第三次任意点数保底。</div>
+      </div>
+    </div>
+
+    <div class="v6-boardwrap" data-test="boardwrap">
+      <div class="v6-board" data-board data-test="board" id="board"></div>
+    </div>
+
+    <div class="v6-action">
+      <div class="v6-actions"><button class="v6-btn v6-btn-primary" type="button" id="rollBtn">掷 骰</button></div>
+      <div class="v6-receipt" id="receipt">红 · 第 1 架 · 沿航线走 5 格 · 落点 第 12 格</div>
+    </div>
+  </div>
+
+  <div class="demo-cell" id="demoCell">
+    <div class="bear"></div>
+    <div class="card">
+      <div class="k">大冒险 · 给了走到的人</div>
+      <div class="q">今晚的哪一个瞬间，你最想被对方记住？</div>
+      <div class="row"><button class="ok" type="button">做了</button><button class="no" type="button">放过</button></div>
+    </div>
+  </div>
+
+  <div class="demo-triggers" id="triggers">
+    <button type="button" data-phase="roll">掷骰</button>
+    <button type="button" data-phase="pov">POV</button>
+    <button type="button" data-phase="chase">跟拍</button>
+    <button type="button" data-phase="land">落地</button>
+    <button type="button" data-phase="cell45">舞台</button>
+    <button type="button" data-phase="return">回俯瞰</button>
+    <button type="button" class="wide" data-phase="chain">整条镜头链</button>
+  </div>
+
+  <div class="tools" id="tools">
+    <button type="button" data-act="reset">重置</button>
+    <button type="button" data-act="reduced">减动效</button>
+    <button type="button" data-act="theme">主题</button>
+    <button type="button" data-act="skip">快进</button>
+    <button type="button" data-act="metrics">指标</button>
+    <button type="button" data-act="hide">隐藏UI</button>
+  </div>
+  <div class="metrics" id="metrics" hidden></div>
+</div>
+
+<script src="../src/view/board.js"></script>
+<script src="../src/view/cabin.js"></script>
+<script src="../src/view/cinema.js"></script>
+<script>
+/* ==========================================================================
+ * V7 电影镜头自测页（dev 脚手架，不进构建）
+ * - 真实 BoardView（92 格）+ 真实 CabinScene（cameraEnabled:false）+ 真实 App.Cinema
+ * - 按钮：掷骰 / POV / 跟拍 / 落地 / 45° 舞台 / 回俯瞰 / 整条镜头链
+ * - window.__demo：run(name) / chain() / states() / state() / setReduced / setTheme /
+ *   skip / squareHit / metrics / sampleFrames / playEvents
+ * - URL: ?phase=roll|pov|chase|land|cell45|return|chain&ui=0&reduced=1&theme=cloud|star|paper&debug=1
+ * ========================================================================== */
+(function () {
+  'use strict';
+  var params = new URLSearchParams(location.search);
+  if (params.get('ui') === '0') document.body.classList.add('no-ui');
+
+  var board = window.App.BoardView;
+  var cabin = window.App.CabinScene;
+  var cinema = window.App.Cinema;
+  var boardEl = document.getElementById('board');
+  var tableEl = document.getElementById('table');
+  var cabinHost = document.getElementById('cabin');
+  var cellEl = document.getElementById('demoCell');
+
+  var HEX = { red: '#F08C80', yellow: '#F0C877', blue: '#8FA6E8', green: '#7FC9A8' };
+  var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+
+  /* 与 table.js 同构的事件：dice → move（5 格，终点 ring:11）→ 提示卡 */
+  var EVENTS = {
+    dice: [{ type: 'dice', die: 5 }],
+    motion: [{ type: 'move', pieceId: 'a:0', path: ['ring:7', 'ring:8', 'ring:9', 'ring:10', 'ring:11'] }],
+    prompt: [{
+      type: 'prompt',
+      prompt: {
+        id: 'cv-demo-1', kind: 'cell-dare', actorId: 'a', targetId: 'a', pieceIds: ['a:0'], squareId: 'ring:11',
+        card: { id: 'demo', text: '今晚的哪一个瞬间，你最想被对方记住？', star: 2, tags: [], pool: 'dare' }
+      }
+    }]
+  };
+  function fullEvents() { return EVENTS.dice.concat(EVENTS.motion, EVENTS.prompt); }
+
+  function piece(id, color, sq) {
+    return { id: id, color: color, squareId: sq, arrived: false, stackGroupId: null };
+  }
+  function snapshot() {
+    return {
+      names: { a: '他', b: '她' }, colors: { a: 'red', b: 'yellow' }, turn: 'a',
+      pieces: [
+        piece('a:0', 'red', 'ring:6'), piece('a:1', 'red', 'hangar:red:1'),
+        piece('a:2', 'red', 'hangar:red:2'), piece('a:3', 'red', 'hangar:red:3'),
+        piece('b:0', 'yellow', 'ring:19'), piece('b:1', 'yellow', 'hangar:yellow:1'),
+        piece('b:2', 'yellow', 'hangar:yellow:2'), piece('b:3', 'yellow', 'hangar:yellow:3')
+      ],
+      choices: [], fateCells: [5, 29],
+      meta: { heat: 42, stage: 'charged', streak: 3, streakBest: 3 }
+    };
+  }
+
+  var scene = null;
+  var cinemaInst = null;
+  var busy = false;
+  var lastResult = null;
+
+  function paintDie(v) {
+    var dieEl = document.getElementById('die');
+    var pips = dieEl.querySelectorAll('i');
+    for (var i = 0; i < pips.length; i++) pips[i].className = (PIPS[v] || []).indexOf(i) >= 0 ? 'on' : '';
+    dieEl.setAttribute('data-value', String(v || 0));
+    document.getElementById('die-text').textContent = v ? ('掷出 ' + v) : '还没掷骰';
+  }
+  function paintHud(extra) {
+    document.getElementById('landing').textContent = (extra && extra.landing) || '—';
+    document.getElementById('receipt').textContent =
+      (extra && extra.chain && extra.chain.length)
+        ? ('状态链 ' + extra.chain.join(' → '))
+        : '红 · 第 1 架 · 沿航线走 5 格 · 落点 第 12 格';
+  }
+  function reset() {
+    board.setState(snapshot());
+    board.setChoices([]);
+    cellEl.classList.remove('on', 'bear');
+    paintDie(0);
+    paintHud(null);
+    if (cinemaInst) {
+      /* 注意：不要在这里 setReduced(URL 参数)，否则会把测试中途切换的 reduced 状态冲掉 */
+      cinemaInst.overview({ ms: 0 }).then(function () { paintHud(cinemaInst._debug()); });
+    }
+  }
+
+  function withBoardSfx() { /* demo 静音 */ }
+
+  /* 单个阶段（不跑完整链） */
+  function phase(name) {
+    if (!cinemaInst) return Promise.resolve(null);
+    reset();
+    var wait = 0;
+    var p;
+    if (name === 'roll') {
+      paintDie(5);
+      p = Promise.all([board.play(EVENTS.dice), cinemaInst.roll(EVENTS.dice)]);
+      wait = 1000;
+    } else if (name === 'pov') {
+      p = cinemaInst.pov();
+      wait = 500;
+    } else if (name === 'chase') {
+      p = Promise.all([board.play(EVENTS.motion), cinemaInst.chase(EVENTS.motion)]);
+      wait = 700;
+    } else if (name === 'land') {
+      p = cinemaInst.land(EVENTS.motion);
+      wait = 260;
+    } else if (name === 'cell45') {
+      cinemaInst.stage('cell45');
+      cellEl.classList.add('on');
+      p = Promise.resolve(null);
+      wait = 300;
+    } else if (name === 'return') {
+      cellEl.classList.remove('on', 'bear');
+      p = cinemaInst.returnToOverview();
+      wait = 400;
+    } else {
+      p = Promise.resolve(null);
+    }
+    return Promise.resolve(p).then(function () {
+      paintHud(cinemaInst._debug());
+      return { phase: name, state: cinemaInst._debug() };
+    });
+  }
+
+  /* 整条镜头链：与 table.commit 同构（dice → POV → chase ∥ move → land → cell45 → bear → return） */
+  function chain() {
+    if (!cinemaInst) return Promise.resolve(null);
+    if (busy) return Promise.resolve(null);
+    busy = true;
+    reset();
+    var t0 = performance.now();
+    var frames = [];
+    paintDie(5);
+    return Promise.all([board.play(EVENTS.dice), cinemaInst.roll(EVENTS.dice)])
+      .then(function () { return cinemaInst.pov(); })
+      .then(function () {
+        return Promise.all([board.play(EVENTS.motion), cinemaInst.chase(EVENTS.motion)]);
+      })
+      .then(function () { return cinemaInst.land(EVENTS.motion); })
+      .then(function () {
+        cinemaInst.stage('cell45');
+        cellEl.classList.add('on');
+        return new Promise(function (res) { setTimeout(res, 700); });
+      })
+      .then(function () {
+        cinemaInst.stage('bear');
+        cellEl.classList.add('bear');
+        return new Promise(function (res) { setTimeout(res, 700); });
+      })
+      .then(function () {
+        cellEl.classList.remove('on', 'bear');
+        return cinemaInst.returnToOverview();
+      })
+      .then(function () {
+        busy = false;
+        lastResult = {
+          ms: Math.round(performance.now() - t0),
+          chain: cinemaInst._debug().chain.slice(),
+          phaseMs: cinemaInst._debug().stats
+        };
+        paintHud(cinemaInst._debug());
+        return lastResult;
+      });
+  }
+
+  /* ---------------- 指标 / 帧采样 ---------------- */
+  function metrics() {
+    var d = cinemaInst ? cinemaInst._debug() : null;
+    var hostState = tableEl.getAttribute('data-cinema-state');
+    return {
+      squares: document.querySelectorAll('[data-square]').length,
+      ring: document.querySelectorAll('[data-square^="ring:"]').length,
+      pieces: document.querySelectorAll('[data-piece]').length,
+      hostState: hostState,
+      boardTransform: boardEl.style.transform,
+      scrollW: document.documentElement.scrollWidth,
+      bodyScrollW: document.body.scrollWidth,
+      viewport: [window.innerWidth, window.innerHeight],
+      cinema: d,
+      cabin: scene ? scene._debug() : null,
+      lastResult: lastResult
+    };
+  }
+  function renderMetrics() {
+    var el = document.getElementById('metrics');
+    if (!el) return;
+    var m = metrics();
+    var d = m.cinema || {};
+    el.textContent =
+      'host state: ' + (m.hostState || '-') + '  chain: ' + ((d.chain || []).join('→') || '-') + '\n' +
+      'board transform: ' + (m.boardTransform || '(none)') + '\n' +
+      'pose: ' + JSON.stringify(d.pose || {}) + '  target: ' + (d.targetSquare || '-') + '\n' +
+      'reduced ' + d.reduced + '  theme ' + d.theme + '  raf ' + d.raf + '  skip ' + d.skipVisible + '\n' +
+      '格 ' + m.squares + '（环' + m.ring + '）· 子 ' + m.pieces + ' · vp ' + m.viewport.join('×') +
+      ' · scrollW ' + m.scrollW + '/' + m.bodyScrollW + '\n' +
+      'chain 总耗时 ' + (m.lastResult ? (m.lastResult.ms + 'ms / ' + JSON.stringify(m.lastResult.phaseMs)) : '-');
+  }
+  function sampleFrames(ms) {
+    ms = ms || 3000;
+    return new Promise(function (resolve) {
+      var deltas = [];
+      var last = performance.now();
+      var t0 = last;
+      function tick(t) {
+        deltas.push(t - last);
+        last = t;
+        if (t - t0 < ms) requestAnimationFrame(tick);
+        else {
+          var sorted = deltas.slice().sort(function (a, b) { return a - b; });
+          var long = deltas.filter(function (d) { return d > 25; }).length;
+          resolve({
+            frames: deltas.length, durationMs: Math.round(t - t0), longFrames: long,
+            ratio: deltas.length ? +(long / deltas.length * 100).toFixed(2) : 0,
+            p95: sorted.length ? +sorted[Math.floor(sorted.length * 0.95)].toFixed(2) : 0,
+            max: sorted.length ? +sorted[sorted.length - 1].toFixed(2) : 0
+          });
+        }
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  /* ---------------- 工具条 ---------------- */
+  var themeIdx = 0;
+  var THEME_IDS = ['cloud', 'star', 'paper'];
+  document.getElementById('triggers').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-phase]');
+    if (!b) return;
+    var name = b.getAttribute('data-phase');
+    if (name === 'chain') chain().then(renderMetrics);
+    else phase(name).then(renderMetrics);
+  });
+  document.getElementById('rollBtn').addEventListener('click', function () {
+    chain().then(renderMetrics);
+  });
+  document.getElementById('tools').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+    if (act === 'reset') { reset(); renderMetrics(); }
+    if (act === 'reduced') {
+      var on = b.getAttribute('data-on') !== '1';
+      b.setAttribute('data-on', on ? '1' : '0');
+      b.classList.toggle('on', on);
+      if (cinemaInst) cinemaInst.setReduced(on);
+      if (board && board.setReduced) board.setReduced(on);
+      if (scene && scene.setReduced) scene.setReduced(on);
+    }
+    if (act === 'theme') {
+      themeIdx = (themeIdx + 1) % THEME_IDS.length;
+      if (cinemaInst) cinemaInst.setTheme(THEME_IDS[themeIdx]);
+      document.body.setAttribute('data-theme', THEME_IDS[themeIdx]);
+      renderMetrics();
+    }
+    if (act === 'skip') { if (cinemaInst) cinemaInst.skip(); }
+    if (act === 'metrics') {
+      var el = document.getElementById('metrics');
+      el.hidden = !el.hidden;
+      if (!el.hidden) renderMetrics();
+    }
+    if (act === 'hide') document.body.classList.toggle('no-ui');
+  });
+  window.addEventListener('resize', function () {
+    var m = document.getElementById('metrics');
+    if (m && m.hidden === false) renderMetrics();
+  });
+
+  /* ---------------- 启动 ---------------- */
+  function boot() {
+    var reduced = params.get('reduced') === '1';
+    board.mount(boardEl, { reduced: reduced, sound: false });
+    scene = cabin.mount(cabinHost, { boardEl: boardEl, reduced: reduced, sound: false });
+    cinemaInst = cinema.mount(tableEl, {
+      boardEl: boardEl, cabinHost: cabinHost, reduced: reduced, sound: false,
+      theme: params.get('theme') || 'cloud',
+      onSkip: function () {
+        try {
+          boardEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        } catch (e) {}
+      }
+    });
+    if (cinemaInst) cinemaInst.setTheme(params.get('theme') || 'cloud');
+    if (cinemaInst && scene && scene.setCameraEnabled) scene.setCameraEnabled(false);
+    reset();
+
+    var first = params.get('phase');
+    var ready = Promise.resolve(null);
+    if (first === 'chain') ready = chain();
+    else if (first) ready = phase(first);
+
+    ready.then(function () {
+      if (params.get('debug') === '1') {
+        document.getElementById('metrics').hidden = false;
+      }
+      renderMetrics();
+      document.documentElement.setAttribute('data-demo-ready', '1');
+      window.__demo.ready = true;
+    });
+
+    window.__demo = {
+      board: board,
+      cabin: cabin,
+      cinema: cinema,
+      scene: scene,
+      run: function (n) {
+        if (n === 'chain') return chain().then(function (r) { renderMetrics(); return r; });
+        return phase(n).then(function (r) { renderMetrics(); return r; });
+      },
+      chain: function () { return chain(); },
+      phase: phase,
+      reset: reset,
+      skip: function () { return cinemaInst ? cinemaInst.skip() : false; },
+      setReduced: function (f) {
+        if (cinemaInst) cinemaInst.setReduced(!!f);
+        if (board && board.setReduced) board.setReduced(!!f);
+        if (scene && scene.setReduced) scene.setReduced(!!f);
+      },
+      setTheme: function (t) {
+        themeIdx = Math.max(0, THEME_IDS.indexOf(t));
+        if (cinemaInst) cinemaInst.setTheme(t);
+        renderMetrics();
+      },
+      state: function () { return cinemaInst ? cinemaInst._debug() : null; },
+      states: function () { return cinemaInst ? cinemaInst._debug().chain.slice() : []; },
+      hostState: function () { return tableEl.getAttribute('data-cinema-state'); },
+      boardTransform: function () { return boardEl.style.transform; },
+      squareList: function () {
+        return Array.prototype.map.call(document.querySelectorAll('[data-square]'), function (el) {
+          return el.getAttribute('data-square');
+        });
+      },
+      squareHit: function (id) {
+        var el = document.querySelector('[data-square="' + id + '"]');
+        if (!el) return { found: false };
+        var r = el.getBoundingClientRect();
+        var x = r.left + r.width / 2, y = r.top + r.height / 2;
+        var hit = document.elementFromPoint(x, y);
+        var sq = hit && hit.closest ? hit.closest('[data-square]') : null;
+        return {
+          found: true, x: Math.round(x), y: Math.round(y),
+          hitTag: hit ? hit.tagName : null,
+          hitSquare: sq ? sq.getAttribute('data-square') : null,
+          inCabin: !!(hit && hit.closest && hit.closest('.cabin-root')),
+          inCinema: !!(hit && hit.closest && hit.closest('.cv7'))
+        };
+      },
+      metrics: metrics,
+      renderMetrics: renderMetrics,
+      sampleFrames: sampleFrames,
+      playEvents: function (events) {
+        var list = (events || []).slice();
+        if (!list.length) return Promise.resolve(null);
+        return Promise.all([board.play(list), cinemaInst.roll(list)]);
+      },
+      lastResult: function () { return lastResult; },
+      ready: false
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>

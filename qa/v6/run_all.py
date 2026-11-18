@@ -35,7 +35,7 @@ import qa_lib as Q  # noqa: E402
 
 PY = sys.executable
 NODE = "node"
-DIST = ROOT / "dist" / "rebuild"
+DIST = ROOT / "dist" / "rebuild-v7"
 
 # spec §4 的 P0 AC（用于覆盖率矩阵；P1 不逐条列，结果见各自报告）
 # V6.1（2026-11-17）：结束=一方全部到家；起飞保底；题卡/心动值不再结束；回顾写「先到家/已到家」。
@@ -54,6 +54,9 @@ P0_ACS = [
     "AC-H1-1", "AC-H1-2", "AC-H2-1", "AC-H3-1", "AC-H4-1", "AC-H4-2", "AC-H6-1",
     # V6.2「夜航机舱」沉浸主桌（docs/v6/impl-freeze-cabin.md §5）
     "AC-V6.2-1", "AC-V6.2-2", "AC-V6.2-3", "AC-V6.2-4", "AC-V6.2-5", "AC-V6.2-6",
+    # V7「云海机舱 · 45° 格子剧场」（docs/v7/impl-freeze.md §6）
+    "AC-V7-1", "AC-V7-2", "AC-V7-3", "AC-V7-4", "AC-V7-5",
+    "AC-V7-6", "AC-V7-7", "AC-V7-8", "AC-V7-9", "AC-V7-10", "AC-V7-11",
 ]
 P1_ACS = ["AC-C5-1", "AC-C6-1", "AC-D4-1", "AC-D5-1", "AC-E4-1", "AC-E5-1", "AC-E5-2",
           "AC-E5-3", "AC-E6-1", "AC-E7-3", "AC-F3-1", "AC-G3-1", "AC-B7-1", "AC-B8-1",
@@ -135,6 +138,18 @@ AC_TEXT = {
     "AC-V6.2-5": "门厅 DCL/FCP/gzip 达标；主桌空闲长帧≤5%、20 次走子、reduced 停止",
     "AC-V6.2-6": "页面隐藏暂停（cabin 场景 rAF 停）且恢复后继续",
     "AC-V6.2-7": "视觉基线更新（主桌/题卡有意变化；boot/ledger 无变化）",
+    # V7「云海机舱 · 45° 格子剧场」（docs/v7/impl-freeze.md §6）
+    "AC-V7-1": "镜头状态链 overview→roll→pov→chase→land→cell45→bear→return，5–8s",
+    "AC-V7-2": "POV 与第三人称跟拍都出现；目标格发光",
+    "AC-V7-3": "落地后 CellStage（cell45/bear）；小熊 data-test=bear 随主题换装",
+    "AC-V7-4": "CellStage 接管题卡：data-test 对齐；做了/放过/命运/收尾/功能格/长文本",
+    "AC-V7-5": "三主题 cloud/star/paper + data-theme/变量 + 刷新保持",
+    "AC-V7-6": "320/360/390/430 无溢出；92 格不被 cinema/cell 拦截；安全词/暂停 hit-test",
+    "AC-V7-7": "reduced 无 POV/跟拍/震动；data-cinema-reduced=1；格子舞台静态",
+    "AC-V7-8": "快进：动画中可点；点按立即到终态",
+    "AC-V7-9": "性能：门厅 DCL/FCP/gzip；20 回合镜头链长帧>25ms≤5%；页面隐藏暂停",
+    "AC-V7-10": "视觉基线按 V7 重建（主桌/格子舞台/主题变化）",
+    "AC-V7-11": "V6.1 全量回归（main/skip/takeoff/win/notend/legacy/resume/pause/minigame/fate/events/responsive/offline/reduced）",
 }
 
 
@@ -297,6 +312,28 @@ def main():
                             "repro": "node qa/rebuild/flight-engine.test.mjs",
                             "evidence": results["engine"]["log"], "check_id": "ENGINE-01"})
 
+    # AC-V7-11：V6.1 全量回归（仅完整 e2e 口径汇总：非 AC-V7-* 的 e2e 检查全部 PASS）
+    if "e2e" in results and not args.e2e_groups:
+        e2e_checks = [c for c in checks if c.get("suite") == "e2e"]
+        legacy = [c for c in e2e_checks if not str(c.get("ac", "")).startswith("AC-V7")]
+        legacy_bad = [c for c in legacy if c.get("status") != "PASS"]
+        ok = bool(legacy) and not legacy_bad
+        checks.append({
+            "id": "AC-V7-11", "name": "V6.1/V6.2 全量回归（main/skip/takeoff/win/notend/legacy/resume/"
+                                     "pause/minigame/fate/events/responsive/offline/reduced/cabin）",
+            "status": "PASS" if ok else "FAIL", "ac": "AC-V7-11", "severity": "P0",
+            "expected": "V6 组全部 PASS（无 FAIL/SKIP）",
+            "actual": "V6 检查 %d 条，异常 %d 条" % (len(legacy), len(legacy_bad)),
+            "evidence": "reports/v6/qa-e2e.json", "suite": "e2e", "viewport": "-",
+            "detail": json.dumps([c.get("id") for c in legacy_bad][:20], ensure_ascii=False),
+        })
+        if not ok:
+            defects.append({"id": "Q-%02d" % (len(defects) + 1), "original_id": "AC-V7-11",
+                            "title": "V6.1/V6.2 回归未全绿", "severity": "P0", "suite": "e2e",
+                            "expected": "V6 组全部 PASS", "actual": "异常 %d 条" % len(legacy_bad),
+                            "repro": "python qa/v6/e2e_v6.py --dist dist/rebuild-v7",
+                            "evidence": "reports/v6/qa-e2e.json", "check_id": "AC-V7-11"})
+
     counts = {"PASS": 0, "FAIL": 0, "SKIP": 0}
     for c in checks:
         counts[c.get("status", "SKIP")] = counts.get(c.get("status", "SKIP"), 0) + 1
@@ -344,17 +381,17 @@ def main():
 
     # 写 MD
     lines = []
-    lines.append("# 今晚飞行棋 V6.2 · QA 验收报告")
+    lines.append("# 今晚飞行棋 V7 · QA 验收报告")
     lines.append("")
     lines.append("- 结论：**%s**" % conclusion)
     lines.append("- 是否可发布：**%s**（发布门 = P0 全绿 + 构建 --check + 引擎 0 failed）" %
                  ("可以发布" if publishable else "暂不可发布"))
-    lines.append("- 本版规则（V6.1）：结束 = **一方全部飞机到家**（快局 2 / 长夜 4）；"
+    lines.append("- 本版规则（V6.1，V7 不回归）：结束 = **一方全部飞机到家**（快局 2 / 长夜 4）；"
                  "起飞 = 6 + **连续两次没掷出 6 后第 3 个回合任意点数保底**；"
                  "题卡数 / 心动值不再触发结束；回顾只写「<姓名> 先到家 / 已到家 X/Y」。")
-    lines.append("- 本版画面（V6.2）：主桌新增「夜航机舱」沉浸场景（舱壁/舷窗/桌板/光效/粒子）"
-                 "与全动态镜头（掷骰推近、走子跟拍、击落震动、换手移侧、收家拉远+日出）；"
-                 "reduced 关闭镜头/震动/粒子，页面隐藏暂停。")
+    lines.append("- 本版画面（V7）：每回合电影镜头链（overview→roll→pov→chase→land→cell45→bear→return，5–8s）；"
+                 "第一人称 POV + 第三人称跟拍 + 目标格发光 + 落地尘土；45° 格子剧场 CellStage + 随主题换装的小熊；"
+                 "三主题 cloud/star/paper（门厅可选、刷新保持）；「快进」立即到终态；reduced 跳过 POV/跟拍与震动。")
     if p1_fail:
         lines.append("- P1 遗留（不阻塞发布）：%d 条，见第 2 节缺陷清单（severity=P1）" % len(p1_fail))
     lines.append("- 生成时间：%s" % meta["generated_at"])
@@ -442,21 +479,33 @@ def main():
     lines.append("  - 旧档兼容 `--only legacy`：缺 `takeoffMiss` 补 `{a:0,b:0}` 可续玩；旧 `ending='shared'` "
                  "回顾写「今晚一起走到这里」。")
     lines.append("  - 全放过 `--only skip`：放过不惩罚 + 两张收尾卡都放过仍进回顾，明细写「今晚先放过」。")
-    lines.append("- V6.2 必跑（P0，新增）：")
+    lines.append("- V6.2 必跑（P1，保留）：")
     lines.append("  - 机舱层 `--only cabin`：`[data-test=cabin]` 存在、`pointer-events:none`、Canvas≥1、"
-                 "92 格 `elementFromPoint` 全部命中棋盘层；320/360/390/430 无横向溢出。")
-    lines.append("  - 全动态镜头：掷骰 `cam=dice`（scale≥1.02）/走子 `cam=move`（位移≥4px）/击落 `cam=shake`/"
-                 "换手 `cam=turn`+`data-turn=b`/收家 `is-won`+`data-cabin-dawn>0`+scale<1。")
-    lines.append("  - reduced（设置 + 系统 `prefers-reduced-motion`）：无 transform、无 shake、无闪灯；"
-                 "题卡/安全词/暂停 hit-test 不被 cabin 覆盖。")
-    lines.append("  - 性能：门厅 DCL/FCP/gzip 达标；主桌空闲 fps≥50 且长帧≤5%；20 次连续走子长帧≤5%；"
-                 "reduced 下 `.cb-dust` 静止；页面隐藏 `data-cabin-paused=1`、scene 帧数不增、恢复后继续。")
-    lines.append("- 视觉：V6.2 主桌/题卡基线已重建（截图前测试侧冻结场景保证可复现）；"
-                 "boot/ledger 基线沿用 V6.1（对比 0 变化）。")
+                 "92 格 `elementFromPoint` 全部命中棋盘层（cinema/cell/cabin 0 拦截）；320/360/390/430 无横向溢出。")
+    lines.append("  - 浮层 hit-test：题卡/安全词/暂停不被机舱层覆盖（CellStage z=320，低于暂停/安全词）。")
+    lines.append("- V7 必跑（P0，新增）：")
+    lines.append("  - 镜头链 `--only cinema`：`data-cinema-state` 依序出现 roll→pov→chase→land→cell45→bear→return；"
+                 "roll 0.9–1.2s / pov 1.0–1.2s / chase 1.5–2.5s / land 0.4–0.6s / return 0.7–0.9s，全链 5–8s；"
+                 "POV 前景（机翼/云/速度线）不透明度>0.5；跟拍 scale≥1.05 + 目标格光晕；落地 dust/ripple。")
+    lines.append("  - 快进 `--only cinema`：roll/move 动画中 `[data-test=cinema-skip]` 可见可点，点按 ≤2.5s 到终态，"
+                 "stats.log 中 pov/chase skipped=true。")
+    lines.append("  - reduced `--only cinema`：设置开关下 `data-cinema-reduced=1`、无 transform、无 pov/chase、"
+                 "CellStage `data-reduced=1` 且动画≤10ms；系统 prefers-reduced-motion 为 P1 观察项（当前未接入 Cinema）。")
+    lines.append("  - 格子舞台 `--only cellstage`：CellStage 接管题卡（.cs-root 且无 .pc-root）；"
+                 "做了/放过/命运二选一/收尾/功能格/小游戏入口/长文本滚动；45° 3D + 文字不倾斜；"
+                 "小熊 data-test=bear 可见且 aria-hidden；做了/放过 ≥44px；安全词/暂停 hit-test；92 格不被拦截。")
+    lines.append("  - 主题 `--only theme`：cloud/star/paper 三选一；html/body/table data-theme 与 CSS 变量；"
+                 "刷新保持；cell-stage data-theme/outfit 与小熊 pilot/starlight/paper 换装；52 格拓扑不变。")
+    lines.append("  - V7 响应式 `--only v7responsive`：320/360/390/430 门厅/主桌/长文本格子舞台无横向溢出；"
+                 "卡片在视口内、按钮固定；92 格不被拦截。")
+    lines.append("  - V6.1 全量回归：main/skip/takeoff/win/notend/legacy/resume/pause/minigame/fate/events/"
+                 "responsive/offline/reduced 全组（V7 构建上复跑）。")
+    lines.append("- 视觉：V7 主桌/格子舞台/三主题基线已重建（`--update-baseline` 后 `--only visual` 复核）；"
+                 "截图前测试侧冻结场景（CabinScene reduced + CSS animation 暂停），不改产品行为；对比容差 1.5%。")
     lines.append("- 红线：安全词 7 屏可达（B4）、题卡 100% 人名（C1）、放过不阻断进军/全放过能收尾（C2/E3）、"
                  "边界 100 次抽题无命中（H5）、刷新续玩（A6）、断网开局（H3）。")
     lines.append("- 引擎：`node qa/rebuild/flight-engine.test.mjs` 0 failed（含 V6.1 §15/§20 全到家与保底用例）。")
-    lines.append("- 构建：`python tools/rebuild/build_app.py --out dist/rebuild --check` 退出 0（27 项检查）。")
+    lines.append("- 构建：`python tools/rebuild/build_app.py --out dist/rebuild-v7 --strict --check` 退出 0（33 模块）。")
     lines.append("")
     lines.append("## 6. 偏差与遗留")
     lines.append("")

@@ -26,6 +26,31 @@
   ];
   var CHIPS = ["束缚", "露出", "道具", "喝酒", "蒙眼", "角色"];
   var MAX_NAME = 12;
+  /* V7（impl-freeze §2.1）：门厅「今晚的桌面」三选一。主题表以 App.Themes 为准；
+     App.Themes 缺失时用这份兜底，保证门厅不白屏。 */
+  var THEME_FALLBACK = [
+    { id: "cloud", name: "云海机舱", hint: "云海 · 暖灯", desc: "舷窗外是一片云海，桌板上亮着一盏阅读灯。", swatch: "linear-gradient(135deg,#0C1E2E 0%,#2E6A8C 44%,#8FC7E8 68%,#F2C98A 100%)" },
+    { id: "star", name: "星轨夜航", hint: "星空 · 流星", desc: "深紫夜空，星图环和流星就在舷窗外。", swatch: "linear-gradient(135deg,#08060F 0%,#241540 44%,#8E7BD8 68%,#F3C077 100%)" },
+    { id: "paper", name: "纸雕童话", hint: "纸页 · 台灯", desc: "纸片一层层叠起来，像一本会飞的书。", swatch: "linear-gradient(135deg,#140F0B 0%,#33241A 44%,#D8A46A 70%,#FBF3E4 100%)" }
+  ];
+  function themeList() {
+    try {
+      if (App.Themes && App.Themes.list && App.Themes.list.length) return App.Themes.list;
+    } catch (e) {}
+    return THEME_FALLBACK;
+  }
+  function currentThemeId() {
+    try {
+      if (App.Themes && App.Themes.get) return App.Themes.get().id;
+    } catch (e) {}
+    var s = App.Store.getSettings();
+    return s && (s.theme === "star" || s.theme === "paper") ? s.theme : "cloud";
+  }
+  function themeMeta(id) {
+    var list = themeList();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];
+  }
 
   function modeById(id) {
     for (var i = 0; i < MODES.length; i++) if (MODES[i].id === id) return MODES[i];
@@ -60,6 +85,7 @@
       };
       if (picked.a === picked.b) picked.b = freeColor(picked.a);
       var scale = settings.scale || "warm";
+      var themeId = currentThemeId();
       var mode = modeById(settings.mode || (settings.lastPlaneCount === 4 ? "long" : "quick"));
       var boundaries = (settings.blacklist || []).slice();
       var names = {
@@ -96,6 +122,15 @@
         var on = scale === s.id;
         return '<button type="button" class="scale-card' + (on ? " on" : "") + '" data-scale="' + s.id + '" data-test="scale-' + s.id + '" aria-pressed="' + (on ? "true" : "false") + '">' +
           "<b>" + s.name + '</b><em>可抽 ' + s.star + "</em><span>" + s.desc + "</span></button>";
+      }
+
+      /* V7：今晚的桌面（三选一）。样式随 ui/themes.js 注入（.v7-theme-*），base.css 不动。 */
+      function themeCard(t) {
+        var on = themeId === t.id;
+        return '<button type="button" class="v7-theme-card' + (on ? " on" : "") + '" data-theme-pick="' + U.escape(t.id) + '" data-test="theme-' + U.escape(t.id) + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+          '<span class="v7-tv" aria-hidden="true" style="background:' + U.escape(t.swatch || "") + '"></span>' +
+          "<b>" + U.escape(t.name) + "</b>" +
+          "<em>" + U.escape(t.hint || "") + "</em></button>";
       }
 
       var metaPills = "";
@@ -147,6 +182,13 @@
               '<input class="field" data-test="bound-custom" maxlength="40" placeholder="再写一条：一个词、一句话，或一个不想被问的方向" autocomplete="off" />' +
               '<button class="btn soft sm" data-act="add-bound" data-test="bound-add" type="button">加上</button>' +
             "</div>" +
+          "</div>" +
+          /* V7（impl-freeze §2.1）：今晚的桌面 —— 放在摆上棋盘之前，是开局前最后一个视觉选择；
+             不塞进「名字/尺度」之间，360×640 首屏的原有顺序（玩法→称呼→灯档）保持不变。 */
+          '<div class="sect">' +
+            '<div class="sect-label">今晚的桌面</div>' +
+            '<div class="v7-theme-grid" data-test="themes">' + themeList().map(themeCard).join("") + "</div>" +
+            '<div class="sect-note" data-test="theme-desc">' + U.escape(themeDesc()) + "</div>" +
           "</div>" +
           '<div class="boot-links">' +
             '<button class="lbtn" data-go="rules" data-test="rules-open" type="button">规则速览</button><span class="dot"></span>' +
@@ -210,6 +252,19 @@
         var s = scaleById(scale);
         if (scaleDesc) scaleDesc.textContent = s.name + " · 可抽 " + s.star + " 的题 · 四档只决定上限，不预告题目。";
       }
+      function themeDesc() {
+        var t = themeMeta(themeId);
+        return t.name + "：" + (t.desc || "") + "只改画面，题目和规则不变。";
+      }
+      function paintTheme() {
+        U.qsa("[data-theme-pick]", root).forEach(function (el) {
+          var on = el.getAttribute("data-theme-pick") === themeId;
+          el.classList.toggle("on", on);
+          el.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        var d = root.querySelector("[data-test=theme-desc]");
+        if (d) d.textContent = themeDesc();
+      }
       function paintBounds() {
         var box = root.querySelector("[data-test=bounds]");
         if (!box) return;
@@ -245,6 +300,22 @@
         App.Store.saveSettings({ scale: scale });
         if (App.Audio) App.Audio.play("select");
         paintScales();
+      });
+      /* V7（impl-freeze §2.1）：今晚的桌面 —— 点一下立即换、立即落盘，刷新记住。
+         主题只改视觉，不动棋盘拓扑与题卡；开局仍走原来的 start()。 */
+      U.delegate(root, "[data-theme-pick]", "click", function (e, el) {
+        var id = el.getAttribute("data-theme-pick");
+        if (!id || id === themeId) return;
+        themeId = id;
+        try {
+          if (App.Themes && App.Themes.set) App.Themes.set(themeId, root);
+          else App.Store.saveSettings({ theme: themeId });
+        } catch (err) {
+          try { App.Store.saveSettings({ theme: themeId }); } catch (e2) {}
+        }
+        if (App.Audio) App.Audio.play("select");
+        paintTheme();
+        App.UI.haptic("select");
       });
       U.delegate(root, "[data-bound]", "click", function (e, el) {
         var name = el.getAttribute("data-bound");
@@ -333,6 +404,7 @@
           scale: scale,
           mode: mode.id,
           lastPlaneCount: mode.planes,
+          theme: themeId,
           blacklist: boundaries.slice()
         });
         var saved = App.Store.saveSession(made.state);
@@ -343,6 +415,9 @@
       }
 
       paintScales();
+      paintTheme();
+      /* 进门的这一刻就把上次选的桌面套上（table mount 会再 apply 一次，幂等） */
+      try { if (App.Themes && App.Themes.apply) App.Themes.apply(root, themeId); } catch (e) {}
       /* 首次进入（无历史且未看过）：自动弹一次玩法速览（AC-A5） */
       var firstRun = !settings.rulesSeen && history.length === 0;
       if (firstRun) setTimeout(function () { if (App.UI && App.UI.rulesSheet) App.UI.rulesSheet(); }, 340);

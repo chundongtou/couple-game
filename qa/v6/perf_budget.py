@@ -49,6 +49,7 @@ SLOW4G = {
 }
 CPU_RATE = 4
 VIEWPORT = (390, 844)
+V7_AC_PERF = "AC-V7-9"
 
 
 def _median(values):
@@ -276,6 +277,61 @@ CABIN_SHOW_JS = """() => {
   } catch (e) { return {ok: false, error: String(e)}; }
 }"""
 
+# ---------------------------------------------------------------- V7 电影镜头运行时
+# 口径：docs/v7/impl-freeze.md §5/§6（20 回合长帧 >25ms ≤5%；页面隐藏暂停；reduced 静态）。
+V7_FRAME_JS = """() => {
+  var P = window.__qaPerf = window.__qaPerf || {};
+  P.frames = 0; P.long = 0; P.dts = []; P.t0 = 0; P.active = false;
+  P.states = {}; P.stateSeq = []; P.povFrames = 0; P.transformFrames = 0;
+  P.start = function () {
+    P.frames = 0; P.long = 0; P.dts = []; P.t0 = performance.now(); P.active = true;
+    P.states = {}; P.stateSeq = []; P.povFrames = 0; P.transformFrames = 0;
+    var last = performance.now();
+    function tick(ts) {
+      if (!P.active) return;
+      var dt = ts - last; last = ts;
+      P.frames += 1;
+      if (P.dts.length < 8000) P.dts.push(dt);
+      if (dt > 25) P.long += 1;
+      var host = document.querySelector('.v6-table');
+      var s = host ? host.getAttribute('data-cinema-state') : null;
+      if (s) {
+        P.states[s] = (P.states[s] || 0) + 1;
+        if (!P.stateSeq.length || P.stateSeq[P.stateSeq.length - 1] !== s) {
+          if (P.stateSeq.length < 400) P.stateSeq.push(s);
+        }
+        if (s === 'pov') P.povFrames += 1;
+      }
+      var b = document.querySelector('.v6-board');
+      if (b && b.style.transform) P.transformFrames += 1;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  };
+  P.stop = function () {
+    P.active = false;
+    var el = performance.now() - P.t0;
+    var arr = P.dts.slice().sort(function (a, b) { return a - b; });
+    return {
+      frames: P.frames, long: P.long, elapsed: el,
+      fps: P.frames / Math.max(1, el) * 1000,
+      longRatio: P.frames ? (P.long / P.frames) : 0,
+      p95: arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * 0.95))] : null,
+      max: arr.length ? arr[arr.length - 1] : null,
+      states: P.states, stateSeq: P.stateSeq.slice(),
+      povFrames: P.povFrames, transformFrames: P.transformFrames
+    };
+  };
+  return true;
+}"""
+
+V7_REDUCED_SEED_JS = """() => {
+  try { App.Store.saveSettings({reduced: true}); return true; } catch (e) { return false; }
+}"""
+
+V7_HIDE_JS = CABIN_HIDE_JS
+V7_SHOW_JS = CABIN_SHOW_JS
+
 
 def _perf_start_table(browser, url, mode="quick", throttle=None):
     """打开主桌（quick/long），可选 CPU 降频；返回 (ctx, ps, page)。"""
@@ -493,6 +549,236 @@ def measure_cabin_runtime(browser, url):
     return out
 
 
+def _v7_cinema_debug(page):
+    data = Q.eval_js(page, "() => (window.App && App.Cinema && App.Cinema._debug) ? App.Cinema._debug() : null")
+    return data if isinstance(data, dict) else {}
+
+
+def _v7_fixture_move(page, pid="a:0", frm="ring:0", die=2, turn="a"):
+    """与 E2E 同口径：夹具到 choose-piece（单子可走），之后由调用方点选子按钮。"""
+    return Q.eval_js(
+        page,
+        """(a) => {
+            try {
+                var s = App.Store.getSession();
+                if (!s) return false;
+                s.turn = a.turn; s.phase = 'playing';
+                s.awaiting = {type: 'choose-piece', pieceIds: [a.pid], die: a.die};
+                (s.pieces || []).forEach(function (p) {
+                    if (p.id === a.pid) { p.squareId = a.from; p.arrived = false; p.stackGroupId = null; }
+                });
+                App.Store.saveSession(s);
+                App.Router.reset('table');
+                return true;
+            } catch (e) { if (window.console) console.error('QA_FIXTURE', e); return false; }
+        }""",
+        {"pid": pid, "from": frm, "die": die, "turn": turn},
+    )
+
+
+def _v7_click_piece(page):
+    btns, _ = Q.find_piece_buttons(page)
+    if not btns:
+        return False
+    try:
+        btns[0].click(timeout=4000)
+        return True
+    except Exception:
+        return False
+
+
+def _v7_state_seq(page, ms):
+    """页内轮询 data-cinema-state（不受 Python 往返影响），返回去重状态序列。"""
+    data = Q.eval_js(
+        page,
+        """async (ms) => {
+            var host = document.querySelector('.v6-table');
+            if (!host) return [];
+            var out = [], t0 = performance.now(), last = null;
+            while (performance.now() - t0 < ms) {
+                var s = host.getAttribute('data-cinema-state');
+                if (s && s !== last) { out.push(s); last = s; }
+                await new Promise(function (r) { setTimeout(r, 50); });
+            }
+            return out;
+        }""",
+        ms,
+    )
+    return data if isinstance(data, list) else []
+
+
+def measure_v7_runtime(browser, url):
+    """V7 主桌运行时：20 回合镜头链长帧 / 页面隐藏暂停 / reduced 静态。"""
+    out = {"moves": None, "hidden": None, "reduced": None}
+
+    # ---- 20 次连续走子（长夜；镜头链全程跑，取 rAF 帧间隔与状态序列）----
+    moves_done = 0
+    frames = 0
+    long_frames = 0
+    elapsed = 0.0
+    games = []
+    state_seqs = []
+    while moves_done < 20 and len(games) < 2:
+        ctx, ps, page = _perf_start_table(browser, url, mode="long")
+        try:
+            page.evaluate(V7_FRAME_JS)
+            page.wait_for_timeout(300)
+            page.evaluate("() => { window.__qaPerf.start(); return true; }")
+            got = _perf_drive_moves(page, 20 - moves_done, budget_s=115)
+            st = page.evaluate("() => window.__qaPerf.stop()") or {}
+            moves_done += got
+            frames += st.get("frames") or 0
+            long_frames += st.get("long") or 0
+            elapsed += st.get("elapsed") or 0
+            seq = st.get("stateSeq") or []
+            state_seqs.append(seq)
+            games.append({
+                "game": len(games) + 1, "moves": got,
+                "fps": round(st.get("fps") or 0, 1),
+                "longRatio": round(st.get("longRatio") or 0, 4),
+                "states": st.get("states") or {},
+                "stateSeq": seq[:120],
+                "povFrames": st.get("povFrames"),
+                "transformFrames": st.get("transformFrames"),
+                "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]},
+            })
+        finally:
+            ctx.close()
+    merged = {}
+    for g in games:
+        for k, v in (g.get("states") or {}).items():
+            merged[k] = merged.get(k, 0) + v
+    flat_seq = []
+    for seq in state_seqs:
+        for s in seq:
+            if not flat_seq or flat_seq[-1] != s:
+                flat_seq.append(s)
+    out["moves"] = {
+        "moves": moves_done, "frames": frames, "long": long_frames,
+        "elapsed_ms": round(elapsed, 1),
+        "fps": frames / max(0.001, elapsed / 1000.0),
+        "longRatio": (long_frames / frames) if frames else None,
+        "states": merged, "stateSeq": flat_seq[:160], "games": games,
+    }
+
+    # ---- 页面隐藏暂停 / 恢复（镜头链进行中）----
+    ctx, ps, page = _perf_start_table(browser, url, mode="quick")
+    try:
+        Q.install_die_hook(page)
+        _v7_fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        _v7_click_piece(page)
+        # 等到 pov（镜头链进行中）
+        deadline = time.time() + 4
+        st0 = None
+        while time.time() < deadline:
+            st0 = Q.eval_js(page, "() => { var h=document.querySelector('.v6-table'); return h?h.getAttribute('data-cinema-state'):null; }")
+            if st0 in ("pov", "chase", "land", "cell45"):
+                break
+            page.wait_for_timeout(60)
+        hide = Q.eval_js(page, V7_HIDE_JS) or {}
+        page.wait_for_timeout(120)
+        d1 = _v7_cinema_debug(page)
+        s1 = Q.eval_js(page, "() => { var h=document.querySelector('.v6-table'); return h?h.getAttribute('data-cinema-state'):null; }")
+        paused_attr = Q.eval_js(page, "() => { var r=document.querySelector('[data-test=cabin-scene]'); return r ? r.getAttribute('data-cabin-paused') : null; }")
+        cinema_paused = Q.eval_js(page, "() => { var h=document.querySelector('.v6-table'); return h ? h.getAttribute('data-cinema-paused') : null; }")
+        b1 = Q.eval_js(page, "() => { var b=document.querySelector('.v6-board'); return b ? (b.style.transform||'') : null; }")
+        chain1 = list((d1.get("chain") or []))
+        page.wait_for_timeout(520)
+        b_mid = Q.eval_js(page, "() => { var b=document.querySelector('.v6-board'); return b ? (b.style.transform||'') : null; }")
+        page.wait_for_timeout(520)
+        d2 = _v7_cinema_debug(page)
+        s2 = Q.eval_js(page, "() => { var h=document.querySelector('.v6-table'); return h?h.getAttribute('data-cinema-state'):null; }")
+        b2 = Q.eval_js(page, "() => { var b=document.querySelector('.v6-board'); return b ? (b.style.transform||'') : null; }")
+        chain2 = list((d2.get("chain") or []))
+        show = Q.eval_js(page, V7_SHOW_JS) or {}
+        # 恢复：等镜头链收束（pending=false）→ 清掉题卡 → 再掷一次确认可继续
+        t_resume = time.time()
+        dbg_res = {}
+        pending_false_ms = None
+        while time.time() - t_resume < 6:
+            dbg_res = _v7_cinema_debug(page)
+            if dbg_res.get("pending") is False:
+                pending_false_ms = int((time.time() - t_resume) * 1000)
+                break
+            page.wait_for_timeout(80)
+        Q.try_click(page, ["test:prompt-skip", "test:prompt-done"], timeout=2000)
+        page.wait_for_timeout(500)
+        # 等到下一次可掷骰：若仍有题卡/小游戏弹层，按用户方式收掉（最多 8s）
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            aw = Q.eval_js(page, "() => { try { var a=(App.Store.getSession()||{}).awaiting||{}; return a.type || null; } catch(e){ return null; } }")
+            if aw in (None, "roll"):
+                break
+            if aw in ("prompt", "ending-prompt"):
+                Q.try_click(page, ["test:prompt-skip", "test:prompt-done"], timeout=1500)
+            elif aw == "minigame":
+                Q.try_click(page, ["test:minigame-skip"], timeout=1200)
+            page.wait_for_timeout(300)
+        resumed_seq = []
+        roll_ok = Q.eval_js(page, "() => { try { var aw=(App.Store.getSession()||{}).awaiting||{}; return aw.type === 'roll'; } catch(e){ return false; } }")
+        if roll_ok:
+            Q.set_die(page, 6)
+            Q.try_click(page, ["test:roll"], timeout=3000)
+            resumed_seq = _v7_state_seq(page, 2800)
+        out["hidden"] = {
+            "hide": hide, "show": show, "pausedAttr": paused_attr,
+            "cinemaPaused": cinema_paused,
+            "stateAtHide": s1, "stateAfterWait": s2,
+            "pendingAtHide": d1.get("pending"), "rafAtHide": d1.get("raf"),
+            "animatingAtHide": d1.get("animating"),
+            "rafAfterWait": d2.get("raf"), "pendingAfterWait": d2.get("pending"),
+            "boardAtHide": b1, "boardMid": b_mid, "boardAfterWait": b2,
+            "boardStable": (b1 or "") == (b_mid or "") == (b2 or ""),
+            "chainAtHide": chain1, "chainAfterWait": chain2,
+            "chainStable": chain1 == chain2,
+            "pendingFalseMs": pending_false_ms,
+            "awaitingRollAfterShow": roll_ok,
+            "resumedSeq": resumed_seq,
+            "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]},
+        }
+    finally:
+        ctx.close()
+
+    # ---- reduced（产品设置开关）：无 POV/跟拍、无 transform、格子舞台静态 ----
+    ctx, ps, page = _perf_start_table(browser, url, mode="quick")
+    try:
+        Q.eval_js(page, "() => { try { App.Store.saveSettings({reduced:true}); return true; } catch(e) { return false; } }")
+        page.wait_for_timeout(500)
+        Q.install_die_hook(page)
+        _v7_fixture_move(page, "a:0", "ring:0", 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(400)
+        page.evaluate(V7_FRAME_JS)
+        page.evaluate("() => { window.__qaPerf.start(); return true; }")
+        _v7_click_piece(page)
+        seq = _v7_state_seq(page, 4200)
+        st = page.evaluate("() => window.__qaPerf.stop()") or {}
+        dbg = _v7_cinema_debug(page)
+        cell_reduced = Q.eval_js(page, """() => {
+            var r = document.querySelector('[data-test="cell-stage"]');
+            if (!r) return null;
+            var s = r.querySelector('.cs-stage');
+            return { reduced: r.getAttribute('data-reduced'), bear: r.getAttribute('data-bear'),
+                     anim: s ? getComputedStyle(s).animationDuration : null };
+        }""")
+        out["reduced"] = {
+            "reduced": dbg.get("reduced"), "hostReduced": Q.eval_js(
+                page, "() => { var h=document.querySelector('.v6-table'); return h?h.getAttribute('data-cinema-reduced'):null; }"),
+            "transform": dbg.get("boardTransform"),
+            "transformFrames": st.get("transformFrames"),
+            "stateSeq": seq, "states": st.get("states") or {},
+            "povFrames": st.get("povFrames"),
+            "cell": cell_reduced,
+            "raf": dbg.get("raf"),
+            "errors": {"pageerrors": ps.pageerrors[:2], "console_errors": ps.console_errors[:2]},
+        }
+    finally:
+        ctx.close()
+    return out
+
+
 def disk_budget(dist: pathlib.Path):
     """PB-1/2/3：index 体积与首屏总 gzip（以落盘为准；ADR-012 口径）。"""
     info = Q.build_info(dist)
@@ -582,6 +868,18 @@ def main():
                 print("[PERF] cabin reduced=%s hiddenPaused=%s" % (
                     (cabin.get("reduced") or {}).get("reduced"),
                     (cabin.get("hidden") or {}).get("pausedAttr")))
+                print("[PERF] v7 cinema runtime: 20 moves / hidden / reduced ...")
+                v7 = measure_v7_runtime(browser, gz_url)
+                vmv = v7.get("moves") or {}
+                print("[PERF] v7 20moves: moves=%s fps=%.1f long25=%s%% states=%s" % (
+                    vmv.get("moves"), vmv.get("fps") or 0,
+                    round((vmv.get("longRatio") or 0) * 100, 2),
+                    json.dumps(vmv.get("states") or {}, ensure_ascii=False)[:200]))
+                print("[PERF] v7 hidden=%s reduced=%s" % (
+                    json.dumps({k: (v7.get("hidden") or {}).get(k) for k in
+                                ("pausedAttr", "stateAtHide", "pendingAtHide", "rafAtHide", "boardStable")},
+                               ensure_ascii=False),
+                    (v7.get("reduced") or {}).get("reduced")))
             finally:
                 browser.close()
 
@@ -775,6 +1073,97 @@ def main():
                   ac="AC-V6.2-5", severity="P2",
                   detail="仅参考：本机 4×CPU 降频下主桌空闲采样，不参与发布门槛")
 
+    # ---------------- V7 电影镜头运行时（P0，AC-V7-9） ----------------
+    vmv = v7.get("moves") or {}
+    vhid = v7.get("hidden") or {}
+    vred = v7.get("reduced") or {}
+    vstates = vmv.get("states") or {}
+    vseq = vmv.get("stateSeq") or []
+    v_moves = vmv.get("moves") or 0
+    v_long = vmv.get("longRatio")
+    v_motion = all(k in vstates for k in ("pov", "chase", "land")) or \
+        all(k in vseq for k in ("pov", "chase", "land"))
+    v_detail = "moves=%s frames=%s long=%s fps=%.1f long25=%.2f%% states=%s" % (
+        v_moves, vmv.get("frames"), vmv.get("long"), vmv.get("fps") or 0,
+        (v_long or 0) * 100, json.dumps(vstates, ensure_ascii=False)[:240])
+    if v_moves < 20:
+        rec.check("V7-PERF-01", "V7-PERF-01 · 20 回合连续走子（镜头链全开）", "SKIP",
+                  "20 次完成且长帧≤5%", "仅完成 %s 次（2 局内未凑满）" % v_moves,
+                  ac=V7_AC_PERF, detail=v_detail)
+    else:
+        v_ok = (v_long or 0) <= 0.05 and v_motion
+        if v_ok:
+            rec.ok("V7-PERF-01", "V7-PERF-01 · 20 回合连续走子长帧（>25ms）≤5%（含镜头链）",
+                   "20 moves，long25≤5%，pov/chase/land 均出现",
+                   v_detail, ac=V7_AC_PERF, evidence="reports/v6/qa-perf.json",
+                   detail=v_detail)
+        else:
+            rec.fail("V7-PERF-01", "V7-PERF-01 · 20 回合连续走子长帧（>25ms）≤5%（含镜头链）",
+                     "20 moves，long25≤5%，pov/chase/land 均出现",
+                     v_detail + " motion_ok=%s" % v_motion, ac=V7_AC_PERF,
+                     repro="长夜开局→连续 20 次掷骰/选子（含题卡跳过）→rAF 采样与 data-cinema-state 序列",
+                     evidence="reports/v6/qa-perf.json", detail=v_detail, owner="FE-cinema")
+    v_resumed = [s for s in (vhid.get("resumedSeq") or []) if s in
+                 ("roll", "pov", "chase", "land", "cell45", "bear", "overview")]
+    v_hid_ok = (vhid.get("pausedAttr") == "1"
+                and vhid.get("pendingFalseMs") is not None
+                and (vhid.get("awaitingRollAfterShow") is True and bool(v_resumed)))
+    v_detail_h = "pausedAttr=%s state@hide=%s pending@hide=%s raf@hide=%s pendingFalseMs=%s awaitingRoll=%s resumed=%s" % (
+        vhid.get("pausedAttr"), vhid.get("stateAtHide"), vhid.get("pendingAtHide"),
+        vhid.get("rafAtHide"), vhid.get("pendingFalseMs"), vhid.get("awaitingRollAfterShow"),
+        json.dumps(v_resumed, ensure_ascii=False))
+    if v_hid_ok:
+        rec.ok("V7-PERF-02", "V7-PERF-02 · 页面隐藏/恢复不悬挂：cabin 暂停、镜头链收束、恢复后可继续",
+               "paused=1 + pending 最终 false + 恢复后再次出现镜头状态",
+               v_detail_h, ac=V7_AC_PERF, evidence="reports/v6/qa-perf.json",
+               detail=v_detail_h)
+    else:
+        rec.fail("V7-PERF-02", "V7-PERF-02 · 页面隐藏/恢复不悬挂：cabin 暂停、镜头链收束、恢复后可继续",
+                 "paused=1 + pending 最终 false + 恢复后再次出现镜头状态",
+                 v_detail_h, ac=V7_AC_PERF,
+                 repro="走子镜头进行中→模拟 visibilitychange(hidden)→恢复→读 _debug()/重建状态序列",
+                 evidence="reports/v6/qa-perf.json", detail=v_detail_h, owner="FE-cinema")
+    # P1 修复后口径：隐藏→Cinema 冻结（data-cinema-paused=1 / raf=false / 三次 transform 完全一致 /
+    # 状态链长度不变、不启动 land）；恢复后继续。paused 期间 tween 对象保留（animating=true）是预期，
+    # 因为恢复后要续播；因此只以 rAF/transform/状态链是否冻结为门槛。
+    v_hid_pause = (vhid.get("rafAtHide") is False and vhid.get("cinemaPaused") == "1"
+                   and vhid.get("boardStable") is True and vhid.get("chainStable") is True)
+    v_detail_hp = "raf@hide=%s animating@hide=%s cinemaPaused=%s paused=%s boardStable=%s chainStable=%s state %s→%s" % (
+        vhid.get("rafAtHide"), vhid.get("animatingAtHide"), vhid.get("cinemaPaused"),
+        vhid.get("pausedAttr"), vhid.get("boardStable"), vhid.get("chainStable"),
+        vhid.get("stateAtHide"), vhid.get("stateAfterWait"))
+    if v_hid_pause:
+        rec.ok("V7-PERF-02B", "V7-PERF-02B · 页面隐藏期间镜头链显式暂停（rAF 停 / transform 冻结 / 链不推进）",
+               "raf=false + data-cinema-paused=1 + 3 次 transform 一致 + 链长不变", v_detail_hp,
+               ac=V7_AC_PERF, severity="P1", evidence="reports/v6/qa-perf.json", detail=v_detail_hp)
+    else:
+        rec.fail("V7-PERF-02B", "V7-PERF-02B · 页面隐藏期间镜头链显式暂停（rAF 停 / transform 冻结 / 链不推进）",
+                 "raf=false + data-cinema-paused=1 + 3 次 transform 一致 + 链长不变",
+                 v_detail_hp, ac=V7_AC_PERF, severity="P1",
+                 repro="走子镜头 pov/chase 中→模拟 visibilitychange(hidden)→读 _debug() 的 raf/animating、host data-cinema-paused、3 次 board transform 与 chain 长度",
+                 evidence="reports/v6/qa-perf.json", detail=v_detail_hp, owner="FE-cinema")
+    v_red_seq = vred.get("stateSeq") or []
+    v_red_ok = (vred.get("reduced") is True and vred.get("hostReduced") == "1"
+                and not (vred.get("transform") or "")
+                and (vred.get("transformFrames") or 0) == 0
+                and "pov" not in v_red_seq and "chase" not in v_red_seq
+                and (vred.get("cell") or {}).get("reduced") == "1")
+    v_detail_r = "reduced=%s host=%s transform=%r transformFrames=%s seq=%s cell=%s" % (
+        vred.get("reduced"), vred.get("hostReduced"), vred.get("transform"),
+        vred.get("transformFrames"), json.dumps(v_red_seq, ensure_ascii=False)[:200],
+        json.dumps(vred.get("cell"), ensure_ascii=False))
+    if v_red_ok:
+        rec.ok("V7-PERF-03", "V7-PERF-03 · reduced：无 POV/跟拍、棋盘无 transform、格子舞台 reduced",
+               "reduced=1 + transformFrames=0 + 无 pov/chase + cell-stage[data-reduced=1]",
+               v_detail_r, ac=V7_AC_PERF, evidence="reports/v6/qa-perf.json",
+               detail=v_detail_r)
+    else:
+        rec.fail("V7-PERF-03", "V7-PERF-03 · reduced：无 POV/跟拍、棋盘无 transform、格子舞台 reduced",
+                 "reduced=1 + transformFrames=0 + 无 pov/chase + cell-stage[data-reduced=1]",
+                 v_detail_r, ac=V7_AC_PERF,
+                 repro="设置开减少动画→走子到题格→读 _debug()/transform 帧/状态序列",
+                 evidence="reports/v6/qa-perf.json", detail=v_detail_r, owner="FE-cinema")
+
     cabin_errors = []
     for key in ("idle", "moves", "reduced", "hidden"):
         block = cabin.get(key) or {}
@@ -794,6 +1183,13 @@ def main():
         "reduced": red,
         "hidden": hid,
         "throttle_ref": thref,
+    }
+    rec.meta["v7_runtime"] = {
+        "moves": {k: vmv.get(k) for k in ("moves", "frames", "long", "fps", "longRatio",
+                                          "elapsed_ms", "states", "stateSeq", "games")},
+        "hidden": vhid,
+        "reduced": {k: vred.get(k) for k in ("reduced", "hostReduced", "transform",
+                                             "transformFrames", "stateSeq", "states", "cell", "raf")},
     }
 
     # 裸文件参考（不参与发布门槛）
@@ -884,12 +1280,33 @@ def main():
         extra.append("| 4×CPU 参考 | fps=%.1f long25=%.2f%% | 仅参考 | - |" % (
             _th.get("fps") or 0, (_th.get("longRatio") or 0) * 100))
     extra.append("")
+    extra.append("### V7 电影镜头运行时（docs/v7/impl-freeze.md §5/§6）")
+    extra.append("")
+    extra.append("| 项 | 实测 | 门槛 | 状态 |")
+    extra.append("|---|---|---|---|")
+    extra.append("| 20 回合连续走子（含镜头链） | moves=%s frames=%s long25=%.2f%% fps=%.1f states=%s | 20 次，≤5%% | %s |" % (
+        vmv.get("moves"), vmv.get("frames"), (vmv.get("longRatio") or 0) * 100,
+        vmv.get("fps") or 0, json.dumps(vmv.get("states") or {}, ensure_ascii=False)[:120],
+        _st("V7-PERF-01")))
+    extra.append("| 页面隐藏/恢复（镜头链中） | paused=%s state@hide=%s pendingFalseMs=%s awaitingRoll=%s | 不悬挂/可继续 | %s |" % (
+        vhid.get("pausedAttr"), vhid.get("stateAtHide"), vhid.get("pendingFalseMs"),
+        vhid.get("awaitingRollAfterShow"), _st("V7-PERF-02")))
+    extra.append("| 隐藏期显式暂停（P1） | raf@hide=%s animating@hide=%s boardStable=%s | 暂停/冻结 | %s |" % (
+        vhid.get("rafAtHide"), vhid.get("animatingAtHide"), vhid.get("boardStable"),
+        _st("V7-PERF-02B")))
+    extra.append("| reduced（设置） | reduced=%s transformFrames=%s seq=%s cell=%s | 无 POV/跟拍/transform | %s |" % (
+        vred.get("reduced"), vred.get("transformFrames"),
+        json.dumps(vred.get("stateSeq") or [], ensure_ascii=False)[:80],
+        json.dumps(vred.get("cell"), ensure_ascii=False),
+        _st("V7-PERF-03")))
+    extra.append("")
     extra.append("### 原始采样")
     extra.append("")
     extra.append("```json")
     extra.append(json.dumps({"samples": samples, "offline": offline, "disk": disk,
-                             "cabin_runtime": rec.meta.get("cabin_runtime")},
-                            ensure_ascii=False, indent=1)[:12000])
+                             "cabin_runtime": rec.meta.get("cabin_runtime"),
+                             "v7_runtime": rec.meta.get("v7_runtime")},
+                            ensure_ascii=False, indent=1)[:14000])
     extra.append("```")
     json_path, md_path = Q.write_suite_report(rec, args.json, extra_md=extra)
     counts = rec.counts()

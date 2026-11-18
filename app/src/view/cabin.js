@@ -14,6 +14,7 @@
  *   setMood({ heat, stage, turn, winner, phase, overlay })
  *   play(events, opts) -> Promise（永不 reject；reduced 时立即 resolve）
  *   setReduced(flag) / setSound(flag)
+ *   setCameraEnabled(flag)   // V7：false 时只做场景视差/灯光，不写 boardEl.transform（Cinema 接管）
  *   附加（非契约，仅自测）：_debug()
  *
  * QA / 自测钩子：
@@ -232,6 +233,11 @@
     'background:radial-gradient(120% 90% at 50% 42%,rgba(255,246,232,.92),',
     'rgba(255,236,214,.36) 55%,rgba(255,236,214,0) 86%)}',
     '.cb-dust{position:absolute;inset:0;width:100%;height:100%}',
+    /* V7 性能：Cinema 镜头期间停画布 + 关掉最重的混合层，省 GPU/合成 */
+    '.cabin-root[data-cabin-cinematic="1"] .cb-dust,',
+    '.cabin-root[data-cabin-cinematic="1"] .cb-grain,',
+    '.cabin-root[data-cabin-cinematic="1"] .cb-reflect{display:none}',
+    '.cabin-root[data-cabin-cinematic="1"] *{animation-play-state:paused!important}',
     '.cb-vignette{position:absolute;inset:0;background:radial-gradient(120% 86% at 50% 42%,',
     'rgba(3,2,10,0) 48%,rgba(3,2,10,.35) 76%,rgba(3,2,10,.72) 100%)}',
     '.cb-reflect{position:absolute;inset:0;mix-blend-mode:screen;opacity:.7;background:',
@@ -280,6 +286,9 @@
       host: host, root: null, boardEl: opts.boardEl || null,
       optReduced: !!opts.reduced, reduced: !!opts.reduced || reducedBySystem,
       sound: opts.sound !== false, names: opts.names || null,
+      /* V7：Cinema 接管 boardEl 相机时置 false；场景视差/灯光仍由本模块驱动 */
+      cameraEnabled: opts.cameraEnabled !== false,
+      cinematic: false,
       vw: 0, vh: 0,
       board: { left: 0, top: 0, width: 0, height: 0 },
       el: {}, wins: { l: null, r: null },
@@ -871,8 +880,10 @@
     var t = ts || nowMs();
     if (S.reduced) {
       if (S.cam.applied) {
-        S.boardEl.style.transform = '';
-        S.boardEl.style.willChange = '';
+        if (S.cameraEnabled) {
+          S.boardEl.style.transform = '';
+          S.boardEl.style.willChange = '';
+        }
         S.cam.applied = false;
         setCamVars(0, 0, 1, 0);
       }
@@ -893,11 +904,17 @@
       fy += (Math.cos(t * 0.157) * cam.shake.amp * 0.8 + Math.cos(t * 0.337) * cam.shake.amp * 0.4) * k;
       fr += Math.sin(t * 0.19) * cam.shake.rot * k;
     }
-    var tr = 'translate3d(' + r2(fx) + 'px,' + r2(fy) + 'px,0) scale(' + fs.toFixed(4) + ') rotate(' + r2(fr) + 'deg)';
-    if (Math.abs(frx) > 0.001) tr = 'perspective(1200px) ' + tr + ' rotateX(' + r2(frx) + 'deg)';
-    if (S.boardEl.style.transform !== tr) S.boardEl.style.transform = tr;
-    if (S.boardEl.style.willChange !== 'transform') S.boardEl.style.willChange = 'transform';
-    cam.applied = true;
+    /* V7：cameraEnabled=false 时 boardEl 归 App.Cinema，只有场景变量继续跑（视差/灯光）。 */
+    if (S.cameraEnabled) {
+      var tr = 'translate3d(' + r2(fx) + 'px,' + r2(fy) + 'px,0) scale(' + fs.toFixed(4) + ') rotate(' + r2(fr) + 'deg)';
+      if (Math.abs(frx) > 0.001) tr = 'perspective(1200px) ' + tr + ' rotateX(' + r2(frx) + 'deg)';
+      if (S.boardEl.style.transform !== tr) S.boardEl.style.transform = tr;
+      if (S.boardEl.style.willChange !== 'transform') S.boardEl.style.willChange = 'transform';
+      cam.applied = true;
+    } else {
+      setCamVars(fx, fy, fs, fr);
+      return;
+    }
     setCamVars(fx, fy, fs, fr);
   }
 
@@ -953,10 +970,11 @@
     S.cam.anim = null; S.cam.baseAnim = null; S.cam.shake = null;
     S.cam.base = cloneVec(ZERO); S.cam.off = cloneVec(ZERO);
     if (S.cam.raf) { CAF(S.cam.raf); S.cam.raf = 0; }
-    if (S.boardEl) { S.boardEl.style.transform = ''; S.boardEl.style.willChange = ''; }
+    /* V7：cameraEnabled=false 时 boardEl 可能正被 Cinema 驱动，不能清掉它的 transform */
+    if (S.boardEl && S.cameraEnabled) { S.boardEl.style.transform = ''; S.boardEl.style.willChange = ''; }
     S.cam.applied = false;
     setCamVars(0, 0, 1, 0);
-    S.root.setAttribute('data-cabin-cam', 'rest');
+    if (S.root) S.root.setAttribute('data-cabin-cam', 'rest');
   }
 
   /* ============================ 8. 目标格 / 特效 ============================ */
@@ -1385,7 +1403,7 @@
   function sceneTick(ts) {
     if (!S || !S.mounted) return;
     S.scene.raf = 0;
-    if (S.reduced || S.scene.hidden) return;
+    if (S.reduced || S.scene.hidden || S.cinematic) return;
     /* 首帧：没有 last 时强制画一帧（否则 0 - ts 恒 < 31 会永远空转） */
     var last = S.scene.last;
     var dt = last ? Math.min(90, ts - last) : 16;
@@ -1396,7 +1414,7 @@
   }
 
   function startScene() {
-    if (!S || S.reduced || S.scene.hidden) return;
+    if (!S || S.reduced || S.scene.hidden || S.cinematic) return;
     if (S.scene.raf) return;
     S.scene.last = 0;
     S.scene.raf = RAF(sceneTick);
@@ -1436,7 +1454,7 @@
       if (S.cam.raf) { CAF(S.cam.raf); S.cam.raf = 0; }
       S.cam.anim = null; S.cam.baseAnim = null; S.cam.shake = null;
       S.cam.base = cloneVec(ZERO); S.cam.off = cloneVec(ZERO);
-      if (S.boardEl) { S.boardEl.style.transform = ''; S.boardEl.style.willChange = ''; }
+      if (S.boardEl && S.cameraEnabled) { S.boardEl.style.transform = ''; S.boardEl.style.willChange = ''; }
       S.cam.applied = false;
       setCamVars(0, 0, 1, 0);
     } else {
@@ -1486,6 +1504,7 @@
 
       buildDom();
       S.mounted = true;
+      S.root.setAttribute('data-cabin-camera', S.cameraEnabled ? 'on' : 'off');
 
       /* 尺寸 -> 画布 -> 初始绘制 */
       layout();
@@ -1524,6 +1543,8 @@
         play: play,
         setReduced: setReduced,
         setSound: setSound,
+        setCameraEnabled: setCameraEnabled,
+        setCinematic: setCinematic,
         _debug: debugState
       };
     } catch (e) {
@@ -1558,7 +1579,9 @@
         if (st.mq.removeEventListener) st.mq.removeEventListener('change', st.onMq);
         else if (st.mq.removeListener) st.mq.removeListener(st.onMq);
       }
-      if (st.boardEl && st.boardPrev) {
+      /* V7：Cinema 接管时不还原 boardEl（否则会把 Cinema 的镜头 transform 擦掉）；
+       * 约定 table.cleanup 先 Cinema.unmount() 再 CabinScene.unmount()。 */
+      if (st.boardEl && st.boardPrev && st.cameraEnabled) {
         st.boardEl.style.transform = st.boardPrev.transform;
         st.boardEl.style.willChange = st.boardPrev.willChange;
         st.boardEl.style.transformOrigin = st.boardPrev.transformOrigin;
@@ -1576,6 +1599,21 @@
     S = null;
   }
 
+  /* V7 性能：Cinema 的 POV/跟拍期间停止场景画布刷新 + 关掉重混合层。
+   * 只影响场景绘制，不动布局/相机/棋盘；land 结束后 table 会恢复。 */
+  function setCinematic(flag) {
+    if (!S) return;
+    var on = !!flag;
+    if (S.cinematic === on) {
+      if (S.root) S.root.setAttribute('data-cabin-cinematic', on ? '1' : '0');
+      return;
+    }
+    S.cinematic = on;
+    if (S.root) S.root.setAttribute('data-cabin-cinematic', on ? '1' : '0');
+    if (on) stopScene();
+    else startScene();
+  }
+
   function setReduced(flag) {
     if (!S) return;
     S.optReduced = !!flag;
@@ -1585,6 +1623,28 @@
   function setSound(flag) {
     if (!S) return;
     S.sound = flag !== false;
+  }
+
+  /* V7：Cinema 接管 boardEl 相机开关。false = 本模块只保留场景视差/灯光回调（--cb-cam-*），
+   * 不写 boardEl.transform；true = 恢复 V6.2 相机。切换时清掉自己的动画，避免和 Cinema 抢帧。 */
+  function setCameraEnabled(flag) {
+    if (!S) return;
+    var on = flag !== false;
+    if (S.cameraEnabled === on) {
+      if (S.root) S.root.setAttribute('data-cabin-camera', on ? 'on' : 'off');
+      return;
+    }
+    S.cameraEnabled = on;
+    S.cam.anim = null; S.cam.baseAnim = null; S.cam.shake = null;
+    if (S.cam.raf) { CAF(S.cam.raf); S.cam.raf = 0; }
+    if (!on && S.boardEl && S.cam.applied) {
+      S.boardEl.style.transform = '';
+      S.boardEl.style.willChange = '';
+    }
+    S.cam.applied = false;
+    S.cam.base = cloneVec(ZERO); S.cam.off = cloneVec(ZERO);
+    setCamVars(0, 0, 1, 0);
+    if (S.root) S.root.setAttribute('data-cabin-camera', on ? 'on' : 'off');
   }
 
   function debugState() {
@@ -1611,6 +1671,13 @@
         width: S.el.tray.offsetWidth, height: S.el.tray.offsetHeight
       } : null,
       particleCount: S.scene.particles.length,
+      cameraEnabled: !!S.cameraEnabled,
+      cinematic: !!S.cinematic,
+      camVars: {
+        x: S.root ? S.root.style.getPropertyValue('--cb-cam-x') : '',
+        y: S.root ? S.root.style.getPropertyValue('--cb-cam-y') : '',
+        s: S.root ? S.root.style.getPropertyValue('--cb-cam-s') : ''
+      },
       dpr: global.devicePixelRatio || 1,
       vw: S.vw, vh: S.vh
     };
@@ -1624,6 +1691,8 @@
     play: play,
     setReduced: setReduced,
     setSound: setSound,
+    setCameraEnabled: setCameraEnabled,
+    setCinematic: setCinematic,
     _debug: debugState
   };
 })(typeof window !== 'undefined' ? window : this);

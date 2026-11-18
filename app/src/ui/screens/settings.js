@@ -23,12 +23,21 @@
   App.Screens = App.Screens || {};
   App.Screens.settings = {
     mount: function (root) {
+      /* V7：设置页也一样用当前主题（直接进来时也能套上；apply 幂等且不写盘） */
+      try { if (App.Themes && App.Themes.apply) App.Themes.apply(root); } catch (e) {}
       function paint() {
         var s = App.Store.getSettings();
         var hist = 0;
         try { hist = App.Store.getHistory().length; } catch (e) {}
         var scale = s.scale || "warm";
         var bounds = (s.blacklist || []).slice();
+        var theme = (App.Themes && App.Themes.get) ? App.Themes.get() : { id: "cloud", name: "云海机舱", desc: "" };
+        var themeList = (App.Themes && App.Themes.list && App.Themes.list.length) ? App.Themes.list : [
+          { id: "cloud", name: "云海机舱" }, { id: "star", name: "星轨夜航" }, { id: "paper", name: "纸雕童话" }
+        ];
+        var themeChips = themeList.map(function (t) {
+          return '<button class="chip' + (t.id === theme.id ? " on" : "") + '" data-theme-pick="' + U.escape(t.id) + '" data-test="settings-theme-' + U.escape(t.id) + '" type="button">' + U.escape(t.name) + "</button>";
+        }).join("");
         var scaleChips = SCALES.map(function (sc) {
           return '<button class="chip' + (sc.id === scale ? " on" : "") + '" data-scale="' + sc.id + '" data-test="settings-scale-' + sc.id + '" type="button">' + sc.name + "</button>";
         }).join("");
@@ -46,6 +55,13 @@
                 sw("haptics", "震动", "轻按时给一点反馈", s.haptics !== false) +
                 sw("reduced", "减少动画", "关键反馈还在，动画更短", !!s.reduced) +
               "</div>" +
+            "</div>" +
+            '<div class="set-group"><div class="glabel">今晚的桌面</div>' +
+              '<div class="glass set-card" style="padding:12px 14px 14px">' +
+                '<div class="small dim">换桌面改的是画面：背景、棋盘外圈、格位光晕、粒子、小熊的衣服。</div>' +
+                '<div class="chips mt-8" data-test="settings-themes">' + themeChips + "</div>" +
+              "</div>" +
+              '<div class="set-note" data-test="settings-theme-desc">' + U.escape(theme.name + (theme.desc ? " · " + theme.desc : "")) + " 题目、规则、你们的边界都不变。</div>" +
             "</div>" +
             '<div class="set-group"><div class="glabel">尺度与边界</div>' +
               '<div class="glass set-card">' +
@@ -102,6 +118,20 @@
         App.Store.saveSettings({ scale: el.getAttribute("data-scale") });
         App.UI.haptic("select");
         paint();
+      });
+      /* V7（impl-freeze §2.1）：今晚的桌面 —— 立即换、立即落盘，回门厅/开局都还是这个桌面 */
+      U.delegate(root, "[data-theme-pick]", "click", function (e, el) {
+        var id = el.getAttribute("data-theme-pick");
+        if (!id) return;
+        try {
+          if (App.Themes && App.Themes.set) App.Themes.set(id, root);
+          else App.Store.saveSettings({ theme: id });
+        } catch (err) {
+          try { App.Store.saveSettings({ theme: id }); } catch (e2) {}
+        }
+        App.UI.haptic("select");
+        paint();
+        App.UI.toast("桌面换了", { dur: 1200 });
       });
       U.delegate(root, "[data-bound]", "click", function (e, el) {
         var name = el.getAttribute("data-bound");
