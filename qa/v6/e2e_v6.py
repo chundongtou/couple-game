@@ -3628,6 +3628,789 @@ def run_reduced_case(browser, url, rec, label="390x844"):
         ctx.close()
 
 
+# ---------------------------------------------------------------- V6.2 机舱场景
+# 口径：docs/v6/impl-freeze-cabin.md §5（验收标准）
+#   - [data-test=cabin] 存在 / pointer-events:none / Canvas≥1 / 92 格点击不落 cabin；
+#   - 掷骰/走子/击落/换手/收家时 .v6-board inline transform 变化；reduced 无 transform/shake；
+#   - 题卡/安全词/暂停不被 cabin 覆盖（hit-test）；320/360/390/430 无横向溢出。
+CABIN_AC = "AC-V6.2-1"
+CABIN_AC_CAM = "AC-V6.2-2"
+CABIN_AC_RED = "AC-V6.2-3"
+CABIN_AC_LAYOUT = "AC-V6.2-4"
+
+CABIN_CAM_INSTALL = """() => {
+  var b = document.querySelector('.v6-board');
+  var root = document.querySelector('[data-test="cabin-scene"]');
+  if (!b || !root) return false;
+  window.__cabinCam = {log: [], attr: [], t0: performance.now()};
+  var t0 = performance.now();
+  try { if (window.__cabinCamMo) window.__cabinCamMo.disconnect(); } catch (e) {}
+  try { if (window.__cabinCamAttrMo) window.__cabinCamAttrMo.disconnect(); } catch (e) {}
+  window.__cabinCamMo = new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      if (m.attributeName !== 'style') return;
+      window.__cabinCam.log.push({t: Math.round(performance.now() - t0),
+                                  tr: b.style.transform,
+                                  cam: root.getAttribute('data-cabin-cam')});
+    });
+  });
+  try { window.__cabinCamMo.observe(b, {attributes: true, attributeFilter: ['style']}); } catch (e) { return false; }
+  window.__cabinCamAttrMo = new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      window.__cabinCam.attr.push({t: Math.round(performance.now() - t0),
+        attr: m.attributeName, cam: root.getAttribute('data-cabin-cam'),
+        cls: String(root.className), overlay: root.classList.contains('is-overlay'),
+        won: root.classList.contains('is-won'),
+        dawn: parseFloat(root.getAttribute('data-cabin-dawn') || '0'),
+        turn: root.getAttribute('data-turn')});
+    });
+  });
+  try { window.__cabinCamAttrMo.observe(root, {attributes: true}); } catch (e) { return false; }
+  return true;
+}"""
+
+
+def cabin_cam_reset(page):
+    return Q.eval_js(page, "() => { if (window.__cabinCam) { window.__cabinCam.log = []; window.__cabinCam.attr = []; window.__cabinCam.t0 = performance.now(); } return true; }")
+
+
+def cabin_cam_read(page):
+    data = Q.eval_js(page, "() => window.__cabinCam ? {log: window.__cabinCam.log.slice(), attr: window.__cabinCam.attr.slice()} : null")
+    return data if isinstance(data, dict) else {"log": [], "attr": []}
+
+
+def cabin_facts(page):
+    data = Q.eval_js(
+        page,
+        """() => {
+            var host = document.querySelector('[data-test="cabin"]');
+            var root = document.querySelector('[data-test="cabin-scene"]');
+            var board = document.querySelector('.v6-board');
+            var cs = root ? getComputedStyle(root) : null;
+            var hs = host ? getComputedStyle(host) : null;
+            var canvases = root ? Array.prototype.slice.call(root.querySelectorAll('canvas')) : [];
+            function dprOf(c) { var r = c.getBoundingClientRect(); return r && r.width ? (c.width / r.width) : null; }
+            function rectOf(el) { if (!el) return null; var r = el.getBoundingClientRect();
+                return {x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10,
+                        w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10}; }
+            return {
+                host: !!host, hostPE: hs ? hs.pointerEvents : null, hostZ: hs ? hs.zIndex : null,
+                hostMount: host ? host.getAttribute('data-cabin-mount') : null,
+                root: !!root, rootPE: cs ? cs.pointerEvents : null, rootZ: cs ? cs.zIndex : null,
+                rootAria: root ? root.getAttribute('aria-hidden') : null,
+                version: root ? root.getAttribute('data-cabin-version') : null,
+                reduced: root ? root.getAttribute('data-cabin-reduced') : null,
+                cam: root ? root.getAttribute('data-cabin-cam') : null,
+                mood: root ? root.getAttribute('data-cabin-mood') : null,
+                dawn: root ? parseFloat(root.getAttribute('data-cabin-dawn') || '0') : null,
+                paused: root ? root.getAttribute('data-cabin-paused') : null,
+                turn: root ? root.getAttribute('data-turn') : null,
+                cls: root ? String(root.className) : null,
+                canvasCount: canvases.length,
+                canvasDpr: canvases.map(dprOf),
+                canvasSizes: canvases.map(function (c) { return [c.width, c.height]; }),
+                boardTransform: board ? (board.style.transform || '') : null,
+                boardRect: rectOf(board),
+                rect: rectOf(root),
+                vw: window.innerWidth, vh: window.innerHeight,
+                dimOpacity: (function () {
+                    var d = root ? root.querySelector('.cb-dim') : null;
+                    return d ? parseFloat(getComputedStyle(d).opacity) : null;
+                })(),
+                debug: (window.App && App.CabinScene && App.CabinScene._debug) ? App.CabinScene._debug() : null
+            };
+        }""",
+    )
+    return data if isinstance(data, dict) else {}
+
+
+def cabin_hit_squares(page):
+    data = Q.eval_js(
+        page,
+        """() => {
+            var els = Array.prototype.slice.call(document.querySelectorAll('[data-square]'));
+            var out = {total: els.length, inCabin: 0, board: 0, outside: 0, bad: [], other: []};
+            els.forEach(function (el) {
+                var r = el.getBoundingClientRect();
+                var x = Math.round(r.x + r.width / 2), y = Math.round(r.y + r.height / 2);
+                if (!r.width || !r.height || x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) {
+                    out.outside += 1; return;
+                }
+                var hit = document.elementFromPoint(x, y);
+                if (!hit) { out.outside += 1; return; }
+                if (hit.closest && hit.closest('[data-test="cabin"], .cabin-root')) {
+                    out.inCabin += 1;
+                    if (out.bad.length < 5) out.bad.push(el.getAttribute('data-square'));
+                    return;
+                }
+                var inBoard = !!(hit.closest && hit.closest('.v6-board, [data-test="board"]'));
+                if (inBoard || hit === el || (el.contains && el.contains(hit)) ||
+                    (hit.closest && hit.closest('[data-square]') === el)) {
+                    out.board += 1;
+                } else {
+                    out.other.push({sq: el.getAttribute('data-square'),
+                                    cls: String((hit.className && hit.className.baseVal !== undefined)
+                                        ? hit.className.baseVal : (hit.className || '')).slice(0, 40)});
+                }
+            });
+            return out;
+        }""",
+    )
+    return data if isinstance(data, dict) else {}
+
+
+def cabin_hit_at(page, locator):
+    """对元素中心做 hit-test，返回是否落在 cabin 层 + 命中信息。"""
+    box = Q.element_rect(locator)
+    if not box:
+        return None
+    pt = [box["x"] + box["width"] / 2.0, box["y"] + box["height"] / 2.0]
+    return Q.eval_js(
+        page,
+        """(pt) => {
+            var el = document.elementFromPoint(pt[0], pt[1]);
+            if (!el) return null;
+            var inCabin = !!(el.closest && el.closest('[data-test="cabin"], .cabin-root'));
+            var t = el.closest ? el.closest('[data-test]') : null;
+            var cls = String((el.className && el.className.baseVal !== undefined)
+                ? el.className.baseVal : (el.className || ''));
+            return {tag: el.tagName, test: t ? t.getAttribute('data-test') : null,
+                    cls: cls.slice(0, 60), inCabin: inCabin,
+                    text: String(el.innerText || '').slice(0, 30)};
+        }""",
+        pt,
+    )
+
+
+def _cam_series(log):
+    seq = []
+    for x in log or []:
+        c = x.get("cam") or "?"
+        if not seq or seq[-1] != c:
+            seq.append(c)
+    return seq
+
+
+def _cam_metrics(log):
+    out = {"frames": 0, "scale_min": None, "scale_max": None, "dx": [], "dy": [], "rot": []}
+    for x in log or []:
+        tr = x.get("tr") or ""
+        if not tr:
+            continue
+        out["frames"] += 1
+        m = re.search(r"translate3d\(([-\d.]+)px,\s*([-\d.]+)px", tr)
+        if m:
+            out["dx"].append(float(m.group(1)))
+            out["dy"].append(float(m.group(2)))
+        m = re.search(r"scale\(([\d.]+)\)", tr)
+        if m:
+            out["scale_min"] = float(m.group(1)) if out["scale_min"] is None else min(out["scale_min"], float(m.group(1)))
+            out["scale_max"] = float(m.group(1)) if out["scale_max"] is None else max(out["scale_max"], float(m.group(1)))
+        m = re.search(r"rotate\(([-\d.]+)deg\)", tr)
+        if m:
+            out["rot"].append(float(m.group(1)))
+    return out
+
+
+def _max_abs(vals):
+    return max((abs(v) for v in (vals or [])), default=0.0)
+
+
+def _cabin_start(browser, url, rec, label, reduced=False, reduced_motion=None):
+    vp = Q.VIEWPORTS[label]
+    ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion)
+    page = ctx.new_page()
+    ps = Q.PageSession(ctx, page)
+    if reduced_motion:
+        # 本机 Playwright/Edge 的 emulate_media(reduced_motion=...) 不生效（实测 matches=false），
+        # 改用 CDP Emulation.setEmulatedMedia（实测 before/after reload 均为 true）。
+        try:
+            cdp = ctx.new_cdp_session(page)
+            cdp.send("Emulation.setEmulatedMedia", {
+                "media": "",
+                "features": [{"name": "prefers-reduced-motion", "value": "reduce"}],
+            })
+        except Exception as e:  # noqa: BLE001
+            rec.add_note("prefers-reduced-motion 模拟失败：%s" % e)
+    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+    Q.ensure_boot(page, rec, timeout=15000)
+    if reduced:
+        Q.eval_js(page, "() => { try { App.Store.saveSettings({reduced:true}); return true; } catch(e){ return false; } }")
+        page.wait_for_timeout(250)
+    drv = TableDriver(ps, rec, label)
+    started = drv.start_quick()
+    page.wait_for_timeout(700)
+    return ctx, ps, page, drv, started
+
+
+def _cabin_click_piece(page, pid="a:0"):
+    btns, _ = Q.find_piece_buttons(page)
+    for b in btns:
+        try:
+            dp = b.get_attribute("data-action-piece") or b.get_attribute("data-piece")
+        except Exception:
+            dp = None
+        if dp == pid:
+            try:
+                b.click(timeout=4000)
+                return True
+            except Exception:
+                return False
+    return False
+
+
+def _cabin_move_target(page, want_kinds=("ring",)):
+    """按 a:0 的颜色挑一个合法走 2 格、落点 kind 命中的 from/dest（不假设红方）。"""
+    data = Q.eval_js(
+        page,
+        """(kinds) => {
+            try {
+                var s = App.Store.getSession();
+                if (!s) return null;
+                var p = (s.pieces || []).filter(function (q) { return q.id === 'a:0'; })[0];
+                if (!p) return null;
+                var T = {red: 0, yellow: 13, blue: 26, green: 39}[p.color] || 0;
+                function kindOf(id) {
+                    try { var sq = App.FlightBoard.square(id); return sq ? (sq.kind || 'ring') : 'none'; }
+                    catch (e) { return 'none'; }
+                }
+                for (var off = 1; off < 40; off++) {
+                    var to = 'ring:' + ((T + off + 2) % 52);
+                    var k = kindOf(to);
+                    if (kinds.indexOf(k) >= 0) {
+                        return {from: 'ring:' + ((T + off) % 52), to: to, kind: k};
+                    }
+                }
+            } catch (e) {}
+            return null;
+        }""",
+        list(want_kinds),
+    )
+    return data if isinstance(data, dict) else None
+
+
+def run_cabin_layer_case(browser, url, rec, label="390x844"):
+    """V6.2 §5：机舱层存在 / pointer-events:none / Canvas≥1 / 92 格点击不落 cabin。"""
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        f = cabin_facts(page)
+        hit = cabin_hit_squares(page)
+        shot = Q.this_shot(rec, page, "cabin_layer_%s" % label)
+        if f.get("host"):
+            rec.ok("CABIN-LAYER-01/%s" % label, "机舱宿主 [data-test=cabin] 存在", "存在",
+                   "host=1", ac=CABIN_AC, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-01/%s" % label, "机舱宿主 [data-test=cabin] 存在", "存在", "缺失",
+                     ac=CABIN_AC, viewport=label, evidence=shot,
+                     repro="进入主桌→查询 [data-test=cabin]")
+        if f.get("root") and f.get("version") == "6.2.0":
+            rec.ok("CABIN-LAYER-02/%s" % label, "CabinScene 已挂载（.cabin-root / 版本 6.2.0）",
+                   "data-cabin-version=6.2.0", "version=%s" % f.get("version"),
+                   ac=CABIN_AC, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-02/%s" % label, "CabinScene 已挂载（.cabin-root / 版本 6.2.0）",
+                     "data-cabin-version=6.2.0", json.dumps({k: f.get(k) for k in ("root", "version", "hostMount")}, ensure_ascii=False),
+                     ac=CABIN_AC, viewport=label, evidence=shot,
+                     repro="进入主桌→查询 [data-test=cabin-scene] 与 data-cabin-version")
+        pe_ok = f.get("hostPE") == "none" and f.get("rootPE") == "none"
+        if pe_ok:
+            rec.ok("CABIN-LAYER-03/%s" % label, "机舱层 pointer-events:none（不拦截点击）", "host/root 均为 none",
+                   "host=%s root=%s" % (f.get("hostPE"), f.get("rootPE")), ac=CABIN_AC,
+                   viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-03/%s" % label, "机舱层 pointer-events:none（不拦截点击）", "host/root 均为 none",
+                     "host=%s root=%s" % (f.get("hostPE"), f.get("rootPE")), ac=CABIN_AC,
+                     viewport=label, evidence=shot, repro="进入主桌→读 computed pointer-events")
+        if (f.get("canvasCount") or 0) >= 1:
+            rec.ok("CABIN-LAYER-04/%s" % label, "机舱 Canvas ≥1（舷窗/尘）", "≥1",
+                   "canvas=%s dpr=%s" % (f.get("canvasCount"), f.get("canvasDpr")),
+                   ac=CABIN_AC, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-04/%s" % label, "机舱 Canvas ≥1（舷窗/尘）", "≥1",
+                     "canvas=%s" % f.get("canvasCount"), ac=CABIN_AC, viewport=label,
+                     evidence=shot, repro="进入主桌→统计 .cabin-root canvas")
+        dpr_ok = bool(f.get("canvasDpr")) and all(d is not None and d <= 2.01 for d in f["canvasDpr"])
+        if dpr_ok:
+            rec.ok("CABIN-LAYER-05/%s" % label, "场景 Canvas DPR ≤2（冻结单 §4.1）", "≤2",
+                   "dpr=%s" % f.get("canvasDpr"), ac=CABIN_AC, severity="P1",
+                   viewport=label, evidence=shot)
+        else:
+            rec.check("CABIN-LAYER-05/%s" % label, "场景 Canvas DPR ≤2（冻结单 §4.1）", "FAIL",
+                      "≤2", "dpr=%s" % f.get("canvasDpr"), ac=CABIN_AC, severity="P1", viewport=label)
+        r = f.get("rect") or {}
+        cover_ok = r and abs((r.get("w") or 0) - f.get("vw", 0)) <= 1 and abs((r.get("h") or 0) - f.get("vh", 0)) <= 1
+        if cover_ok:
+            rec.ok("CABIN-LAYER-06/%s" % label, "机舱层铺满视口", "覆盖 390×844",
+                   "rect=%s viewport=%sx%s" % (json.dumps(r), f.get("vw"), f.get("vh")),
+                   ac=CABIN_AC, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-06/%s" % label, "机舱层铺满视口", "覆盖视口",
+                     "rect=%s viewport=%sx%s" % (json.dumps(r), f.get("vw"), f.get("vh")),
+                     ac=CABIN_AC, viewport=label, evidence=shot,
+                     repro="进入主桌→读 .cabin-root getBoundingClientRect")
+        if hit.get("total") == 92 and hit.get("inCabin") == 0 and hit.get("board") == 92:
+            rec.ok("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin（全部命中棋盘层）", "92/92 命中棋盘",
+                   json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "outside")}, ensure_ascii=False),
+                   ac=CABIN_AC, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-LAYER-07/%s" % label, "92 格点击不落 cabin（全部命中棋盘层）",
+                     "92/92 命中棋盘，inCabin=0",
+                     json.dumps({k: hit.get(k) for k in ("total", "board", "inCabin", "outside", "bad", "other")},
+                                ensure_ascii=False)[:400],
+                     ac=CABIN_AC, viewport=label, evidence=shot,
+                     repro="进入主桌→对每个 [data-square] 中心做 elementFromPoint")
+        if f.get("rootAria") == "true":
+            rec.ok("CABIN-LAYER-08/%s" % label, "机舱层 aria-hidden（读屏不重复朗读）", "true",
+                   "aria-hidden=true", ac=CABIN_AC, severity="P1", viewport=label, evidence=shot)
+        else:
+            rec.check("CABIN-LAYER-08/%s" % label, "机舱层 aria-hidden（读屏不重复朗读）", "FAIL",
+                      "true", "aria-hidden=%s" % f.get("rootAria"), ac=CABIN_AC, severity="P1",
+                      viewport=label)
+        check_no_errors(rec, ps, "AC-H6-1-cabin-layer/%s" % label, label, "机舱层")
+    finally:
+        ctx.close()
+
+
+def run_cabin_camera_case(browser, url, rec, label="390x844"):
+    """V6.2 §5：掷骰/走子/击落/换手/收家时 .v6-board inline transform 变化。"""
+    # ---- 掷骰（dice）----
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        installed = Q.eval_js(page, CABIN_CAM_INSTALL)
+        if not installed:
+            rec.fail("CABIN-CAM-hook/%s" % label, "相机观测器安装（.v6-board 存在）", "可观测",
+                     "未找到 .v6-board / .cabin-root", ac=CABIN_AC_CAM, viewport=label,
+                     repro="进入主桌→查询 .v6-board 与 .cabin-root")
+            return
+        cabin_cam_reset(page)
+        Q.set_die(page, 6)
+        Q.try_click(page, SEL["roll"], timeout=3000)
+        page.wait_for_timeout(1500)
+        log = cabin_cam_read(page)["log"]
+        series = _cam_series(log)
+        m = _cam_metrics(log)
+        shot = Q.this_shot(rec, page, "cabin_cam_dice_%s" % label)
+        if "dice" in series and m["frames"] > 0 and (m["scale_max"] or 1) >= 1.02:
+            rec.ok("CABIN-CAM-dice/%s" % label, "掷骰触发镜头（推近 scale≥1.02）", "cam=dice，scale≥1.02",
+                   "series=%s scale=%s..%s frames=%d" % (series, m["scale_min"], m["scale_max"], m["frames"]),
+                   ac=CABIN_AC_CAM, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-CAM-dice/%s" % label, "掷骰触发镜头（推近 scale≥1.02）", "cam=dice，scale≥1.02",
+                     "series=%s scale=%s..%s frames=%d" % (series, m["scale_min"], m["scale_max"], m["frames"]),
+                     ac=CABIN_AC_CAM, viewport=label, evidence=shot,
+                     repro="主桌→固定骰子 6→点掷骰→记录 .v6-board style.transform")
+        page.wait_for_timeout(1400)
+        f = cabin_facts(page)
+        if f.get("cam") == "rest":
+            rec.ok("CABIN-CAM-dice-rest/%s" % label, "掷骰镜头回位（cam=rest）", "rest", "rest",
+                   ac=CABIN_AC_CAM, severity="P1", viewport=label)
+        else:
+            rec.fail("CABIN-CAM-dice-rest/%s" % label, "掷骰镜头回位（cam=rest）", "rest",
+                     "cam=%s transform=%s" % (f.get("cam"), (f.get("boardTransform") or "")[:80]),
+                     ac=CABIN_AC_CAM, severity="P1", viewport=label,
+                     repro="掷骰后等 2.9s→读 data-cabin-cam")
+        check_no_errors(rec, ps, "AC-H6-1-cabin-cam-dice/%s" % label, label, "掷骰镜头")
+    finally:
+        ctx.close()
+
+    # ---- 走子（move）----
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        target = _cabin_move_target(page, ("ring", "stop"))
+        if not target:
+            rec.check("CABIN-CAM-move/%s" % label, "构造合法走子局面", "SKIP", "ring/stop 落点",
+                      "未找到合法走子格", ac=CABIN_AC_CAM, viewport=label)
+            return
+        _fixture_move(page, "a:0", target["from"], 2, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(500)
+        installed = Q.eval_js(page, CABIN_CAM_INSTALL)
+        cabin_cam_reset(page)
+        ok_click = _cabin_click_piece(page, "a:0")
+        page.wait_for_timeout(1700)
+        log = cabin_cam_read(page)["log"]
+        series = _cam_series(log)
+        m = _cam_metrics(log)
+        page.wait_for_timeout(600)
+        sess = Q.get_session(page) or {}
+        mover = next((p for p in (sess.get("pieces") or []) if p.get("id") == "a:0"), {})
+        landed = mover.get("squareId")
+        shot = Q.this_shot(rec, page, "cabin_cam_move_%s" % label)
+        if ok_click and "move" in series and (m["scale_max"] or 1) >= 1.015 and \
+                (_max_abs(m["dx"]) >= 4 or _max_abs(m["dy"]) >= 4):
+            rec.ok("CABIN-CAM-move/%s" % label, "走子触发镜头跟拍（位移≥4px / scale≥1.015）",
+                   "cam=move，transform 变化", "series=%s scale=%s..%s dx=%.1f dy=%.1f frames=%d landing=%s" % (
+                       series, m["scale_min"], m["scale_max"], _max_abs(m["dx"]), _max_abs(m["dy"]),
+                       m["frames"], landed),
+                   ac=CABIN_AC_CAM, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-CAM-move/%s" % label, "走子触发镜头跟拍（位移≥4px / scale≥1.015）",
+                     "cam=move，transform 变化",
+                     "click=%s series=%s scale=%s..%s dx=%.1f dy=%.1f frames=%d landing=%s" % (
+                         ok_click, series, m["scale_min"], m["scale_max"], _max_abs(m["dx"]),
+                         _max_abs(m["dy"]), m["frames"], landed),
+                     ac=CABIN_AC_CAM, viewport=label, evidence=shot,
+                     repro="夹具摆 a:0→(ring)→点选子按钮→记录 transform")
+        # 防止后续 prompt 卡住（仅清理，不影响断言）
+        Q.try_click(page, SEL["prompt_skip"], timeout=1500)
+        check_no_errors(rec, ps, "AC-H6-1-cabin-cam-move/%s" % label, label, "走子镜头")
+    finally:
+        ctx.close()
+
+    # ---- 击落（capture → shake）----
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        frm, dest = _fixture_squares(page, 12, 2)   # 落点与目标同格 → 击落（与 C1-2 同夹具）
+        _fixture_move(page, "a:0", frm, 2, "a", placements={"b:0": dest})
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(500)
+        Q.eval_js(page, CABIN_CAM_INSTALL)
+        cabin_cam_reset(page)
+        ok_click = _cabin_click_piece(page, "a:0")
+        page.wait_for_timeout(1800)
+        log = cabin_cam_read(page)
+        series = _cam_series(log["log"])
+        m = _cam_metrics(log["log"])
+        shake_frames = [x for x in log["log"] if (x.get("cam") == "shake")]
+        sess = Q.get_session(page) or {}
+        kind = ((sess.get("awaiting") or {}).get("prompt") or {}).get("kind")
+        victim = next((p for p in (sess.get("pieces") or []) if p.get("id") == "b:0"), {})
+        shot = Q.this_shot(rec, page, "cabin_cam_capture_%s" % label)
+        if ok_click and "shake" in series and len(shake_frames) >= 2 and \
+                (_max_abs(m["dx"]) >= 2.5 or _max_abs(m["rot"]) >= 0.15):
+            rec.ok("CABIN-CAM-capture/%s" % label, "击落触发镜头震动（shake，位移≥2.5px 或旋转≥0.15°）",
+                   "cam=shake 且 transform 抖动", "series=%s shakeFrames=%d dx=%.1f rot=%.2f kind=%s victim=%s" % (
+                       series, len(shake_frames), _max_abs(m["dx"]), _max_abs(m["rot"]), kind,
+                       victim.get("squareId")),
+                   ac=CABIN_AC_CAM, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-CAM-capture/%s" % label, "击落触发镜头震动（shake，位移≥2.5px 或旋转≥0.15°）",
+                     "cam=shake 且 transform 抖动",
+                     "click=%s series=%s shakeFrames=%d dx=%.1f rot=%.2f kind=%s victim=%s" % (
+                         ok_click, series, len(shake_frames), _max_abs(m["dx"]), _max_abs(m["rot"]),
+                         kind, victim.get("squareId")),
+                     ac=CABIN_AC_CAM, viewport=label, evidence=shot,
+                     repro="击落夹具→点选子按钮→记录 data-cabin-cam/transform")
+        check_no_errors(rec, ps, "AC-H6-1-cabin-cam-capture/%s" % label, label, "击落镜头")
+    finally:
+        ctx.close()
+
+    # ---- 换手（turn）----
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        sess = Q.get_session(page) or {}
+        colors = sess.get("colors") or {"a": "red", "b": "yellow"}
+        Q.fixture_place(page, {
+            "a:0": "hangar:%s:0" % colors["a"], "a:1": "hangar:%s:1" % colors["a"],
+            "b:0": "hangar:%s:0" % colors["b"], "b:1": "hangar:%s:1" % colors["b"],
+        }, turn="a")
+        Q.ensure_boot(page, rec, timeout=9000)
+        if Q.screen_name(page) != "table":
+            Q.continue_session(page, timeout=6000)
+        page.wait_for_timeout(500)
+        Q.install_die_hook(page)
+        Q.eval_js(page, CABIN_CAM_INSTALL)
+        cabin_cam_reset(page)
+        Q.set_die(page, 3)   # 全在机坪：无子可走 → 换手
+        Q.try_click(page, SEL["roll"], timeout=3000)
+        page.wait_for_timeout(1600)
+        log = cabin_cam_read(page)
+        series = _cam_series(log["log"])
+        f = cabin_facts(page)
+        shot = Q.this_shot(rec, page, "cabin_cam_turn_%s" % label)
+        turn_now = (Q.get_session(page) or {}).get("turn")
+        if "turn" in series and turn_now == "b" and f.get("turn") == "b":
+            rec.ok("CABIN-CAM-turn/%s" % label, "换手触发镜头平移 + 舱灯换侧（cam=turn，data-turn=b）",
+                   "cam=turn 且 data-turn=b", "series=%s data-turn=%s session.turn=%s" % (
+                       series, f.get("turn"), turn_now),
+                   ac=CABIN_AC_CAM, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-CAM-turn/%s" % label, "换手触发镜头平移 + 舱灯换侧（cam=turn，data-turn=b）",
+                     "cam=turn 且 data-turn=b", "series=%s data-turn=%s session.turn=%s" % (
+                         series, f.get("turn"), turn_now),
+                     ac=CABIN_AC_CAM, viewport=label, evidence=shot,
+                     repro="夹具全机坪→掷 3（无子可走）→记录 cam/data-turn")
+        check_no_errors(rec, ps, "AC-H6-1-cabin-cam-turn/%s" % label, label, "换手镜头")
+    finally:
+        ctx.close()
+
+    # ---- 收家（win → 日出 + 拉远）----
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        sess = Q.get_session(page) or {}
+        colors = sess.get("colors") or {"a": "red", "b": "yellow"}
+        ca, cb = colors["a"], colors["b"]
+        st = Q.fixture_place(page, {
+            "a:0": "home:%s:4" % ca, "a:1": "home:%s:goal" % ca,
+            "b:0": "hangar:%s:0" % cb, "b:1": "hangar:%s:1" % cb,
+        }, turn="a")
+        Q.ensure_boot(page, rec, timeout=9000)
+        if Q.screen_name(page) != "table":
+            Q.continue_session(page, timeout=6000)
+        page.wait_for_timeout(500)
+        Q.install_die_hook(page)
+        _fixture_move(page, "a:0", "home:%s:4" % ca, 1, "a")
+        Q.wait_screen(page, ["table"], timeout=6000)
+        page.wait_for_timeout(500)
+        Q.eval_js(page, CABIN_CAM_INSTALL)
+        cabin_cam_reset(page)
+        ok_click = _cabin_click_piece(page, "a:0")
+        page.wait_for_timeout(2400)
+        log = cabin_cam_read(page)
+        series = _cam_series(log["log"])
+        m = _cam_metrics(log["log"])
+        f = cabin_facts(page)
+        s2 = Q.get_session(page) or {}
+        shot = Q.this_shot(rec, page, "cabin_cam_win_%s" % label)
+        won_cls = "is-won" in (f.get("cls") or "")
+        dawn = f.get("dawn") or 0
+        if ok_click and won_cls and dawn > 0.02 and (m["scale_min"] or 1) < 1.0:
+            rec.ok("CABIN-CAM-win/%s" % label, "收家：镜头拉远 + 窗外进入日出态", "is-won 且 dawn>0.02 且 scale<1",
+                   "series=%s cls=%s dawn=%.2f scale=%s..%s winner=%s" % (
+                       series, f.get("cls"), dawn, m["scale_min"], m["scale_max"], s2.get("winnerId")),
+                   ac=CABIN_AC_CAM, viewport=label, evidence=shot)
+        else:
+            rec.fail("CABIN-CAM-win/%s" % label, "收家：镜头拉远 + 窗外进入日出态",
+                     "is-won 且 dawn>0.02 且 scale<1",
+                     "click=%s series=%s cls=%s dawn=%.2f scale=%s..%s winner=%s" % (
+                         ok_click, series, f.get("cls"), dawn, m["scale_min"], m["scale_max"],
+                         s2.get("winnerId")),
+                     ac=CABIN_AC_CAM, viewport=label, evidence=shot,
+                     repro="夹具「a 方差一步全到家」→点选子到家→读 is-won/data-cabin-dawn/transform")
+        check_no_errors(rec, ps, "AC-H6-1-cabin-cam-win/%s" % label, label, "收家镜头")
+    finally:
+        ctx.close()
+
+
+def run_cabin_reduced_case(browser, url, rec, label="390x844"):
+    """V6.2 §3.9/§5：reduced（设置或系统偏好）下无镜头 transform、无震动、无闪灯。"""
+    results = []
+    for mode in ("settings", "media"):
+        ctx = None
+        try:
+            ctx, ps, page, drv, started = _cabin_start(
+                browser, url, rec, label, reduced=(mode == "settings"),
+                reduced_motion=True if mode == "media" else None)
+            if not started:
+                continue
+            f = cabin_facts(page)
+            idle_ok = f.get("reduced") == "1" and "is-reduced" in (f.get("cls") or "") and \
+                (f.get("boardTransform") or "") == ""
+            Q.eval_js(page, CABIN_CAM_INSTALL)
+            cabin_cam_reset(page)
+            Q.set_die(page, 6)
+            Q.try_click(page, SEL["roll"], timeout=3000)
+            page.wait_for_timeout(2200)
+            log = cabin_cam_read(page)
+            nonempty = [x for x in log["log"] if x.get("tr")]
+            cams = _cam_series(log["log"])
+            flicker = [x for x in log["attr"] if "is-flicker" in (x.get("cls") or "")]
+            # 再触发一次击落（最重的震动）确认 reduced 下也无 shake
+            frm, dest = _fixture_squares(page, 12, 2)
+            _fixture_move(page, "a:0", frm, 2, "a", placements={"b:0": dest})
+            Q.wait_screen(page, ["table"], timeout=6000)
+            page.wait_for_timeout(400)
+            Q.eval_js(page, CABIN_CAM_INSTALL)
+            cabin_cam_reset(page)
+            _cabin_click_piece(page, "a:0")
+            page.wait_for_timeout(1800)
+            log2 = cabin_cam_read(page)
+            nonempty2 = [x for x in log2["log"] if x.get("tr")]
+            shake2 = [x for x in log2["log"] if x.get("cam") == "shake"]
+            shot = Q.this_shot(rec, page, "cabin_reduced_%s_%s" % (mode, label))
+            ok = bool(idle_ok) and not nonempty and not nonempty2 and not shake2 and not flicker and \
+                (f.get("canvasCount") or 0) >= 1
+            detail = "mode=%sreduced=%s cls=%s idleTransform=%r diceNonempty=%d captureNonempty=%d " \
+                     "shakeFrames=%d flicker=%d canvases=%s" % (
+                         ("settings/" if mode == "settings" else "media/"),
+                         f.get("reduced"), f.get("cls"), f.get("boardTransform"),
+                         len(nonempty), len(nonempty2), len(shake2), len(flicker), f.get("canvasCount"))
+            if ok:
+                rec.ok("CABIN-REDUCED-%s/%s" % (mode, label), "减少动画（%s）：无镜头 transform / 无震动 / 无闪灯" % mode,
+                       "reduced=1，transform 全空，cam 无 shake", detail,
+                       ac=CABIN_AC_RED, viewport=label, evidence=shot)
+            else:
+                rec.fail("CABIN-REDUCED-%s/%s" % (mode, label), "减少动画（%s）：无镜头 transform / 无震动 / 无闪灯" % mode,
+                         "reduced=1，transform 全空，cam 无 shake", detail,
+                         ac=CABIN_AC_RED, viewport=label, evidence=shot,
+                         repro="设置/reduced_motion → 进主桌 → 掷骰 + 击落夹具 → 记录 transform/cam")
+            check_no_errors(rec, ps, "AC-H6-1-cabin-reduced-%s/%s" % (mode, label), label, "减少动画")
+        finally:
+            if ctx is not None:
+                ctx.close()
+
+
+def run_cabin_overlay_case(browser, url, rec, label="390x844"):
+    """V6.2 §5：题卡/安全词/暂停不被 cabin 覆盖（hit-test），且题卡时场景压暗。"""
+    ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+    try:
+        if not started:
+            return
+        target = _cabin_move_target(page, ("truth", "dare", "touch"))
+        reached = False
+        if target:
+            _fixture_move(page, "a:0", target["from"], 2, "a")
+            Q.wait_screen(page, ["table"], timeout=6000)
+            page.wait_for_timeout(500)
+            _cabin_click_piece(page, "a:0")
+            reached = Q.find(page, SEL["prompt_card"], timeout=9000)[0] is not None
+        if not reached:
+            # 兜底：按 UI 正常推进到第一张题卡（与 visual.py 同口径）
+            guard = 0
+            while guard < 50 and not reached:
+                guard += 1
+                sess = Q.get_session(page) or {}
+                aw = (sess.get("awaiting") or {}).get("type")
+                if aw in ("prompt", "ending-prompt"):
+                    reached = True
+                    break
+                if aw == "minigame":
+                    Q.try_click(page, SEL["mg_skip"], timeout=1500)
+                    page.wait_for_timeout(400)
+                    continue
+                r = drv.step()
+                if r == "stuck":
+                    break
+                page.wait_for_timeout(260)
+        if not reached:
+            rec.check("CABIN-OVERLAY/%s" % label, "驱动到题卡（浮层遮挡检查）", "SKIP",
+                      "出现题卡", "50 步内未落到题格", ac=CABIN_AC_LAYOUT, viewport=label)
+            return
+        Q.find(page, ["test:prompt-card", ".pc-root"], timeout=8000)
+        page.wait_for_timeout(500)
+        f = cabin_facts(page)
+        shot = Q.this_shot(rec, page, "cabin_overlay_prompt_%s" % label)
+        overlay_ok = "is-overlay" in (f.get("cls") or "") and (f.get("dimOpacity") or 0) > 0.05
+        if overlay_ok:
+            rec.ok("CABIN-OVERLAY-01/%s" % label, "题卡出现时机舱压暗（is-overlay + .cb-dim）", "is-overlay 且 dim>0.05",
+                   "cls=%s dim=%s" % (f.get("cls"), f.get("dimOpacity")),
+                   ac=CABIN_AC_LAYOUT, severity="P1", viewport=label, evidence=shot)
+        else:
+            rec.check("CABIN-OVERLAY-01/%s" % label, "题卡出现时机舱压暗（is-overlay + .cb-dim）", "FAIL",
+                      "is-overlay 且 dim>0.05", "cls=%s dim=%s" % (f.get("cls"), f.get("dimOpacity")),
+                      ac=CABIN_AC_LAYOUT, severity="P1", viewport=label)
+        # 题卡按钮 / 安全词：中心 hit-test 不得落在 cabin
+        for nm, spec in (("题卡-做了", SEL["prompt_done"]), ("题卡-放过", SEL["prompt_skip"]),
+                         ("安全词", SEL["safety"]), ("暂停", SEL["pause_mini"])):
+            loc, _ = Q.find(page, spec, timeout=2000)
+            if loc is None:
+                continue
+            hit = cabin_hit_at(page, loc)
+            if hit and not hit.get("inCabin"):
+                rec.ok("CABIN-OVERLAY-02-%s/%s" % (nm, label), "%s 不被 cabin 覆盖" % nm,
+                       "hit-test 不落 cabin", "hit=%s/%s" % (hit.get("test"), (hit.get("text") or "")[:12]),
+                       ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot)
+            else:
+                rec.fail("CABIN-OVERLAY-02-%s/%s" % (nm, label), "%s 不被 cabin 覆盖" % nm,
+                         "hit-test 不落 cabin", json.dumps(hit, ensure_ascii=False),
+                         ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot,
+                         repro="题卡打开→对 %s 中心 elementFromPoint" % nm)
+        # 关闭题卡后进入暂停页
+        Q.try_click(page, SEL["prompt_skip"], timeout=2500)
+        page.wait_for_timeout(900)
+        pause_btn, _ = Q.find(page, SEL["pause_mini"], timeout=3000)
+        got_pause = False
+        if pause_btn is not None:
+            try:
+                pause_btn.click(timeout=3000)
+            except Exception:
+                pass
+            got_pause = Q.wait_screen(page, ["pause"], timeout=3000) == "pause"
+        if got_pause:
+            page.wait_for_timeout(400)
+            shot2 = Q.this_shot(rec, page, "cabin_overlay_pause_%s" % label)
+            # 暂停页：安全词与结束按钮 hit-test 不落 cabin
+            for nm, spec in (("暂停-安全词", SEL["safety"]), ("暂停-今晚就到这", SEL["pause_end"]),
+                             ("暂停-继续", SEL["pause_continue"])):
+                loc, _ = Q.find(page, spec, timeout=2000)
+                if loc is None:
+                    continue
+                hit = cabin_hit_at(page, loc)
+                if hit and not hit.get("inCabin"):
+                    rec.ok("CABIN-OVERLAY-03-%s/%s" % (nm, label), "%s 不被 cabin 覆盖" % nm,
+                           "hit-test 不落 cabin", "hit=%s/%s" % (hit.get("test"), (hit.get("text") or "")[:12]),
+                           ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot2)
+                else:
+                    rec.fail("CABIN-OVERLAY-03-%s/%s" % (nm, label), "%s 不被 cabin 覆盖" % nm,
+                             "hit-test 不落 cabin", json.dumps(hit, ensure_ascii=False),
+                             ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot2,
+                             repro="暂停页→对 %s 中心 elementFromPoint" % nm)
+        else:
+            rec.check("CABIN-OVERLAY-03/%s" % label, "进入暂停页做遮挡检查", "SKIP",
+                      "data-screen=pause", "未能进入暂停页", ac=CABIN_AC_LAYOUT, viewport=label)
+        check_no_errors(rec, ps, "AC-H6-1-cabin-overlay/%s" % label, label, "浮层遮挡")
+    finally:
+        ctx.close()
+
+
+def run_cabin_responsive_case(browser, url, rec):
+    """V6.2 §5：320/360/390/430 无横向溢出，机舱层铺满、92 格不落 cabin。"""
+    for label in ("320x568", "360x640", "390x844", "430x932"):
+        ctx = None
+        try:
+            ctx, ps, page, drv, started = _cabin_start(browser, url, rec, label)
+            if not started:
+                continue
+            f = cabin_facts(page)
+            hit = cabin_hit_squares(page)
+            shot = Q.this_shot(rec, page, "cabin_resp_%s" % label)
+            if not Q.overflow(page):
+                rec.ok("CABIN-RESP-overflow/%s" % label, "主桌无横向溢出（机舱层不撑宽）",
+                       "scrollWidth<=clientWidth", json.dumps(Q.viewport_metrics(page), ensure_ascii=False),
+                       ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot)
+            else:
+                rec.fail("CABIN-RESP-overflow/%s" % label, "主桌无横向溢出（机舱层不撑宽）",
+                         "scrollWidth<=clientWidth", json.dumps(Q.viewport_metrics(page), ensure_ascii=False),
+                         ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot,
+                         repro="该视口进入主桌→读 scrollWidth/clientWidth")
+            r = f.get("rect") or {}
+            if r and abs((r.get("w") or 0) - f.get("vw", 0)) <= 1 and abs((r.get("h") or 0) - f.get("vh", 0)) <= 1:
+                rec.ok("CABIN-RESP-cover/%s" % label, "机舱层按视口铺满", "w×h = viewport",
+                       "rect=%s viewport=%sx%s" % (json.dumps(r), f.get("vw"), f.get("vh")),
+                       ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot)
+            else:
+                rec.fail("CABIN-RESP-cover/%s" % label, "机舱层按视口铺满", "w×h = viewport",
+                         "rect=%s viewport=%sx%s" % (json.dumps(r), f.get("vw"), f.get("vh")),
+                         ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot,
+                         repro="该视口进入主桌→读 .cabin-root rect")
+            if hit.get("total") == 92 and hit.get("inCabin") == 0:
+                rec.ok("CABIN-RESP-92/%s" % label, "92 格点击不落 cabin", "inCabin=0",
+                       json.dumps({k: hit.get(k) for k in ("total", "inCabin", "board", "outside")},
+                                  ensure_ascii=False),
+                       ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot)
+            else:
+                rec.fail("CABIN-RESP-92/%s" % label, "92 格点击不落 cabin", "inCabin=0",
+                         json.dumps({k: hit.get(k) for k in ("total", "inCabin", "board", "outside", "bad")},
+                                    ensure_ascii=False)[:300],
+                         ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot,
+                         repro="该视口进入主桌→逐格 elementFromPoint")
+            dpr_ok = bool(f.get("canvasDpr")) and all(d is not None and d <= 2.01 for d in f["canvasDpr"])
+            if dpr_ok and (f.get("canvasCount") or 0) >= 1:
+                rec.ok("CABIN-RESP-canvas/%s" % label, "场景 Canvas ≥1 且 DPR≤2", "≥1 且 ≤2",
+                       "canvas=%s dpr=%s" % (f.get("canvasCount"), f.get("canvasDpr")),
+                       ac=CABIN_AC_LAYOUT, viewport=label, evidence=shot)
+            else:
+                rec.check("CABIN-RESP-canvas/%s" % label, "场景 Canvas ≥1 且 DPR≤2", "FAIL",
+                          "≥1 且 ≤2", "canvas=%s dpr=%s" % (f.get("canvasCount"), f.get("canvasDpr")),
+                          ac=CABIN_AC_LAYOUT, viewport=label)
+            check_no_errors(rec, ps, "AC-H6-1-cabin-resp/%s" % label, label, "机舱响应式")
+        finally:
+            if ctx is not None:
+                ctx.close()
+
+
 # ---------------------------------------------------------------- 主入口
 CASE_GROUPS = {
     "env": "基础加载/首屏/错误/截图",
@@ -3646,6 +4429,7 @@ CASE_GROUPS = {
     "responsive": "H4/H1 响应式与触控",
     "offline": "H3 离线",
     "reduced": "H2 减少动画",
+    "cabin": "V6.2 机舱层/相机/reduced/浮层遮挡/响应式（AC-V6.2-1~4）",
 }
 
 
@@ -3797,6 +4581,12 @@ def main():
                                 run_offline_case(browser, base_url, rec)
                             elif g == "reduced" and not args.skip_reduced:
                                 run_reduced_case(browser, base_url, rec)
+                            elif g == "cabin":
+                                run_cabin_layer_case(browser, base_url, rec)
+                                run_cabin_camera_case(browser, base_url, rec)
+                                run_cabin_reduced_case(browser, base_url, rec)
+                                run_cabin_overlay_case(browser, base_url, rec)
+                                run_cabin_responsive_case(browser, base_url, rec)
                         except Exception as e:  # noqa: BLE001
                             tb = traceback.format_exc()
                             print("[E2E] group %s crashed: %s" % (g, e))

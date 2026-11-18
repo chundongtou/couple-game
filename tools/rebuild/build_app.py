@@ -79,6 +79,7 @@ JS_MODULES = [
     "src/engine/minigames.js",
     "src/engine/flight-engine.js",
     "src/view/board.js",
+    "src/view/cabin.js",
     "src/ui/router.js",
     "src/ui/overlay/prompt-card.js",
     "src/ui/overlay/minigame.js",

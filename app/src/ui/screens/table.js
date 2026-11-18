@@ -49,10 +49,16 @@
     ".v6-table{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;",
     "padding:calc(8px + var(--safe-t,0px)) 12px calc(8px + var(--safe-b,0px));",
     "color:var(--ink,#FBF3E7);font-family:var(--sans,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif);",
-    "background:radial-gradient(120% 60% at 50% -10%,rgba(37,23,67,.92) 0%,rgba(21,15,42,.96) 46%,rgba(8,6,15,.99) 100%);}",
+    /* V6.2：背景交给机舱场景层；场景缺席时用暗色兜底（不再是紫色渐变） */
+    "background:#08060F;}",
     ".v6-table *{box-sizing:border-box}",
+    /* V6.2 机舱场景层（cabin.js）：全屏、只做背景，不吃点按。
+     * 层级：机舱 z0 < 棋盘 wrap z1 < HUD/状态/回合/掷骰条/行动区 z2 < 题卡/小游戏宿主 z30+。
+     * cabin.js 自己也会设 pointer-events:none；这里再兜一层，保证任何情况下都不拦截棋盘点击。 */
+    ".v6-cabin{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}",
+    ".v6-cabin,.v6-cabin *{pointer-events:none!important}",
     /* HUD：暂停/图例在左，右上 96×56 留给全局安全词（禁止重叠） */
-    ".v6-hud{flex:none;display:flex;align-items:flex-start;gap:8px}",
+    ".v6-hud{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:8px}",
     ".v6-hud-tools{display:flex;gap:6px;flex:1;min-width:0}",
     ".v6-safe-slot{width:96px;height:56px;flex:none}",
     ".v6-icon-btn{min-width:44px;min-height:44px;padding:0 10px;border-radius:14px;cursor:pointer;",
@@ -61,12 +67,12 @@
     "display:inline-flex;align-items:center;justify-content:center}",
     ".v6-icon-btn:active{transform:scale(.97)}",
     /* 状态条 */
-    ".v6-status{flex:none;padding:6px 2px 0;display:flex;flex-direction:column;gap:2px;min-width:0}",
+    ".v6-status{position:relative;z-index:2;flex:none;padding:6px 2px 0;display:flex;flex-direction:column;gap:2px;min-width:0}",
     ".v6-status-line{font-size:11px;letter-spacing:.06em;color:var(--dim2,#8E7C9E);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}",
     ".v6-status-main{font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--ink,#FBF3E7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}",
     ".v6-stage{margin-left:6px;font-size:11px;font-weight:700;color:var(--amber,#F3C077)}",
     /* 回合条 */
-    ".v6-turns{flex:none;display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px;border-radius:20px;",
+    ".v6-turns{position:relative;z-index:2;flex:none;display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px;border-radius:20px;",
     "background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13))}",
     ".v6-turn{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:15px}",
     ".v6-turn .v6-tdot{width:10px;height:10px;border-radius:50%;flex:none}",
@@ -76,7 +82,7 @@
     ".v6-turn.on .v6-tstate{color:var(--amber,#F3C077)}",
     ".v6-turn-sep{width:1px;height:22px;background:var(--line,rgba(255,226,196,.16));flex:none}",
     /* 掷骰条（点数 / 落点 / 提示 / 收尾横幅）：题卡是 fixed 底部 dock，这一条不会被遮住 */
-    ".v6-rollstrip{flex:none;display:flex;align-items:flex-start;gap:9px;margin-top:6px;padding:7px 9px;border-radius:16px;",
+    ".v6-rollstrip{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:9px;margin-top:6px;padding:7px 9px;border-radius:16px;",
     "background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13))}",
     ".v6-die{position:relative;width:38px;height:38px;flex:none;border-radius:10px;display:grid;padding:6px;gap:2px;",
     "grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);",
@@ -105,8 +111,9 @@
     ".v6-ending{display:flex;flex-direction:column;gap:1px}",
     ".v6-ending b{font-size:12.5px;font-weight:700;letter-spacing:.08em;color:#FFD9CE}",
     ".v6-ending span{font-size:11px;color:var(--dim,#C9B6CE)}",
-    /* 棋盘容器：棋盘（fe-board）按 720×750 设计稿等比缩放，宿主给定宽高即可 */
-    ".v6-boardwrap{flex:1;min-height:0;position:relative;margin:4px 0 0;display:flex;align-items:center;justify-content:center}",
+    /* 棋盘容器：棋盘（fe-board）按 720×750 设计稿等比缩放，宿主给定宽高即可。
+     * V6.2：wrap 提到 z-index:1，压在机舱场景层（z0）之上；相机只改 .v6-board 的 transform。 */
+    ".v6-boardwrap{z-index:1;flex:1;min-height:0;position:relative;margin:4px 0 0;display:flex;align-items:center;justify-content:center}",
     /* 桌面光晕 + 几粒星尘：只做背景，不吃点按，边缘不外露 */
     ".v6-boardwrap::before{content:\"\";position:absolute;left:-12%;right:-12%;top:-6%;bottom:-6%;pointer-events:none;z-index:0;",
     "background:",
@@ -126,7 +133,7 @@
     ".v6-fb li{font-size:12px;color:var(--ink,#FBF3E7);display:flex;gap:6px;align-items:center}",
     ".v6-fb li b{font-weight:600}",
     /* 底部行动区：主按钮 / 选子 / 走子状态 + 记下了回执 */
-    ".v6-action{flex:none;display:flex;flex-direction:column;gap:6px;padding-top:2px}",
+    ".v6-action{position:relative;z-index:2;flex:none;display:flex;flex-direction:column;gap:6px;padding-top:2px}",
     /* 题卡/小游戏层（fixed 底部 dock）打开时，底部行动区让位：避免文字从卡边露出、也防误触 */
     ".v6-table.v6-overlay .v6-action{opacity:0;pointer-events:none}",
     ".v6-actions{display:flex;flex-direction:column;gap:8px}",
@@ -400,6 +407,8 @@
 
       root.innerHTML =
         '<div class="v6-table" data-test="table">' +
+          /* V6.2：机舱场景宿主（cabin.js 挂进来；缺席时这层是空的，主桌照常） */
+          '<div class="v6-cabin" data-test="cabin"></div>' +
           '<div class="v6-hud">' +
             '<div class="v6-hud-tools">' +
               '<button type="button" class="v6-icon-btn" data-act="pause" data-test="pause" aria-label="先停一下">暂停</button>' +
@@ -454,6 +463,7 @@
         "</div>";
 
       var rootEl = root.querySelector(".v6-table");
+      var cabinHost = root.querySelector("[data-test=cabin]");
       var boardEl = root.querySelector("[data-board]");
       var rollInfoEl = root.querySelector(".v6-rollinfo");
       var actionsEl = root.querySelector("[data-test=actions]");
@@ -522,6 +532,70 @@
         }
         if (!boardReady) paintFallbackBoard();
         syncBoard();
+      }
+
+      /* ---------- V6.2 机舱场景（App.CabinScene，并行开发；缺席/抛错都不阻塞主桌） ----------
+       * 契约（docs/v6/impl-freeze-cabin.md §4.1/§4.2）：
+       *   mount(host,{boardEl,reduced,sound,names?}) -> instance|null / unmount / setMood(mood) /
+       *   play(events,{state}) -> Promise（永不 reject）/ setReduced / setSound。
+       * 这里所有调用都防御：模块没落地、mount 返回 null、play 抛错，主桌都照常走。 */
+      function cabinApi() {
+        try { return (App && App.CabinScene) || null; } catch (e) { return null; }
+      }
+      function cabinHas(fn) {
+        var c = cabinApi();
+        return !!(c && typeof c[fn] === "function");
+      }
+      function mountCabin() {
+        if (!cabinHost) return;
+        var c = cabinApi();
+        if (!c || typeof c.mount !== "function") return;     /* 场景未就绪：空宿主即可 */
+        try {
+          c.mount(cabinHost, {
+            boardEl: boardEl,
+            reduced: reduced(),
+            sound: soundOn(),
+            names: (state && state.names) || null
+          });
+        } catch (e) {
+          if (window.console) console.warn("[table] cabin mount 失败，主桌继续", e);
+        }
+      }
+      /* 镜头遮罩位：true = 题卡/小游戏打开（cabin 会拉远压暗），其余 false（fe-cabin 2026-11-18 对齐） */
+      function overlayOf() {
+        if (!state) return false;
+        var wait = state.awaiting || {};
+        return wait.type === "prompt" || wait.type === "ending-prompt" || wait.type === "minigame";
+      }
+      function syncCabinMood() {
+        if (!cabinHas("setMood") || !state) return;
+        try {
+          var st = stageOf(state);
+          cabinApi().setMood({
+            heat: heatOf(state),
+            stage: st.id,
+            turn: state.turn || null,
+            winner: winnerOf(state, winnerId) || null,
+            phase: state.phase || "",
+            overlay: overlayOf()
+          });
+        } catch (e) {
+          if (window.console) console.warn("[table] cabin setMood 失败", e);
+        }
+      }
+      /* 与 playBoard(events) 并行：不 await；场景失败（含异常/拒绝）不影响棋局 */
+      function playCabin(events) {
+        if (!cabinHas("play") || !events || !events.length || !state) return;
+        try {
+          var p = cabinApi().play(events, { state: state });
+          if (p && typeof p.then === "function") {
+            p.then(null, function (e) {
+              if (window.console) console.warn("[table] cabin play 失败（已忽略）", e);
+            });
+          }
+        } catch (e) {
+          if (window.console) console.warn("[table] cabin play 失败（已忽略）", e);
+        }
       }
 
       /* 降级棋盘（copy §2.7；B9）：列表也能走完主路径 */
@@ -717,6 +791,7 @@
         paint();
         renderActions();
         if (!busy && !finishing) syncHosts();
+        syncCabinMood();          /* V6.2：机舱读当前热度/阶段/回合/胜者/遮罩 */
       }
 
       /* ---------- 交互层宿主（题卡/小游戏组件自己是 fixed 层） ---------- */
@@ -914,7 +989,9 @@
         readResult(opts, prev, ret, events, prevHeat);     /* 文本即时更新（≤500ms） */
         if (ended) armFinish();                           /* ⑥ 结束态：完成文本立刻出，不等演出 */
         render();
-        return playBoard(events).then(function () {
+        var boardP = playBoard(events);   /* 棋盘演出与机舱镜头并行：场景慢/失败都不拖棋局 */
+        playCabin(events);
+        return boardP.then(function () {
           if (!alive) return null;
           busy = false;
           workText = "";
@@ -1209,6 +1286,13 @@
           if (App.BoardView && App.BoardView.setReduced) App.BoardView.setReduced(!!s.reduced);
           if (App.BoardView && App.BoardView.setSound) App.BoardView.setSound(s.sound !== false);
         } catch (e) {}
+        /* V6.2：设置变化转发给机舱（减少动画 / 音效） */
+        try {
+          if (cabinHas("setReduced")) cabinApi().setReduced(!!s.reduced);
+          if (cabinHas("setSound")) cabinApi().setSound(s.sound !== false);
+        } catch (e) {
+          if (window.console) console.warn("[table] cabin settings 失败", e);
+        }
       }
 
       rootEl.addEventListener("click", onRootClick);
@@ -1219,6 +1303,7 @@
       try { if (App.Bus && App.Bus.on) offSettings = App.Bus.on("settings", onBusSettings); } catch (e) {}
 
       mountBoard();
+      mountCabin();
       if (state.phase === "ended" || state.phase === "safe-ended") finish();
       else render();
       paintDuration();
@@ -1254,9 +1339,12 @@
         try { boardEl.removeEventListener("board-event", onBoardEvent); } catch (e) {}
         try { window.removeEventListener("resize", onResize); } catch (e) {}
         closeHosts();
-        /* 只有仍是「当前主桌」时才拆棋盘（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。 */
+        /* 只有仍是「当前主桌」时才拆棋盘/机舱（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。 */
         if (tableOwner === owner) {
           tableOwner = null;
+          if (cabinHas("unmount")) {
+            try { cabinApi().unmount(); } catch (e) {}
+          }
           if (App.BoardView && typeof App.BoardView.unmount === "function") {
             try { App.BoardView.unmount(); } catch (e) {}
           }

@@ -8,6 +8,13 @@
 - 基线：首次运行写 reports/v6/visual/baseline/*.png（gitignore），后续运行做像素对比
   （容差 1.5% 像素，允许时钟/动画微差）；`--update-baseline` 可显式重建基线。
 
+V6.2（2026-11-18）：
+- 主桌新增「夜航机舱」动态场景（云/星/尘/镜头浮动），逐帧截图会让像素基线抖动；
+  因此 table/prompt 两屏在截图前做「测试侧冻结」：`App.CabinScene.setReduced(true)`
+  （场景静态化，相机复位）+ 暂停 CSS animation/transition；截图后原样解冻。
+  这只是让基线可复现，不改产品行为、不放宽断言；reduced/相机行为由 e2e cabin 组单独验证。
+- boot/ledger 无动态场景，沿用既有基线（仅当确有变化时才重建）。
+
 用法：
   python qa/v6/visual.py
   python qa/v6/visual.py --update-baseline
@@ -36,27 +43,62 @@ SEED_JS = """(() => {
   Math.random = rnd;
 })();"""
 
+# V6.2：截图冻结（仅测试侧）。table/prompt 有机舱动态场景，逐帧截图不可复现：
+#   1) CabinScene.setReduced(true) → 停止 rAF 场景/相机并静态重绘一帧；
+#   2) 暂停 CSS animation/transition → 冻结灯呼吸/骰子/卡片动效；
+#   3) 截图后 setReduced(false) + 移除 style，恢复运行态。
+FREEZE_JS = """() => {
+  try {
+    if (window.App && App.CabinScene && App.CabinScene.setReduced) App.CabinScene.setReduced(true);
+    var s = document.getElementById('qa-visual-freeze');
+    if (!s) {
+      s = document.createElement('style');
+      s.id = 'qa-visual-freeze';
+      s.textContent = '*,*::before,*::after{animation-play-state:paused!important;transition:none!important}';
+      document.head.appendChild(s);
+    }
+    return true;
+  } catch (e) { return false; }
+}"""
+THAW_JS = """() => {
+  try {
+    var s = document.getElementById('qa-visual-freeze');
+    if (s) s.remove();
+    if (window.App && App.CabinScene && App.CabinScene.setReduced) App.CabinScene.setReduced(false);
+    return true;
+  } catch (e) { return false; }
+}"""
+
 
 def ensure_dirs():
     BASELINE.mkdir(parents=True, exist_ok=True)
     ACTUAL.mkdir(parents=True, exist_ok=True)
 
 
-def grab(page, name, full_page=False):
+def grab(page, name, full_page=False, freeze=False):
     ensure_dirs()
     path = ACTUAL / ("%s.png" % name)
-    page.screenshot(path=str(path), full_page=full_page, timeout=10000)
+    frozen = False
+    if freeze:
+        frozen = bool(Q.eval_js(page, FREEZE_JS))
+        # 让静态重绘/样式暂停落一帧（setReduced 会立即 drawSceneOnce，这里只等合成）
+        page.wait_for_timeout(180)
+    try:
+        page.screenshot(path=str(path), full_page=full_page, timeout=10000)
+    finally:
+        if frozen:
+            Q.eval_js(page, THAW_JS)
     return path
 
 
-def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015):
-    actual = grab(page, name, full_page=full_page)
+def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015, freeze=False):
+    actual = grab(page, name, full_page=full_page, freeze=freeze)
     base = BASELINE / ("%s.png" % name)
     if not base.exists():
         import shutil
         shutil.copyfile(actual, base)
         rec.ok("VIS-BASE-%s" % name, "视觉基线 %s" % name, "首次运行生成基线",
-               "baseline=%s" % base.relative_to(Q.ROOT), ac="视觉回归", severity="P1",
+               "baseline=%s" % base.relative_to(Q.ROOT), ac="AC-V6.2-7", severity="P1",
                evidence=str(actual.relative_to(Q.ROOT)))
         return
     try:
@@ -65,7 +107,7 @@ def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015):
         b = Image.open(base).convert("RGB")
         if a.size != b.size:
             rec.fail("VIS-DIFF-%s" % name, "视觉基线 %s 尺寸一致" % name,
-                     "尺寸 %s" % (b.size,), "实际 %s" % (a.size,), ac="视觉回归",
+                     "尺寸 %s" % (b.size,), "实际 %s" % (a.size,), ac="AC-V6.2-7",
                      severity="P1", repro="python qa/v6/visual.py", evidence=str(actual.relative_to(Q.ROOT)))
             return
         diff = ImageChops.difference(a, b)
@@ -76,15 +118,15 @@ def compare_with_baseline(page, rec, name, full_page=False, tolerance=0.015):
         if ratio <= tolerance:
             rec.ok("VIS-DIFF-%s" % name, "视觉基线 %s 像素差 ≤%.1f%%" % (name, tolerance * 100),
                    "≤%.1f%%" % (tolerance * 100), "changed=%.3f%%（%d px）" % (ratio * 100, changed),
-                   ac="视觉回归", severity="P1", evidence=str(actual.relative_to(Q.ROOT)))
+                   ac="AC-V6.2-7", severity="P1", evidence=str(actual.relative_to(Q.ROOT)))
         else:
             rec.fail("VIS-DIFF-%s" % name, "视觉基线 %s 像素差 ≤%.1f%%" % (name, tolerance * 100),
                      "≤%.1f%%" % (tolerance * 100), "changed=%.3f%%（%d px）" % (ratio * 100, changed),
-                     ac="视觉回归", severity="P1", repro="python qa/v6/visual.py；对比 reports/v6/visual/{baseline,actual}/%s.png" % name,
+                     ac="AC-V6.2-7", severity="P1", repro="python qa/v6/visual.py；对比 reports/v6/visual/{baseline,actual}/%s.png" % name,
                      evidence=str(actual.relative_to(Q.ROOT)))
     except Exception as e:  # noqa: BLE001
         rec.check("VIS-DIFF-%s" % name, "视觉基线 %s 对比" % name, "SKIP",
-                  "可对比", "Pillow 对比失败：%s" % e, ac="视觉回归", severity="P1")
+                  "可对比", "Pillow 对比失败：%s" % e, ac="AC-V6.2-7", severity="P1")
 
 
 def assert_boot(page, rec):
@@ -314,7 +356,7 @@ def main():
                 page.wait_for_timeout(1200)
                 print("[VISUAL] table")
                 assert_table(page, rec)
-                compare_with_baseline(page, rec, "table", full_page=False)
+                compare_with_baseline(page, rec, "table", full_page=False, freeze=True)
 
                 # 驱动到第一张题卡
                 drv = E.TableDriver(ps, rec, "390x844", names=E.NAMES,
@@ -346,7 +388,7 @@ def main():
                     page.wait_for_timeout(500)
                     print("[VISUAL] prompt")
                     assert_prompt(page, rec, E.NAMES)
-                    compare_with_baseline(page, rec, "prompt", full_page=False)
+                    compare_with_baseline(page, rec, "prompt", full_page=False, freeze=True)
                     # 处理这张卡，保证能进入回顾
                     s = Q.get_session(page) or {}
                     aw = s.get("awaiting") or {}
