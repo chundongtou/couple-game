@@ -133,10 +133,10 @@
                 '<div class="chips mt-8" data-test="settings-themes">' + themeChips + "</div>" +
                 /* V8：3D 主桌（Beta）—— 只换主桌画面；进主桌时按开关/能力决定，失败自动回 V7 */
                 '<div style="padding:12px 0 2px;margin-top:12px;border-top:1px solid var(--line)" data-test="settings-board3d-wrap">' +
-                  '<div class="small dim">3D 主桌<b class="gold"> · 下次进主桌生效</b></div>' +
+                  '<div class="small">3D 主桌 · <b class="gold">设备自检</b><b class="gold"> · 下次进主桌生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
                   /* V8.2：设备自检（能不能跑 3D / 为什么这次没进 3D），一行读完 */
-                  '<div class="small dim mt-8" data-test="settings-board3d-status"' +
+                  '<div class="small mt-8" data-test="settings-board3d-status"' +
                     ' data-webgl2="' + (b3st.gl ? "1" : "0") + '" data-reduced="' + (b3st.red ? "1" : "0") + '"' +
                     ' data-board3d-set="' + b3 + '" data-board3d-mount="' + b3st.mount + '"' +
                     (b3st.reason ? ' data-board3d-reason="' + U.escape(b3st.reason) + '"' : "") + ">" +
