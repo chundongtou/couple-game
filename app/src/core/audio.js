@@ -1,10 +1,14 @@
-/* ===== V9 core/audio.js：真实拟音 + 环境音乐
- * 口径：docs/v9/impl-freeze.md §2；对外只暴露 App.Audio.play(name) 等（见文件底部 API）。
+/* ===== V9.1 core/audio.js：真实拟音 + 环境音乐 + 舒缓纯音乐
+ * 口径：docs/v9/impl-freeze.md §2 + V9.1「环境音可以放一些舒缓的纯音乐」。
+ * 对外保留 App.Audio.play(name) 等旧 API（见文件底部 API），新增 music 床：
+ *   startMusic()/stopMusic()/music()/setMusicLevel()；startAmbience() 会同时起 ambience+music。
  *
  * 结构：采样优先 → 失败时合成回退（构建未接入 assets 也不崩）
  *   voice → 子总线(sfx/music) → master → compressor → soft-limiter → destination
  *   三条子总线 sfx/ambience/music 各有 reverb send（程序化 IR，无外部资源）。
  *   环境：amb-calm / amb-win 无缝 WAV；win/ending 用场景参数变体。
+ *   音乐：mus-calm.wav（13.52s / 71BPM / D 大调 / 4 小节无缝）；music 床经独立
+ *   musicLevel 增益（默认 0.095，低于 ambience）进 music 总线；win 更亮、ending 降速低通。
  * 资源：assets/audio/*.wav（22.05kHz mono），base 默认按页面路径推导：
  *   生产 index.html 在根 → assets/audio/；app/dev/*.html → ../assets/audio/
  *   可用 window.__AUDIO_BASE__、html[data-audio-base]、?audio= 覆盖。
@@ -21,7 +25,8 @@
     hop: "sfx-hop.wav", takeoff: "sfx-takeoff.wav", fly: "sfx-fly.wav",
     capture: "sfx-capture.wav", stack: "sfx-stack.wav", bear: "sfx-bear.wav",
     card: "sfx-card.wav", stamp: "sfx-stamp.wav", chime: "sfx-chime.wav",
-    win: "sfx-win.wav", ambCalm: "amb-calm.wav", ambWin: "amb-win.wav"
+    win: "sfx-win.wav", ambCalm: "amb-calm.wav", ambWin: "amb-win.wav",
+    musCalm: "mus-calm.wav"
   };
 
   /* 层字段：f 文件键 / g 增益dB / r 基准播放率 / d 延迟s / p 声像 / lp 低通(0=无)
@@ -59,17 +64,29 @@
   };
   var TOKENS = Object.keys(LAYERS);
 
-  var VOL = { master: 0.85, sfx: 0.95, ambience: 0.20, music: 0.85 };
+  var VOL = { master: 0.85, sfx: 0.95, ambience: 0.20, music: 0.85, musicLevel: 0.095 };
   var SCENES = {
     calm:   { file: "ambCalm", level: 1.0, lp: 4200, rate: 1.0 },
     win:    { file: "ambWin", level: 0.92, lp: 7200, rate: 1.0 },
     ending: { file: "ambWin", level: 0.78, lp: 1500, rate: 0.94 }
+  };
+  /* 音乐床：单条 13.52s 循环，win/ending 用同一素材做“变体”（更亮/降速低通），
+     不额外增加素材体积。musicLevel 是床级增益，低于 ambience；music 总线 0.85
+     仍保留给 win/ending/milestone 等旧 stinger，避免破坏既有响度。 */
+  var MUSIC = {
+    file: "musCalm", fade: 2.8,
+    scenes: {
+      calm:   { level: 1.0,  lp: 5200, rate: 1.0 },
+      win:    { level: 1.12, lp: 9200, rate: 1.0 },
+      ending: { level: 0.86, lp: 1500, rate: 0.94 }
+    }
   };
 
   var ctx = null, chain = null, enabled = true, supported = !!(window.AudioContext || window.webkitAudioContext);
   var buffers = {}, failed = {}, loading = {}, loadWarned = false, preloaded = false;
   var active = 0, MAX_ACTIVE = 20;
   var amb = { wanted: false, scene: "calm", nodes: null, pending: false };
+  var mus = { wanted: false, nodes: null, pending: false };
   var listeners = {};
 
   function noop() {}
@@ -374,10 +391,12 @@
 
   function startAmbience(opts) {
     amb.wanted = true;
+    mus.wanted = true;
     if (opts && opts.scene) amb.scene = SCENES[opts.scene] ? opts.scene : "calm";
     if (!enabled || document.hidden) return;
     var c = ensure(); if (!c) return;
     resume();
+    startMusic();
     if (amb.nodes) { applyScene(); return; }
     if (amb.pending) return;
     var sc = SCENES[amb.scene] || SCENES.calm;
@@ -398,10 +417,12 @@
     var nodes = amb.nodes;
     amb.nodes = null;
     if (nodes) fadeOutNodes(nodes, ms == null ? 600 : ms);
+    stopMusic(ms);
     emit("ambience", ambienceState());
   }
 
   function applyScene() {
+    applyMusicScene();
     if (!amb.nodes) return;
     var sc = SCENES[amb.scene] || SCENES.calm;
     var t = now();
@@ -418,6 +439,7 @@
     if (!name || !SCENES[name]) return;
     var changed = name !== amb.scene;
     amb.scene = name;
+    applyMusicScene();
     if (!amb.nodes) return;
     if (!changed) { applyScene(); return; }
     var old = amb.nodes;
@@ -445,6 +467,110 @@
     };
   }
 
+  /* ---------- 舒缓纯音乐床 ---------- */
+  function musicScene() {
+    var sc = MUSIC.scenes[amb.scene] || MUSIC.scenes.calm;
+    return { level: Math.max(0.0002, VOL.musicLevel * sc.level), lp: sc.lp, rate: sc.rate };
+  }
+
+  function spawnMusic(buf, synthesized) {
+    var c = ctx, t = now();
+    var sc = musicScene();
+    var g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    var lp = c.createBiquadFilter(); lp.type = "lowpass";
+    lp.frequency.value = sc.lp; lp.Q.value = 0.55;
+    g.connect(lp); lp.connect(chain.music);
+    var s = c.createBufferSource();
+    s.buffer = buf; s.loop = true; s.playbackRate.value = sc.rate;
+    s.connect(g);
+    try { s.start(t); } catch (e) { return; }
+    try { g.gain.exponentialRampToValueAtTime(Math.max(0.0002, sc.level), t + MUSIC.fade); } catch (e) {}
+    mus.nodes = { g: g, lp: lp, srcs: [s], buf: buf, synthesized: !!synthesized };
+    emit("music", musicState());
+  }
+
+  /* 资源 404/解码失败时的合成回退：8s 纯音铺底（整数周期，循环无缝）。 */
+  function synthMusic() {
+    var c = ctx; if (!c) return;
+    var dur = 8, n = Math.floor(c.sampleRate * dur);
+    var b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);
+    var twoPi = Math.PI * 2;
+    var tones = [146.83, 220.0, 293.66, 369.99, 440.0, 554.37, 659.25];
+    var fr = [];
+    for (var i = 0; i < tones.length; i++) fr.push(Math.round(tones[i] * dur) / dur);
+    for (var j = 0; j < n; j++) {
+      var t = j / c.sampleRate, s = 0;
+      for (var k = 0; k < fr.length; k++) {
+        var amp = k < 4 ? 0.020 : 0.010;
+        s += Math.sin(twoPi * fr[k] * t + k * 0.73) * amp;
+        s += Math.sin(twoPi * fr[k] * 2 * t + k * 1.31) * amp * 0.24;
+      }
+      var lfo = 0.72 + 0.28 * Math.sin(twoPi * (4 / dur) * t);
+      d[j] = s * lfo;
+    }
+    spawnMusic(b, true);
+  }
+
+  function startMusic() {
+    mus.wanted = true;
+    if (!enabled || document.hidden) return;
+    var c = ensure(); if (!c) return;
+    resume();
+    if (mus.nodes) { applyMusicScene(); return; }
+    if (mus.pending) return;
+    if (buffers[MUSIC.file]) { spawnMusic(buffers[MUSIC.file]); return; }
+    mus.pending = true;
+    load(MUSIC.file).then(function (b) {
+      mus.pending = false;
+      if (!mus.wanted || mus.nodes || !enabled || document.hidden) return;
+      spawnMusic(b);
+    })["catch"](function () {
+      mus.pending = false;
+      if (!mus.wanted || mus.nodes || !enabled || document.hidden) return;
+      try { synthMusic(); } catch (e) { emit("music", musicState()); }
+    });
+  }
+
+  function stopMusic(ms) {
+    mus.wanted = false;
+    var nodes = mus.nodes;
+    mus.nodes = null;
+    if (nodes) fadeOutNodes(nodes, ms == null ? 600 : ms);
+    emit("music", musicState());
+  }
+
+  function applyMusicScene() {
+    if (!mus.nodes) return;
+    var sc = musicScene(), t = now();
+    try {
+      mus.nodes.lp.frequency.cancelScheduledValues(t);
+      mus.nodes.lp.frequency.setTargetAtTime(sc.lp, t, 0.30);
+      mus.nodes.g.gain.cancelScheduledValues(t);
+      mus.nodes.g.gain.setTargetAtTime(Math.max(0.0002, sc.level), t, 0.35);
+      var s = mus.nodes.srcs[0];
+      s.playbackRate.cancelScheduledValues(t);
+      s.playbackRate.setTargetAtTime(sc.rate, t, 0.40);
+    } catch (e) {}
+  }
+
+  function musicState() {
+    var sc = MUSIC.scenes[amb.scene] || MUSIC.scenes.calm;
+    return {
+      wanted: mus.wanted, playing: !!mus.nodes, pending: mus.pending,
+      scene: amb.scene, file: MUSIC.file, loop: true,
+      level: VOL.musicLevel * sc.level, rate: sc.rate, lp: sc.lp,
+      synthesized: !!(mus.nodes && mus.nodes.synthesized),
+      duration: mus.nodes && mus.nodes.buf ? mus.nodes.buf.duration : 0
+    };
+  }
+
+  function setMusicLevel(v) {
+    VOL.musicLevel = clamp(Number(v) || 0, 0, 2);
+    applyMusicScene();
+    return VOL.musicLevel;
+  }
+
   /* ---------- 对外 ---------- */
   function play(name) {
     if (!enabled) return false;
@@ -464,7 +590,7 @@
     if (!played) synthVoice(name, at);
     if (name === "win" || name === "milestone") setScene("win");
     else if (name === "ending") setScene("ending");
-    else if (name === "safe" && amb.nodes) setScene("calm");
+    else if (name === "safe") setScene("calm");
     if (amb.nodes) duck(0.72);
     return true;
   }
@@ -475,6 +601,7 @@
     resume();
     if (!preloaded) { preloaded = true; setTimeout(function () { preload(); }, 40); }
     if (amb.wanted && !amb.nodes && !amb.pending) startAmbience();
+    if (mus.wanted && !mus.nodes && !mus.pending) startMusic();
     emit("state", c.state);
   }
 
@@ -505,12 +632,23 @@
       chain.master.gain.cancelScheduledValues(t);
       chain.master.gain.setTargetAtTime(enabled ? VOL.master : 0.0001, t, 0.05);
     } catch (e) {}
-    if (enabled) { resume(); if (amb.wanted && !amb.nodes) startAmbience(); }
-    else if (amb.nodes) {
-      /* 关声音：停掉环境源但保留“想开环境”的意图，重新打开时恢复 */
-      var nodes = amb.nodes;
-      amb.nodes = null;
-      fadeOutNodes(nodes, 300);
+    if (enabled) {
+      resume();
+      if (amb.wanted && !amb.nodes) startAmbience();
+      if (mus.wanted && !mus.nodes) startMusic();
+    } else {
+      /* 关声音：停掉环境/音乐源但保留“想开”的意图，重新打开时恢复 */
+      if (amb.nodes) {
+        var nodes = amb.nodes;
+        amb.nodes = null;
+        fadeOutNodes(nodes, 300);
+      }
+      if (mus.nodes) {
+        var m = mus.nodes;
+        mus.nodes = null;
+        fadeOutNodes(m, 300);
+      }
+      emit("music", musicState());
     }
   }
 
@@ -526,6 +664,7 @@
       chain.sfx.gain.setTargetAtTime(VOL.sfx, t, 0.06);
       chain.ambience.gain.setTargetAtTime(VOL.ambience, t, 0.06);
       chain.music.gain.setTargetAtTime(VOL.music, t, 0.06);
+      applyMusicScene();
     } catch (e) {}
   }
 
@@ -538,7 +677,8 @@
       failed: Object.keys(failed),
       active: active,
       ambience: ambienceState(),
-      volumes: { master: VOL.master, sfx: VOL.sfx, ambience: VOL.ambience, music: VOL.music },
+      music: musicState(),
+      volumes: { master: VOL.master, sfx: VOL.sfx, ambience: VOL.ambience, music: VOL.music, musicLevel: VOL.musicLevel },
       files: FILES
     };
   }
@@ -586,6 +726,126 @@
     });
   }
 
+  /* ---------- QA：music 混音离线渲染（试听页/自测用） ----------
+     opts = { seconds, music:true, ambience:false, scene:'calm', sfx:[], seam:true }
+     走与实机相同的 makeChain（compressor + 软限幅），music 走 music 总线。 */
+  function renderMix(opts) {
+    opts = opts || {};
+    var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!OAC || !ctx) return Promise.reject(new Error("offline-unavailable"));
+    var withMusic = opts.music !== false;
+    if (withMusic && !buffers[MUSIC.file]) return Promise.reject(new Error("music-not-loaded"));
+    var dur = clamp(Number(opts.seconds) || 14, 1, 30);
+    var sceneName = opts.scene && SCENES[opts.scene] ? opts.scene : "calm";
+    var msc = MUSIC.scenes[sceneName] || MUSIC.scenes.calm;
+    var oc = new OAC(2, Math.ceil(dur * 48000), 48000);
+    var ch = makeChain(oc, oc.destination);
+    ch.duck.gain.value = 1;
+    try { ch.duck.connect(ch.ambience); } catch (e) {}   /* makeChain 未接；ensure() 才接 */
+    var musicBuf = buffers[MUSIC.file];
+    if (withMusic) {
+      var mg = oc.createGain();
+      mg.gain.value = VOL.musicLevel * msc.level;
+      var mlp = oc.createBiquadFilter();
+      mlp.type = "lowpass"; mlp.frequency.value = msc.lp; mlp.Q.value = 0.55;
+      var msrc = oc.createBufferSource();
+      msrc.buffer = musicBuf; msrc.loop = true; msrc.playbackRate.value = msc.rate;
+      msrc.connect(mg); mg.connect(mlp); mlp.connect(ch.music);
+      try { msrc.start(0); } catch (e) {}
+    }
+    if (opts.ambience) {
+      var asc = SCENES[sceneName] || SCENES.calm;
+      var abuf = buffers[asc.file] || buffers.ambCalm;
+      if (abuf) {
+        var ag = oc.createGain(); ag.gain.value = asc.level;
+        var alp = oc.createBiquadFilter();
+        alp.type = "lowpass"; alp.frequency.value = asc.lp; alp.Q.value = 0.5;
+        ag.connect(alp); alp.connect(ch.duck);
+        var addAmb = function (pan, delayMs) {
+          var s = oc.createBufferSource();
+          s.buffer = abuf; s.loop = true; s.playbackRate.value = asc.rate;
+          var gg = oc.createGain(); gg.gain.value = 0.55;
+          var tail = gg; s.connect(gg);
+          if (delayMs) {
+            var dl = oc.createDelay(0.1); dl.delayTime.value = delayMs / 1000;
+            gg.connect(dl); tail = dl;
+          }
+          var p = oc.createStereoPanner ? oc.createStereoPanner() : null;
+          if (p) { p.pan.value = pan; tail.connect(p); tail = p; }
+          tail.connect(ag);
+          try { s.start(0); } catch (e) {}
+        };
+        addAmb(-0.35, 0);
+        addAmb(0.35, 13);
+      }
+    }
+    var list = [].concat(opts.sfx || []);
+    var together = !!opts.sfxTogether;
+    var at = 0.40;
+    for (var i = 0; i < list.length; i++) {
+      var layers = LAYERS[list[i]] || [];
+      for (var k = 0; k < layers.length; k++) {
+        var b = buffers[layers[k].f];
+        if (b) startVoice(oc, ch, b, layers[k], at);
+      }
+      if (!together) at += 0.90;
+    }
+    return oc.startRendering().then(function (rendered) {
+      var peak = 0, sum = 0, n = rendered.length * rendered.numberOfChannels;
+      var buckets = 700, pk = [];
+      for (var x = 0; x < buckets; x++) pk.push(0);
+      var d0 = rendered.getChannelData(0);
+      for (var c = 0; c < rendered.numberOfChannels; c++) {
+        var d = rendered.getChannelData(c);
+        for (var j = 0; j < d.length; j++) {
+          var a = d[j] < 0 ? -d[j] : d[j];
+          if (a > peak) peak = a;
+          sum += d[j] * d[j];
+          var bi = Math.floor(j / d.length * buckets);
+          if (a > pk[bi]) pk[bi] = a;
+        }
+      }
+      var seam = null;
+      if (withMusic && opts.seam !== false && dur > musicBuf.duration) {
+        var li = Math.round(musicBuf.duration * 48000);
+        if (li > 32 && li < d0.length - 32) {
+          var jump = 0, second = 0;
+          for (var q = li - 24; q <= li + 24; q++) {
+            var jm = d0[q] < 0 ? -d0[q] : d0[q];
+            var prev = d0[q - 1] < 0 ? -d0[q - 1] : d0[q - 1];
+            if (Math.abs(jm - prev) > jump) jump = Math.abs(jm - prev);
+            if (q > 0 && q < d0.length - 1) {
+              var sd = Math.abs(d0[q + 1] - 2 * d0[q] + d0[q - 1]);
+              if (sd > second) second = sd;
+            }
+          }
+          var arr = [];
+          for (var r = 2; r < d0.length - 2; r += 7) {
+            arr.push(Math.abs(d0[r + 1] - 2 * d0[r] + d0[r - 1]));
+          }
+          arr.sort(function (a, b) { return a - b; });
+          var p999 = arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * 0.999))] : 0;
+          seam = {
+            atSec: musicBuf.duration, jump: jump,
+            jumpDbfs: 20 * Math.log10(jump + 1e-12),
+            second: second, secondP999: p999,
+            verdict: second <= Math.max(p999 * 1.5, 1e-4) ? "PASS" : "CHECK"
+          };
+        }
+      }
+      active = 0;
+      return {
+        tokens: list, seconds: dur, peak: peak,
+        peakDbfs: 20 * Math.log10(peak + 1e-12),
+        rmsDbfs: 20 * Math.log10(Math.sqrt(sum / n) + 1e-12),
+        clipped: peak >= 1.0,
+        peaks: pk,
+        music: withMusic, ambience: !!opts.ambience, scene: sceneName,
+        loopSec: withMusic ? musicBuf.duration : 0, seam: seam
+      };
+    });
+  }
+
   /* ---------- 首次手势 / 可见性 / 路由 ---------- */
   var armed = false;
   function arm() {
@@ -613,6 +873,7 @@
         if (!document.hidden && enabled && ctx && ctx.state === "suspended") resume();
       }, 160);
       if (amb.wanted && !amb.nodes && !amb.pending) startAmbience();
+      if (mus.wanted && !mus.nodes && !mus.pending) startMusic();
     }
     emit("state", ctx.state);
   });
@@ -628,7 +889,7 @@
   }
 
   App.Audio = {
-    version: "9.0.0",
+    version: "9.1.0",
     tokens: TOKENS,
     files: FILES,
     _base: null,
@@ -643,11 +904,16 @@
     setScene: setScene,
     scene: function () { return amb.scene; },
     ambience: ambienceState,
+    startMusic: startMusic,
+    stopMusic: stopMusic,
+    music: musicState,
+    setMusicLevel: setMusicLevel,
     setVolumes: setVolumes,
     preload: preload,
     state: publicState,
     debug: publicState,
     render: render,
+    renderMix: renderMix,
     on: function (name, fn) { (listeners[name] = listeners[name] || []).push(fn); },
     off: function (name, fn) {
       if (!listeners[name]) return;

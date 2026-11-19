@@ -17,12 +17,12 @@ import {
   STAGE_PLATE, STAGE_BEAR, STAGE_TEXT, HUB, TABLE, FELT, CABIN, MAT, CINE, QUALITY,
   COLORS, HOME_ENTRY, APRON_DEG, HEX, DIE_FACES, THEMES, themeOf, KIND_LABEL,
   colorOfRing, kindOf, ringPhi, slotOf, uvOfSlot, SLOT_DARK, SLOT_HOME, SLOT_HANGAR,
-  clamp, lerp, easeOut, smoothstep
+  clamp, lerp, easeOut, smoothstep, PROPS, CABIN_FX
 } from './constants.js';
 import * as TX from './textures.js';
 import {
   buildTileGeometry, makePlane, makeShadowPlane, makeGlowPlane, makeRippleMesh,
-  makeStreakGroup, makeDieGeometry, mergeGeoms
+  makeStreakGroup, makeDieGeometry, mergeGeoms, mergePropGeoms
 } from './parts.js';
 import { createBear } from './bear.js';
 import { CameraRig } from './camera.js';
@@ -101,11 +101,14 @@ export class BoardScene {
     this._buildLights();
     this._buildCabin();
     this._buildTable();
+    this._buildCabinDetail();
     this._buildBoard();
     this._buildStage();
     this._buildDie();
     this._buildPlanesLayer();
     this._buildAtmosphere();
+    this._buildProps();
+    this._buildComfort();
     this._buildFx();
     this._bindResize();
     this._bindVisibility();
@@ -514,6 +517,559 @@ export class BoardScene {
     this.cupGroup = group;
   }
 
+  /* ======================================================================
+   * V9.1 · 机舱细节（用户反馈「画面太干净」）
+   *   - 顶部行李舱 + 暖白灯带 + 行李舱黄铜锁扣（增加顶部层次）
+   *   - 舷窗两侧窗帘（布褶贴图 + 顶部黄铜杆；轻微摆动）
+   *   - 舱壁板缝/铆钉已烘进 buildWallTexture（0 draw）
+   * 座椅不做：桌板 11.4 宽、棋盘占画面 89%，座椅只能落在桌板外→画框外；
+   * 强行入画会压到棋盘/桌板，按「影响可读性就删掉」处理。
+   * ====================================================================== */
+  _buildCabinDetail() {
+    const g = this.cabinGroup;
+    if (!g) return;
+
+    /* 顶部行李舱：一条横贯画面的圆角暗舱柜，把画面上沿从「空白墙」变成结构 */
+    this.binMat = new THREE.MeshStandardMaterial({
+      color: 0x18212B, roughness: 0.84, metalness: 0.04, envMapIntensity: 0.22
+    });
+    const bin = new THREE.Mesh(
+      new THREE.BoxGeometry(CABIN_FX.bin.w, CABIN_FX.bin.h, CABIN_FX.bin.d),
+      this.binMat
+    );
+    bin.position.set(0, CABIN_FX.bin.y, CABIN.wallZ + CABIN_FX.bin.inset);
+    bin.receiveShadow = false;
+    g.add(bin);
+    this.bin = bin;
+    /* 舱门分缝（细暗线）+ 黄铜锁扣条 */
+    const latch = new THREE.Mesh(
+      new THREE.BoxGeometry(CABIN_FX.bin.w * 0.985, 0.022, 0.02),
+      this._brassMat()
+    );
+    latch.position.set(0, CABIN_FX.bin.y - CABIN_FX.bin.h / 2 + 0.026,
+      CABIN.wallZ + CABIN_FX.bin.inset + CABIN_FX.bin.d / 2);
+    g.add(latch);
+    this.binLatch = latch;
+    /* 灯带：行李舱下沿的一条暖白自发光（toneMapped:false → 读作光源） */
+    this.stripMat = new THREE.MeshBasicMaterial({
+      color: CABIN_FX.strip.color, transparent: true, opacity: 0.42,
+      toneMapped: false, fog: false
+    });
+    this.strip = new THREE.Mesh(
+      new THREE.BoxGeometry(CABIN_FX.strip.w, CABIN_FX.strip.h, CABIN_FX.strip.d),
+      this.stripMat
+    );
+    this.strip.position.set(0, CABIN_FX.strip.y, CABIN.wallZ + 0.36);
+    g.add(this.strip);
+    /* 灯带在墙上的光晕（1 sprite，轻 bloom） */
+    this.binGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: TX.makeGlowTex(), color: 0xFFD2A0, transparent: true, opacity: 0.13,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, fog: false, toneMapped: false
+    }));
+    this.binGlow.scale.set(10.5, 1.5, 1);
+    this.binGlow.position.set(0, CABIN_FX.strip.y - 0.02, CABIN.wallZ + 0.42);
+    g.add(this.binGlow);
+
+    /* 舷窗窗帘：顶部黄铜杆 + 两片带竖向褶皱的布（各 1 draw，共 2） */
+    this.curtainTex = TX.buildCurtainTexture(96);
+    this._tex.push(this.curtainTex);
+    this.curtainMat = new THREE.MeshStandardMaterial({
+      map: this.curtainTex, color: 0x8A7A68, roughness: 0.96, metalness: 0,
+      envMapIntensity: 0.25, side: THREE.DoubleSide
+    });
+    const cw = CABIN_FX.curtain.w, ch = CABIN_FX.curtain.h;
+    this.curtains = [];
+    for (const side of [-1, 1]) {
+      const pivot = new THREE.Group();
+      const cx = CABIN.window.x + side * (CABIN.window.w / 2 + CABIN_FX.curtain.off);
+      const cy = CABIN.window.y + CABIN.window.h / 2 + 0.10;
+      pivot.position.set(cx, cy, CABIN.window.z + 0.055);
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch, 5, 1), this.curtainMat);
+      cloth.position.y = -ch / 2;
+      cloth.castShadow = false;
+      pivot.add(cloth);
+      pivot.userData.baseY = 0;
+      g.add(pivot);
+      this.curtains.push(pivot);
+      this._tex.push(this.curtainTex);
+    }
+    /* 窗帘杆（黄铜，两端各一个球形端头） */
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, CABIN.window.w + 0.75, 8, 1),
+      this._brassMat()
+    );
+    rod.rotation.z = Math.PI / 2;
+    rod.position.set(CABIN.window.x, CABIN.window.y + CABIN.window.h / 2 + 0.115, CABIN.window.z + 0.06);
+    g.add(rod);
+    this.curtainRod = rod;
+    for (const side of [-1, 1]) {
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), this._brassMat());
+      cap.position.set(CABIN.window.x + side * (CABIN.window.w / 2 + 0.38),
+        CABIN.window.y + CABIN.window.h / 2 + 0.115, CABIN.window.z + 0.06);
+      g.add(cap);
+    }
+  }
+
+  /* ======================================================================
+   * V9.1 · 桌面小物（程序化低模；按材质合并成 7 个 mesh，draw 可控）
+   *   左前：两只杯子（蒸汽）、报纸
+   *   中间：摊开的笔记本 + 钢笔 + 眼镜、散落车票
+   *   右前：骰子托盘、钥匙、毛毯、卡片
+   *   左中：磁带 + 小音箱
+   *   右后：书堆 + 杂志 + 明信片、绿植
+   *   左后：铜台灯（暖光）、蜡烛（烛焰）、立式相框
+   * 所有落点由 probe2 实测：都在棋盘圆盘之外，390/430 在画面内，320 后排可见。
+   * ====================================================================== */
+  _buildProps() {
+    const P = PROPS;
+    const paper = TX.buildPaperTextures(256);
+    const atlas = TX.buildPropAtlas(128);
+    this.propPaper = paper;
+    this.propAtlas = atlas;
+    this._tex.push(paper.map, paper.normal, atlas);
+
+    const group = new THREE.Group();
+    this.world.add(group);
+    this.propGroup = group;
+    this.propAnchors = {};
+
+    /* --- 共享材质（一个材质桶 = 1 draw） --- */
+    this.propMatteMat = new THREE.MeshStandardMaterial({
+      map: paper.map, normalMap: paper.normal,
+      normalScale: new THREE.Vector2(0.45, 0.45), vertexColors: true,
+      roughness: 0.64, metalness: 0.03, envMapIntensity: 0.42
+    });
+    this.propPaperMat = new THREE.MeshStandardMaterial({
+      map: paper.map, normalMap: paper.normal,
+      normalScale: new THREE.Vector2(MAT.paper.normalScale, MAT.paper.normalScale),
+      color: 0xF4E8D4, roughness: MAT.paper.roughness, metalness: 0,
+      envMapIntensity: MAT.paper.envMapIntensity
+    });
+    this.propPrintMat = new THREE.MeshStandardMaterial({
+      map: atlas, roughness: 0.78, metalness: 0.02, envMapIntensity: 0.38,
+      side: THREE.DoubleSide
+    });
+    this.propClothMat = new THREE.MeshStandardMaterial({
+      map: this._felt.map, normalMap: this._felt.normal,
+      normalScale: new THREE.Vector2(1.1, 1.1),
+      color: 0x73303A, roughness: MAT.felt.roughness, metalness: 0,
+      envMapIntensity: MAT.felt.envMapIntensity
+    });
+    this.propLeafMat = new THREE.MeshStandardMaterial({
+      color: 0x4E6B62, roughness: 0.72, metalness: 0.02,
+      envMapIntensity: 0.4, side: THREE.DoubleSide
+    });
+    this.propDarkMat = new THREE.MeshStandardMaterial({
+      map: this._felt.map, color: 0x2A211B, roughness: 0.72, metalness: 0.05,
+      envMapIntensity: 0.35
+    });
+    this.ceramicMat = new THREE.MeshStandardMaterial({
+      color: 0xE4D8C6, roughness: 0.24, metalness: 0, envMapIntensity: 1.15
+    });
+    this.teaMat = new THREE.MeshStandardMaterial({
+      color: 0x7A3B18, roughness: 0.18, metalness: 0, envMapIntensity: 0.9
+    });
+    this.lampShadeMat = new THREE.MeshStandardMaterial({
+      color: 0xD8A06A, emissive: 0xFF9A50, emissiveIntensity: 0.55,
+      roughness: 0.52, metalness: 0.35, envMapIntensity: MAT.brass.envMapIntensity,
+      side: THREE.DoubleSide
+    });
+
+    /* --- 合并工具 --- */
+    const O = new THREE.Object3D();
+    const buckets = { matte: [], paper: [], print: [], brass: [], cloth: [], leaf: [], dark: [] };
+    const put = (bucket, geo, x, y, z, rot, color) => {
+      O.position.set(x, y, z);
+      O.rotation.set(rot ? rot[0] || 0 : 0, rot ? rot[1] || 0 : 0, rot ? rot[2] || 0 : 0);
+      O.scale.set(1, 1, 1);
+      O.updateMatrix();
+      buckets[bucket].push({ geo, matrix: O.matrix.clone(), color });
+    };
+    /* 印刷面：把 plane 的 UV 映射到图集 4×2 的某个 tile（0..7） */
+    const mapTile = (geo, tile) => {
+      const col = tile % 4, row = Math.floor(tile / 4);
+      const u0 = col / 4, u1 = (col + 1) / 4;
+      const v0 = 1 - (row + 1) / 2, v1 = 1 - row / 2;
+      const uv = geo.getAttribute('uv');
+      for (let k = 0; k < uv.count; k++) {
+        uv.setXY(k, u0 + uv.getX(k) * (u1 - u0), v0 + uv.getY(k) * (v1 - v0));
+      }
+      uv.needsUpdate = true;
+      return geo;
+    };
+    const printPlane = (w, d, tile, x, y, z, rot) => {
+      put('print', mapTile(new THREE.PlaneGeometry(w, d), tile), x, y, z, rot);
+    };
+    /* 书：两块封面薄板 + 中间纸页，纸页在书口露出 */
+    const addBook = (x, z, rot, w, d, th, y, cover) => {
+      const cr = [0, rot, 0];
+      put('matte', new THREE.BoxGeometry(w, 0.009, d), x, y + 0.0045, z, cr, cover);
+      put('paper', new THREE.BoxGeometry(w - 0.016, th - 0.018, d - 0.014), x, y + th / 2, z, cr);
+      put('matte', new THREE.BoxGeometry(w, 0.009, d), x, y + th - 0.0045, z, cr, cover);
+    };
+
+    /* ---------- 右后：书堆（3 本）+ 杂志 + 明信片 ---------- */
+    const B = P.books;
+    addBook(B.x, B.z, B.rot, 0.58, 0.42, 0.078, 0.006, [0.30, 0.36, 0.30]);
+    addBook(B.x + 0.01, B.z - 0.005, B.rot - 0.10, 0.53, 0.38, 0.062, 0.084, [0.46, 0.20, 0.22]);
+    addBook(B.x - 0.008, B.z + 0.004, B.rot + 0.07, 0.46, 0.33, 0.050, 0.146, [0.21, 0.25, 0.34]);
+    const magY = 0.196;
+    put('matte', new THREE.BoxGeometry(0.32, 0.010, 0.40), B.x + 0.02, magY + 0.005, B.z + 0.01, [0, B.rot - 0.18, 0], [0.14, 0.13, 0.12]);
+    printPlane(0.31, 0.39, 0, B.x + 0.02, magY + 0.011, B.z + 0.01, [-Math.PI / 2, B.rot - 0.18, 0]);
+    /* 明信片斜靠在书堆前（斜立 66°） */
+    printPlane(0.19, 0.13, 3, B.x - 0.18, 0.145, B.z + 0.205, [-1.16, B.rot - 0.5, 0]);
+
+    /* ---------- 右后：小绿植 ---------- */
+    const PL = P.plant;
+    put('matte', new THREE.CylinderGeometry(0.112, 0.088, 0.17, 18, 1), PL.x, 0.091, PL.z, null, [0.42, 0.28, 0.21]);
+    put('matte', new THREE.CylinderGeometry(0.118, 0.118, 0.020, 18, 1), PL.x, 0.183, PL.z, null, [0.36, 0.24, 0.18]);
+    put('matte', new THREE.CylinderGeometry(0.100, 0.100, 0.012, 16, 1), PL.x, 0.189, PL.z, null, [0.12, 0.09, 0.06]);
+    const leafShape = new THREE.Shape();
+    leafShape.moveTo(0, 0);
+    leafShape.bezierCurveTo(0.062, 0.05, 0.070, 0.20, 0, 0.33);
+    leafShape.bezierCurveTo(-0.070, 0.20, -0.062, 0.05, 0, 0);
+    const leafGeoBase = new THREE.ShapeGeometry(leafShape, 4);
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + 0.35;
+      const s = 0.88 + (i % 4) * 0.16;
+      O.position.set(PL.x + Math.cos(a) * 0.040, 0.20, PL.z + Math.sin(a) * 0.040);
+      O.rotation.set(-1.16 + (i % 3) * 0.17, a + Math.PI / 2, 0);
+      O.scale.set(s, s, s);
+      O.updateMatrix();
+      buckets.leaf.push({ geo: leafGeoBase.clone(), matrix: O.matrix.clone() });
+    }
+    put('leaf', leafGeoBase.clone(), PL.x, 0.215, PL.z, [-1.45, 0.4, 0]);
+    leafGeoBase.dispose();
+    this.propAnchors.plant = this._anchor(PL.x, 0.2, PL.z);
+
+    /* ---------- 左后：黄铜小台灯（暖光 + 自发光灯罩 + 桌面光池） ---------- */
+    const L = P.lamp;
+    put('brass', new THREE.CylinderGeometry(0.120, 0.148, 0.030, 22, 1), L.x, 0.021, L.z);
+    put('brass', new THREE.CylinderGeometry(0.017, 0.023, 0.40, 10, 1), L.x, 0.235, L.z);
+    put('brass', new THREE.SphereGeometry(0.030, 10, 8), L.x, 0.445, L.z);
+    put('brass', new THREE.CylinderGeometry(0.013, 0.015, 0.30, 8, 1), L.x + 0.055, 0.520, L.z + 0.115, [0.95, 0, -0.36]);
+    put('brass', new THREE.CylinderGeometry(0.052, 0.070, 0.022, 14, 1), L.x + 0.135, 0.575, L.z + 0.225);
+    const shade = new THREE.Mesh(new THREE.ConeGeometry(0.152, 0.205, 22, 1, true), this.lampShadeMat);
+    shade.position.set(L.x + 0.132, 0.472, L.z + 0.222);
+    shade.rotation.z = -0.16;
+    shade.rotation.x = 0.10;
+    shade.castShadow = false;
+    group.add(shade);
+    this.deskShade = shade;
+    this.deskGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: TX.makeGlowTex(), color: 0xFFC888, transparent: true, opacity: 0.38,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
+    }));
+    this.deskGlow.scale.set(0.85, 0.85, 1);
+    this.deskGlow.position.set(L.x + 0.132, 0.435, L.z + 0.222);
+    group.add(this.deskGlow);
+    /* 灯下的暖光池（贴桌面，1 draw，读作真实光斑） */
+    const t0 = themeOf(this.theme);
+    this.deskPool = makeGlowPlane(2.2, t0.light.lamp);
+    this.deskPool.position.set(L.x + 0.11, 0.0078, L.z + 0.24);
+    this.deskPool.material.opacity = 0.16;
+    this.deskPool.renderOrder = 1;
+    group.add(this.deskPool);
+    this.deskLight = new THREE.PointLight(0xFFB877, 2.8, 4.2, 2);
+    this.deskLight.position.set(L.x + 0.12, 0.43, L.z + 0.20);
+    this.scene.add(this.deskLight);
+    this.propAnchors.lamp = this._anchor(L.x, 0.42, L.z);
+
+    /* ---------- 左后：蜡烛（黄铜烛台 + 象牙蜡 + 烛焰） ---------- */
+    const C = P.candle;
+    put('brass', new THREE.CylinderGeometry(0.086, 0.10, 0.020, 16, 1), C.x, 0.016, C.z);
+    put('brass', new THREE.CylinderGeometry(0.024, 0.032, 0.095, 10, 1), C.x, 0.072, C.z);
+    put('brass', new THREE.CylinderGeometry(0.052, 0.035, 0.032, 14, 1), C.x, 0.132, C.z);
+    put('matte', new THREE.CylinderGeometry(0.040, 0.042, 0.22, 14, 1), C.x, 0.258, C.z, null, [0.93, 0.86, 0.72]);
+    put('matte', new THREE.CylinderGeometry(0.022, 0.026, 0.013, 10, 1), C.x, 0.373, C.z, null, [0.86, 0.78, 0.64]);
+    put('dark', new THREE.CylinderGeometry(0.0038, 0.0038, 0.022, 6, 1), C.x, 0.388, C.z);
+    this.flame = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: TX.makeFlameTex(), color: 0xFFE2B0, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
+    }));
+    this.flame.scale.set(0.055, 0.125, 1);
+    this.flame.position.set(C.x, 0.435, C.z);
+    group.add(this.flame);
+    this.candleGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: TX.makeGlowTex(), color: 0xFFA860, transparent: true, opacity: 0.30,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
+    }));
+    this.candleGlow.scale.set(0.70, 0.70, 1);
+    this.candleGlow.position.set(C.x, 0.41, C.z);
+    group.add(this.candleGlow);
+    this.candleLight = new THREE.PointLight(0xFF9A50, 1.35, 2.8, 2);
+    this.candleLight.position.set(C.x, 0.46, C.z);
+    this.scene.add(this.candleLight);
+    this.propAnchors.candle = this._anchor(C.x, 0.36, C.z);
+
+    /* ---------- 左后：立式黄铜相框（照片 = 夜色散景） ---------- */
+    const F = P.photo;
+    put('brass', new THREE.BoxGeometry(0.345, 0.405, 0.014), F.x, 0.215, F.z, [-0.15, F.rot, 0]);
+    put('brass', new THREE.BoxGeometry(0.335, 0.030, 0.055), F.x, 0.020, F.z + 0.014, [0, F.rot, 0]);
+    put('brass', new THREE.BoxGeometry(0.026, 0.285, 0.012), F.x, 0.175, F.z - 0.045, [0.30, F.rot, 0]);
+    printPlane(0.278, 0.332, 4, F.x + Math.sin(F.rot) * 0.016, 0.218, F.z + Math.cos(F.rot) * 0.016, [-0.15, F.rot, 0]);
+    this.propAnchors.photo = this._anchor(F.x, 0.2, F.z);
+
+    /* ---------- 左中：小音箱（平放，顶面网罩）+ 磁带 ---------- */
+    const SP = P.speaker;
+    put('dark', new THREE.BoxGeometry(0.255, 0.072, 0.175), SP.x, 0.046, SP.z, [0, SP.rot, 0]);
+    put('brass', new THREE.CylinderGeometry(0.017, 0.017, 0.016, 10, 1), SP.x, 0.036, SP.z + 0.10, [Math.PI / 2, 0, 0]);
+    put('brass', new THREE.CylinderGeometry(0.040, 0.040, 0.008, 12, 1), SP.x - 0.085, 0.008, SP.z, [0, SP.rot, 0]);
+    printPlane(0.225, 0.148, 6, SP.x, 0.083, SP.z, [-Math.PI / 2, SP.rot, 0]);
+    const CA = P.cassette;
+    put('dark', new THREE.BoxGeometry(0.335, 0.030, 0.215), CA.x, 0.021, CA.z, [0, CA.rot, 0]);
+    printPlane(0.31, 0.19, 5, CA.x, 0.037, CA.z, [-Math.PI / 2, CA.rot, 0]);
+    this.propAnchors.speaker = this._anchor(SP.x, 0.1, SP.z);
+
+    /* ---------- 左前：报纸（压在一角，右侧被咖啡杯压住） ---------- */
+    const NP = P.newspaper;
+    put('paper', new THREE.BoxGeometry(0.56, 0.006, 0.40), NP.x, 0.009, NP.z, [0, NP.rot, 0]);
+    printPlane(0.545, 0.385, 1, NP.x, 0.0125, NP.z, [-Math.PI / 2, NP.rot, 0]);
+
+    /* ---------- 左前：第二只小茶杯（两个人） ---------- */
+    if (this.cupGroup) {
+      const cup2 = this.cupGroup.clone();
+      cup2.position.set(P.cup2.x, 0.0045, P.cup2.z);
+      cup2.rotation.set(0, -0.85, 0);
+      cup2.scale.setScalar(P.cup2.s);
+      if (cup2.children[1]) cup2.children[1].material = this.teaMat;
+      this.world.add(cup2);
+      this.cup2 = cup2;
+    }
+
+    /* ---------- 中间：摊开的笔记本 + 钢笔 + 眼镜 ---------- */
+    const NB = P.notebook;
+    put('dark', new THREE.BoxGeometry(0.84, 0.018, 0.56), NB.x, 0.015, NB.z, [0, NB.rot, 0]);
+    put('paper', new THREE.BoxGeometry(0.80, 0.022, 0.53), NB.x, 0.033, NB.z, [0, NB.rot, 0]);
+    /* 中缝暗槽：让两页之间有一条书脊，而不是一块白板 */
+    put('dark', new THREE.BoxGeometry(0.026, 0.006, 0.50), NB.x, 0.0455, NB.z, [0, NB.rot, 0]);
+    const pageGeo1 = mapTile(new THREE.PlaneGeometry(0.355, 0.487), 7);
+    put('print', pageGeo1, NB.x - 0.195 * Math.cos(NB.rot), 0.0465, NB.z + 0.195 * Math.sin(NB.rot),
+      [-Math.PI / 2, NB.rot - 0.03, 0]);
+    const pageGeo2 = mapTile(new THREE.PlaneGeometry(0.355, 0.487), 7);
+    put('print', pageGeo2, NB.x + 0.195 * Math.cos(NB.rot), 0.0465, NB.z - 0.195 * Math.sin(NB.rot),
+      [-Math.PI / 2, NB.rot + 0.02, 0]);
+    /* 书签缎带（酒红，从书脊底下露出来） */
+    put('cloth', new THREE.BoxGeometry(0.022, 0.003, 0.16), NB.x + 0.01, 0.0485, NB.z + 0.32, [0, NB.rot + 0.12, 0]);
+    /* 钢笔：黄铜笔杆 + 深色笔尖，斜放在右页 */
+    const penAng = NB.rot - 0.62;
+    put('brass', new THREE.CylinderGeometry(0.0085, 0.0085, 0.21, 8, 1),
+      NB.x + 0.17, 0.056, NB.z + 0.02, [Math.PI / 2, penAng, 0]);
+    put('dark', new THREE.ConeGeometry(0.0095, 0.038, 8, 1),
+      NB.x + 0.17 + Math.sin(penAng) * 0.12, 0.056, NB.z + 0.02 + Math.cos(penAng) * 0.12,
+      [Math.PI / 2, penAng, 0]);
+    /* 眼镜：折起放在左页（黄铜细框；两片圆镜片 + 鼻梁 + 折起的镜腿） */
+    const gl = P.glasses;
+    const gx = NB.x - 0.20, gz = NB.z + 0.035;
+    for (const sx of [-1, 1]) {
+      put('brass', new THREE.TorusGeometry(0.045, 0.0042, 6, 14), gx + sx * 0.050, 0.056, gz, [-Math.PI / 2, NB.rot, 0]);
+      put('brass', new THREE.BoxGeometry(0.095, 0.005, 0.006), gx + sx * 0.078, 0.056, gz - 0.048, [0, NB.rot, 0]);
+    }
+    put('brass', new THREE.BoxGeometry(0.022, 0.0045, 0.006), gx, 0.056, gz + 0.004, [0, NB.rot, 0]);
+    this.propAnchors.glasses = this._anchor(gx, 0.06, gz);
+    this.propAnchors.notebook = this._anchor(NB.x, 0.05, NB.z);
+
+    /* ---------- 前中：散落车票/卡片 ---------- */
+    const T = P.tickets;
+    printPlane(0.20, 0.078, 2, T.x, 0.012, T.z, [-Math.PI / 2, T.rot, 0]);
+    printPlane(0.20, 0.078, 2, T.x + 0.13, 0.0125, T.z + 0.075, [-Math.PI / 2, T.rot + 0.42, 0]);
+    printPlane(0.20, 0.078, 2, T.x - 0.10, 0.0128, T.z + 0.10, [-Math.PI / 2, T.rot - 0.28, 0]);
+    const CD = P.cards;
+    printPlane(0.19, 0.074, 2, CD.x, 0.012, CD.z, [-Math.PI / 2, CD.rot, 0]);
+    printPlane(0.19, 0.074, 2, CD.x - 0.11, 0.0126, CD.z + 0.09, [-Math.PI / 2, CD.rot + 0.5, 0]);
+
+    /* ---------- 右前：钥匙（黄铜钥匙圈 + 两把钥匙） ---------- */
+    const K = P.keys;
+    put('brass', new THREE.TorusGeometry(0.052, 0.007, 6, 18), K.x, 0.016, K.z, [-Math.PI / 2, K.rot, 0]);
+    for (const s of [-1, 1]) {
+      const ang = K.rot + (s > 0 ? 0.34 : -0.42);
+      const bx = K.x + Math.sin(ang) * 0.075, bz = K.z + Math.cos(ang) * 0.075;
+      put('brass', new THREE.TorusGeometry(0.019, 0.0045, 5, 10), bx, 0.016, bz, [-Math.PI / 2, ang, 0]);
+      const sx = K.x + Math.sin(ang) * 0.125, sz = K.z + Math.cos(ang) * 0.125;
+      put('brass', new THREE.BoxGeometry(0.010, 0.007, 0.085), sx, 0.016, sz, [0, ang, 0]);
+      put('brass', new THREE.BoxGeometry(0.026, 0.008, 0.016), sx + Math.sin(ang) * 0.048, 0.016, sz + Math.cos(ang) * 0.048, [0, ang, 0]);
+      put('brass', new THREE.BoxGeometry(0.018, 0.008, 0.012), sx + Math.sin(ang) * 0.030, 0.016, sz + Math.cos(ang) * 0.030, [0, ang + 0.4, 0]);
+    }
+    this.propAnchors.keys = this._anchor(K.x, 0.05, K.z);
+
+    /* ---------- 右前：骰子托盘（空盘：真骰子仍在 DIE_HOME） ---------- */
+    const TR = P.tray;
+    put('matte', new THREE.CylinderGeometry(0.345, 0.325, 0.038, 30, 1), TR.x, 0.025, TR.z, null, [0.26, 0.17, 0.11]);
+    put('dark', new THREE.CylinderGeometry(0.300, 0.300, 0.012, 26, 1), TR.x, 0.046, TR.z);
+    put('brass', new THREE.TorusGeometry(0.318, 0.017, 8, 34), TR.x, 0.052, TR.z, [-Math.PI / 2, 0, 0]);
+    this.propAnchors.tray = this._anchor(TR.x, 0.05, TR.z);
+
+    /* ---------- 右前：折好的毛毯（三层 + 卷边，读作织物而不是盒子） ---------- */
+    const BL = P.blanket;
+    put('cloth', new THREE.BoxGeometry(0.84, 0.085, 0.60), BL.x, 0.050, BL.z, [0, BL.rot, 0]);
+    put('cloth', new THREE.BoxGeometry(0.76, 0.070, 0.53), BL.x + 0.035, 0.126, BL.z + 0.022, [0, BL.rot - 0.08, 0]);
+    put('cloth', new THREE.BoxGeometry(0.66, 0.055, 0.46), BL.x + 0.055, 0.188, BL.z + 0.04, [0, BL.rot - 0.15, 0]);
+    put('cloth', new THREE.CylinderGeometry(0.048, 0.048, 0.66, 10, 1), BL.x + 0.04, 0.23, BL.z + 0.20, [0, BL.rot - 0.1, Math.PI / 2]);
+    this.propAnchors.blanket = this._anchor(BL.x, 0.14, BL.z);
+
+    /* --- 合并成 mesh（7 个材质桶） --- */
+    const build = (bucket, mat, cast) => {
+      const parts = buckets[bucket];
+      if (!parts.length) return null;
+      const geo = mergePropGeoms(parts);
+      parts.forEach((p) => p.geo.dispose());
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = !!cast;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    this.propMatteMesh = build('matte', this.propMatteMat, true);
+    this.propPaperMesh = build('paper', this.propPaperMat, false);
+    this.propPrintMesh = build('print', this.propPrintMat, false);
+    this.propBrassMesh = build('brass', this._brassMat(), true);
+    this.propClothMesh = build('cloth', this.propClothMat, true);
+    this.propLeafMesh = build('leaf', this.propLeafMat, false);
+    this.propDarkMesh = build('dark', this.propDarkMat, false);
+  }
+
+  _anchor(x, y, z) {
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    this.propGroup.add(g);
+    return g;
+  }
+
+  /* ======================================================================
+   * V9.1 · 氛围动画挂点：咖啡蒸汽 / 烛焰 / 台灯光晕 / 舷窗光尘
+   *   reduced = 完全静态（不更新，只保留一次绘制）
+   * ====================================================================== */
+  _buildComfort() {
+    /* 咖啡蒸汽：3 个 sprite 循环上升（1 draw/sprite，high/medium 开） */
+    const cup = PROPS.cup;
+    const cupTop = 0.50;
+    this.steamBase = new THREE.Vector3(cup.x, cupTop, cup.z);
+    this.steam = [];
+    const steamTex = TX.makeSteamTex();
+    for (let i = 0; i < 3; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: steamTex, color: 0xFFF2DE, transparent: true, opacity: 0.1,
+        depthWrite: false, fog: false, toneMapped: false
+      }));
+      sp.scale.set(0.1, 0.16, 1);
+      sp.position.copy(this.steamBase);
+      sp.material.rotation = (i - 1) * 0.4;
+      this.scene.add(sp);
+      this.steam.push(sp);
+    }
+    /* 舷窗冷光尘（26 点，1 draw）：让空舱壁有飘浮粒子 */
+    const n = CABIN_FX.motes;
+    const pos = new Float32Array(n * 3);
+    const seed = [];
+    for (let i = 0; i < n; i++) {
+      pos[i * 3] = CABIN.window.x + (Math.random() - 0.5) * 2.6;
+      pos[i * 3 + 1] = 0.25 + Math.random() * 1.5;
+      pos[i * 3 + 2] = CABIN.window.z + 0.25 + Math.random() * 0.5;
+      seed.push(Math.random() * 6.28, 0.4 + Math.random() * 0.8);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.moteBase = pos.slice();
+    this.moteSeed = seed;
+    this.moteMat = new THREE.PointsMaterial({
+      size: 0.030, map: TX.makeDustTex(), color: 0xBFD8F6, transparent: true,
+      opacity: 0.42, depthWrite: false, blending: THREE.AdditiveBlending,
+      sizeAttenuation: true, fog: true, toneMapped: false
+    });
+    this.motes = new THREE.Points(geo, this.moteMat);
+    this.motes.frustumCulled = false;
+    this.scene.add(this.motes);
+    this._applyPropsQuality();
+  }
+
+  _applyPropsQuality() {
+    const tier = QUALITY[this.quality];
+    if (this.propGroup) this.propGroup.visible = !!tier.props;
+    if (this.steam) this.steam.forEach((s) => { s.visible = !!tier.steam; });
+    if (this.motes) this.motes.visible = !!tier.motes;
+    if (this.deskLight) this.deskLight.intensity = tier.props ? 2.2 : 0;
+    if (this.candleLight) this.candleLight.intensity = tier.props ? 1.2 : 0;
+    if (this.deskGlow) this.deskGlow.visible = !!tier.props;
+    if (this.candleGlow) this.candleGlow.visible = !!tier.props;
+    if (this.flame) this.flame.visible = !!tier.props;
+  }
+
+  /* 每帧氛围动画（reduced 不调用 → 静态画面） */
+  _updateAmbient(now, dt) {
+    const tier = QUALITY[this.quality];
+    /* 咖啡蒸汽：循环上升 + 淡入淡出 */
+    if (tier.steam && this.steam) {
+      const N = this.steam.length;
+      for (let i = 0; i < N; i++) {
+        const sp = this.steam[i];
+        const p = ((now * 0.00016 + i / N) % 1);
+        const rise = p * 0.62;
+        sp.position.set(
+          this.steamBase.x + Math.sin(p * 6.2 + i * 2.1) * (0.02 + p * 0.05),
+          this.steamBase.y + rise,
+          this.steamBase.z + Math.cos(p * 5.1 + i * 1.7) * (0.015 + p * 0.04)
+        );
+        const sc = 0.09 + p * 0.30;
+        sp.scale.set(sc, sc * 1.6, 1);
+        sp.material.opacity = Math.sin(p * Math.PI) * 0.13;
+        sp.material.rotation = (i - 1) * 0.4 + Math.sin(now * 0.0006 + i) * 0.12;
+      }
+    }
+    /* 烛焰：缩放/透明度抖动 + 点光轻微呼吸 */
+    if (tier.props && this.flame) {
+      const f1 = 0.5 + 0.5 * Math.sin(now * 0.0125);
+      const f2 = 0.5 + 0.5 * Math.sin(now * 0.021 + 1.7);
+      this.flame.scale.set(0.046 + f1 * 0.012, 0.105 + f2 * 0.028, 1);
+      this.flame.material.opacity = 0.82 + f1 * 0.16;
+      if (this.candleGlow) {
+        this.candleGlow.material.opacity = 0.24 + f2 * 0.10;
+        this.candleGlow.scale.set(0.58 + f1 * 0.08, 0.58 + f1 * 0.08, 1);
+      }
+      if (this.candleLight) this.candleLight.intensity = 1.05 + f1 * 0.35;
+    }
+    /* 铜台灯：灯罩自发光呼吸 + 光晕 + 点光 */
+    if (tier.props && this.deskShade) {
+      const b = 0.5 + 0.5 * Math.sin(now * 0.0013 + 0.6);
+      this.lampShadeMat.emissiveIntensity = 0.34 + b * 0.14;
+      if (this.deskGlow) this.deskGlow.material.opacity = 0.32 + b * 0.10;
+      if (this.deskLight) this.deskLight.intensity = 2.0 + b * 0.45;
+    }
+    /* 阅读灯呼吸（在 applyHeat 的基准亮度上做 ±3% + 极轻闪烁） */
+    if (this.lamp && this._lampBase) {
+      const br = 0.5 + 0.5 * Math.sin(now * 0.0009);
+      const fl = Math.sin(now * 0.031) > 0.988 ? 0.94 : 1;
+      this.lamp.intensity = this._lampBase * (0.965 + br * 0.045) * fl;
+    }
+    /* 窗帘轻摆（顶部为轴） */
+    if (this.curtains) {
+      for (let i = 0; i < this.curtains.length; i++) {
+        const c = this.curtains[i];
+        const s = i === 0 ? 1 : -1;
+        c.rotation.z = Math.sin(now * 0.00055 + i * 1.9) * 0.012 * s;
+        c.rotation.x = Math.sin(now * 0.00041 + i * 0.7) * 0.006;
+      }
+    }
+    /* 舷窗光缓慢变化（贴图不动，只改颜色/光晕 → 0 重绘） */
+    if (this.windowMat) {
+      const k = 0.5 + 0.5 * Math.sin(now * 0.00021);
+      this.windowMat.color.setRGB(0.90 + k * 0.06, 0.93 + k * 0.04, 1.0);
+      if (this.winGlow) this.winGlow.material.opacity = 0.18 + k * 0.07;
+    }
+    /* 舷窗光尘缓慢上浮 */
+    if (tier.motes && this.motes) {
+      const attr = this.motes.geometry.getAttribute('position');
+      const base = this.moteBase, sd = this.moteSeed;
+      const n = Math.min(CABIN_FX.motes, attr.count);
+      for (let i = 0; i < n; i++) {
+        const ph = sd[i * 2], sp = sd[i * 2 + 1];
+        attr.setX(i, base[i * 3] + Math.sin(now * 0.00022 * sp + ph) * 0.18);
+        attr.setY(i, base[i * 3 + 1] + Math.sin(now * 0.00035 * sp + ph * 1.3) * 0.10);
+        attr.setZ(i, base[i * 3 + 2] + Math.cos(now * 0.00026 * sp + ph) * 0.10);
+      }
+      attr.needsUpdate = true;
+    }
+  }
+
   _buildBoard() {
     const t = themeOf(this.theme);
     const atlas = TX.buildAtlas();
@@ -848,6 +1404,7 @@ export class BoardScene {
       }
     }
     this._applyDustQuality();
+    this._applyPropsQuality();
     if (this.fxMat) {
       this.fxMat.uniforms.uGrain.value = tier.grain ? 0.055 : 0.0;
       this.fxMat.uniforms.uVig.value = tier.glow ? 0.58 : 0.42;
@@ -994,6 +1551,7 @@ export class BoardScene {
 
     if (!this.reduced) {
       this._updateDust(now);
+      this._updateAmbient(now, dt);
       if (this.bear.group.visible) {
         this.bear.group.position.y = TILE_H + Math.sin(now * 0.0032) * 0.012;
         this.bear.group.rotation.z = Math.sin(now * 0.0016) * 0.03;
@@ -1113,11 +1671,14 @@ export class BoardScene {
       this._wallTex[t.id] = TX.buildWallTexture(t.wallTint, 512);
       this._overlayTex[t.id] = TX.buildMatOverlay(t.overlay, FELT, 512);
       this._hubTex[t.id] = TX.buildHubTop(t.hub, 256);
-      this._tex.push(this._winTex[t.id], this._wallTex[t.id], this._overlayTex[t.id], this._hubTex[t.id]);
+      this._floorTex = this._floorTex || {};
+      this._floorTex[t.id] = TX.buildFloorTexture(t.floor);
+      this._tex.push(this._winTex[t.id], this._wallTex[t.id], this._overlayTex[t.id], this._hubTex[t.id], this._floorTex[t.id]);
     }
     return {
       win: this._winTex[t.id], wall: this._wallTex[t.id],
-      overlay: this._overlayTex[t.id], hub: this._hubTex[t.id]
+      overlay: this._overlayTex[t.id], hub: this._hubTex[t.id],
+      floor: this._floorTex[t.id]
     };
   }
 
@@ -1188,8 +1749,37 @@ export class BoardScene {
     }
     if (this.glassMat) this.glassMat.color.set(t.light.rim);
     if (this.shadeMat) this.shadeMat.color.set(t.feltTint).multiplyScalar(0.42);
-    if (this.floorMat) this.floorMat.color.set(t.floor);
+    if (this.floorMat) {
+      if (assets.floor) {
+        this.floorMat.map = assets.floor;
+        this.floorMat.color.set(0xFFFFFF);
+        this.floorMat.needsUpdate = true;
+      } else {
+        this.floorMat.color.set(t.floor);
+      }
+    }
     if (this.bulbMat) this.bulbMat.color.set(t.light.lamp);
+
+    /* V9.1 机舱细节 / 桌面小物按主题染色（贴图是中性程序化纹理） */
+    if (this.binMat) this.binMat.color.set(t.wallTint).multiplyScalar(0.60);
+    if (this.stripMat) this.stripMat.color.set(t.light.lamp);
+    if (this.binGlow) this.binGlow.material.color.set(t.light.lamp);
+    if (this.curtainMat) this.curtainMat.color.set(t.feltTint).multiplyScalar(1.25).lerp(new THREE.Color(0xE2D2B6), 0.25);
+    if (this.binLatch && this._brassMaterial) this.binLatch.material = this._brassMaterial;
+    if (this.propClothMat) this.propClothMat.color.set(t.bear.scarf).multiplyScalar(0.72);
+    if (this.deskPool) this.deskPool.material.color.set(t.light.lamp);
+    if (this.lampShadeMat) {
+      this.lampShadeMat.color.set(t.light.lamp).multiplyScalar(0.62);
+      this.lampShadeMat.emissive.set(t.light.lamp);
+    }
+    if (this.deskLight) this.deskLight.color.set(t.light.lamp);
+    if (this.deskGlow) this.deskGlow.material.color.set(t.light.lamp);
+    if (this.candleLight) this.candleLight.color.set(t.light.lamp);
+    if (this.candleGlow) this.candleGlow.material.color.set(t.light.lamp);
+    if (this.flame) this.flame.material.color.set(t.light.lamp).lerp(new THREE.Color(0xFFF2D8), 0.55);
+    if (this.moteMat) this.moteMat.color.set(t.light.rim);
+    if (this.propLeafMat) this.propLeafMat.color.set(t.id === 'paper' ? 0x5C6B4A : t.id === 'star' ? 0x4A5E62 : 0x4E6B62);
+    if (this.steam) this.steam.forEach((s) => s.material.color.set(t.light.lamp).lerp(new THREE.Color(0xFFF4E6), 0.7));
     if (this.stageLight) this.stageLight.color.set(t.light.key);
     if (this.lampGlow) this.lampGlow.material.color.set(t.light.lamp);
     if (this.winGlow) this.winGlow.material.color.set(t.light.rim);
@@ -1221,6 +1811,8 @@ export class BoardScene {
     const col = new THREE.Color(t.heatCool).lerp(new THREE.Color(t.heatWarm), k);
     this.lamp.color.copy(col);
     this.lamp.intensity = t.light.lampInt * (0.85 + k * 0.5);
+    /* V9.1：呼吸动画以此为基准，避免每帧累积漂移 */
+    this._lampBase = this.lamp.intensity;
     /* 黄铜在高热度下更暖一点（灯光本体颜色已经在变，这里只轻微染 hub） */
     if (this.hubGlow) this.hubGlow.material.color.copy(new THREE.Color(t.hub.glow).lerp(col, k * 0.6));
     if (this.stageGlow) this.stageGlow.material.color.copy(new THREE.Color(t.heatWarm));

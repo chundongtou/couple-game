@@ -269,7 +269,7 @@ ul,ol{margin:0;padding:0;list-style:none}
 body[data-screen="pause"] #toasts{top:auto;bottom:calc(88px + var(--safe-b));flex-direction:column-reverse}
 
 /* 主桌：不改 table.js，只用更高特异性覆盖圆角 / 硬编码紫底 */
-.v6-table .v6-icon-btn{min-width:42px;min-height:42px;border-radius:8px;font-size:11.5px;letter-spacing:.1em}
+.v6-table .v6-icon-btn{min-width:44px;min-height:44px;border-radius:8px;font-size:11.5px;letter-spacing:.1em}
 .v6-table .v6-turns{padding:4px;border-radius:10px}
 .v6-table .v6-turn{padding:6px 9px;border-radius:7px}
 .v6-table .v6-turn.on{background:rgba(176,138,87,.12);box-shadow:inset 0 0 0 1px rgba(176,138,87,.3)}

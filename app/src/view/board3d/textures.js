@@ -89,6 +89,7 @@ export function heightToNormal(src, strength = 2) {
 /* 共享贴图缓存（多架飞机 / 多个阴影共用一个纹理） */
 let _shadowTex = null, _glowTex = null, _streakTex = null, _paper = null;
 let _dustTex = null;
+let _steamTex = null, _flameTex = null;
 
 /* ------------------------------- 图标（雕刻线性） -------------------------------
  * 用 100×100 归一化坐标画线稿图标；atlas / 舞台 / 机坪共用。
@@ -715,6 +716,44 @@ export function buildWindowView(w) {
   g.moveTo(mx - mr * 1.2, my); g.lineTo(mx + mr * 1.2, my);
   g.lineTo(mx + mr * 5, SZ * 0.9); g.lineTo(mx - mr * 5, SZ * 0.9);
   g.closePath(); g.fill();
+  /* V9.1：远处地面灯火（云缝里的一串暖点）+ 机翼剪影 + 翼尖信标
+   * 只加在窗外景观里，0 draw；让「夜航」有尺度参照。 */
+  g.save();
+  for (let i = 0; i < 26; i++) {
+    const x = SZ * (0.03 + rnd() * 0.94);
+    const y = SZ * (0.745 + rnd() * 0.055);
+    const a = 0.18 + rnd() * 0.5;
+    const rr = rnd() > 0.85 ? 2.4 : 1.3;
+    const lg = g.createRadialGradient(x, y, 0, x, y, rr * 3.2);
+    lg.addColorStop(0, `rgba(255,216,160,${a})`);
+    lg.addColorStop(0.4, `rgba(255,190,120,${a * 0.32})`);
+    lg.addColorStop(1, 'rgba(255,190,120,0)');
+    g.fillStyle = lg;
+    g.beginPath(); g.arc(x, y, rr * 3.2, 0, TAU); g.fill();
+    g.fillStyle = `rgba(255,238,206,${Math.min(0.9, a + 0.15)})`;
+    g.beginPath(); g.arc(x, y, rr * 0.55, 0, TAU); g.fill();
+  }
+  /* 机翼：从右下角伸向画面中心的一道暗剪影（月/云被它切开，读作舷窗外机翼） */
+  g.beginPath();
+  g.moveTo(SZ * 1.02, SZ * 0.86);
+  g.lineTo(SZ * 0.30, SZ * 0.72);
+  g.lineTo(SZ * 0.34, SZ * 0.685);
+  g.lineTo(SZ * 1.02, SZ * 0.79);
+  g.closePath();
+  g.fillStyle = 'rgba(6,9,13,.86)';
+  g.fill();
+  g.strokeStyle = 'rgba(150,180,210,.22)';
+  g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(SZ * 0.30, SZ * 0.72); g.lineTo(SZ * 1.0, SZ * 0.86); g.stroke();
+  /* 翼尖红色防撞灯（静态一点暖红） */
+  const beacon = g.createRadialGradient(SZ * 0.33, SZ * 0.706, 0, SZ * 0.33, SZ * 0.706, SZ * 0.035);
+  beacon.addColorStop(0, 'rgba(255,120,90,.95)');
+  beacon.addColorStop(0.35, 'rgba(255,80,60,.40)');
+  beacon.addColorStop(1, 'rgba(255,80,60,0)');
+  g.fillStyle = beacon;
+  g.beginPath(); g.arc(SZ * 0.33, SZ * 0.706, SZ * 0.035, 0, TAU); g.fill();
+  g.restore();
+
   /* 玻璃反光 + 窗框压暗 */
   const glass = g.createLinearGradient(0, 0, SZ, SZ);
   glass.addColorStop(0, 'rgba(255,255,255,.10)');
@@ -737,13 +776,23 @@ export function buildWallTexture(tint, size = 512) {
   const rnd = rng(31337);
   g.fillStyle = mixCss(0x1A222A, tint, 0.55);
   g.fillRect(0, 0, SZ, SZ);
-  /* 竖向舱板缝（每 128px = 1 个面板，平铺无缝） */
+  /* 竖向舱板缝（每 128px = 1 个面板，平铺无缝）+ V9.1 铆钉 */
   for (let i = 0; i < 4; i++) {
     const x = i * 128;
     g.fillStyle = 'rgba(0,0,0,.34)';
     g.fillRect(x, 0, 3, SZ);
     g.fillStyle = 'rgba(255,238,208,.075)';
     g.fillRect(x + 3, 0, 1.5, SZ);
+    /* 铆钉：板缝两侧一列小圆点（暗边 + 左上高光） */
+    for (let k = 0; k < 8; k++) {
+      const ry = 18 + k * 64;
+      for (const rx of [x - 9, x + 12]) {
+        g.fillStyle = 'rgba(8,10,12,.42)';
+        g.beginPath(); g.arc(rx, ry, 2.6, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,238,210,.20)';
+        g.beginPath(); g.arc(rx - 0.7, ry - 0.8, 1.35, 0, TAU); g.fill();
+      }
+    }
   }
   /* 横向黄铜压条（平铺在 y=96 / 320） */
   for (const y of [96, 320]) {
@@ -753,7 +802,21 @@ export function buildWallTexture(tint, size = 512) {
     gr.addColorStop(1, 'rgba(20,14,8,.35)');
     g.fillStyle = gr;
     g.fillRect(0, y, SZ, 6);
+    /* 压条下方一排小铆钉，读作结构性舱壁 */
+    for (let k = 0; k < 16; k++) {
+      const rx = 8 + k * 32;
+      g.fillStyle = 'rgba(10,8,6,.30)';
+      g.beginPath(); g.arc(rx, y + 10, 1.9, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(240,214,170,.16)';
+      g.beginPath(); g.arc(rx - 0.5, y + 9.4, 0.9, 0, TAU); g.fill();
+    }
   }
+  /* 底部踢脚线（壁板下沿的一道暗带） */
+  const kick = g.createLinearGradient(0, SZ - 26, 0, SZ);
+  kick.addColorStop(0, 'rgba(4,6,9,0)');
+  kick.addColorStop(1, 'rgba(4,6,9,.55)');
+  g.fillStyle = kick;
+  g.fillRect(0, SZ - 26, SZ, 26);
   /* 皮革/织物暗纹 */
   for (let i = 0; i < 2600; i++) {
     g.globalAlpha = 0.025 + rnd() * 0.05;
@@ -779,6 +842,13 @@ export function buildFloorTexture(tint) {
   const rnd = rng(4242);
   g.fillStyle = mixCss(0x0A0C0F, tint, 0.35);
   g.fillRect(0, 0, SZ, SZ);
+  /* V9.1：机舱地毯织纹（细密斜织 + 短绒噪点，读作地毯而不是纯色地板） */
+  g.lineWidth = 1;
+  for (let i = -SZ; i < SZ * 2; i += 7) {
+    g.strokeStyle = i % 14 === 0 ? 'rgba(255,236,208,.030)' : 'rgba(0,0,0,.10)';
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i + SZ, SZ); g.stroke();
+    g.beginPath(); g.moveTo(i, SZ); g.lineTo(i + SZ, 0); g.stroke();
+  }
   for (let i = 0; i < 1400; i++) {
     g.globalAlpha = 0.03 + rnd() * 0.06;
     g.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.7)' : 'rgba(0,0,0,.9)';
@@ -887,6 +957,62 @@ export function buildMatOverlay(t, dims, size = 512) {
   g.lineWidth = 2.0;
   g.beginPath(); g.arc(0, 0, px(3.92), 0, TAU); g.stroke();
   g.restore();
+
+  /* 4b) V9.1 地毯式织边 + 四角纹样：让棋盘四周的大片绒布不再空白
+   *     （纯叠层绘制，0 draw；只画在棋盘圆盘之外、垫布边缘之内） */
+  g.save();
+  g.translate(SZ / 2, SZ / 2);
+  g.scale(1, kW / kD);
+  /* 织边：两圈断续的「手缝线」+ 一圈极淡的实线 */
+  g.setLineDash([7, 6]);
+  g.strokeStyle = 'rgba(224,190,140,.20)';
+  g.lineWidth = 2.2;
+  g.beginPath(); g.arc(0, 0, px(3.56), 0, TAU); g.stroke();
+  g.setLineDash([3, 7]);
+  g.strokeStyle = 'rgba(12,16,20,.30)';
+  g.lineWidth = 1.4;
+  g.beginPath(); g.arc(0, 0, px(3.72), 0, TAU); g.stroke();
+  g.setLineDash([]);
+  g.strokeStyle = 'rgba(232,200,150,.10)';
+  g.lineWidth = 1.2;
+  g.beginPath(); g.arc(0, 0, px(3.46), 0, TAU); g.stroke();
+  g.restore();
+  /* 四角黄铜小纹样（棋盘中心在叠层局部坐标 (0,-FELT.z)） */
+  const cz = -0.6;
+  const corners = [[3.36, cz - 3.28], [-3.36, cz - 3.28], [3.36, cz + 3.28], [-3.36, cz + 3.28]];
+  for (const [mx, mz] of corners) {
+    const cxp = SZ / 2 + (mx / kW) * SZ, cyp = SZ / 2 + (mz / kD) * SZ;
+    const R = px(0.30);
+    g.save();
+    g.translate(cxp, cyp);
+    g.strokeStyle = 'rgba(230,196,146,.22)';
+    g.lineWidth = 1.6;
+    g.beginPath(); g.arc(0, 0, R, 0, TAU); g.stroke();
+    g.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * TAU + 0.4;
+      g.moveTo(Math.cos(a) * R * 0.25, Math.sin(a) * R * 0.25);
+      g.lineTo(Math.cos(a) * R * 1.22, Math.sin(a) * R * 1.22);
+    }
+    g.stroke();
+    g.strokeStyle = 'rgba(16,20,24,.26)';
+    g.lineWidth = 1.2;
+    g.beginPath(); g.arc(0.8, 1.1, R * 0.86, 0, TAU); g.stroke();
+    g.fillStyle = 'rgba(236,204,156,.26)';
+    g.beginPath(); g.arc(0, 0, 2.6, 0, TAU); g.fill();
+    g.restore();
+  }
+  /* 四角内侧一小段「磨损/翻毛」光照斑（真实绒布会有方向性亮带） */
+  for (let i = 0; i < 4; i++) {
+    const a = -0.7 + i * (Math.PI / 2);
+    const mx = Math.cos(a) * 3.1, mz = cz + Math.sin(a) * 3.1;
+    const cxp = SZ / 2 + (mx / kW) * SZ, cyp = SZ / 2 + (mz / kD) * SZ;
+    const bl = g.createRadialGradient(cxp, cyp, 0, cxp, cyp, px(1.1));
+    bl.addColorStop(0, 'rgba(255,236,206,.045)');
+    bl.addColorStop(1, 'rgba(255,236,206,0)');
+    g.fillStyle = bl;
+    g.beginPath(); g.arc(cxp, cyp, px(1.1), 0, TAU); g.fill();
+  }
 
   /* 5) 斜向柔光（阅读灯扫过绒面） */
   const sh = g.createLinearGradient(SZ * 0.05, 0, SZ * 0.9, SZ);
@@ -1086,4 +1212,253 @@ export function buildEnvironmentScene() {
   /* 顶部极暗的舱顶反光 */
   add(new THREE.PlaneGeometry(10, 10), 0x2A3038, 0, 6.6, 0, Math.PI / 2);
   return s;
+}
+
+/* ==========================================================================
+ * V9.1 · 生活感小物贴图（全部程序化，无外链）
+ *   buildPropAtlas：4×2 小图集（杂志/报纸/车票/明信片/照片/磁带/音箱网/横线纸）
+ *   buildCurtainTexture：窗帘竖向褶皱
+ *   makeSteamTex / makeFlameTex：咖啡蒸汽 / 烛焰
+ * ========================================================================== */
+export function buildCurtainTexture(size = 128) {
+  const W = size, H = size * 2;
+  const { c, g } = canvas2d(W, H);
+  const rnd = rng(9021);
+  g.fillStyle = '#6E6257';
+  g.fillRect(0, 0, W, H);
+  /* 竖向褶皱：正弦明暗带（顶部褶密、底部垂坠散开） */
+  for (let x = 0; x < W; x++) {
+    const k = x / W;
+    const fold = Math.sin(k * Math.PI * 9 + Math.sin(k * 5.1) * 0.6);
+    const shade = 0.5 + fold * 0.28;
+    const v = Math.round(70 + shade * 90);
+    g.fillStyle = `rgb(${v + 14},${v + 4},${v - 10})`;
+    g.fillRect(x, 0, 1, H);
+  }
+  /* 顶部褶皱压暗 + 底部落在桌面上的阴影 */
+  const top = g.createLinearGradient(0, 0, 0, H * 0.16);
+  top.addColorStop(0, 'rgba(10,8,6,.55)');
+  top.addColorStop(1, 'rgba(10,8,6,0)');
+  g.fillStyle = top;
+  g.fillRect(0, 0, W, H * 0.16);
+  const bot = g.createLinearGradient(0, H * 0.72, 0, H);
+  bot.addColorStop(0, 'rgba(8,6,4,0)');
+  bot.addColorStop(1, 'rgba(8,6,4,.45)');
+  g.fillStyle = bot;
+  g.fillRect(0, H * 0.72, W, H * 0.28);
+  /* 织物噪点 */
+  for (let i = 0; i < 900; i++) {
+    g.globalAlpha = 0.02 + rnd() * 0.05;
+    g.fillStyle = rnd() > 0.5 ? 'rgba(255,244,224,.9)' : 'rgba(0,0,0,.8)';
+    g.fillRect(rnd() * W, rnd() * H, 1, 1 + rnd() * 2);
+  }
+  g.globalAlpha = 1;
+  return texFromCanvas(c, { aniso: 4 });
+}
+
+export function buildPropAtlas(size = 128) {
+  const S = size;
+  const { c, g } = canvas2d(S * 4, S * 2);
+  const rnd = rng(778899);
+  const at = (i) => { g.save(); g.translate((i % 4) * S, Math.floor(i / 4) * S); };
+  const end = () => { g.restore(); };
+  const grain = (n, a) => {
+    for (let k = 0; k < n; k++) {
+      g.globalAlpha = a * (0.3 + rnd() * 0.7);
+      g.fillStyle = rnd() > 0.5 ? 'rgba(255,255,255,.9)' : 'rgba(0,0,0,.8)';
+      g.fillRect(rnd() * S, rnd() * S, 1, 1 + rnd() * 2);
+    }
+    g.globalAlpha = 1;
+  };
+
+  /* 0) 杂志封面：暗底 + 大标题条 + 图片块 + 黄铜细线 */
+  at(0);
+  let gr = g.createLinearGradient(0, 0, S, S);
+  gr.addColorStop(0, '#232B3A'); gr.addColorStop(0.55, '#1A1F2A'); gr.addColorStop(1, '#3A2A22');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  g.fillStyle = '#F0E2C8'; g.fillRect(10, 12, S - 20, 5);      /* 刊名条 */
+  g.fillStyle = 'rgba(240,226,200,.72)'; g.fillRect(10, 21, S - 44, 2);
+  const ph = g.createLinearGradient(14, 34, S - 14, 92);
+  ph.addColorStop(0, '#6E93A6'); ph.addColorStop(0.55, '#C8A46C'); ph.addColorStop(1, '#3A2A22');
+  g.fillStyle = ph; g.fillRect(14, 34, S - 28, 58);
+  g.fillStyle = 'rgba(8,12,18,.55)'; g.beginPath();
+  g.moveTo(14, 92); g.lineTo(52, 58); g.lineTo(80, 92); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(250,242,226,.78)'; g.fillRect(14, 100, S - 46, 3);
+  g.fillStyle = 'rgba(232,222,200,.42)'; g.fillRect(14, 108, S - 64, 2); g.fillRect(14, 114, S - 74, 2);
+  g.strokeStyle = 'rgba(214,178,120,.50)'; g.lineWidth = 1.2;
+  g.strokeRect(6.5, 6.5, S - 13, S - 13);
+  grain(160, 0.05);
+  end();
+
+  /* 1) 报纸：象牙纸 + 报头 + 三栏小字 + 一张图 */
+  at(1);
+  g.fillStyle = '#E7DCC6'; g.fillRect(0, 0, S, S);
+  g.fillStyle = 'rgba(36,30,24,.86)'; g.fillRect(8, 8, S - 16, 6);
+  g.fillStyle = 'rgba(36,30,24,.30)'; g.fillRect(8, 17, S - 16, 1.6);
+  for (let col = 0; col < 3; col++) {
+    const x0 = 8 + col * ((S - 16) / 3);
+    const w = (S - 16) / 3 - 5;
+    for (let k = 0; k < (col === 1 ? 14 : 20); k++) {
+      const y = 24 + k * 4.4;
+      if (y > S - 14) break;
+      g.fillStyle = 'rgba(50,44,36,.36)';
+      g.fillRect(x0, y, w * (0.55 + rnd() * 0.45), 1.5);
+    }
+  }
+  g.fillStyle = 'rgba(60,64,66,.80)'; g.fillRect(8, S - 34, S - 16, 22);
+  g.fillStyle = 'rgba(228,214,190,.55)'; g.fillRect(10, S - 32, S - 20, 2);
+  grain(120, 0.04);
+  end();
+
+  /* 2) 车票/入场券：米色 + 左侧色条 + 虚线撕口 + 条形码 */
+  at(2);
+  g.fillStyle = '#EBDCC0'; g.fillRect(0, 0, S, S);
+  g.fillStyle = '#7A2E36'; g.fillRect(0, 0, 22, S);
+  g.fillStyle = 'rgba(30,20,16,.82)'; g.fillRect(32, 22, S - 44, 4);
+  g.fillStyle = 'rgba(46,36,28,.42)'; g.fillRect(32, 32, S - 56, 2.4);
+  g.fillRect(32, 40, S - 66, 2.4);
+  g.strokeStyle = 'rgba(60,46,36,.55)'; g.lineWidth = 1.4; g.setLineDash([4, 4]);
+  g.beginPath(); g.moveTo(S - 30, 8); g.lineTo(S - 30, S - 8); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = 'rgba(30,22,18,.86)';
+  for (let k = 0; k < 12; k++) g.fillRect(S - 22 + (k % 6) * 2.4, 18 + Math.floor(k / 6) * 26, 1.2, 22);
+  g.fillStyle = '#7A2E36'; g.fillRect(32, S - 34, S - 74, 3);
+  g.fillStyle = 'rgba(40,30,24,.55)'; g.beginPath(); g.arc(S - 30, S * 0.52, 4, 0, TAU); g.fill();
+  grain(90, 0.04);
+  end();
+
+  /* 3) 明信片：黄昏云海 + 纸飞机剪影 + 邮票 + 地址线 */
+  at(3);
+  gr = g.createLinearGradient(0, 0, 0, S);
+  gr.addColorStop(0, '#2B4763'); gr.addColorStop(0.5, '#B07A4E'); gr.addColorStop(0.78, '#E8C08A'); gr.addColorStop(1, '#7A4A2C');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  g.fillStyle = 'rgba(255,236,208,.34)';
+  for (let k = 0; k < 5; k++) {
+    const yy = S * (0.62 + k * 0.06);
+    g.beginPath(); g.ellipse(S * (0.2 + rnd() * 0.6), yy, S * (0.16 + rnd() * 0.14), S * 0.035, 0, 0, TAU); g.fill();
+  }
+  g.fillStyle = 'rgba(18,22,26,.88)';
+  g.beginPath(); g.moveTo(28, 44); g.lineTo(72, 56); g.lineTo(40, 64); g.lineTo(36, 56); g.lineTo(28, 44); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(214,180,124,.75)'; g.lineWidth = 1.4;
+  g.strokeRect(S - 42, 10, 30, 34);
+  g.fillStyle = 'rgba(240,226,198,.85)'; g.fillRect(S - 39, 13, 24, 28);
+  g.fillStyle = 'rgba(36,30,24,.55)'; g.fillRect(10, S - 30, 46, 2); g.fillRect(10, S - 22, 38, 2); g.fillRect(10, S - 14, 42, 2);
+  g.strokeStyle = 'rgba(250,244,232,.55)'; g.lineWidth = 1.2;
+  g.strokeRect(3.5, 3.5, S - 7, S - 7);
+  grain(110, 0.05);
+  end();
+
+  /* 4) 相框照片：夜色散景 + 小纸飞机（不出现人物） */
+  at(4);
+  gr = g.createRadialGradient(S * 0.58, S * 0.44, 2, S * 0.5, S * 0.5, S * 0.85);
+  gr.addColorStop(0, '#C08A50'); gr.addColorStop(0.34, '#7A5334');
+  gr.addColorStop(0.66, '#3A3040'); gr.addColorStop(1, '#161C26');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  /* 一层暖光雾（照片被灯照着） */
+  const warm = g.createLinearGradient(0, S, S, 0);
+  warm.addColorStop(0, 'rgba(255,196,120,.30)');
+  warm.addColorStop(0.55, 'rgba(255,196,120,.06)');
+  warm.addColorStop(1, 'rgba(255,196,120,0)');
+  g.fillStyle = warm; g.fillRect(0, 0, S, S);
+  for (let k = 0; k < 30; k++) {
+    const x = rnd() * S, y = rnd() * S, rr = 2 + rnd() * 9;
+    const bg = g.createRadialGradient(x, y, 0, x, y, rr);
+    bg.addColorStop(0, 'rgba(255,214,150,.85)');
+    bg.addColorStop(0.45, 'rgba(255,186,110,.30)');
+    bg.addColorStop(1, 'rgba(255,170,90,0)');
+    g.fillStyle = bg; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
+  }
+  g.fillStyle = 'rgba(250,242,228,.94)';
+  g.beginPath(); g.moveTo(S * 0.42, S * 0.58); g.lineTo(S * 0.72, S * 0.44); g.lineTo(S * 0.56, S * 0.62); g.lineTo(S * 0.51, S * 0.58); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(255,248,232,.34)'; g.lineWidth = 3; g.strokeRect(4, 4, S - 8, S - 8);
+  grain(120, 0.04);
+  end();
+
+  /* 5) 磁带标签：深壳 + 双卷轴 + 标签条 + 小螺丝 */
+  at(5);
+  g.fillStyle = '#2A2724'; g.fillRect(0, 0, S, S);
+  g.fillStyle = '#171513'; g.fillRect(6, 6, S - 12, S - 12);
+  g.fillStyle = 'rgba(226,214,190,.92)'; g.fillRect(14, 30, S - 28, 50);
+  g.fillStyle = 'rgba(58,50,42,.8)'; g.fillRect(18, 34, S - 36, 4);
+  g.fillStyle = 'rgba(58,50,42,.55)'; g.fillRect(18, 43, S - 52, 2.4); g.fillRect(18, 49, S - 62, 2.4);
+  for (const rx of [S * 0.34, S * 0.66]) {
+    g.fillStyle = '#0E0D0C'; g.beginPath(); g.arc(rx, 16, 10, 0, TAU); g.fill();
+    g.fillStyle = '#5A5046'; g.beginPath(); g.arc(rx, 16, 5, 0, TAU); g.fill();
+    g.fillStyle = '#C9BDA8'; g.beginPath(); g.arc(rx, 16, 2, 0, TAU); g.fill();
+  }
+  g.fillStyle = '#8E8476'; g.fillRect(14, 88, S - 28, 24);
+  g.fillStyle = 'rgba(255,246,232,.30)'; g.fillRect(14, 88, S - 28, 2);
+  for (const [sx, sy] of [[10, 10], [S - 10, 10], [10, S - 10], [S - 10, S - 10]]) {
+    g.fillStyle = '#6E665A'; g.beginPath(); g.arc(sx, sy, 2.6, 0, TAU); g.fill();
+  }
+  grain(80, 0.05);
+  end();
+
+  /* 6) 小音箱网罩：靛黑织物 + 点阵网 + 黄铜环 */
+  at(6);
+  gr = g.createLinearGradient(0, 0, S, S);
+  gr.addColorStop(0, '#22262B'); gr.addColorStop(1, '#111418');
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  for (let y = 8; y < S - 8; y += 6) {
+    for (let x = 8 + ((y / 6) % 2) * 3; x < S - 8; x += 6) {
+      g.fillStyle = 'rgba(4,6,8,.75)'; g.beginPath(); g.arc(x, y, 1.8, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,240,214,.10)'; g.beginPath(); g.arc(x - 0.6, y - 0.7, 1, 0, TAU); g.fill();
+    }
+  }
+  g.strokeStyle = 'rgba(206,172,116,.82)'; g.lineWidth = 3;
+  g.beginPath(); g.arc(S * 0.5, S * 0.5, S * 0.32, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(20,16,12,.55)'; g.lineWidth = 1.4;
+  g.beginPath(); g.arc(S * 0.5, S * 0.5, S * 0.40, 0, TAU); g.stroke();
+  grain(90, 0.04);
+  end();
+
+  /* 7) 横线纸（笔记本内页）：象牙 + 淡蓝横线 + 红边 + 页脚 */
+  at(7);
+  g.fillStyle = '#EFE3CC'; g.fillRect(0, 0, S, S);
+  g.fillStyle = 'rgba(90,60,50,.95)'; g.fillRect(0, 0, S, 2);
+  for (let y = 20; y < S - 8; y += 9) {
+    g.fillStyle = 'rgba(78,112,140,.30)';
+    g.fillRect(12, y, S - 22, 1);
+  }
+  g.fillStyle = 'rgba(150,60,60,.38)'; g.fillRect(0, 10, 1.6, S - 10);
+  g.fillStyle = 'rgba(78,72,64,.42)'; g.fillRect(S * 0.55, S - 14, 12, 2);
+  grain(100, 0.03);
+  end();
+
+  return texFromCanvas(c, { aniso: 8 });
+}
+
+export function makeSteamTex() {
+  if (_steamTex) return _steamTex;
+  const S = 64;
+  const { c, g } = canvas2d(S, S);
+  const r = S / 2;
+  const gr = g.createRadialGradient(r, r, 0, r, r, r);
+  gr.addColorStop(0, 'rgba(255,246,232,.55)');
+  gr.addColorStop(0.45, 'rgba(255,238,216,.20)');
+  gr.addColorStop(1, 'rgba(255,238,216,0)');
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(r, r, r, 0, TAU); g.fill();
+  _steamTex = texFromCanvas(c);
+  return _steamTex;
+}
+
+export function makeFlameTex() {
+  if (_flameTex) return _flameTex;
+  const W = 32, H = 64;
+  const { c, g } = canvas2d(W, H);
+  const gr = g.createLinearGradient(0, H, 0, 0);
+  gr.addColorStop(0, 'rgba(255,150,60,.95)');
+  gr.addColorStop(0.45, 'rgba(255,206,120,.95)');
+  gr.addColorStop(0.8, 'rgba(255,246,214,.95)');
+  gr.addColorStop(1, 'rgba(255,246,214,0)');
+  g.fillStyle = gr;
+  g.beginPath();
+  g.moveTo(W * 0.5, 2);
+  g.bezierCurveTo(W * 0.86, H * 0.34, W * 0.82, H * 0.82, W * 0.5, H * 0.96);
+  g.bezierCurveTo(W * 0.18, H * 0.82, W * 0.14, H * 0.34, W * 0.5, 2);
+  g.closePath();
+  g.fill();
+  _flameTex = texFromCanvas(c);
+  return _flameTex;
 }
