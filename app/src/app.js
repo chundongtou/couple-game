@@ -1,7 +1,7 @@
 /* ===== 今晚飞行棋 V6.1 · 启动装配 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "9.0.0";
+  App.version = "9.0.1";
 
   function hashRoute() {
     var h = String(location.hash || "").replace(/^#\/?/, "");
@@ -61,6 +61,14 @@
     try { if (App.PWA && App.PWA.register) App.PWA.register(); } catch (e) {}
 
     try { App.Store.getSession(); } catch (e) {}
+    /* V9：3D chunk 在门厅先预热，进主桌时不用等 650KB 下载 */
+    setTimeout(function () {
+      try {
+        if (window.__BOARD3D_URL && window.fetch) {
+          fetch(window.__BOARD3D_URL, { cache: "force-cache" })["catch"](function () {});
+        }
+      } catch (e) {}
+    }, 900);
     var note = App.Store.takeLegacyNote && App.Store.takeLegacyNote();
     var route = hashRoute();
     if (route) App.Router.reset(route.name, route.params);
