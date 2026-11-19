@@ -1319,7 +1319,7 @@ export class BoardScene {
 
   _buildHand() {
     this._hand = makeHand();
-    if (this._hand.textures) this._tex.push(this._hand.textures[0], this._hand.textures[1]);
+    if (this._hand.textures) for (const tx of this._hand.textures) this._tex.push(tx);
     this.scene.add(this._hand.group);
   }
 

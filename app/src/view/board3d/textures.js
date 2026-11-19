@@ -137,6 +137,116 @@ export function buildLeatherTextures(size = 128) {
   };
 }
 
+/* V9.6 皮肤：程序化 albedo/normal/roughness（手掌图 + 手指图两套）
+ * 手掌图：肤色渐变/血色斑驳/毛孔/掌纹；手指图：圆柱 UV 两端加关节褶皱带（v 沿指节）。
+ * 皮肤 roughness 0.55–0.68；指甲单独材质。无外链。 */
+export function buildSkinTextures(size = 256) {
+  const SZ = size;
+  const make = (withBands) => {
+    const alb = canvas2d(SZ, SZ);
+    const g = alb.g;
+    const rnd = rng(withBands ? 2718 : 3141);
+    const gr = g.createLinearGradient(0, 0, SZ, SZ);
+    gr.addColorStop(0, '#D8B49E');
+    gr.addColorStop(0.45, '#C9A48D');
+    gr.addColorStop(1, '#B98F79');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, SZ, SZ);
+    /* 血色斑驳 */
+    for (let i = 0; i < 130; i++) {
+      const x = rnd() * SZ, y = rnd() * SZ, rr = 8 + rnd() * 30;
+      const rg = g.createRadialGradient(x, y, 0, x, y, rr);
+      const a = 0.006 + rnd() * 0.018;
+      rg.addColorStop(0, `rgba(190,120,100,${a})`);
+      rg.addColorStop(1, 'rgba(186,104,84,0)');
+      g.fillStyle = rg;
+      g.beginPath();
+      g.arc(x, y, rr, 0, TAU);
+      g.fill();
+    }
+    /* 细毛孔 */
+    for (let i = 0; i < 2200; i++) {
+      const x = rnd() * SZ, y = rnd() * SZ;
+      g.globalAlpha = 0.035 + rnd() * 0.07;
+      g.fillStyle = rnd() > 0.5 ? '#B87A60' : '#EDC3A4';
+      g.fillRect(x, y, 1 + rnd() * 1.3, 1 + rnd() * 1.3);
+    }
+    g.globalAlpha = 1;
+    /* 关节褶皱带：手指图在 v 两端各两条；掌图用掌纹位置 */
+    const bands = withBands ? [0.06, 0.12, 0.88, 0.94] : [0.30, 0.52, 0.74];
+    for (const v of bands) {
+      for (let k = 0; k < 2; k++) {
+        g.strokeStyle = `rgba(168,112,92,${0.08 + rnd() * 0.07})`;
+        g.lineWidth = 1.1 + rnd() * 1.2;
+        g.beginPath();
+        const yy = SZ * v + k * 2.2;
+        for (let x = 0; x <= SZ; x += 6) {
+          const y2 = yy + Math.sin((x / SZ) * TAU * 2 + v * 9 + k) * 1.6;
+          if (x === 0) g.moveTo(x, y2); else g.lineTo(x, y2);
+        }
+        g.stroke();
+      }
+    }
+    /* 掌纹：几条微弯长线（仅在掌图） */
+    if (!withBands) {
+      for (const [y0, amp] of [[0.36, 6], [0.52, 5], [0.68, 7]]) {
+        g.strokeStyle = 'rgba(140,84,66,0.16)';
+        g.lineWidth = 1.6;
+        g.beginPath();
+        for (let x = 0; x <= SZ; x += 6) {
+          const y = SZ * y0 + Math.sin((x / SZ) * TAU * 1.5 + y0 * 10) * amp;
+          if (x === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        g.stroke();
+      }
+    }
+    /* 高度图：毛孔 + 褶皱凹线 → 法线 */
+    const h = canvas2d(SZ, SZ);
+    const hg = h.g;
+    hg.fillStyle = '#808080';
+    hg.fillRect(0, 0, SZ, SZ);
+    for (let i = 0; i < 2600; i++) {
+      const x = rnd() * SZ, y = rnd() * SZ, rr = 0.5 + rnd() * 1.6;
+      hg.globalAlpha = 0.06 + rnd() * 0.14;
+      hg.fillStyle = rnd() > 0.5 ? '#666666' : '#999999';
+      hg.beginPath();
+      hg.arc(x, y, rr, 0, TAU);
+      hg.fill();
+    }
+    hg.globalAlpha = 1;
+    for (const v of bands) {
+      for (let k = 0; k < 2; k++) {
+        hg.strokeStyle = 'rgba(40,40,40,0.55)';
+        hg.lineWidth = 1.4 + rnd() * 1.2;
+        hg.beginPath();
+        const yy = SZ * v + k * 2.2;
+        for (let x = 0; x <= SZ; x += 6) {
+          const y2 = yy + Math.sin((x / SZ) * TAU * 2 + v * 9 + k) * 1.6;
+          if (x === 0) hg.moveTo(x, y2); else hg.lineTo(x, y2);
+        }
+        hg.stroke();
+      }
+    }
+    const normal = heightToNormal(h.c, 1.8);
+    /* 粗糙度：暗处更粗糙 */
+    const r = canvas2d(Math.round(SZ / 2), Math.round(SZ / 2));
+    r.g.drawImage(alb.c, 0, 0, r.c.width, r.c.height);
+    const rd = r.g.getImageData(0, 0, r.c.width, r.c.height);
+    for (let i = 0; i < rd.data.length; i += 4) {
+      const l = (rd.data[i] * 0.3 + rd.data[i + 1] * 0.59 + rd.data[i + 2] * 0.11) / 255;
+      const v = 140 + (1 - l) * 60;
+      rd.data[i] = rd.data[i + 1] = rd.data[i + 2] = v;
+    }
+    r.g.putImageData(rd, 0, 0);
+    return {
+      map: texFromCanvas(alb.c, { aniso: 4 }),
+      normal: texFromCanvas(normal, { srgb: false, aniso: 4 }),
+      rough: texFromCanvas(r.c, { srgb: false, aniso: 4 })
+    };
+  };
+  return { palm: make(false), finger: make(true) };
+}
+
 /* ------------------------------- 图标（雕刻线性） -------------------------------
  * 用 100×100 归一化坐标画线稿图标；atlas / 舞台 / 机坪共用。
  * mode='engrave'：先画深色偏移（凹槽阴影），再画浅色主体（受光边）。 */
