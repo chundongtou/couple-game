@@ -230,7 +230,7 @@
    * 所以先用 fetch 探一次，拿到正文后用动态 <script> 内联执行（同一份正文只下载一次，仍是懒加载）。
    * 跨域 URL / 没有 fetch 时才退回 <script src>。 */
   var BOARD3D_MODES = ["auto", "off", "on"];
-  var BOARD3D_DEFAULT = "off";       /* Beta：默认走 V7；待 prod3d 构图 + QA 后改回 "auto" */
+  var BOARD3D_DEFAULT = "auto";      /* V8：默认 auto（WebGL2 且非 reduced 进 3D；失败回 V7） */
   var board3dChunkP = null;          /* Promise<boolean>，模块级：整页只加载一次 */
 
   function board3dMode() {
@@ -256,7 +256,8 @@
   function board3dAllowed() {
     var mode = board3dMode();
     if (mode === "off") return false;
-    if (mode === "auto" && reduced()) return false;
+    /* reduced 不再禁用 3D：3D 自己走静态棋盘，只有镜头/速度线降级。
+       这样系统开了「减少动画」的用户也能看到 3D，而不是悄悄回 V7。 */
     return webgl2Available();
   }
 
@@ -755,6 +756,11 @@
         } catch (e) {}
         board3dSyncState();       /* mount 时的 state/view 可能已过一拍，这里再对齐一次 */
         render();
+        /* 让用户明确知道已进 3D（只在本次主桌首次激活时提示） */
+        if (!board3d.activatedOnce) {
+          board3d.activatedOnce = true;
+          if (board3dMode() !== "off") toast("3D 主桌已开启 · 飞机将固定在屏幕中心飞行");
+        }
       }
       function fallbackBoard3d(reason) {
         if (!alive) return null;
@@ -776,7 +782,12 @@
         applyTheme();
         syncReduced();
         render();
-        if (board3dMode() === "on") toast("这次没打开 3D 主桌，先用 V7。");
+        if (board3dMode() !== "off" && !board3d.fallbackNotified) {
+          board3d.fallbackNotified = true;
+          toast(board3d.reason === "no-webgl2"
+            ? "这台浏览器没开启 WebGL2，先用 2D 桌面；换 Chrome/Edge 可看 3D"
+            : "3D 主桌这次没起来，先用 2D 桌面");
+        }
         return null;
       }
       function startBoard3d() {
@@ -786,7 +797,12 @@
           board3d.reason = board3dMode() === "off" ? "off" : (reduced() ? "reduced" : "no-webgl2");
           setB3Status("v7", board3d.reason);
           mountV7ShowLayers();
-          if (board3dMode() === "on") toast("这台手机这次开不了 3D 主桌，先用 V7。");
+          if (board3dMode() !== "off" && !board3d.fallbackNotified) {
+            board3d.fallbackNotified = true;
+            toast(board3d.reason === "no-webgl2"
+              ? "这台浏览器没开启 WebGL2，先用 2D 桌面；换 Chrome/Edge 可看 3D"
+              : "3D 主桌这次没起来，先用 2D 桌面");
+          }
           return;
         }
         board3d.pending = true;
