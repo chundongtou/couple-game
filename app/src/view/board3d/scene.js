@@ -13,7 +13,8 @@
 import * as THREE from '../../../render/node_modules/three/build/three.module.js';
 import {
   DEG, RING_N, RING_R, CELL, TILE_H, TILE_BOTTOM, TILE_TOP, HOME_STEPS, HOME_R0,
-  HOME_PITCH, HOME_CELL, HANGAR_R, PLANE_HOVER, PLANE_Y, DIE_SIZE, STAGE_RISE, STAGE_AZIM,
+  HOME_PITCH, HOME_CELL, HANGAR_R, PLANE_HOVER, PLANE_Y, DIE_SIZE, DIE_FLOOR, DIE_HOME_POS,
+  STAGE_RISE, STAGE_AZIM,
   STAGE_PLATE, STAGE_BEAR, STAGE_TEXT, HUB, TABLE, FELT, CABIN, MAT, CINE, QUALITY,
   COLORS, HOME_ENTRY, APRON_DEG, HEX, DIE_FACES, THEMES, themeOf, KIND_LABEL,
   colorOfRing, kindOf, ringPhi, slotOf, uvOfSlot, SLOT_DARK, SLOT_HOME, SLOT_HANGAR,
@@ -22,16 +23,30 @@ import {
 import * as TX from './textures.js';
 import {
   buildTileGeometry, makePlane, makeShadowPlane, makeGlowPlane, makeRippleMesh,
-  makeStreakGroup, makeDieGeometry, mergeGeoms, mergePropGeoms
+  makeStreakGroup, makeDieGeometry, makeHand, mergeGeoms, mergePropGeoms
 } from './parts.js';
 import { createBear } from './bear.js';
 import { CameraRig } from './camera.js';
 import { localOfSquare, localOfPieceSquare, pieceLocals } from './mapping.js';
 
 const DISC_R = 3.30;
-const DIE_HOME = new THREE.Vector3(1.62, DIE_SIZE / 2 + 0.004, 3.02);
-const DIE_TOSS_FROM = new THREE.Vector3(0.9, 2.7, 2.2);
+const DIE_HOME = new THREE.Vector3(DIE_HOME_POS.x, DIE_HOME_POS.y, DIE_HOME_POS.z);
+const RELEASE_DIE = new THREE.Vector3(0.49, 0.80, 0.34);   /* 出手瞬间骰子中心（调参自 shots/v9.3-dice/sim2.mjs） */
 const FOCUS_WORLD = new THREE.Vector3(0, PLANE_Y, 0);
+
+/* V9.3 摇骰时间线（毫秒；全部相对 tossDie 起点）：
+ * 手进入 260 → 下沉 80 → 合拢 110 → 托起 260 → 甩出 130（840ms 出手）→ 手退出 320
+ * 骰子物理：重力/桌面碰撞/摩擦/角速度阻尼/圆形边界；再留 320ms 落定翻面。 */
+const HAND = {
+  enterMs: 260, descendMs: 80, closeMs: 110, liftMs: 260, throwMs: 130, exitMs: 330,
+  releaseAt: 840,            // = enter+descend+close+lift+throw
+  total: 2380               // 出手后 1540ms：物理≈1220 + 落定 320（上限 2.38s ≤ 2.5s）
+};
+const PHYS = {
+  step: 1 / 240, g: 8.6, rest: [0.47, 0.42, 0.37], tan: [0.74, 0.70, 0.66],
+  airDrag: 0.18, spinDamp: 0.45, rollFriction: 2.7, boundR: 2.78,
+  maxActive: 1.54, settleMs: 320, restPad: 0.30, minEnd: 1.18
+};
 
 function detectQuality() {
   const nav = typeof navigator !== 'undefined' ? navigator : {};
@@ -64,6 +79,9 @@ export class BoardScene {
     this.anims = [];
     this.dimK = 1;
     this.dieValue = 1;
+    this._dieYaw = 0.22;
+    this._toss = null;
+    this._hand = null;
     this.stageRise = 0;
     this.stageId = null;
     this.viewport = { w: 0, h: 0 };
@@ -78,6 +96,7 @@ export class BoardScene {
     this._v2 = new THREE.Vector3();
     this._right = new THREE.Vector3();
     this._up = new THREE.Vector3();
+    this._upY = new THREE.Vector3(0, 1, 0);
     this._axis = new THREE.Vector3();
     this._q1 = new THREE.Quaternion();
     this._q2 = new THREE.Quaternion();
@@ -109,6 +128,7 @@ export class BoardScene {
     this._buildBoard();
     this._buildStage();
     this._buildDie();
+    this._buildHand();
     this._buildPlanesLayer();
     this._buildAtmosphere();
     this._buildProps();
@@ -1292,8 +1312,14 @@ export class BoardScene {
     this.die.receiveShadow = true;
     this.scene.add(this.die);
     this.dieShadow = makeShadowPlane(0.5, 0.55);
+    this.dieShadow.position.y = DIE_FLOOR + 0.004;   /* 阴影贴在圆盘面（0.038）上，不是桌面 */
     this.scene.add(this.dieShadow);
     this.placeDie(1);
+  }
+
+  _buildHand() {
+    this._hand = makeHand();
+    this.scene.add(this._hand.group);
   }
 
   _buildPlanesLayer() {
@@ -2201,52 +2227,386 @@ export class BoardScene {
     return n;
   }
 
-  dieSettleQuat(v) {
-    const target = new THREE.Vector3(0.34, 0.86, 0.38).normalize();
-    const q = new THREE.Quaternion().setFromUnitVectors(this.dieFaceNormal(v), target);
-    const spin = new THREE.Quaternion().setFromAxisAngle(target, 0.22);
-    return q.multiply(spin);
+  /* V9.3：平躺落定。面 v 的法向转到世界 +Y（顶面 = 引擎点数，正面读得清），
+   * 再绕 Y 加一点 yaw 避免像贴图；此时骰子重心高度就是半边长，不会半沉进棋盘。 */
+  dieSettleQuat(v, yaw) {
+    const q = new THREE.Quaternion().setFromUnitVectors(this.dieFaceNormal(v), this._upY);
+    const y = yaw === undefined ? this._dieYaw : yaw;
+    return new THREE.Quaternion().setFromAxisAngle(this._upY, y).multiply(q);
+  }
+
+  /* 四元数下骰子的最低点：世界 Y 方向支撑半高（立方体 = 半边长 × Σ|R_y 行|）。
+   * 用于落定翻面时保持「棱贴桌面」而不是穿进棋盘。 */
+  _dieExtent(q) {
+    const x = q.x, y = q.y, z = q.z, w = q.w;
+    return DIE_SIZE * 0.5 * (
+      Math.abs(2 * (x * y + w * z)) +
+      Math.abs(1 - 2 * (x * x + z * z)) +
+      Math.abs(2 * (y * z - w * x))
+    );
+  }
+
+  _dieShadowAt() {
+    const y = this.die.position.y;
+    const h = Math.max(0, y - DIE_HOME.y);
+    this.dieShadow.position.set(this.die.position.x, DIE_FLOOR + 0.004, this.die.position.z);
+    this.dieShadow.scale.setScalar(clamp(1.02 - h * 0.30, 0.55, 1.08));
+    this.dieShadow.material.opacity = clamp(0.52 - h * 0.20, 0.10, 0.52);
+  }
+
+  setDieVisible(flag) {
+    const on = !!flag;
+    this.die.visible = on;
+    this.dieShadow.visible = on;
+    this.requestRender();
   }
 
   placeDie(value) {
     const v = clamp(Number(value) || 1, 1, 6);
     this.dieValue = v;
+    this.die.visible = true;
+    this.dieShadow.visible = true;
     this.die.position.copy(DIE_HOME);
     this.die.quaternion.copy(this.dieSettleQuat(v));
-    this.dieShadow.position.set(DIE_HOME.x, 0.008, DIE_HOME.z);
-    this.dieShadow.scale.setScalar(1);
-    this.dieShadow.material.opacity = 0.5;
+    this._dieShadowAt();
+    if (!this._toss && this._hand) this._hand.group.visible = false;
     this.requestRender();
   }
 
-  tossDie(value, instant) {
+  dieDebug() {
+    const m = new THREE.Matrix4().makeRotationFromQuaternion(this.die.quaternion);
+    const e = m.elements;
+    const axes = [
+      [e[1], DIE_FACES[0]], [-e[1], DIE_FACES[1]],
+      [e[5], DIE_FACES[2]], [-e[5], DIE_FACES[3]],
+      [e[9], DIE_FACES[4]], [-e[9], DIE_FACES[5]]
+    ];
+    let top = axes[0];
+    for (let i = 1; i < axes.length; i++) if (axes[i][0] > top[0]) top = axes[i];
+    return {
+      value: this.dieValue,
+      top: top[1],
+      up: +top[0].toFixed(4),
+      pos: [+this.die.position.x.toFixed(4), +this.die.position.y.toFixed(4), +this.die.position.z.toFixed(4)],
+      atHome: +this.die.position.distanceTo(DIE_HOME).toFixed(4),
+      hand: !!(this._hand && this._hand.group.visible),
+      tossing: !!this._toss,
+      t: this._toss ? Math.round(this._toss.animT || 0) : null,
+      wall: this._toss ? Math.round(performance.now() - this._toss.startedAt) : null,
+      phase: this._toss ? this._toss.phase || '' : ''
+    };
+  }
+
+  /* ======================= V9.3 手 → 抛 → 弹跳 → 落中间 ======================= */
+  _handQuat(yaw, pitch, roll) {
+    return new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, roll, 'YXZ'));
+  }
+
+  /* 给定「骰子应在的世界位置」和手腕姿态，解出手掌原点位置（骰子握在 gripLocal） */
+  _handPoseForDie(diePos, yaw, pitch, roll) {
+    const q = this._handQuat(yaw, pitch, roll);
+    const off = this._hand.gripLocal.clone().applyQuaternion(q);
+    return { p: diePos.clone().sub(off), q };
+  }
+
+  _poseLerp(a, b, e, out) {
+    out = out || { p: new THREE.Vector3(), q: new THREE.Quaternion() };
+    out.p.lerpVectors(a.p, b.p, e);
+    out.q.copy(a.q).slerp(b.q, e);
+    return out;
+  }
+
+  _handAt(t) {
+    const T = this._toss;
+    if (!T) return null;
+    const S = T.poses;
+    const eOut = (x) => 1 - Math.pow(1 - clamp(x, 0, 1), 3);
+    const eInOut = (x) => { const c = clamp(x, 0, 1); return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2; };
+    const eIn = (x) => Math.pow(clamp(x, 0, 1), 2.2);
+    if (t <= T.enterMs) return this._poseLerp(S.start, S.hover, eOut(t / T.enterMs), T.hp);
+    if (t <= T.enterMs + T.descendMs) return this._poseLerp(S.hover, S.grip, eInOut((t - T.enterMs) / T.descendMs), T.hp);
+    const closeEnd = T.enterMs + T.descendMs + T.closeMs;
+    if (t <= closeEnd) return this._poseLerp(S.grip, S.grip, 0, T.hp);
+    if (t <= T.liftEnd) return this._poseLerp(S.grip, S.lift, eInOut((t - closeEnd) / T.liftMs), T.hp);
+    if (t <= T.releaseAt) return this._poseLerp(S.lift, S.rel, eIn((t - T.liftEnd) / T.throwMs), T.hp);
+    if (t <= T.exitEnd) return this._poseLerp(S.rel, S.exit, eOut((t - T.releaseAt) / T.exitMs), T.hp);
+    return null;
+  }
+
+  _gripAt(t) {
+    const T = this._toss;
+    const closeStart = T.enterMs + T.descendMs;
+    if (t < closeStart) return 0;
+    if (t < closeStart + T.closeMs) return (t - closeStart) / T.closeMs;
+    if (t < T.releaseAt) return 1;
+    const openK = clamp((t - T.releaseAt) / 150, 0, 1);
+    return 1 - openK;
+  }
+
+  /* 轻量刚体预演：位置/速度/四元数/角速度；桌面碰撞 + 摩擦 + 角速度阻尼 + 圆形边界。
+   * 出手姿态 q0 由「上一面平躺姿态 + 手腕旋转」决定；轨迹在 240Hz 上预计算，
+   * 运行时只采样（0 物理开销）。 */
+  _simulateToss(q0) {
+    const step = PHYS.step;
+    const maxSteps = Math.ceil((PHYS.maxActive + 0.02) / step);
+    const posArr = new Float32Array(maxSteps * 3);
+    const quatArr = new Float32Array(maxSteps * 4);
+    const p = [RELEASE_DIE.x, RELEASE_DIE.y, RELEASE_DIE.z];
+    let vx = 0.85, vy = -0.42, vz = 0.43;
+    let wx = 12, wy = 6.5, wz = -9;
+    let q = { x: q0.x, y: q0.y, z: q0.z, w: q0.w };
+    let rand = this._mulberry(7 + this.dieValue * 131 % 97);
+    const impacts = [];
+    let restAt = 0, contact = 0;
+    let n = 0;
+    const qTmp = new THREE.Quaternion();
+    for (let i = 0; i <= maxSteps; i++) {
+      const t = i * step;
+      posArr[i * 3] = p[0]; posArr[i * 3 + 1] = p[1]; posArr[i * 3 + 2] = p[2];
+      quatArr[i * 4] = q.x; quatArr[i * 4 + 1] = q.y; quatArr[i * 4 + 2] = q.z; quatArr[i * 4 + 3] = q.w;
+      n = i + 1;
+      /* 空气阻力 + 重力 */
+      const ad = 1 - PHYS.airDrag * step;
+      vx *= ad; vz *= ad; vy -= PHYS.g * step;
+      p[0] += vx * step; p[1] += vy * step; p[2] += vz * step;
+      /* 角速度积分 dq = 0.5 * (0,w) ⊗ q */
+      const dx = 0.5 * (-wx * q.x - wy * q.y - wz * q.z) * step;
+      const dy = 0.5 * (wx * q.w + wy * q.z - wz * q.y) * step;
+      const dz = 0.5 * (-wx * q.y + wy * q.w + wz * q.x) * step;
+      const dw = 0.5 * (wx * q.x + wy * q.y + wz * q.z) * step;
+      q.x += dx; q.y += dy; q.z += dz; q.w += dw;
+      const ql = Math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w) || 1;
+      q.x /= ql; q.y /= ql; q.z /= ql; q.w /= ql;
+      const sd = 1 - PHYS.spinDamp * step;
+      wx *= sd; wy *= sd; wz *= sd;
+      qTmp.set(q.x, q.y, q.z, q.w);
+      const extent = this._dieExtent(qTmp);
+      const ground = DIE_FLOOR + extent;
+      /* 棋盘圆形边界（黄铜包边内侧反弹） */
+      const rr = Math.sqrt(p[0] * p[0] + p[2] * p[2]);
+      if (rr > PHYS.boundR) {
+        const nx = -p[0] / rr, nz = -p[2] / rr;
+        const vn = vx * nx + vz * nz;
+        if (vn < 0) {
+          vx -= 1.7 * vn * nx; vz -= 1.7 * vn * nz;
+          p[0] = nx * -PHYS.boundR; p[2] = nz * -PHYS.boundR;
+          wx += (rand() - 0.5) * 4; wy += (rand() - 0.5) * 3; wz += (rand() - 0.5) * 4;
+        }
+      }
+      if (p[1] <= ground) {
+        p[1] = ground;
+        if (vy < 0) {
+          const speed = -vy;
+          const bi = Math.min(impacts.length, 2);
+          if (speed > 0.55) {
+            vy = speed * (PHYS.rest[bi] + (rand() - 0.5) * 0.04);
+            const tan = PHYS.tan[bi] + (rand() - 0.5) * 0.05;
+            const defl = (rand() - 0.5) * 9 * DEG;
+            const c = Math.cos(defl), s = Math.sin(defl);
+            const tx = vx * c - vz * s, tz = vx * s + vz * c;
+            vx = tx * tan; vz = tz * tan;
+            wx = wx * 0.72 + (rand() - 0.5) * 7;
+            wy = wy * 0.60 + (rand() - 0.5) * 5;
+            wz = wz * 0.72 + (rand() - 0.5) * 7;
+            impacts.push({ t: +t.toFixed(3), speed: +speed.toFixed(2) });
+          } else { vy = 0; contact++; }
+        } else { vy = 0; contact++; }
+        if (contact > 0) {
+          const vh = Math.sqrt(vx * vx + vz * vz);
+          if (vh > 1e-4) {
+            const dec = Math.min(vh, PHYS.rollFriction * step);
+            vx -= vx / vh * dec; vz -= vz / vh * dec;
+          }
+          const sd2 = 1 - 2.2 * step;
+          wx *= sd2; wy *= sd2; wz *= sd2;
+          if (!restAt && vh < 0.05 && Math.abs(wx) + Math.abs(wy) + Math.abs(wz) < 1.6) {
+            restAt = t;
+          }
+        }
+      }
+      if (restAt && t > restAt + 0.06) break;
+    }
+    /* 落定段：restAt 之后 0.30s 收尾（至少 320ms 翻面段，整体不超 maxActive） */
+    const settleEnd = restAt ? clamp(restAt + PHYS.restPad, PHYS.minEnd, PHYS.maxActive) : PHYS.maxActive;
+    const settleStart = Math.max(0, settleEnd - PHYS.settleMs / 1000);
+    const si = Math.min(n - 1, Math.round(settleStart / step));
+    const startQ = new THREE.Quaternion(quatArr[si * 4], quatArr[si * 4 + 1], quatArr[si * 4 + 2], quatArr[si * 4 + 3]);
+    const startP = new THREE.Vector3(posArr[si * 3], posArr[si * 3 + 1], posArr[si * 3 + 2]);
+    /* 落定翻面：从 4 个 yaw 里选离物理姿态最近的一个（视觉翻动量最小） */
+    let targetQ = null, bestYaw = this._dieYaw, bestAng = 1e9;
+    for (let k = 0; k < 4; k++) {
+      const yaw = 0.22 + k * Math.PI / 2;
+      const cand = this.dieSettleQuat(this.dieValue, yaw);
+      const ang = startQ.angleTo(cand);
+      if (ang < bestAng) { bestAng = ang; bestYaw = yaw; targetQ = cand; }
+    }
+    this._dieYaw = bestYaw;
+    return {
+      posArr, quatArr, n, impacts, restAt, settleStart, settleEnd,
+      startP, startQ, targetQ, settleAngle: +(bestAng / DEG).toFixed(1)
+    };
+  }
+
+  _mulberry(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  _beginToss(value) {
+    const hand = this._hand;
+    if (!hand) return null;
+    this.die.visible = true;
+    this.dieShadow.visible = true;
+    hand.group.visible = true;
+    hand.setGrip(0);
+    const pickupQ = this.die.quaternion.clone();
+    /* 先摆到落点（上一面朝上），手从画外右下进 */
+    this.die.position.copy(DIE_HOME);
+    this.die.quaternion.copy(pickupQ);
+    const hoverDie = DIE_HOME.clone().add(new THREE.Vector3(0.02, 0.17, 0.04));
+    const S = {
+      hover: this._handPoseForDie(hoverDie, 1.95, -0.16, 0.28),
+      grip: this._handPoseForDie(DIE_HOME, 1.95, -0.14, 0.30),
+      lift: this._handPoseForDie(new THREE.Vector3(0.56, 0.90, 0.39), 1.90, -0.02, 0.30),
+      rel: this._handPoseForDie(RELEASE_DIE, 1.62, 0.12, -0.02)
+    };
+    S.start = { p: S.hover.p.clone().add(new THREE.Vector3(1.95, 0.02, -0.62)), q: S.hover.q.clone() };
+    S.exit = { p: S.rel.p.clone().add(new THREE.Vector3(1.30, 0.26, 0.52)), q: this._handQuat(1.30, 0.36, -0.16) };
+    /* 骰子握在手里时相对手腕的固定姿态 */
+    const dieLocalQ = S.grip.q.clone().invert().multiply(pickupQ);
+    const relQ = S.rel.q.clone().multiply(dieLocalQ);
+    const T = {
+      enterMs: HAND.enterMs, descendMs: HAND.descendMs, closeMs: HAND.closeMs,
+      liftMs: HAND.liftMs, throwMs: HAND.throwMs, exitMs: HAND.exitMs,
+      liftEnd: HAND.enterMs + HAND.descendMs + HAND.closeMs + HAND.liftMs,
+      releaseAt: HAND.releaseAt, exitEnd: HAND.releaseAt + HAND.exitMs,
+      total: HAND.total, poses: S,
+      dieLocalQ, hp: { p: new THREE.Vector3(), q: new THREE.Quaternion() },
+      phase: 'enter', sndRelease: false, impactIdx: 0, startedAt: performance.now()
+    };
+    T.phys = this._simulateToss(relQ);
+    T.settleStartAbs = T.releaseAt + T.phys.settleStart * 1000;
+    T.settleEndAbs = T.releaseAt + T.phys.settleEnd * 1000;
+    T.total = Math.max(HAND.total, Math.ceil(T.settleEndAbs) + 20);
+    this._toss = T;
+    this._tossFrame(0, null);
+    return T;
+  }
+
+  _tossFrame(t, hooks) {
+    const T = this._toss;
+    if (!T) return;
+    /* 手 */
+    const pose = this._handAt(t);
+    if (pose) {
+      T.hp.p.copy(pose.p); T.hp.q.copy(pose.q);
+      this._hand.group.position.copy(pose.p);
+      this._hand.group.quaternion.copy(pose.q);
+      this._hand.setGrip(this._gripAt(t));
+      this._hand.group.visible = true;
+    } else {
+      this._hand.group.visible = false;
+    }
+    T.phase = t < T.liftEnd - T.liftMs ? 'enter' : t < T.releaseAt ? 'carry' : 'throw';
+    T.animT = t;    /* 骰子 */
+    if (t < T.releaseAt) {
+      const closeStart = T.enterMs + T.descendMs + T.closeMs;
+      if (t < closeStart) {
+        this.die.position.copy(DIE_HOME);
+        this.die.quaternion.copy(T.poses.grip.q).multiply(T.dieLocalQ);
+      } else {
+        /* 手里：位置/姿态跟手腕（含托起/甩出） */
+        this.die.position.copy(T.hp.p);
+        this._v.copy(this._hand.gripLocal).applyQuaternion(T.hp.q);
+        this.die.position.add(this._v);
+        this.die.quaternion.copy(T.hp.q).multiply(T.dieLocalQ);
+      }
+    } else {
+      this._diePhysAt(t);
+      if (hooks && !T.sndRelease) {
+        T.sndRelease = true;
+        if (hooks.onRelease) hooks.onRelease();
+      }
+      if (hooks) {
+        const p = T.phys;
+        while (T.impactIdx < p.impacts.length && t >= T.releaseAt + p.impacts[T.impactIdx].t * 1000) {
+          const imp = p.impacts[T.impactIdx];
+          T.impactIdx++;
+          if (hooks.onImpact) hooks.onImpact(imp.t, imp.speed);
+        }
+      }
+    }
+    this._dieShadowAt();
+  }
+
+  _diePhysAt(tAbs) {
+    const T = this._toss, ph = T.phys;
+    const tRel = Math.max(0, tAbs - T.releaseAt) / 1000;
+    const step = PHYS.step;
+    if (tRel >= ph.settleEnd) {
+      this.die.position.copy(DIE_HOME);
+      this.die.quaternion.copy(ph.targetQ);
+      return;
+    }
+    if (tRel >= ph.settleStart) {
+      const k = clamp((tRel - ph.settleStart) / (ph.settleEnd - ph.settleStart), 0, 1);
+      const e = smoothstep(0, 1, k);
+      const qe = smoothstep(0.05, 1, k);
+      this.die.quaternion.copy(ph.startQ).slerp(ph.targetQ, qe);
+      this.die.position.x = lerp(ph.startP.x, DIE_HOME.x, e);
+      this.die.position.z = lerp(ph.startP.z, DIE_HOME.z, e);
+      this.die.position.y = DIE_FLOOR + this._dieExtent(this.die.quaternion);
+      return;
+    }
+    const f = tRel / step;
+    const i = Math.min(ph.n - 2, Math.max(0, Math.floor(f)));
+    const a = clamp(f - i, 0, 1);
+    const p = ph.posArr, q = ph.quatArr;
+    this.die.position.set(
+      lerp(p[i * 3], p[(i + 1) * 3], a),
+      lerp(p[i * 3 + 1], p[(i + 1) * 3 + 1], a),
+      lerp(p[i * 3 + 2], p[(i + 1) * 3 + 2], a)
+    );
+    this._q2.set(q[i * 4], q[i * 4 + 1], q[i * 4 + 2], q[i * 4 + 3]);
+    this._q1.set(q[(i + 1) * 4], q[(i + 1) * 4 + 1], q[(i + 1) * 4 + 2], q[(i + 1) * 4 + 3]);
+    this.die.quaternion.copy(this._q2).slerp(this._q1, a);
+  }
+
+  _endToss(v) {
+    this._toss = null;
+    if (this._hand) {
+      this._hand.group.visible = false;
+      this._hand.setGrip(0);
+    }
+    this.placeDie(v);
+    this.requestRender();
+  }
+
+  /* 对外：手拿起 → 托起 → 抛出 → 物理弹跳 → 落定。instant/reduced 直接落位。
+   * hooks: { onRelease(), onImpact(t, speed), onSettle() }（导演用来接 Sfx） */
+  tossDie(value, instant, hooks) {
     const v = clamp(Number(value) || 1, 1, 6);
     this.dieValue = v;
     if (this.reduced || instant) {
-      this.placeDie(v);
+      this._endToss(v);
       return Promise.resolve();
     }
-    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.7, 1.9, 0.4));
-    const qs = this.dieSettleQuat(v);
-    const axis = this._axis.set(0.42, 0.87, 0.26).normalize();
-    return this.runAnim(1080, (k) => {
-      const e = easeOut(Math.min(1, k / 0.62));
-      const fall = 1 - e;
-      const bounce = Math.abs(Math.sin(k * Math.PI * 3.1)) * (1 - k) * 0.36;
-      this.die.position.set(
-        lerp(DIE_TOSS_FROM.x, DIE_HOME.x, e),
-        DIE_HOME.y + fall * 2.4 + bounce,
-        lerp(DIE_TOSS_FROM.z, DIE_HOME.z, e)
-      );
-      this._q1.copy(q0).multiply(this._q2.setFromAxisAngle(axis, (1 - smoothstep(0.5, 1, k)) * 7.5));
-      this.die.quaternion.copy(this._q1);
-      this.die.quaternion.slerp(qs, smoothstep(0.58, 1, k));
-      this.dieShadow.position.set(this.die.position.x, 0.008, this.die.position.z);
-      this.dieShadow.scale.setScalar(clamp(1.15 - (this.die.position.y - DIE_HOME.y) * 0.4, 0.5, 1.2));
-      this.dieShadow.material.opacity = clamp(0.5 - (this.die.position.y - DIE_HOME.y) * 0.18, 0.12, 0.5);
-    }).then(() => {
-      this.placeDie(v);
-    });
+    const T = this._beginToss(v);
+    if (!T) { this._endToss(v); return Promise.resolve(); }
+    const h = hooks || {};
+    return this.runAnim(T.total, (k, t) => {
+      const flush = !(typeof t === 'number' && isFinite(t));
+      const tt = flush ? T.total : t;
+      this._tossFrame(tt, flush ? null : h);
+      if (tt >= T.settleEndAbs - 1 && h.onSettle) {
+        if (!T.sndSettle) { T.sndSettle = true; h.onSettle(); }
+      }
+    }).then(() => this._endToss(v));
   }
 
   /* ======================= 性能 / 调试 ======================= */
@@ -2309,6 +2669,7 @@ export class BoardScene {
         maxAbsY: +this.lockStats.maxAbsY.toFixed(5)
       },
       stage: { visible: this.stageGroup.visible, rise: +this.stageRise.toFixed(3), bear: +this.bear.group.scale.x.toFixed(3) },
+      die: this.dieDebug(),
       streaks: this.streaks.group.visible
     };
     if (plane) {
@@ -2374,6 +2735,8 @@ export class BoardScene {
     } catch (e) { /* noop */ }
     this.planes.clear();
     this.anims.length = 0;
+    this._toss = null;
+    this._hand = null;
   }
 }
 
