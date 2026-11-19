@@ -12,11 +12,10 @@
     { id: "open", name: "不设限" }
   ];
   var CHIPS = ["束缚", "露出", "道具", "喝酒", "蒙眼", "角色"];
-  /* V8：3D 主桌（Beta）三档。auto=能跑 3D 就用；off=始终 V7；on=强制尝试，失败自动回 V7。
-     Beta 期默认 off（V7）：3D 构图/尺寸还在 prod3d 收尾、未过 QA；用户手动选过就按用户值。
-     只改「主桌画面」，规则/题卡/尺度/边界/存档一概不变。 */
+  /* V8：3D 主桌三档。auto=能跑 WebGL2 就用（减少动画时静态 3D）；off=始终 V7；on=强制尝试，失败自动回 V7。
+     默认 auto；只改「主桌画面」，规则/题卡/尺度/边界/存档一概不变。 */
   var BOARD3D = [
-    { id: "auto", name: "自动", hint: "手机能跑 WebGL2 且没开「减少动画」时用 3D，否则用 V7" },
+    { id: "auto", name: "自动", hint: "能跑 WebGL2 就用 3D；开了「减少动画」则是静态 3D" },
     { id: "off", name: "V7", hint: "始终用原来的 V7 主桌" },
     { id: "on", name: "3D", hint: "强制尝试 3D；开不了会自动回 V7" }
   ];
@@ -82,7 +81,7 @@
                 '<div class="chips mt-8" data-test="settings-themes">' + themeChips + "</div>" +
                 /* V8：3D 主桌（Beta）—— 只换主桌画面；进主桌时按开关/能力决定，失败自动回 V7 */
                 '<div style="padding:12px 0 2px;margin-top:12px;border-top:1px solid var(--line)" data-test="settings-board3d-wrap">' +
-                  '<div class="small dim">3D 主桌（Beta）<b class="gold"> · 下次进主桌生效</b></div>' +
+                  '<div class="small dim">3D 主桌<b class="gold"> · 下次进主桌生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
                   '<div class="small dim mt-8" data-test="settings-board3d-desc">' + U.escape(b3Note) + "</div>" +
                   '<div class="small dim mt-8" data-test="settings-board3d-beta">Beta 阶段默认先用 V7；3D 画面还在调整，可以手动切「自动」或「3D」试试。</div>' +
