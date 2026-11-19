@@ -59,8 +59,11 @@ function star(g, cx, cy, r1, r2) {
   g.fill();
 }
 
-/* --- 格面图集：8x8 @64px。slot0 暗色侧面；1..44 = 11 种 kind × 4 色；45..48 航线；49..52 机坪 --- */
-export function buildAtlas() {
+/* --- 格面图集：8x8 @64px。slot0 暗色侧面；1..44 = 11 种 kind × 4 色；45..48 航线；49..52 机坪 ---
+ * opts.glyph=false → 不画中文（fly 期间用，飞行中格面字会随棋盘旋转斜置，只留色块/图标）。
+ * 两版图集只有"有没有中文"这一点差异，切换时格面色块/描边/图标完全一致，不会跳变。 */
+export function buildAtlas(opts = {}) {
+  const glyphs = opts.glyph !== false;
   const PX = ATLAS_PX;
   const SIZE = PX * ATLAS_N;
   const { c, g } = canvas2d(SIZE, SIZE);
@@ -106,18 +109,20 @@ export function buildAtlas() {
       g.fillStyle = gloss;
       roundRect(g, 5, 4, PX - 10, PX * 0.46, 8);
       g.fill();
-      g.fillStyle = '#2A1B16';
-      g.font = `bold ${kind === 'ring' ? 30 : 29}px "PingFang SC","Microsoft YaHei",sans-serif`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(GLYPH[kind] || '·', PX / 2, PX * 0.53);
+      if (glyphs) {
+        g.fillStyle = '#2A1B16';
+        g.font = `bold ${kind === 'ring' ? 30 : 31}px "PingFang SC","Microsoft YaHei",sans-serif`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText(GLYPH[kind] || '·', PX / 2, PX * 0.53);
+      }
       if (kind === 'fly') {
         g.fillStyle = rgbCss(strong, 0.95);
         g.beginPath(); g.moveTo(PX - 13, 11); g.lineTo(PX - 6, 17); g.lineTo(PX - 13, 23); g.closePath(); g.fill();
       } else if (kind === 'fate') {
         g.fillStyle = rgbCss(0xFFB74D, 0.95);
         star(g, PX - 11, 13, 5.4, 2.4);
-      } else if (kind === 'forbid') {
+      } else if (kind === 'forbid' && glyphs) {
         g.strokeStyle = 'rgba(60,32,28,.62)'; g.lineWidth = 2.6;
         g.beginPath(); g.arc(PX / 2, PX * 0.53, 19, -0.35, Math.PI + 0.35); g.stroke();
       }
@@ -268,25 +273,6 @@ export function makeCloudTex(seed) {
   return texFromCanvas(c);
 }
 
-export function makePaperTex() {
-  const SZ = 128;
-  const { c, g } = canvas2d(SZ, SZ);
-  g.fillStyle = '#8A6A4A';
-  g.fillRect(0, 0, SZ, SZ);
-  const img = g.getImageData(0, 0, SZ, SZ);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const n = (Math.random() - 0.5) * 26;
-    img.data[i] = clamp(img.data[i] + n, 0, 255);
-    img.data[i + 1] = clamp(img.data[i + 1] + n, 0, 255);
-    img.data[i + 2] = clamp(img.data[i + 2] + n, 0, 255);
-  }
-  g.putImageData(img, 0, 0);
-  const t = texFromCanvas(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(6, 5);
-  return t;
-}
-
 /* --- 骰面贴图（DIE_FACES 顺序） --- */
 export function makeDieFaceTextures() {
   const SZ = 96;
@@ -328,3 +314,251 @@ export function buildSkyTexture(top, mid, bottom) {
   g.fillRect(0, 0, 64, 512);
   return texFromCanvas(c);
 }
+
+/* ==========================================================================
+ * V8.2 · 机舱小桌板：垫面织纹 + 暗角/灯池叠层（overview 空区不再是纯色天空）
+ * ========================================================================== */
+
+/* 平铺织纹（felt）/ 木纹（wood）：全部按格子周期绘制 → RepeatWrapping 无缝 */
+export function buildWeaveTex(t, size) {
+  const SZ = size || 128;
+  const P = 8;                     /* 周期：128/8 = 16 格，整除 → 无缝 */
+  const cells = Math.round(SZ / P);
+  const { c, g } = canvas2d(SZ, SZ);
+  g.fillStyle = t.base;
+  g.fillRect(0, 0, SZ, SZ);
+  let s = 20260119;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+
+  if (t.grain === 'wood') {
+    /* 木纹：横向纹理 + 周期性波浪（波长整除 SZ → 左右无缝） */
+    for (let j = 0; j < cells; j++) {
+      const y0 = j * P;
+      g.globalAlpha = 0.10 + rnd() * 0.16;
+      g.strokeStyle = t.weave;
+      g.lineWidth = 1 + rnd() * 1.6;
+      g.beginPath();
+      for (let x = 0; x <= SZ; x += 4) {
+        const y = y0 + Math.sin((x / SZ) * Math.PI * 2 * 2 + j * 0.7) * 2.2 + 0.5;
+        if (x === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    /* 纵向细丝 */
+    g.strokeStyle = t.weave;
+    g.globalAlpha = 0.07;
+    g.lineWidth = 1;
+    for (let x = 0; x < SZ; x += 6) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, SZ); g.stroke(); }
+    g.globalAlpha = 1;
+  } else {
+    /* 绒布：细密经纬 + 每格微亮度差（像编织的浮沉） */
+    for (let j = 0; j < cells; j++) {
+      for (let i = 0; i < cells; i++) {
+        const v = rnd();
+        g.globalAlpha = 0.03 + v * 0.075;
+        g.fillStyle = v > 0.5 ? t.base : t.base2;
+        g.fillRect(i * P, j * P, P, P);
+      }
+    }
+    g.globalAlpha = 1;
+    g.strokeStyle = t.weave;
+    g.lineWidth = 1;
+    for (let k = 0; k < cells; k++) {
+      g.globalAlpha = 0.34;
+      g.beginPath(); g.moveTo(0, k * P + 0.5); g.lineTo(SZ, k * P + 0.5); g.stroke();
+      g.globalAlpha = 0.20;
+      g.beginPath(); g.moveTo(k * P + 0.5, 0); g.lineTo(k * P + 0.5, SZ); g.stroke();
+    }
+    g.globalAlpha = 1;
+    /* 纤维点（周期内随机 → 无缝；稀疏 + 低对比，避免远看像星空噪点） */
+    for (let i = 0; i < 90; i++) {
+      g.globalAlpha = 0.05 + rnd() * 0.06;
+      g.fillStyle = rnd() > 0.45 ? '#FFFFFF' : t.base2;
+      const bx = Math.floor(rnd() * cells) * P, by = Math.floor(rnd() * cells) * P;
+      g.fillRect(bx, by, 2, 1);
+    }
+    g.globalAlpha = 1;
+  }
+  const tex = texFromCanvas(c, { aniso: 4 });
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/* 叠层：世界空间圆形暗角 + 灯池 + 圆形嵌线；通道 alpha=0 处透明，压在垫面之上 */
+export function buildMatOverlay(t, size) {
+  const SZ = size || 512;
+  const { c, g } = canvas2d(SZ, SZ);
+  const R = SZ / 2;
+  /* 世界半径 → 画布半径：垫面平面 25.1 x 21.1 世界；用 scale 把"世界圆"画成椭圆 */
+  const kW = 25.1, kD = 21.1;
+  const px = (world) => (world / kW) * SZ;
+
+  /* 1) 圆形暗角（世界圆；只压边缘一圈，别把整块垫面压黑） */
+  const vig = g.createRadialGradient(0, 0, px(4.6), 0, 0, px(10.6));
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(0.52, t.vig.replace(/[\d.]+\)$/, '0.34)'));
+  vig.addColorStop(1, t.vig.replace(/[\d.]+\)$/, '0.78)'));
+  g.save();
+  g.translate(R, R);
+  g.scale(1, kW / kD);
+  g.fillStyle = vig;
+  g.beginPath(); g.arc(0, 0, px(12.7), 0, TAU); g.fill();
+  g.restore();
+
+  /* 2) 灯池：棋盘外一圈暖光（机舱顶灯落在桌板上） */
+  const pool = g.createRadialGradient(R, R, px(1.0), R, R, px(5.6));
+  pool.addColorStop(0, t.pool);
+  pool.addColorStop(0.55, t.pool.replace(/[\d.]+\)$/, '0.07)'));
+  pool.addColorStop(1, 'rgba(255,180,110,0)');
+  g.save();
+  g.translate(R, R);
+  g.scale(1, kW / kD);
+  g.fillStyle = pool;
+  g.beginPath(); g.arc(0, 0, px(5.8), 0, TAU); g.fill();
+  g.restore();
+
+  /* 3) 垫面圆形嵌线：让棋盘像"摆在一块圆垫上"（一条细线，别做成两道划痕） */
+  g.save();
+  g.translate(R, R);
+  g.scale(1, kW / kD);
+  g.strokeStyle = t.rim;
+  g.lineWidth = 1.6;
+  g.beginPath(); g.arc(0, 0, px(4.12), 0, TAU); g.stroke();
+  g.restore();
+
+  /* 4) 织面大块起伏（低频斑块，避免大面积死平） */
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * TAU + 0.4;
+    const rad = px(3.2 + (i % 3) * 1.6);
+    const x = R + Math.cos(a) * rad;
+    const y = R + Math.sin(a) * rad * (kW / kD) * 0.82;
+    const rr = px(2.2 + (i % 4) * 0.7);
+    const bl = g.createRadialGradient(x, y, 0, x, y, rr);
+    bl.addColorStop(0, i % 2 ? 'rgba(255,255,255,.030)' : 'rgba(0,0,0,.055)');
+    bl.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = bl;
+    g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
+  }
+
+  /* 5) 斜向柔光（光扫过绒面；没有它，垫面在远景里仍像一块纯色板） */
+  const sh = g.createLinearGradient(SZ * 0.1, 0, SZ * 0.9, SZ);
+  sh.addColorStop(0, 'rgba(255,240,214,0)');
+  sh.addColorStop(0.42, 'rgba(255,240,214,.045)');
+  sh.addColorStop(0.56, 'rgba(255,240,214,.020)');
+  sh.addColorStop(1, 'rgba(255,240,214,0)');
+  g.fillStyle = sh;
+  g.fillRect(0, 0, SZ, SZ);
+
+  /* 6) 远近明暗：canvas 顶 = 垫面远端（-z，画面中上方）→ 远端压暗成舱内阴影；
+   *    近端留一点顶灯暖光。纯对称暗角在 0.663 纵横比下会让上下都发灰。 */
+  const far = g.createLinearGradient(0, 0, 0, SZ * 0.46);
+  far.addColorStop(0, 'rgba(2,6,11,.62)');
+  far.addColorStop(0.55, 'rgba(2,6,11,.22)');
+  far.addColorStop(1, 'rgba(2,6,11,0)');
+  g.fillStyle = far;
+  g.fillRect(0, 0, SZ, SZ * 0.46);
+  const near = g.createLinearGradient(0, SZ, 0, SZ * 0.72);
+  near.addColorStop(0, 'rgba(255,196,132,.10)');
+  near.addColorStop(1, 'rgba(255,196,132,0)');
+  g.fillStyle = near;
+  g.fillRect(0, SZ * 0.72, SZ, SZ * 0.28);
+  return texFromCanvas(c, { aniso: 4 });
+}
+
+/* 中心终点顶面：金盘 + 同心环 + 星徽（配立体 hub 用，替换纯色平面） */
+export function buildHubTop(hub, size) {
+  const SZ = size || 256;
+  const { c, g } = canvas2d(SZ, SZ);
+  const R = SZ / 2;
+  const grad = g.createRadialGradient(R, R * 0.82, R * 0.06, R, R, R);
+  grad.addColorStop(0, '#FFF6E2');
+  grad.addColorStop(0.45, rgbCss(hub.top));
+  grad.addColorStop(1, rgbCss(hub.side));
+  g.fillStyle = grad;
+  g.beginPath(); g.arc(R, R, R, 0, TAU); g.fill();
+  /* 同心环 */
+  g.strokeStyle = 'rgba(80,48,14,.30)';
+  g.lineWidth = 2;
+  g.beginPath(); g.arc(R, R, R * 0.86, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,250,235,.55)';
+  g.lineWidth = 1.6;
+  g.beginPath(); g.arc(R, R, R * 0.78, 0, TAU); g.stroke();
+  /* 星徽 */
+  g.save();
+  g.translate(R, R);
+  const sg = g.createLinearGradient(-R * 0.5, -R * 0.5, R * 0.5, R * 0.5);
+  sg.addColorStop(0, '#FFFFFF');
+  sg.addColorStop(1, rgbCss(hub.star));
+  g.fillStyle = sg;
+  star(g, 0, 0, R * 0.52, R * 0.22);
+  g.strokeStyle = 'rgba(92,54,16,.45)';
+  g.lineWidth = 1.4;
+  g.stroke();
+  /* 星心暖点 */
+  const cg = g.createRadialGradient(0, 0, 0, 0, 0, R * 0.3);
+  cg.addColorStop(0, 'rgba(255,255,255,.9)');
+  cg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = cg;
+  g.beginPath(); g.arc(0, 0, R * 0.3, 0, TAU); g.fill();
+  g.restore();
+  return texFromCanvas(c, { aniso: 8 });
+}
+
+/* 45° 舞台格专用贴图（256px）：格面字偏前中、小熊座位在左后 → 字与熊不再叠压。
+ * kind/color 与环格图集同一套配色，观感连续；额外给一行类型名（320 下也读得出"真心话"）。 */
+export function buildStagePlate(kind, color, label, size, textPos) {
+  const SZ = size || 256;
+  const { c, g } = canvas2d(SZ, SZ);
+  const strong = HEX[color] || HEX.red;
+  const soft = HEX_SOFT[color] || HEX_SOFT.red;
+  const grad = g.createLinearGradient(0, 0, SZ, SZ);
+  grad.addColorStop(0, soft);
+  grad.addColorStop(0.55, '#FFFDF7');
+  grad.addColorStop(1, soft);
+  g.fillStyle = grad;
+  roundRect(g, 4, 4, SZ - 8, SZ - 8, SZ * 0.17);
+  g.fill();
+  g.lineWidth = SZ * 0.028;
+  g.strokeStyle = rgbCss(strong, 0.78);
+  roundRect(g, SZ * 0.045, SZ * 0.045, SZ * 0.91, SZ * 0.91, SZ * 0.15);
+  g.stroke();
+  /* 高光 */
+  const gloss = g.createLinearGradient(0, SZ * 0.05, 0, SZ * 0.45);
+  gloss.addColorStop(0, 'rgba(255,255,255,.62)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gloss;
+  roundRect(g, SZ * 0.08, SZ * 0.06, SZ * 0.84, SZ * 0.4, SZ * 0.12);
+  g.fill();
+  /* 小熊站位：软阴影（左后），像站在格背侧 */
+  const gx = SZ * (textPos ? textPos.u : 0.58);
+  const gy = SZ * (textPos ? textPos.v : 0.70);   /* v = canvas y 比例（大 = 靠前） */
+  const sh = g.createRadialGradient(SZ * 0.3, SZ * 0.26, 0, SZ * 0.3, SZ * 0.26, SZ * 0.26);
+  sh.addColorStop(0, 'rgba(40,24,14,.20)');
+  sh.addColorStop(1, 'rgba(40,24,14,0)');
+  g.fillStyle = sh;
+  g.beginPath(); g.arc(SZ * 0.3, SZ * 0.26, SZ * 0.26, 0, TAU); g.fill();
+  /* 格面字（大）+ 类型名（小） */
+  g.fillStyle = '#2A1B16';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `bold ${Math.round(SZ * 0.34)}px "PingFang SC","Microsoft YaHei",sans-serif`;
+  g.fillText(GLYPH[kind] || '·', gx, gy);
+  if (kind === 'fly') {
+    g.fillStyle = rgbCss(strong, 0.95);
+    g.beginPath();
+    g.moveTo(SZ * 0.86, SZ * 0.12); g.lineTo(SZ * 0.95, SZ * 0.2); g.lineTo(SZ * 0.86, SZ * 0.28);
+    g.closePath(); g.fill();
+  } else if (kind === 'fate') {
+    g.fillStyle = rgbCss(0xFFB74D, 0.95);
+    star(g, SZ * 0.87, SZ * 0.15, SZ * 0.07, SZ * 0.03);
+  }
+  if (label) {
+    g.fillStyle = 'rgba(70,44,28,.72)';
+    g.font = `600 ${Math.round(SZ * 0.105)}px "PingFang SC","Microsoft YaHei",sans-serif`;
+    g.fillText(label, gx, gy + SZ * 0.20);
+  }
+  return texFromCanvas(c, { aniso: 8 });
+}
+

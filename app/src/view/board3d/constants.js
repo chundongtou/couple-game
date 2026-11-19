@@ -25,6 +25,16 @@ export const PLANE_Y = TILE_TOP + PLANE_HOVER;  // 飞机中心高（0.19）
 export const DIE_SIZE = 0.34;
 export const STAGE_RISE = 1.50;      // 目标格升起高度
 export const STAGE_AZIM = 24;        // 45° 舞台方位角
+/* V8.2：舞台格放大到比环格大（CELL=0.34 → 0.42），格面文字偏前、小熊站左后，
+ * 两者在屏幕上不再互相遮挡；贴图用 256px 专用图（见 textures.buildStagePlate）。 */
+export const STAGE_PLATE = 0.42;
+export const STAGE_BEAR = { x: -0.072, z: -0.100, s: 0.84 };   // 小熊相对格心的座位（左后）
+export const STAGE_TEXT = { u: 0.58, v: 0.70 };                 // 格面字在图上的位置（u=横向，v=canvas 纵向比例，大=靠前）
+/* V8.2：overview 棋盘占宽目标（qa 口径用 ±3.23 投影，实测 86.3% → 约 87.5%） */
+export const OVERVIEW_FILL = 1.015;
+
+/* --- 中心终点（立体 hub） --- */
+export const HUB = { r: 0.44, h: 0.10, ringR: 0.60, starR: 0.20 };
 
 /* --- 与 app/src/engine/flight-board.js 同源（只读） --- */
 export const COLORS = ['red', 'yellow', 'blue', 'green'];
@@ -105,7 +115,12 @@ export const uvOfSlot = (slot) => {
 /* --- 骰子：BoxGeometry 面顺序 +X -X +Y -Y +Z -Z --- */
 export const DIE_FACES = [3, 4, 1, 6, 2, 5];
 
-/* --- 主题：材质 / 灯光 / 背景 / 小熊服装 --- */
+/* --- 主题：材质 / 灯光 / 背景 / 小熊服装 ---
+ * V8.2 新增 matTex（桌板垫面程序化贴图配方）与 hub（中心终点立体材质）：
+ *   matTex.base / base2 = 垫面主色 / 暗部
+ *   matTex.weave        = 织纹（felt）或木纹（wood）线色
+ *   matTex.rim / pool   = 边缘嵌线高光 / 顶灯暖池（叠层用）
+ */
 export const THEMES = {
   cloud: {
     id: 'cloud', label: '云海机舱', sky: 'cloud',
@@ -115,6 +130,11 @@ export const THEMES = {
     tray: 0x3A2A24, mat: 0x1E4A63, disc: 0x9FB6D8, discSide: 0x141C28,
     cloud: true, cloudOpacity: 0.42, cloudTint: 0xFFFFFF, stars: false,
     heatCool: 0x9FC7FF, heatWarm: 0xFFB060,
+    matTex: {
+      base: '#1D4560', base2: '#0C1E2E', weave: '#37718F', grain: 'felt',
+      rim: 'rgba(255,216,164,.22)', pool: 'rgba(255,186,110,.16)', vig: 'rgba(3,8,14,.90)'
+    },
+    hub: { top: 0xF3C077, side: 0xB8813C, star: 0xFFE9BE, glow: 0xFFC370 },
     bear: { fur: 0x9A6F4B, furDark: 0x7A543A, hat: 0x2C3E66, band: 0xE8B65C, scarf: 0xD8564C }
   },
   star: {
@@ -125,6 +145,11 @@ export const THEMES = {
     tray: 0x1E1832, mat: 0x241C42, disc: 0x8E86C8, discSide: 0x0F0A1C,
     cloud: false, cloudOpacity: 0.0, cloudTint: 0xC8C0FF, stars: true,
     heatCool: 0x8FA8FF, heatWarm: 0xFF9FC8,
+    matTex: {
+      base: '#241C46', base2: '#0A0718', weave: '#3A2F6E', grain: 'felt',
+      rim: 'rgba(203,192,255,.22)', pool: 'rgba(150,138,255,.15)', vig: 'rgba(2,1,6,.92)'
+    },
+    hub: { top: 0xDCD2FF, side: 0x6E5CA8, star: 0xFFF2FF, glow: 0xB0A0FF },
     bear: { fur: 0x8E7196, furDark: 0x6B527A, hat: 0x3B2B5C, band: 0xC9D5FF, scarf: 0xB9A7E8 }
   },
   paper: {
@@ -135,6 +160,11 @@ export const THEMES = {
     tray: 0x4A3428, mat: 0x6B4A2E, disc: 0xBFAE94, discSide: 0x2A1C12,
     cloud: true, cloudOpacity: 0.22, cloudTint: 0xFFE2B8, stars: false,
     heatCool: 0xC9B08F, heatWarm: 0xFF9A4D,
+    matTex: {
+      base: '#5A4029', base2: '#22160D', weave: '#7A5A38', grain: 'wood',
+      rim: 'rgba(255,224,184,.20)', pool: 'rgba(255,158,80,.15)', vig: 'rgba(8,5,3,.90)'
+    },
+    hub: { top: 0xE8B65C, side: 0x8A5E2A, star: 0xFFE7C4, glow: 0xFFB061 },
     bear: { fur: 0x9C7A55, furDark: 0x7C5C3C, hat: 0x8A6A4A, band: 0xF0D9B5, scarf: 0xA6483E }
   }
 };
