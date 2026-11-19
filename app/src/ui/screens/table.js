@@ -128,6 +128,23 @@
     "radial-gradient(1.2px 1.2px at 20% 80%,rgba(255,233,210,.35),rgba(255,233,210,0)),",
     "radial-gradient(1px 1px at 48% 5%,rgba(255,233,210,.35),rgba(255,233,210,0))}",
     ".v6-board{position:relative;z-index:1;width:100%;aspect-ratio:720/750;max-height:100%;min-height:0;margin-top:-26px}",
+    /* V8：3D 主桌层（App.Board3D 挂到 .v6-boardwrap 的专用层，只做画面，不吃点按）。
+     * 层级：机舱 z0 < V7 棋盘/3D 层 z1 < HUD/状态/回合/掷骰条/行动区 z2 < 题卡/小游戏宿主 z30+。
+     * 3D 可用时 root 上带 .v6-3d：隐藏 V7 棋盘/机舱/桌面光晕（HUD、题卡、安全词一律不动）。 */
+    ".v6-board3d{position:absolute;inset:0;z-index:1;display:none;pointer-events:none;opacity:0;",
+    "transition:opacity .28s var(--ease-out,ease-out)}",
+    ".v6-board3d,.v6-board3d *{pointer-events:none!important}",
+    ".v6-3d .v6-board3d{display:block;opacity:1}",
+    ".v6-3d .v6-board{opacity:0;pointer-events:none;transition:opacity .24s var(--ease-out,ease-out)}",
+    ".v6-3d .v6-cabin{display:none}",
+    ".v6-3d .v6-boardwrap::before{opacity:0}",
+    /* V8：3D 模式下题卡只出右侧内容卡（cell45/bear 已由 3D 画，避免 2D/3D 双舞台）。
+     * 左列留空给 3D 画面透出，卡片固定在第 2 列；V7（无 .v8-3d-card）保持 CellStage 原样。 */
+    ".v6-table.v8-3d-card .cs-stage{grid-template-columns:36% minmax(0,1fr)}",
+    ".v6-table.v8-3d-card .cs-left{display:none}",
+    ".v6-table.v8-3d-card .cs-card{grid-column:2}",
+    ".v6-table.v8-3d-card .cs-scrim{background:radial-gradient(120% 86% at 30% 42%,rgba(6,4,14,.16),rgba(6,4,14,.6) 74%),linear-gradient(180deg,rgba(6,4,14,.26),rgba(6,4,14,.58))}",
+    "@media (max-width:359px){.v6-table.v8-3d-card .cs-stage{grid-template-columns:30% minmax(0,1fr)}}",
     ".v6-fb{position:absolute;inset:0;overflow:auto;border-radius:18px;padding:10px 12px;",
     "background:rgba(18,12,32,.62);border:1px solid var(--line,rgba(255,226,196,.13))}",
     ".v6-fb h3{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--dim,#C9B6CE)}",
@@ -201,6 +218,129 @@
     } catch (e) { return false; }
   }
   function reduced() { return !!settings().reduced || systemReduced(); }
+
+  /* ---------- V8：3D 主桌开关 / 能力探测 / chunk 懒加载 ----------
+   * 口径（docs/v8/impl-freeze.md §3.3）：
+   *   settings.board3d: auto | off | on
+   *     auto = WebGL2 可用且没开「减少动画」才用 3D；off = 始终 V7；on = 强制尝试 3D（失败回落）。
+   *   Beta 期默认 = off（V7）：3D 构图/尺寸还在 prod3d 收尾，未过 QA 前不把 auto 作为发布默认；
+   *   prod3d 修好 + QA 通过后把 BOARD3D_DEFAULT 改回 "auto" 即可（settings 页一旦手动选过就按用户值）。
+   *   chunk URL 来自构建注入的 window.__BOARD3D_URL；一个页面只尝试一次，失败不重试、不阻塞棋局。
+   * 404 / 断网时不能往 <head> 塞 <script src>：Chromium 会把 404 记成一条 console error（QA 门槛是 0）。
+   * 所以先用 fetch 探一次，拿到正文后用动态 <script> 内联执行（同一份正文只下载一次，仍是懒加载）。
+   * 跨域 URL / 没有 fetch 时才退回 <script src>。 */
+  var BOARD3D_MODES = ["auto", "off", "on"];
+  var BOARD3D_DEFAULT = "off";       /* Beta：默认走 V7；待 prod3d 构图 + QA 后改回 "auto" */
+  var board3dChunkP = null;          /* Promise<boolean>，模块级：整页只加载一次 */
+
+  function board3dMode() {
+    var v = settings().board3d;
+    return BOARD3D_MODES.indexOf(v) >= 0 ? v : BOARD3D_DEFAULT;
+  }
+
+  function webgl2Available() {
+    try {
+      if (!window.WebGL2RenderingContext) return false;
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl2");
+      if (!gl) return false;
+      try {
+        var lose = gl.getExtension && gl.getExtension("WEBGL_lose_context");
+        if (lose) lose.loseContext();
+      } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* 是否「应该尝试」3D；WebGL2 是硬条件，on 也不例外（没画面就没意义） */
+  function board3dAllowed() {
+    var mode = board3dMode();
+    if (mode === "off") return false;
+    if (mode === "auto" && reduced()) return false;
+    return webgl2Available();
+  }
+
+  function board3dUrl() {
+    try { return String(window.__BOARD3D_URL || ""); } catch (e) { return ""; }
+  }
+
+  /* 3D 题卡只出右侧内容卡时，把 cell45/bear 小舞台瞄准左侧空出来的区域（NDC 目标）。
+   * 卡在 .cs-stage 第 2 列：≥360 宽从 36%+4% gap 开始（≈40% 屏宽），≤359 从 30%+4%（≈34%）。
+   * nx = 左侧可见中心 * 2 - 1（与 P0 的 stageAimNdc 同一口径），ny 略上。 */
+  function board3dStageAim() {
+    var w = 390;
+    try { w = Number(window.innerWidth) || 390; } catch (e) { w = 390; }
+    var cardStart = w <= 359 ? 0.34 : 0.40;
+    return { nx: Math.round((cardStart - 1) * 100) / 100, ny: 0.14 };
+  }
+
+  function board3dApi() {
+    try { return (App && App.Board3D) || null; } catch (e) { return null; }
+  }
+
+  function board3dApiReady() {
+    var a = board3dApi();
+    return !!(a && typeof a.mount === "function");
+  }
+
+  function sameOriginUrl(url) {
+    try {
+      var abs = new URL(url, location.href);
+      return abs.origin === location.origin;
+    } catch (e) { return false; }
+  }
+
+  function loadBoard3dChunk() {
+    if (board3dChunkP) return board3dChunkP;                 /* 只一次：失败也不重试 */
+    if (board3dApiReady()) { board3dChunkP = Promise.resolve(true); return board3dChunkP; }
+    var url = board3dUrl();
+    if (!url) { board3dChunkP = Promise.resolve(false); return board3dChunkP; }
+    board3dChunkP = new Promise(function (resolve) {
+      var settled = false;
+      var timer = setTimeout(function () { finish(false); }, 9000);   /* 首帧过慢/挂死：先回 V7 */
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        try { clearTimeout(timer); } catch (e) {}
+        resolve(!!ok);
+      }
+      function execText(code) {
+        try {
+          var s = document.createElement("script");
+          s.setAttribute("data-board3d-chunk", "1");
+          s.textContent = String(code || "");
+          (document.head || document.documentElement).appendChild(s);
+          finish(board3dApiReady());
+        } catch (e) { finish(false); }
+      }
+      function scriptTag() {
+        try {
+          var s = document.createElement("script");
+          s.src = url;
+          s.async = true;
+          s.setAttribute("data-board3d-chunk", "1");
+          s.onload = function () { finish(board3dApiReady()); };
+          s.onerror = function () { finish(false); };
+          (document.head || document.documentElement).appendChild(s);
+        } catch (e) { finish(false); }
+      }
+      /* 同源 + 有 fetch：先探再执行（404 不会留下 console error） */
+      if (typeof window.fetch === "function" && sameOriginUrl(url)) {
+        var p = null;
+        try { p = window.fetch(url, { credentials: "same-origin" }); } catch (e) { p = null; }
+        if (p && typeof p.then === "function") {
+          p.then(function (res) {
+            if (!res || !res.ok) { finish(false); return null; }
+            return res.text().then(function (code) { execText(code); }, function () { finish(false); });
+          }, function () { finish(false); });
+          return;
+        }
+      }
+      scriptTag();
+    });
+    return board3dChunkP;
+  }
+
   function docHidden() { try { return !!document.hidden; } catch (e) { return false; } }
   /* 页面隐藏时等待恢复：table 的编排在下一段开始前必须经过这里 */
   function whenVisible() {
@@ -479,7 +619,9 @@
               '<div class="v6-hint" data-test="hint"></div>' +
             "</div>" +
           "</div>" +
-          '<div class="v6-boardwrap"><div class="v6-board" data-board data-test="board"></div></div>' +
+          '<div class="v6-boardwrap"><div class="v6-board" data-board data-test="board"></div>' +
+            /* V8：3D 主桌专用层；3D 可用时由 App.Board3D 挂载 canvas，V7 棋盘照旧保留在下面兜底 */
+            '<div class="v6-board3d" data-test="board3d" aria-hidden="true"></div></div>' +
           '<div class="v6-action" data-test="action">' +
             '<div class="v6-actions" data-test="actions"></div>' +
             '<div class="v6-receipt" data-test="receipt"></div>' +
@@ -491,6 +633,7 @@
       var rootEl = root.querySelector(".v6-table");
       var cabinHost = root.querySelector("[data-test=cabin]");
       var boardEl = root.querySelector("[data-board]");
+      var board3dHost = root.querySelector("[data-test=board3d]");
       var rollInfoEl = root.querySelector(".v6-rollinfo");
       var actionsEl = root.querySelector("[data-test=actions]");
       var hintEl = root.querySelector("[data-test=hint]");
@@ -500,6 +643,224 @@
       var dieEl = root.querySelector("[data-test=die-face]");
       var dieTextEl = root.querySelector("[data-test=die-text]");
       var landingEl = root.querySelector("[data-test=landing]");
+
+      /* ---------- V8：3D 主桌挂载 / 回落（App.Board3D 契约见 docs/v8/impl-freeze.md §3.2） ----------
+       * 顺序：V7 棋盘先挂（BoardView，便宜且保证零空白）→ 能力/开关允许时懒加载 chunk →
+       *       mount(host,{reduced,theme,state,view,mode}) 成功才加 .v6-3d 淡出 V7 视觉层（HUD/题卡不动）。
+       * 任何一步失败：不加载/不挂载 3D，补机舱+镜头 → 完整 V7；模块缺席时 table 行为和 V7 完全一致。 */
+      var board3d = {
+        wanted: false, pending: false, ready: false, failed: false,
+        reason: "", inst: null
+      };
+
+      function b3Status() {
+        return {
+          mode: board3dMode(), wanted: !!board3d.wanted, pending: !!board3d.pending,
+          ready: !!board3d.ready, failed: !!board3d.failed, reason: board3d.reason || "",
+          url: board3dUrl(), mounts: board3d.mounts || 0
+        };
+      }
+      function setB3Status(status, reason) {
+        try { if (rootEl) rootEl.setAttribute("data-board3d", status); } catch (e) {}
+        try { if (rootEl) rootEl.setAttribute("data-board3d-reason", reason || ""); } catch (e) {}
+      }
+      /* 优先用实例方法，模块只暴露命名空间方法时也能用（契约两种写法都兼容） */
+      function b3Call(name, a, b, c) {
+        var inst = board3d.inst, api = board3dApi(), owner = null, fn = null;
+        if (inst && typeof inst[name] === "function") { owner = inst; fn = inst[name]; }
+        else if (api && typeof api[name] === "function") { owner = api; fn = api[name]; }
+        if (!fn) return undefined;
+        try { return fn.call(owner, a, b, c); } catch (e) {
+          if (window.console) console.warn("[table] 3D " + name + " 失败（已忽略）", e);
+          return undefined;
+        }
+      }
+      function board3dReady() { return !!(board3d.ready && board3d.inst); }
+      /* 卸载优先走命名空间：模块单例的 current 只在 App.Board3D.unmount() 里清掉；
+       * 只调实例 unmount() 会留下 stale current（下一屏 mount 虽能自愈，但 _debug().mounted 会假阳性）。 */
+      function board3dUnmount() {
+        var api = board3dApi();
+        if (api && typeof api.unmount === "function") {
+          try { api.unmount(); return true; } catch (e) {}
+        }
+        var inst = board3d.inst;
+        if (inst && typeof inst.unmount === "function") {
+          try { inst.unmount(); return true; } catch (e) {}
+        }
+        return false;
+      }
+      /* CellStage（题卡）关闭/做了/放过时，让 3D 从 cell45/bear 回俯瞰。
+       * 契约优先：App.Board3D.returnToOverview()（prod3d 目前未导出）→ 实例同名方法；
+       * 都没有时用契约里的 play([]) 触发 director 的 returnToOverview（不 holding 时是 no-op），
+       * 从而在 prod3d 补 API 之前也能正确回落；两路都防御式，失败不影响棋局。 */
+      function board3dReturnOverview() {
+        if (!board3dReady()) return false;
+        var api = board3dApi(), inst = board3d.inst, owner = null, fn = null;
+        if (api && typeof api.returnToOverview === "function") { owner = api; fn = api.returnToOverview; }
+        else if (inst && typeof inst.returnToOverview === "function") { owner = inst; fn = inst.returnToOverview; }
+        if (fn) {
+          try {
+            var p = fn.call(owner);
+            if (p && typeof p.then === "function") {
+              p.then(null, function (e) {
+                if (window.console) console.warn("[table] 3D returnToOverview 失败（已忽略）", e);
+              });
+            }
+            return true;
+          } catch (e) {
+            if (window.console) console.warn("[table] 3D returnToOverview 抛错（已忽略）", e);
+          }
+        }
+        try {
+          var q = b3Call("play", [], { kind: "return", sound: soundOn() });
+          if (q && typeof q.then === "function") q.then(null, function () {});
+          return true;
+        } catch (e2) { return false; }
+      }
+      /* render 后同步棋子/热度：演出中（busy）跳过，避免把镜头途中的棋子瞬移到终点；
+       * 演出结束后的 render 会补一次精确同步（busy=false 才真正下发）。 */
+      function board3dSyncState() {
+        if (!board3dReady() || !state || busy) return;
+        var v = null;
+        try { v = snapshot(); } catch (e) { v = null; }
+        b3Call("setState", clone(state) || state, v);
+      }
+      /* cell45 / bear 小舞台：V7 走 Cinema.stage；3D 只在模块确实暴露 stage 时转发（契约未列则不猜） */
+      function board3dStage(name) {
+        if (!board3dReady()) return false;
+        var inst = board3d.inst, api = board3dApi();
+        try {
+          if (inst && typeof inst.stage === "function") { inst.stage(name); return true; }
+          if (api && typeof api.stage === "function") { api.stage(name); return true; }
+        } catch (e) {}
+        return false;
+      }
+      function stageShow(name) {
+        if (board3dReady()) { board3dStage(name); return; }
+        cinemaStage(name);
+      }
+      function mountV7ShowLayers() {
+        mountCabin();
+        mountCinema();
+      }
+      function activateBoard3d() {
+        board3d.pending = false;
+        board3d.ready = true;
+        board3d.failed = false;
+        board3d.reason = "";
+        setB3Status("on", "");
+        try {
+          rootEl.classList.add("v6-3d");
+          rootEl.classList.add("v8-3d-card");   /* 3D 模式题卡只出右侧内容卡（见 CSS） */
+        } catch (e) {}
+        board3dSyncState();       /* mount 时的 state/view 可能已过一拍，这里再对齐一次 */
+        render();
+      }
+      function fallbackBoard3d(reason) {
+        if (!alive) return null;
+        if (board3d.failed) return null;   /* 幂等：一次失败只回退一次 */
+        board3d.pending = false;
+        board3d.ready = false;
+        board3d.failed = true;
+        board3d.reason = reason || "fallback";
+        if (board3d.inst) {
+          try { board3dUnmount(); } catch (e) {}
+          board3d.inst = null;
+        }
+        try { if (rootEl) rootEl.classList.remove("v6-3d"); } catch (e) {}
+        try { if (rootEl) rootEl.classList.remove("v8-3d-card"); } catch (e) {}
+        try { if (board3dHost) board3dHost.innerHTML = ""; } catch (e) {}
+        setB3Status("v7", board3d.reason);
+        /* V7 完整路径：棋盘已在（mountBoard 提前挂好），补机舱 + 镜头 */
+        mountV7ShowLayers();
+        applyTheme();
+        syncReduced();
+        render();
+        if (board3dMode() === "on") toast("这次没打开 3D 主桌，先用 V7。");
+        return null;
+      }
+      function startBoard3d() {
+        board3d.wanted = board3dAllowed();
+        if (!board3d.wanted) {
+          board3d.failed = true;
+          board3d.reason = board3dMode() === "off" ? "off" : (reduced() ? "reduced" : "no-webgl2");
+          setB3Status("v7", board3d.reason);
+          mountV7ShowLayers();
+          if (board3dMode() === "on") toast("这台手机这次开不了 3D 主桌，先用 V7。");
+          return;
+        }
+        board3d.pending = true;
+        board3d.mounts = 0;
+        setB3Status("pending", "");
+        loadBoard3dChunk().then(function (ok) {
+          if (!alive) return null;
+          if (!ok) return fallbackBoard3d("chunk");
+          var api = board3dApi();
+          if (!api || typeof api.mount !== "function") return fallbackBoard3d("api");
+          var mp = null;
+          try {
+            board3d.mounts = 1;
+            mp = api.mount(board3dHost, {
+              reduced: reduced(),
+              theme: themeId(),
+              state: clone(state) || state,
+              view: snapshot(),
+              mode: (state && state.mode) || settings().mode || "quick",
+              sound: soundOn(),
+              stageAim: board3dStageAim()   /* cell45/bear 瞄准左侧卡片外区域 */
+            });
+          } catch (e) {
+            if (window.console) console.warn("[table] 3D mount 抛错，回落 V7", e);
+            return fallbackBoard3d("mount-throw");
+          }
+          return Promise.resolve(mp).then(function (inst) {
+            if (!alive) {
+              try { if (inst && typeof inst.unmount === "function") inst.unmount(); } catch (e) {}
+              return null;
+            }
+            if (!inst) return fallbackBoard3d("mount-null");
+            board3d.inst = inst;
+            activateBoard3d();
+            return null;
+          }, function (e) {
+            if (window.console) console.warn("[table] 3D mount 失败，回落 V7", e);
+            return fallbackBoard3d("mount-reject");
+          });
+        }).then(null, function (e) {
+          if (window.console) console.warn("[table] 3D 加载失败，回落 V7", e);
+          if (alive) fallbackBoard3d("load-error");
+        });
+      }
+      /* 3D 演出：替代 BoardView.play + Cinema 镜头链；永不 reject，另有超时兜底防 busy 卡死 */
+      function runShow3d(opts, events) {
+        return whenVisible().then(function () {
+          if (!alive || !board3dReady()) return null;
+          var p = null;
+          try {
+            p = b3Call("play", (events || []).slice(), {
+              kind: opts.kind, outcome: opts.outcome || "", sound: soundOn()
+            });
+          } catch (e) { p = null; }
+          return new Promise(function (resolve) {
+            var done = false;
+            var timer = setTimeout(function () {
+              if (done) return;
+              done = true;
+              if (window.console) console.warn("[table] 3D play 超时，先纠偏");
+              resolve(null);
+            }, 12000);
+            function finish() {
+              if (done) return;
+              done = true;
+              try { clearTimeout(timer); } catch (e) {}
+              resolve(null);
+            }
+            if (p && typeof p.then === "function") p.then(finish, function () { finish(); });
+            else finish();
+          });
+        });
+      }
+
 
       /* ---------- 存储：状态先于动画（api-contract §8 ⑤） ---------- */
       function saveSession() {
@@ -637,6 +998,7 @@
         if (cinemaHas("setTheme")) {
           try { cinemaApi().setTheme(themeId()); } catch (e2) {}
         }
+        if (board3dReady()) b3Call("setTheme", themeId());   /* V8：主题转发给 3D */
         if (rootEl) rootEl.setAttribute("data-reduced", reduced() ? "1" : "0");
       }
       /* 系统 prefers-reduced-motion / 设置开关变化：一次同步给所有演出层（QA P1） */
@@ -654,6 +1016,7 @@
         try {
           if (App.CellStage && typeof App.CellStage.setReduced === "function") App.CellStage.setReduced(r);
         } catch (e4) {}
+        try { if (board3dReady()) b3Call("setReduced", r); } catch (e6) {}   /* V8：减少动画同步给 3D */
         try { if (App.Motion && typeof App.Motion.syncBodyClass === "function") App.Motion.syncBodyClass(); } catch (e5) {}
         if (rootEl) rootEl.setAttribute("data-reduced", r ? "1" : "0");
       }
@@ -904,6 +1267,7 @@
         paintWinner();
         paintDie();
         syncBoard();
+        board3dSyncState();       /* V8：render 后把棋子/热度/当前玩家同步给 3D（busy 时跳过） */
       }
 
       /* ---------- 底部行动区 ---------- */
@@ -943,6 +1307,9 @@
 
       /* ---------- 交互层宿主（题卡/小游戏组件自己是 fixed 层） ---------- */
       function closeHosts() {
+        /* V8：3D 模式下题卡正在舞台上（cell45/bear）→ 关闭时让 3D 回俯瞰。
+         * 只在「真的关了一张已打开的 CellStage」时触发，避免每次 commit 都动镜头。 */
+        var promptWasOn3d = board3dReady() && cellStageOpen && !!(cardHost && cardHost.firstChild);
         cellStageOpen = false;
         if (bearTimer) { clearTimeout(bearTimer); bearTimer = null; }
         try { if (typeof cardClose === "function") cardClose(); } catch (e) {}
@@ -958,6 +1325,7 @@
         }
         if (miniHost) miniHost.innerHTML = "";
         if (rootEl) rootEl.classList.remove("v6-overlay");
+        if (promptWasOn3d && alive) board3dReturnOverview();
       }
 
       function syncHosts() {
@@ -1002,12 +1370,12 @@
           try {
             cardClose = cell.open(cardHost, prompt, state, handlers);
             cellStageOpen = true;
-            cinemaStage("cell45");
+            stageShow("cell45");       /* V8：3D 可用时由 3D 负责 cell45/bear 镜头，否则走 Cinema */
             /* 冻结单 §1：cell45 0.6–0.8s 后小熊探头（bear 0.5s） */
             bearTimer = setTimeout(function () {
               bearTimer = null;
               if (!alive || !cellStageOpen) return;
-              cinemaStage("bear");
+              stageShow("bear");
             }, 640);
             if (ending) {
               cardHost.setAttribute("data-ending-card", "1");
@@ -1192,6 +1560,8 @@
       }
 
       function runShow(opts, split, events) {
+        /* V8：3D 可用时用 Board3D.play(events) 替代 BoardView + Cinema 镜头链（题卡仍由 table 打开） */
+        if (board3dReady()) return runShow3d(opts, events);
         return whenVisible().then(function () {
           /* V7 性能：整段镜头链（roll/pov/chase/land）让 Cabin 场景停画布，
            * 结束后再恢复；只影响背景，不影响棋盘/舞台。 */
@@ -1607,6 +1977,7 @@
         /* V7：减少动画 / 音效 / 主题 转发给 Cinema；主题同时重新 apply 到主桌根节点 */
         try {
           if (cinemaHas("setSound")) cinemaApi().setSound(s.sound !== false);
+          if (board3dReady()) b3Call("setSound", s.sound !== false);   /* V8：音效转发给 3D */
           applyTheme();
         } catch (e2) {
           if (window.console) console.warn("[table] cinema settings 失败", e2);
@@ -1632,9 +2003,8 @@
         }
       } catch (e) {}
 
-      mountBoard();
-      mountCabin();
-      mountCinema();
+      mountBoard();          /* V7 棋盘先挂：3D 失败时零空白回落（3D 成功后才被 .v6-3d 淡出） */
+      startBoard3d();        /* V8：开关/能力允许才懒加载 + 挂 3D；不允许时这里补齐机舱+镜头（V7 完整路径） */
       applyTheme();
       syncReduced();
       if (state.phase === "ended" || state.phase === "safe-ended") finish();
@@ -1658,7 +2028,8 @@
             return forcedDie;
           },
           getState: function () { return clone(state); },
-          isBusy: function () { return !!busy; }
+          isBusy: function () { return !!busy; },
+          board3d: function () { try { return b3Status(); } catch (e) { return null; } }
         };
       } catch (e) {}
 
@@ -1683,6 +2054,13 @@
          * 否则 CabinScene.unmount 的 boardPrev 还原会把镜头 transform 写回去。 */
         if (tableOwner === owner) {
           tableOwner = null;
+          /* V8：先拆 3D（独立 canvas/RAF），再按 V7 顺序拆 Cinema → CabinScene → BoardView */
+          if (board3d.inst || board3d.ready) {
+            try { board3dUnmount(); } catch (e) {}
+          }
+          board3d.inst = null;
+          board3d.ready = false;
+          board3d.pending = false;
           if (cinemaHas("unmount")) {
             try { cinemaApi().unmount(); } catch (e) {}
           }

@@ -10,10 +10,22 @@
   python tools/rebuild/build_app.py --board=3d         # 额外把 3D 棋盘 assets/board.js 拷进产物（默认不拷）
   python tools/rebuild/build_app.py --check --strict   # 最终集成用：缺模块视为错误
   python tools/rebuild/build_app.py --no-minify        # 调试用：不做 esbuild 压缩（默认开）
+  python tools/rebuild/build_app.py --out dist/rebuild-v8 --check   # V8：带 3D 懒加载 chunk 的发布门
+  python tools/rebuild/build_app.py --no-3d            # 不构建 3D chunk（V7 口径/调试用；生产默认开）
 
 压缩：默认用 app/render/node_modules 里已有的 esbuild 对**最终拼接结果**做 minify
 （js: target=es2018；css: loader=css；charset=utf8 保证中文不转义），源码模块与
 node --check 流程不变；esbuild 缺失/失败时告警并降级为未压缩，不会让构建挂掉。
+
+V8 3D 懒加载（docs/v8/impl-freeze.md §3.1，本脚本 build_3d_chunk()）：
+  · 入口 app/src/view/board3d/entry.js 单独 esbuild bundle（three 走本地
+    app/render/node_modules/three/build/three.module.min.js，tree-shake）；
+  · 产出 assets/board3d.<内容哈希>.js（IIFE，target=es2018，charset=utf8）；
+  · index 只注入 window.__BOARD3D_URL（内联 1 行，无 <script src>，不阻塞首屏）；
+  · 该 chunk 进 sw.js PRECACHE（离线可用），但不计入首屏 gzip 预算；
+  · 目标 ≤140KB gzip（--budget-3d 可覆盖，仅报告/告警，不判 RED）；
+  · entry 未就绪（并行开发期）→ [WARN] 跳过，index 不注入 URL，--check 不判 RED。
+  · --with-3d 默认开（生产）；--no-3d 关闭。
 
 V6 口径（docs/v6/architecture.md §3）：
   · 首屏 = 一个内联 index.html（CSS + core + engine + view + ui + 启动全部内联）；
@@ -29,11 +41,13 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APP = ROOT / "app"
@@ -42,6 +56,12 @@ SW_TEMPLATE = ROOT / "sw.template.js"
 MANIFEST = ROOT / "manifest.webmanifest"
 ICONS = ROOT / "icons"
 BOARD_SRC = ROOT / "assets" / "board.js"
+# V8：3D 主桌懒加载子包（独立 chunk；three 本地 vendor，构建时 tree-shake）
+BOARD3D_ENTRY = APP / "src" / "view" / "board3d" / "entry.js"
+BOARD3D_THREE = APP / "render" / "node_modules" / "three" / "build" / "three.module.min.js"
+BOARD3D_PREFIX = "assets/board3d"        # 产物名：assets/board3d.<hash>.js
+BOARD3D_URL_VAR = "__BOARD3D_URL"        # index 内联：window.__BOARD3D_URL = "<chunk>"
+BOARD3D_GZIP_TARGET = 140 * 1024         # V8 3D chunk gzip 目标（验收报告用；超了给 tree-shake 建议）
 
 CACHE_PREFIX = "couple-flight-v6-"
 CARDS_PREFIX = "assets/cards"          # 产物名：assets/cards.<hash>.js
@@ -133,6 +153,10 @@ def sha8_text(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
 
 
+def sha8_bytes(data):
+    return hashlib.sha256(data).hexdigest()[:8]
+
+
 def sha8_file(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()[:8]
 
@@ -214,13 +238,20 @@ def script_refs(html):
     return refs
 
 
-def expected_precache(out, html):
-    """PRECACHE 的唯一真相来源：'./' + index + manifest + index 引用的每个外链脚本 + PWA 图标。"""
+def expected_precache(out, html, extra=()):
+    """PRECACHE 的唯一真相来源：'./' + index + manifest + index 引用的每个外链脚本 + 额外懒加载 chunk + PWA 图标。
+
+    extra：不进首屏 <script src>、但必须离线可用的独立 chunk（V8 的 assets/board3d.<hash>.js）。
+    """
     items = ["./", "./index.html", "./manifest.webmanifest"]
     for ref in script_refs(html):
         if "board" in ref.lower():
             continue                       # 3D 棋盘不进预缓存（可选特性，运行时 cache-first）
         items.append("./" + ref)
+    for ref in extra:
+        entry = "./" + ref
+        if ref and entry not in items:
+            items.append(entry)
     for rel in PWA_ICONS:
         if (out / rel).is_file():
             items.append("./" + rel)
@@ -258,8 +289,13 @@ def render_sw(build_hash, precache):
 
 
 def prune_stale(out, board, keep=()):
-    """删掉上一次构建留下的陈旧产物（默认产物里不允许再有 assets/board.js）。"""
+    """删掉上一次构建留下的陈旧产物（默认产物里不允许再有 assets/board.js）。
+
+    keep 里是产物相对路径（如 assets/cards.<hash>.js / assets/board3d.<hash>.js）；
+    本函数按 basename 比对，避免把「本次刚写/待写」的同哈希产物误删再重写。
+    """
     removed = []
+    keep_names = {rel_of(k).rsplit("/", 1)[-1] for k in keep}
     assets = out / "assets"
     if not assets.is_dir():
         return removed
@@ -269,9 +305,9 @@ def prune_stale(out, board, keep=()):
             continue
         name = p.name
         drop = False
-        if re.match(r"^(?:cards|screens|app)\.[0-9a-f]{8}\.js$", name) and name not in keep:
-            drop = True                                    # 旧哈希的题库 / 拆分屏 / 外部 app 包
-        elif name == "cards.js" and not out_is_root and name not in keep:
+        if re.match(r"^(?:cards|screens|app|board3d)\.[0-9a-f]{8}\.js$", name) and name not in keep_names:
+            drop = True                                    # 旧哈希的题库 / 拆分屏 / 外部 app 包 / 3D chunk
+        elif name == "cards.js" and not out_is_root and name not in keep_names:
             drop = True                                    # V5 旧口径（dev 产物里）
         elif name == "board.js" and not out_is_root and board != "3d":
             drop = True                                    # 511KB 3D 棋盘，默认不随包
@@ -331,6 +367,72 @@ def esbuild_minify(code, loader, exe):
     return out if out.strip() else None
 
 
+# --------------------------------------------------------------------------- V8 3D 懒加载 chunk
+def build_3d_chunk(minify=True, entry=None):
+    """把 board3d/entry.js 打成独立 IIFE chunk（three 从本地 vendor bundle + tree-shake）。
+
+    返回 dict(name/text/raw/gzip/min)；entry 未就绪 / esbuild 缺失 / 打包失败 → [WARN] 并返回 None
+    （并行开发期不阻塞构建；--check 对「entry 存在却没 chunk」判 RED，对「entry 缺失」只报告 missing）。
+    调用方负责落盘；文件名哈希 = 最终内容 sha256 前 8 位（--check 重算比对）。
+    """
+    entry = pathlib.Path(entry) if entry else BOARD3D_ENTRY
+    try:
+        rel_entry = entry.resolve().relative_to(ROOT)
+    except ValueError:
+        rel_entry = entry
+    if not entry.is_file():
+        print("[WARN] --with-3d 但 3D 入口未就绪：%s（并行开发期跳过，index 不注入 window.%s）"
+              % (rel_entry, BOARD3D_URL_VAR), file=sys.stderr)
+        return None
+    exe = find_esbuild()
+    if exe is None:
+        print("[WARN] --with-3d 但没找到 esbuild（app/render/node_modules），本次跳过 3D chunk",
+              file=sys.stderr)
+        return None
+    if not BOARD3D_THREE.is_file():
+        print("[WARN] --with-3d 但 three vendor 缺失：%s（entry 里 import 会解析失败），本次跳过 3D chunk"
+              % BOARD3D_THREE.relative_to(ROOT), file=sys.stderr)
+        return None
+
+    fd, tmp_name = tempfile.mkstemp(prefix="board3d-", suffix=".js")
+    os.close(fd)
+    tmp = pathlib.Path(tmp_name)
+    # bundle + IIFE + es2018 + utf8：three 走 entry 里的相对 import（本地 three.module.min.js）
+    cmd = [str(exe), str(entry), "--bundle", "--format=iife",
+           "--target=" + ESBUILD_TARGET, "--charset=utf8",
+           "--tree-shaking=true", "--log-level=warning",
+           "--outfile=" + str(tmp)]
+    if minify:
+        cmd.insert(2, "--minify")
+    try:
+        r = subprocess.run(cmd, capture_output=True)
+        if r.returncode != 0:
+            msg = (r.stderr or b"").decode("utf-8", "replace").strip()
+            print("[WARN] 3D chunk 打包失败，本次跳过：%s" % msg[:800], file=sys.stderr)
+            return None
+        code = tmp.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        print("[WARN] 3D chunk 打包异常，本次跳过：%s" % e, file=sys.stderr)
+        return None
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+    if not code:
+        print("[WARN] 3D chunk 为空，本次跳过", file=sys.stderr)
+        return None
+    text = "/*! v8-board3d min:%d */\n%s\n" % (1 if minify else 0, code)
+    data = text.encode("utf-8")
+    return {
+        "name": "%s.%s.js" % (BOARD3D_PREFIX, sha8_bytes(data)),
+        "text": text,
+        "raw": len(data),
+        "gzip": gz_len(data),
+        "min": bool(minify),
+    }
+
+
 # --------------------------------------------------------------------------- 模块清单守卫
 def dedupe_modules(mods):
     """按路径去重（保持首次出现的顺序），防止有人把同一模块写两遍打进包里。"""
@@ -381,7 +483,8 @@ def assert_v7_order(mods):
 # --------------------------------------------------------------------------- 构建
 def build(out, release, board, strict, split_screens=False,
           budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDGET,
-          budget_total=FIRST_SCREEN_GZIP_BUDGET, minify=True, external_js=False):
+          budget_total=FIRST_SCREEN_GZIP_BUDGET, minify=True, external_js=False,
+          with_3d=True, budget_3d=BOARD3D_GZIP_TARGET):
     if not TEMPLATE.exists():
         die("缺少模板: %s" % TEMPLATE)
     template = read_text(TEMPLATE)
@@ -437,6 +540,13 @@ def build(out, release, board, strict, split_screens=False,
     js = "/*! v6-bundle:%s modules:%d min:%d */\n%s" % (
         sha8_text(js), inlined, 1 if min_js else 0, js)
 
+    # ---- V8 3D 懒加载 chunk（独立文件，不进首屏；entry 缺失 → WARN 跳过）----
+    three_d = build_3d_chunk(minify=minify) if with_3d else None
+    three_d_tag = ""
+    if three_d:
+        # 只注入 URL（1 行内联，无 <script src>）：不阻塞首屏，由 table 侧按需动态 import/script 加载
+        three_d_tag = '<script>window.%s="%s";</script>\n' % (BOARD3D_URL_VAR, three_d["name"])
+
     # ---- 外部 JS 模式（--external-js）：整包写成 assets/app.<内容哈希>.js ----
     # 首屏 HTML 里只剩 CSS + 骨架 → 文档一到就能首绘；JS 走 defer，DOMContentLoaded 前执行完，启动顺序不变。
     app_name = ""
@@ -471,7 +581,7 @@ def build(out, release, board, strict, split_screens=False,
 
     html = (
         template.replace("<!--APP_CSS-->", css)
-        .replace("<!--APP_JS-->", js_block)
+        .replace("<!--APP_JS-->", three_d_tag + js_block)
         .replace("<!--APP_PRELOAD-->", cards_preload)
         .replace("<!--APP_SPLIT-->", screens_tag)
         .replace("<!--APP_CARDS-->", cards_tag)
@@ -483,8 +593,11 @@ def build(out, release, board, strict, split_screens=False,
 
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    removed = prune_stale(out, board, keep={cards_name, screens_name, app_name} - {""})
+    keep = {cards_name, screens_name, app_name, three_d["name"] if three_d else ""} - {""}
+    removed = prune_stale(out, board, keep=keep)
 
+    if three_d:
+        write_text(out / three_d["name"], three_d["text"])
     if cards_name:
         write_text(out / cards_name, data)
     if screens_name:
@@ -526,7 +639,7 @@ def build(out, release, board, strict, split_screens=False,
     # sw.js：CACHE 版本 = 落盘 index.html 的 sha256 前 8 位
     index_path = out / "index.html"
     build_hash = sha8_file(index_path)
-    precache = expected_precache(out, html)
+    precache = expected_precache(out, html, extra=[three_d["name"]] if three_d else [])
     write_text(out / "sw.js", render_sw(build_hash, precache))
 
     # ---- 摘要（一律对落盘文件统计）----
@@ -540,6 +653,17 @@ def build(out, release, board, strict, split_screens=False,
         ", ".join(missing_js + missing_data) or "none"))
     print("     board: %s (%s)" % (
         board, "已随包 assets/board.js" if board == "3d" else "未复制 assets/board.js"))
+    if with_3d:
+        if three_d:
+            print("     board3d: %s (%.1f KB raw / %.1f KB gzip, minify=%s, IIFE/es2018, 目标 ≤%.0f KB gzip)"
+                  % (three_d["name"], kb(three_d["raw"]), kb(three_d["gzip"]),
+                     "on" if three_d["min"] else "off", kb(budget_3d)))
+            if three_d["gzip"] > budget_3d:
+                print("     [WARN] 3D chunk gzip 超目标，tree-shake 建议见 --check 输出")
+        else:
+            print("     board3d: 跳过（entry 未就绪或无 esbuild），index 不注入 window.%s" % BOARD3D_URL_VAR)
+    else:
+        print("     board3d: --no-3d（不构建 3D chunk）")
     if min_js or min_css:
         print("     minify: on (%s, %s, charset=utf8) js=%s css=%s" % (
             esbuild_label(esbuild), ESBUILD_TARGET if min_js else "-",
@@ -605,7 +729,7 @@ def print_stats(out):
 
 # --------------------------------------------------------------------------- 发布门
 def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDGET,
-              budget_total=FIRST_SCREEN_GZIP_BUDGET):
+              budget_total=FIRST_SCREEN_GZIP_BUDGET, with_3d=True, budget_3d=BOARD3D_GZIP_TARGET):
     out = pathlib.Path(out)
     passed, failed = [], []
 
@@ -679,16 +803,93 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
             bad_hash.append(ref)
     expect("assets 文件名哈希与内容一致", not bad_hash, ", ".join(bad_hash))
 
-    # 5) 3D 棋盘：默认不随包、不引用
-    board_refs = [r for r in local_refs if "board" in r.lower()]
+    # 5) V6 3D 棋盘 assets/board.js（511KB 可选件）：默认不随包、不引用
+    board_refs = [r for r in local_refs if re.search(r"(?:^|/)assets/board\.js$", r)]
     if board == "3d":
         expect("--board=3d：assets/board.js 已随包", (out / "assets" / "board.js").is_file())
     else:
-        expect("产物不含/不引用 board.js",
+        expect("产物不含/不引用 assets/board.js（V6 511KB 棋盘）",
                not board_refs and not (out / "assets" / "board.js").exists(),
                ", ".join(board_refs) or "assets/board.js 存在")
 
-    # 6) sw.js：CACHE 哈希 / PRECACHE 与磁盘一致 / 不含 board.js
+    # 5b) V8 3D 主桌懒加载 chunk：index 只注入 URL；chunk 独立哈希；不阻塞首屏；首屏无 three
+    m_3d = re.search(r'window\.%s\s*=\s*["\'](assets/board3d\.[0-9a-f]{8}\.js)["\']' % BOARD3D_URL_VAR, html)
+    three_rel = m_3d.group(1) if m_3d else ""
+    three_path = out / three_rel if three_rel else None
+    entry_ready = BOARD3D_ENTRY.is_file()
+    if with_3d and entry_ready:
+        expect("3D：index 注入 window.%s = %s" % (BOARD3D_URL_VAR, "assets/board3d.<hash>.js"),
+               bool(three_rel), "未找到 __BOARD3D_URL（entry 存在，说明 chunk 构建失败）")
+    elif with_3d and not three_rel:
+        print("[CHECK] WARN 3D chunk missing：%s 未就绪（并行开发期，本项不判 RED）"
+              % BOARD3D_ENTRY.relative_to(ROOT))
+
+    # 懒加载形态 + 首屏纯净：无论 chunk 是否产出都必须成立
+    expect("3D：首屏不以 <script src> 引用 3D chunk（仅懒加载）",
+           not re.search(r'<script\b[^>]*\bsrc\s*=\s*["\']assets/board3d', html, re.I))
+    expect("3D：首屏无 preload/prefetch 强制拉取 3D chunk",
+           not re.search(r'<link\b[^>]*(?:preload|prefetch)[^>]*assets/board3d', html, re.I))
+    # 首屏（index / 外部 app 包）不得内联 three
+    three_markers = [m for m in ("gl_Position", "three.module.min.js", "three.core.min.js",
+                                 "THREE.WebGLRenderer")
+                     if m in bundle_text]
+    expect("首屏无 three 内联（index/bundle 无 three 标记）", not three_markers,
+           ", ".join(three_markers))
+
+    if three_rel:
+        expect("3D：chunk 已落盘 %s" % three_rel, three_path.is_file())
+        if three_path.is_file():
+            chunk_bytes = three_path.read_bytes()
+            chunk_text = chunk_bytes.decode("utf-8", "replace")
+            want_hash = re.search(r"\.([0-9a-f]{8})\.js$", three_rel).group(1)
+            expect("3D：chunk 文件名哈希 == 内容哈希", sha8_file(three_path) == want_hash,
+                   "name=%s content=%s" % (want_hash, sha8_file(three_path)))
+            expect("3D：chunk 为 IIFE（无 ESM import/export 残留）",
+                   not re.search(r'(?:^|[;}])\s*(?:import|export)\s*[\{\(\'"]', chunk_text)
+                   and 'from"./three.core' not in chunk_text)
+            expect("3D：three 已打进 chunk（WebGL 着色器/上下文标记）",
+                   "gl_Position" in chunk_text or "webgl2" in chunk_text)
+            i_3d = html.find(BOARD3D_URL_VAR)
+            i_boot = html.find("v6-bundle:") if "v6-bundle:" in html else html.find("assets/app.")
+            expect("3D：__BOARD3D_URL 在启动脚本之前注入", i_3d >= 0 and (i_boot < 0 or i_3d < i_boot))
+            gz3d = gz_len(chunk_bytes)
+            if gz3d <= budget_3d:
+                print("[CHECK] PASS  3D chunk gzip %.1f KB ≤ %.0f KB（V8 目标%s）" % (
+                    kb(gz3d), kb(budget_3d),
+                    "" if budget_3d == BOARD3D_GZIP_TARGET else "，--budget-3d 覆盖"))
+            else:
+                print("[CHECK] WARN  3D chunk gzip %.1f KB > %.0f KB 目标（仅告警，不判 RED）"
+                      % (kb(gz3d), kb(budget_3d)))
+                # 实测口径（V8 首版，同一份 board3d 源码 + build_3d_chunk）：
+                #   · namespace + three.module.min.js         = 156.2 KB gzip（当前）
+                #   · 仅把 import 路径改成 unmin three.module.js = 151.7 KB gzip（esbuild 多摇掉 ~4.5 KB）
+                #   · 具名 import（连 THREE.xxx 一起改写）不省：仍 156.2 KB；
+                #     three r180 的 WebGLRenderer 单类 floor ≈ 132 KB gzip（min）/ 118 KB（unmin）
+                #   · 场景侧多出 ~24–34 KB gzip；ExtrudeGeometry 边际最大（实测 ≈ +8.8 KB），
+                #     其余 Sprite/Points/PointLight/Fog/阴影 边际 <1 KB
+                min_three = []
+                try:
+                    for p in sorted(BOARD3D_ENTRY.parent.glob("*.js")):
+                        if "three.module.min.js" in read_text(p):
+                            min_three.append(p.name)
+                except OSError:
+                    min_three = []
+                if min_three:
+                    print("[CHECK]   · 低风险杠杆：把 %d 个文件的 import 路径从 three.module.min.js 换成"
+                          " three.module.js（unmin，esbuild 自己压）→ 实测省 ~4.5 KB gzip"
+                          % len(min_three))
+                for tip in (
+                    "  · 硬压到 ≤140 只能砍场景侧 three 能力；ExtrudeGeometry 边际最大（≈8.8 KB gzip），"
+                    "Sprite/Points/PointLight/Fog/阴影 边际均 <1 KB，收益有限",
+                    "  · 这是个只影响懒加载 chunk 的目标（不进首屏、SW 预缓存、失败回落 V7）；"
+                    "建议按 ≤160 KB gzip 验收，或由 lead 决定是否砍能力",
+                    "  · 若接受当前体积：用 --budget-3d 160 让报告与约定一致（仅影响本行输出）",
+                ):
+                    print("[CHECK] %s" % tip)
+            print("[CHECK]       chunk: %s raw %.1f KB / gzip %.1f KB" % (
+                three_rel, kb(len(chunk_bytes)), kb(gz3d)))
+
+    # 6) sw.js：CACHE 哈希 / PRECACHE 与磁盘一致 / 不含 V6 board.js、含 V8 3D chunk
     sw_path = out / "sw.js"
     expect("sw.js 已产出", sw_path.is_file())
     if sw_path.is_file():
@@ -712,11 +913,15 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
         if isinstance(precache, list):
             absent = [e for e in precache if e != "./" and not (out / rel_of(e)).is_file()]
             expect("sw PRECACHE 条目都在磁盘上", not absent, ", ".join(absent))
-            expected = expected_precache(out, html)
+            expected = expected_precache(out, html, extra=[three_rel] if three_rel else [])
             expect("sw PRECACHE 与产物清单一致",
                    sorted(precache) == sorted(expected) and len(set(precache)) == len(precache),
                    "disk=%s" % sorted(precache))
-            expect("sw PRECACHE 不含 board.js", not [e for e in precache if "board" in e.lower()])
+            expect("sw PRECACHE 不含 V6 assets/board.js",
+                   not [e for e in precache if re.search(r"(?:^|/)assets/board\.js$", e)])
+            if three_rel:
+                expect("3D：sw PRECACHE 含 3D chunk（离线可用）",
+                       ("./" + three_rel) in precache, "PRECACHE 缺 ./" + three_rel)
             ref = cards_ref(html)
             expect("sw PRECACHE 含首屏题库", ("./" + ref) in precache if ref else True)
 
@@ -770,7 +975,7 @@ def report(passed, failed):
 
 # --------------------------------------------------------------------------- entry
 def main():
-    ap = argparse.ArgumentParser(description="今晚飞行棋 V6 构建 / 发布门")
+    ap = argparse.ArgumentParser(description="今晚飞行棋 V6/V8 构建 / 发布门")
     ap.add_argument("--out", default=None, help="输出目录（默认 dist/rebuild；--release 时默认仓库根）")
     ap.add_argument("--release", action="store_true", help="写仓库根（部署用）")
     ap.add_argument("--check", action="store_true", help="构建后跑发布门校验，失败退出 1")
@@ -785,12 +990,19 @@ def main():
                     help="首屏 index raw 预算 KB（默认 ADR-012 的 520；临时覆盖用）")
     ap.add_argument("--budget-total", type=float, default=None,
                     help="首屏总 gzip 预算 KB（index+cards+manifest，默认 ADR-012 的 180；临时覆盖用）")
+    ap.add_argument("--budget-3d", type=float, default=None,
+                    help="3D chunk gzip 目标 KB（默认 140；仅报告/告警，不判 RED）")
     ap.add_argument("--no-minify", action="store_true",
                     help="关闭 esbuild 压缩（调试用；默认对 dev/release 都开）")
     ap.add_argument("--external-js", action="store_true",
                     help="把整包 JS 写成 assets/app.<hash>.js（首屏 HTML 只剩 CSS+骨架，首绘更早）")
     ap.add_argument("--inline-js", action="store_true",
                     help="强制内联 JS（覆盖 --release 的默认 external）")
+    ap.add_argument("--no-3d", dest="with_3d", action="store_false",
+                    help="不构建 V8 3D 懒加载 chunk / 不注入 __BOARD3D_URL")
+    ap.add_argument("--with-3d", dest="with_3d", action="store_true",
+                    help="构建 V8 3D 懒加载 chunk（默认开启，生产口径）")
+    ap.set_defaults(with_3d=True)
     ap.add_argument("--skip-assets", action="store_true", help="已废弃，保留仅为兼容旧脚本")
     args = ap.parse_args()
 
@@ -800,6 +1012,7 @@ def main():
     budget_gz = int(args.budget * 1024) if args.budget else INDEX_GZIP_BUDGET
     budget_raw = int(args.budget_raw * 1024) if args.budget_raw else INDEX_RAW_BUDGET
     budget_total = int(args.budget_total * 1024) if args.budget_total else FIRST_SCREEN_GZIP_BUDGET
+    budget_3d = int(args.budget_3d * 1024) if args.budget_3d else BOARD3D_GZIP_TARGET
     if args.external_js and args.inline_js:
         die("--external-js 与 --inline-js 不能同时用")
     external_js = args.external_js or (args.release and RELEASE_EXTERNAL_JS_DEFAULT)
@@ -814,9 +1027,11 @@ def main():
         out = ROOT / "dist" / "rebuild"
 
     build(out, args.release, args.board, args.strict, args.split_screens,
-          budget_gz, budget_raw, budget_total, minify=not args.no_minify, external_js=external_js)
+          budget_gz, budget_raw, budget_total, minify=not args.no_minify, external_js=external_js,
+          with_3d=args.with_3d, budget_3d=budget_3d)
     if args.check:
-        sys.exit(run_check(out, args.board, budget_gz, budget_raw, budget_total))
+        sys.exit(run_check(out, args.board, budget_gz, budget_raw, budget_total,
+                           with_3d=args.with_3d, budget_3d=budget_3d))
 
 
 if __name__ == "__main__":

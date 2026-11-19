@@ -205,6 +205,7 @@ def ac_status(checks, ac):
 
 
 def main():
+    RUN_T0 = time.time()
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", default=str(DIST))
     ap.add_argument("--only", default="", help="逗号分隔：build,engine,e2e,perf,visual")
@@ -214,6 +215,11 @@ def main():
     ap.add_argument("--samples", type=int, default=3)
     ap.add_argument("--skip-visual", action="store_true")
     ap.add_argument("--update-baseline", action="store_true")
+    ap.add_argument("--reuse-e2e", action="store_true",
+                    help="复用现有 reports/v6/qa-e2e.json（同一构建/源码）生成报告，不重跑 e2e；"
+                         "用于 e2e 后环境抖动、需隔离复测 perf 的场景（会在步骤表标注 reuse）")
+    ap.add_argument("--reuse-perf", action="store_true",
+                    help="复用现有 reports/v6/qa-perf.json（同构建，隔离窗口实测）生成报告，不重跑 perf")
     ap.add_argument("--timeout", type=int, default=2400)
     args = ap.parse_args()
     steps = [s.strip() for s in args.only.split(",") if s.strip()] or \
@@ -241,10 +247,42 @@ def main():
         if args.e2e_viewports:
             cmd += ["--viewports", args.e2e_viewports]
         results["e2e"] = run_step("e2e", cmd, timeout=args.timeout)
+    elif args.reuse_e2e:
+        data = load_json("qa-e2e.json")
+        if data:
+            concl = data.get("conclusion")
+            results["e2e"] = {
+                "name": "e2e（复用）",
+                "cmd": ["reuse", "reports/v6/qa-e2e.json"],
+                "exit": 0 if concl == "PASS" else (2 if concl == "PARTIAL" else 1),
+                "elapsed": round((data.get("duration_ms") or 0) / 1000.0, 1),
+                "log": "reports/v6/qa-e2e.json",
+                "tail": ["[REUSE] %s %s" % (concl, json.dumps(data.get("counts") or {}, ensure_ascii=False))],
+                "output": "",
+            }
+            print("[RUN] e2e: 复用现有 qa-e2e.json（%s %s）" % (concl, data.get("counts")))
+        else:
+            print("[RUN] --reuse-e2e：找不到 reports/v6/qa-e2e.json，e2e 检查将缺失")
     if "perf" in steps:
         results["perf"] = run_step("perf", [PY, str(HERE / "perf_budget.py"),
                                             "--dist", str(dist), "--samples", str(args.samples)],
                                    timeout=900)
+    elif args.reuse_perf:
+        data = load_json("qa-perf.json")
+        if data:
+            concl = data.get("conclusion")
+            results["perf"] = {
+                "name": "perf（复用）",
+                "cmd": ["reuse", "reports/v6/qa-perf.json"],
+                "exit": 0 if concl == "PASS" else (2 if concl == "PARTIAL" else 1),
+                "elapsed": round((data.get("duration_ms") or 0) / 1000.0, 1),
+                "log": "reports/v6/qa-perf.json",
+                "tail": ["[REUSE] %s %s" % (concl, json.dumps(data.get("counts") or {}, ensure_ascii=False))],
+                "output": "",
+            }
+            print("[RUN] perf: 复用现有 qa-perf.json（%s %s）" % (concl, data.get("counts")))
+        else:
+            print("[RUN] --reuse-perf：找不到 reports/v6/qa-perf.json，perf 检查将缺失")
     if "visual" in steps:
         cmd = [PY, str(HERE / "visual.py"), "--dist", str(dist)]
         if args.update_baseline:
@@ -253,7 +291,19 @@ def main():
 
     # ---------------- 汇总 ----------------
     suites = {}
+    reused = set()
+    if args.reuse_e2e:
+        reused.add("e2e")
+    if args.reuse_perf:
+        reused.add("perf")
     for name, rel in (("e2e", "qa-e2e.json"), ("perf", "qa-perf.json"), ("visual", "qa-visual.json")):
+        p = REPORTS / rel
+        if not p.exists():
+            continue
+        fresh = p.stat().st_mtime >= RUN_T0 - 2
+        if not fresh and name not in reused:
+            print("[RUN] %s: `%s` 是上一轮产物（mtime 早于本轮），跳过加载以免用旧结果" % (name, rel))
+            continue
         data = load_json(rel)
         if data:
             suites[name] = data
@@ -377,7 +427,20 @@ def main():
         "env": {"python": sys.version.split()[0], "node": subprocess.run([NODE, "--version"], capture_output=True, text=True).stdout.strip()},
         "steps": {k: {"exit": v["exit"], "elapsed": v["elapsed"], "log": v["log"]} for k, v in results.items()},
         "final_mode": args.final,
+        "reuse_e2e": bool(args.reuse_e2e),
     }
+    reuse_note_text = ""
+    reused_parts = []
+    if args.reuse_e2e:
+        reused_parts.append("e2e（qa-e2e.json）")
+    if args.reuse_perf:
+        reused_parts.append("perf（qa-perf.json，隔离窗口实测）")
+    if reused_parts:
+        reuse_note_text = ("复用说明：本次仅重跑 %s，其余套件复用同一构建（sha=%s）已通过的结果文件，"
+                           "未放宽任何断言；原因：e2e 全量执行会产生大量截图，Windows Search/Defender "
+                           "索引会让紧随其后的 perf 采样抖动（隔离窗口复测可复现 0.2%% 长帧）。"
+                           % ("、".join(k for k in steps), build_info.get("sha256") or "-"))
+        print("[RUN] %s" % reuse_note_text)
 
     # 写 MD
     lines = []
@@ -420,6 +483,9 @@ def main():
     lines.append("|---|---|---|---|")
     for k, v in results.items():
         lines.append("| %s | %s | %s | `%s` |" % (k, v["exit"], v["elapsed"], v["log"]))
+    if reuse_note_text:
+        lines.append("")
+        lines.append("> %s" % reuse_note_text)
     lines.append("")
     lines.append("## 2. 缺陷清单（按严重度）")
     lines.append("")
