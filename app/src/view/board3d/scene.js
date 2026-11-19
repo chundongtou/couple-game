@@ -452,7 +452,10 @@ export class BoardScene {
   _buildDie() {
     const faces = TX.makeDieFaceTextures();
     this._tex.push.apply(this._tex, faces);
-    this.dieMats = faces.map((t) => new THREE.MeshLambertMaterial({ map: t }));
+    /* V8.2.2：BoxGeometry 材质顺序是 +X/-X/+Y/-Y/+Z/-Z，而 DIE_FACES 定义了
+     * 每个轴上的真实点数；必须按 DIE_FACES 取纹理，否则骰面会显示成另一个点数
+     * （例：引擎 5 点、骰子显示 3 点）。 */
+    this.dieMats = DIE_FACES.map((v) => new THREE.MeshLambertMaterial({ map: faces[v - 1] }));
     this.die = new THREE.Mesh(new THREE.BoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE), this.dieMats);
     this.die.castShadow = this.shadows;
     this.die.receiveShadow = true;
