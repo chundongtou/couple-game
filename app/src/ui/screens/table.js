@@ -283,6 +283,8 @@
   var board3dChunkP = null;          /* Promise<boolean>，模块级：整页只加载一次 */
 
   function board3dMode() {
+    /* e2e_v6 的 V7 回归夹具：只测 2.5D/SVG 主桌时强制 off；正常用户不设此标志。 */
+    if (window.__E2E_BOARD3D_OFF__) return "off";
     var v = settings().board3d;
     return BOARD3D_MODES.indexOf(v) >= 0 ? v : BOARD3D_DEFAULT;
   }

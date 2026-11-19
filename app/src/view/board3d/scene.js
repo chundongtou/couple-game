@@ -895,8 +895,8 @@ export class BoardScene {
     /* ---------- 右前：骰子托盘（空盘：真骰子仍在 DIE_HOME） ---------- */
     const TR = P.tray;
     put('matte', new THREE.CylinderGeometry(0.345, 0.325, 0.038, 30, 1), TR.x, 0.025, TR.z, null, [0.26, 0.17, 0.11]);
-    put('dark', new THREE.CylinderGeometry(0.300, 0.300, 0.012, 26, 1), TR.x, 0.046, TR.z);
-    put('brass', new THREE.TorusGeometry(0.318, 0.017, 8, 34), TR.x, 0.052, TR.z, [-Math.PI / 2, 0, 0]);
+    put('matte', new THREE.CylinderGeometry(0.300, 0.300, 0.012, 26, 1), TR.x, 0.046, TR.z, null, [0.15, 0.21, 0.18]);
+    put('brass', new THREE.TorusGeometry(0.318, 0.020, 8, 34), TR.x, 0.052, TR.z, [-Math.PI / 2, 0, 0]);
     this.propAnchors.tray = this._anchor(TR.x, 0.05, TR.z);
 
     /* ---------- 右前：折好的毛毯（三层 + 卷边，读作织物而不是盒子） ---------- */
@@ -984,11 +984,14 @@ export class BoardScene {
 
   _applyPropsQuality() {
     const tier = QUALITY[this.quality];
+    /* 低档保留小物（避免慢设备自适应降档后画面「回到 V9 的干净」），
+     * 但关掉额外点光/粒子：灯罩自发光与光晕 sprite 仍在，小物靠 key/rim/lamp 照亮。 */
+    const extraLights = !!tier.props && !!tier.env;
     if (this.propGroup) this.propGroup.visible = !!tier.props;
     if (this.steam) this.steam.forEach((s) => { s.visible = !!tier.steam; });
     if (this.motes) this.motes.visible = !!tier.motes;
-    if (this.deskLight) this.deskLight.intensity = tier.props ? 2.2 : 0;
-    if (this.candleLight) this.candleLight.intensity = tier.props ? 1.2 : 0;
+    if (this.deskLight) this.deskLight.intensity = extraLights ? 2.2 : 0;
+    if (this.candleLight) this.candleLight.intensity = extraLights ? 1.2 : 0;
     if (this.deskGlow) this.deskGlow.visible = !!tier.props;
     if (this.candleGlow) this.candleGlow.visible = !!tier.props;
     if (this.flame) this.flame.visible = !!tier.props;
@@ -997,6 +1000,7 @@ export class BoardScene {
   /* 每帧氛围动画（reduced 不调用 → 静态画面） */
   _updateAmbient(now, dt) {
     const tier = QUALITY[this.quality];
+    const extraLights = !!tier.props && !!tier.env;
     /* 咖啡蒸汽：循环上升 + 淡入淡出 */
     if (tier.steam && this.steam) {
       const N = this.steam.length;
@@ -1025,14 +1029,14 @@ export class BoardScene {
         this.candleGlow.material.opacity = 0.24 + f2 * 0.10;
         this.candleGlow.scale.set(0.58 + f1 * 0.08, 0.58 + f1 * 0.08, 1);
       }
-      if (this.candleLight) this.candleLight.intensity = 1.05 + f1 * 0.35;
+      if (this.candleLight && extraLights) this.candleLight.intensity = 1.05 + f1 * 0.35;
     }
     /* 铜台灯：灯罩自发光呼吸 + 光晕 + 点光 */
     if (tier.props && this.deskShade) {
       const b = 0.5 + 0.5 * Math.sin(now * 0.0013 + 0.6);
       this.lampShadeMat.emissiveIntensity = 0.34 + b * 0.14;
       if (this.deskGlow) this.deskGlow.material.opacity = 0.32 + b * 0.10;
-      if (this.deskLight) this.deskLight.intensity = 2.0 + b * 0.45;
+      if (this.deskLight && extraLights) this.deskLight.intensity = 2.0 + b * 0.45;
     }
     /* 阅读灯呼吸（在 applyHeat 的基准亮度上做 ±3% + 极轻闪烁） */
     if (this.lamp && this._lampBase) {
