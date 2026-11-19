@@ -288,6 +288,13 @@
     var v = settings().board3d;
     return BOARD3D_MODES.indexOf(v) >= 0 ? v : BOARD3D_DEFAULT;
   }
+  /* V9.2：3D 画质三档；默认 2K（high），可在设置里切标准/流畅。 */
+  function board3dQuality() {
+    var q = settings().quality;
+    if (q === "standard") return "medium";
+    if (q === "smooth") return "low";
+    return "high";
+  }
 
   function webgl2Available() {
     try {
@@ -919,6 +926,9 @@
               state: clone(state) || state,
               view: snapshot(),
               mode: (state && state.mode) || settings().mode || "quick",
+              quality: board3dQuality(),
+              /* 2K 档锁定高画质，不允许自适应降到 medium/low；标准/流畅仍可自动降。 */
+              adapt: board3dQuality() !== "high",
               sound: soundOn(),
               stageAim: board3dStageAim()   /* cell45/bear 瞄准左侧卡片外区域 */
             });

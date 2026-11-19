@@ -20,6 +20,16 @@
     { id: "on", name: "3D", hint: "强制尝试 3D；开不了会自动回 V7" }
   ];
   var BOARD3D_DEFAULT = "auto";      /* V8：与 table.js 一致，默认 auto */
+  /* V9.2：3D 画质。2K=原生 DPR（上限 3x）+ AA；标准=2x；流畅=1.5x 无 AA。 */
+  var BOARD3D_QUALITIES = [
+    { id: "2k", name: "2K", hint: "原生高 DPI（上限 3x）+ 抗锯齿；最清晰" },
+    { id: "standard", name: "标准", hint: "2x 渲染，性能和清晰度平衡" },
+    { id: "smooth", name: "流畅", hint: "1.5x 渲染，弱设备更稳" }
+  ];
+  function board3dQualityOf(s) {
+    var q = s && s.quality;
+    return (q === "2k" || q === "standard" || q === "smooth") ? q : "2k";
+  }
   function board3dOf(s) {
     var v = s && s.board3d;
     return (v === "off" || v === "on" || v === "auto") ? v : BOARD3D_DEFAULT;
@@ -69,8 +79,10 @@
     var last = m.s === "on" ? "用上了 3D" : m.s === "pending" ? "3D 还在载入"
       : m.s === "v7" ? "用了 V7" + (m.r && m.r !== "off" && m.r !== "no-webgl2" ? "（" + reasonWord(m.r) + "）" : "")
       : "还没进过主桌";
+    var q = board3dQualityOf(s);
+    var qName = (BOARD3D_QUALITIES.filter(function (x) { return x.id === q; })[0] || BOARD3D_QUALITIES[0]).name;
     return {
-      text: main + " · WebGL2 " + (gl ? "可用" : "不可用") + " · 减少动画：" + (red ? "开（静态）" : "关") +
+      text: main + " · WebGL2 " + (gl ? "可用" : "不可用") + " · 画质：" + qName + " · 减少动画：" + (red ? "开（静态）" : "关") +
         " · 上次进主桌：" + last,
       gl: gl, red: red, mode: mode, mount: m.s, reason: m.r
     };
@@ -115,6 +127,12 @@
         }).join("");
         var b3Note = (BOARD3D.filter(function (m) { return m.id === b3; })[0] || BOARD3D[0]).hint +
           "。3D 只换主桌画面，题目、规则、边界都不变。";
+        var b3q = board3dQualityOf(s);
+        var b3qChips = BOARD3D_QUALITIES.map(function (m) {
+          var on = m.id === b3q;
+          return '<button class="chip' + (on ? " on" : "") + '" data-3d-quality="' + m.id + '" data-test="settings-board3d-quality-' + m.id + '" aria-pressed="' + (on ? "true" : "false") + '" type="button">' + m.name + "</button>";
+        }).join("");
+        var b3qNote = (BOARD3D_QUALITIES.filter(function (m) { return m.id === b3q; })[0] || BOARD3D_QUALITIES[0]).hint;
         var b3st = board3dStatus(s, b3);   /* V8.2：设备自检（只读） */
 
         root.innerHTML =
@@ -135,6 +153,9 @@
                 '<div class="set-block set-sep" data-test="settings-board3d-wrap">' +
                   '<div class="small">3D 主桌 · <b class="gold">设备自检</b><b class="gold"> · 下次进主桌生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
+                  '<div class="small mt-8">3D 画质 · <b class="gold">2K</b></div>' +
+                  '<div class="chips mt-8" data-test="settings-board3d-quality">' + b3qChips + "</div>" +
+                  '<div class="small dim mt-8" data-test="settings-board3d-quality-desc">' + U.escape(b3qNote) + "</div>" +
                   /* V8.2：设备自检（能不能跑 3D / 为什么这次没进 3D），一行读完 */
                   '<div class="small mt-8" data-test="settings-board3d-status"' +
                     ' data-webgl2="' + (b3st.gl ? "1" : "0") + '" data-reduced="' + (b3st.red ? "1" : "0") + '"' +
@@ -225,6 +246,14 @@
         App.UI.haptic("select");
         paint();
         App.UI.toast(id === "off" ? "主桌用 V7" : (id === "on" ? "主桌试试 3D" : "主桌自动选"), { dur: 1300 });
+      });
+      U.delegate(root, "[data-3d-quality]", "click", function (e, el) {
+        var q = el.getAttribute("data-3d-quality");
+        if (q !== "2k" && q !== "standard" && q !== "smooth") return;
+        App.Store.saveSettings({ quality: q });
+        App.UI.haptic("select");
+        paint();
+        App.UI.toast(q === "2k" ? "3D 画质：2K" : (q === "standard" ? "3D 画质：标准" : "3D 画质：流畅"), { dur: 1300 });
       });
       U.delegate(root, "[data-bound]", "click", function (e, el) {
         var name = el.getAttribute("data-bound");

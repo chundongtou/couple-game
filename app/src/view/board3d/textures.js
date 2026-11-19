@@ -524,7 +524,8 @@ export function buildPaperTextures(size = 256) {
 
 /* ------------------------------- 棋盘木面（黄铜嵌线） ------------------------------- */
 export function buildBoardFace(tint) {
-  const SZ = 768;
+  /* V9.2：2K 档棋盘占屏约 1100–1500 物理像素，768 会发糊；提到 1536。 */
+  const SZ = 1536;
   const { c, g } = canvas2d(SZ, SZ);
   const r = SZ / 2;
   const rnd = rng(20260119);
