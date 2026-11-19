@@ -1,10 +1,10 @@
-# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 / V7 变更）
+# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 / V7 / V8 变更）
 
 - 作者：PA（产品分析）
-- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**；**V7 同步：2026-11-18**
-- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**；**V7「云海机舱 · 45° 格子剧场」已实现**（镜头链 / 45° 格子舞台 / 三主题 / 小熊，规则不变），增量与 AC 见 **§0.2**。§10 的旧拍板记录保留作历史，与 §0 / §0.1 / §0.2 冲突处一律以 §0 / §0.1 / §0.2 与对应冻结单为准。
-- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）、`task-32`（V7 文档同步）；上游：`docs/v6/audit.md`、`docs/v7/impl-freeze.md`；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
-- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`；V7 的镜头 / 舞台 / 主题用 `AC-V7-<n>`。
+- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**；**V7 同步：2026-11-18**；**V8 同步：2026-11-19**
+- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**；**V7「云海机舱 · 45° 格子剧场」已实现**（镜头链 / 45° 格子舞台 / 三主题 / 小熊，规则不变），增量与 AC 见 **§0.2**；**V8「真 3D 主桌」已发布**（3D 默认 auto / 固定飞机飞行 / 3D 格子+小熊 / V7 降级，规则不变），增量与 AC 见 **§0.3**。§10 的旧拍板记录保留作历史，与 §0 / §0.1 / §0.2 / §0.3 冲突处一律以对应小节与冻结单为准。
+- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）、`task-32`（V7 文档同步）、`task-42`（V8 文档同步）；上游：`docs/v6/audit.md`、`docs/v7/impl-freeze.md`、`docs/v8/impl-freeze.md`；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
+- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`；V7 的镜头 / 舞台 / 主题用 `AC-V7-<n>`；V8 的真 3D 主桌用 `AC-V8-<n>`。
 - **红线**：不修改 `app/src/data/cards.js` 题库原文；不新增露骨文案；不引入账号/云同步；不破坏现有存档与安全词；边界永远优先于尺度。
 
 ---
@@ -113,6 +113,61 @@
 - 不新增外部图片 / 字体 / 音效素材；小熊与格面全部程序化 SVG/CSS。
 - 不做横屏 / 平板专属布局；320–430 竖屏仍是验收范围。
 - 不换线上域名、发布方式与 SW 缓存策略；不引入新的数据上报。
+
+---
+
+## 0.3 V8 变更（2026-11-19，真 3D 主桌）
+
+> 背景：用户拍板「主桌全部 3D；摇骰后棋盘放大、视角落到飞机；**飞机固定在屏幕上，棋盘旋转/平移**制造前进错觉；到目标格后 45° 格子 + 3D 小熊 + 右侧内容卡」。
+> 落地节奏：**V8.0.0** 以 Beta（默认 `off`）发布；**V8.1.0** 把默认改为 `auto` 并补载入/失败提示；**V8.2.0** 修 3D 视觉 P1（桌板纹理/居中/小熊压字/飞行格字/立体终点）并加 3D 图例与设置自检；**V8.2.1** 只改设置页标注（「3D 主桌 · 设备自检」、自检行提亮）与版本号；**V8.2.2** 修 3D 骰面与引擎点数不一致（按 `DIE_FACES` 映射贴图），3D 行为其余不变。
+> 唯一协调口径：`docs/v8/impl-freeze.md`；3D 模块说明：`app/src/view/board3d/README.md`。**本节只写表现层增量**：规则、数值、题库、存档结构、边界与安全词与 V7 完全一致，不因本版改变任何一局的结果或续玩方式。
+
+### 0.3.1 范围与不变量
+
+1. **默认 auto**：`settings.board3d` 三档 `auto`（默认）/ `off`（始终 V7）/ `on`（强制尝试 3D）；`auto` 以 **WebGL2 可用**为硬条件进 3D，**「减少动画」不再回退 V7**（V8.1 起为静态 3D）。`table.js` / `settings.js` 各一个 `BOARD3D_DEFAULT`，用户手动选过按用户值。
+2. **3D 挂载**：`App.Board3D.mount(host, opts) -> Promise<inst|null>`；成功时 `.v6-table` 为 `data-board3d="on"`、宿主内有 3D layer + canvas、`data-3d-ready="1"`、`_debug().mounted=true`、`three=r180`、`version=v8-prod-3d-1`；V7 棋盘视觉层（`.v6-board` / Cinema / Cabin）不再可见，HUD / 题卡 / 暂停 / 安全词保持 DOM 且可点。
+3. **3D 镜头链**：`overview(idle) → roll → focus → fly → land → cell45 → bear → return`；`data-3d-phase` 可断言；题卡/小游戏打开时停在 `bear` 并 `holding=true`，处理后 `returnToOverview()` 回 `idle`。
+4. **固定飞机飞行**：fly 期间相机停在 focus 位姿（不再移动）、飞机固定在屏幕中心（世界原点上方），棋盘组按目标格位姿旋转（`theta`）+ 平移（`tx/tz`）制造前进错觉；逐格推进（环 165ms/格、航线 190ms/格；起飞 900ms；跳 540ms / 飞 840ms）；`_debug().probe.lock` 记录 NDC 采样 `samples / maxAbsX / maxAbsY`。
+5. **45° 格子 + 3D 小熊 + 右侧 DOM 卡**：目标格升起 `STAGE_RISE=1.50`、方位 24°；3D 小熊在格子左后探头；题卡**只出右侧 DOM 卡**（`.v6-table.v8-3d-card`、`.cs-left{display:none}`、`.cs-card` 在第 2 列），左侧留给 3D 格子/小熊；卡片文字正向、长文卡内滚动、不挡暂停与安全词。
+6. **chunk 懒加载**：three 独立 chunk（esbuild IIFE / target es2018），index 只注入 `window.__BOARD3D_URL`，**无 `<script src>` / preload**；首屏不请求；同源先 fetch 再内联执行（404 不留 console error），整页只尝试一次、失败不重试、9s 超时；chunk 按内容哈希命名并进 SW PRECACHE，离线可用。
+7. **失败回落 V7**：`off` / 无 WebGL2 / chunk 404 / 模块未接上 / mount 返回 null / mount 抛错或 reject / 载入后异常——全部回落完整 V7（BoardView + Cinema + CabinScene + CellStage），降级原因写 `data-board3d="v7"` + `data-board3d-reason`，不白屏、不阻塞棋局。
+8. **reduced**：系统 `prefers-reduced-motion` 或设置「减少动画」命中时，3D 为**静态棋盘**（只画一帧 / 落终态，无 focus/fly/land/cell45/bear 镜头、无速度线 / 震动），`data-3d-reduced="1"`；`auto` 下仍是 3D，不回 V7。
+9. **3D 图例（V8.2）**：3D 模式 HUD 有「图例」入口（`data-test="board3d-legend"`，V7 不显示），面板 11 行（`真/敢/触/缘/温/轮/起/飞/停/归/·`，`data-test="board3d-legend-row"`），挂在棋盘区且不遮暂停 / 安全词；打开时收起底部行动区；题卡上来 / 3D 回落时自动收起。
+10. **设备自检（V8.2）**：设置页「3D 主桌」下只读一行（`data-test="settings-board3d-status"`），展示 WebGL2 / reduced / 当前档位 / 上次 mount 结果与原因；机读属性 `data-webgl2 / data-reduced / data-board3d-set / data-board3d-mount / data-board3d-reason`；不写设置、不触发挂载。
+11. **320–430**：320×568 / 390×844 / 430×932 无横向溢出，canvas 跟随宿主尺寸，`distForCover` 按纵横比自适应；HUD / 掷骰 / 图例 / 安全词仍可点；题卡只出右侧卡时左列保持 10–16px 安全距。
+12. **性能与预算**：首屏预算沿用 ADR-012（index gzip ≤140KB；首屏 ≤180KB）；3D chunk 懒加载、不计入首屏；chunk 体积按 **≤160KB gzip** 验收（冻结单 140KB 在 three r180 下不可达，见 §0.3.3）；`--check` 发布门 37 项。
+13. **V7 回归**：V7 全部 E2E 用例、引擎单测、存档结构（`v:2`）、`takeoffMiss` 兼容、安全词机制保持不变；V8 与 V7 共用同一套规则与题库。
+14. **版本**：`App.version = "8.2.2"`；`app/index.template.html` title/og 为 V8.2.2；`manifest.webmanifest` name 为 V8.2.2；3D 模块自报 `v8-prod-3d-1`（不随补丁号变化）。
+
+### 0.3.2 验收标准（V8）
+
+| ID | 优先级 | 需求 | 可执行验收标准 |
+|---|---|---|---|
+| V8-1 | P0 | 默认 auto / WebGL2 判定 | AC-V8-1 新装（无 `settings.board3d`）进主桌时按 `auto` 判定；WebGL2 可用 → `data-board3d="on"` 且 canvas=1；WebGL2 不可用 → `data-board3d="v7"`、`reason="no-webgl2"`、不请求 chunk；设置 `off` → `v7` / `reason="off"`、不请求 chunk；`on` 在无 WebGL2 时仍回落 V7（原因可读） |
+| V8-2 | P0 | 3D 挂载 | AC-V8-2 `.v6-table[data-board3d="on"]`；`[data-test="board3d"]` 内 3D layer + `canvas` 各 1；宿主 `data-3d-ready="1"`；`App.Board3D._debug().mounted=true`、`three=180`、`version="v8-prod-3d-1"`；V7 `.v6-board` 不可见、Cinema / Cabin 不挂；HUD（掷骰/暂停/安全词）可见可点 |
+| V8-3 | P0 | 镜头链可断言 | AC-V8-3 真实引擎走 `move → prompt`：`data-3d-phase` 依次出现 `idle → roll → focus → fly → land → cell45 → bear`，题卡态 `holding=true`；「做了」后 `returnToOverview` 调用 1 次、phase 回 `idle`、`holding=false`、卡片收起、3D 不拆（canvas 仍在）；roll 后无后续动作时 2.4s 内回 `idle`；**3D 骰子停在引擎点数**（六面按 `DIE_FACES = [3,4,1,6,2,5]` 映射到 BoxGeometry 的 +X/-X/+Y/-Y/+Z/-Z，HUD 掷出 N 时骰面为 N；V8.2.2 修复错面） |
+| V8-4 | P0 | 固定飞机锁 | AC-V8-4 fly 期间 `_debug().probe.lock.samples > 0`、`maxAbsX` 与 `maxAbsY` ≈ 0（V8 QA 实测 0.0 / 0.0）；同期 `probe.board.theta` 或 `tx` 变化（非零）；截图 / 采样可复现；reduced 下不产生该阶段 |
+| V8-5 | P0 | 45° + 小熊 + 右侧卡 | AC-V8-5 题卡态 `probe.stage.visible=true`、`rise≈1.5`、`bear>0`；`.v6-table.v8-3d-card` 生效、`.cs-left` 计算样式 `display:none`、`.cs-card` 在第 2 列；卡片起点 ≈40% 屏宽（390 屏约 x=158）、舞台格右缘到卡左界 10–16px；格面字完整可读、小熊与字竖向重叠 0px、小熊左缘 ≥16px；安全词 / 暂停 hit-test 不被遮 |
+| V8-6 | P0 | chunk 懒加载 / SW | AC-V8-6 首屏 HTML 无 `<script src=board3d>`、无 preload/prefetch、无 three 内联；默认（V7）首屏不请求 chunk；3D 挂载整页只请求 1 次；文件名哈希 == 内容哈希、无 ESM 残留；SW active、PRECACHE 含 chunk、`controller=true`；断网冷启动门厅可用且 3D 能从 SW 挂载（在支持 WebGL2 的环境） |
+| V8-7 | P0 | 降级五条 | AC-V8-7 `off` / 无 WebGL2 / chunk 404（屏蔽 SW）/ mount 返回 null（桩）/ mount 抛错（桩）五种情况：`.v6-board` 完整可见、V7 主桌可用（仍能掷骰出结果）、canvas=0、0 pageerror；chunk 404 时无应用错误（允许浏览器记 1 条网络 404）；降级原因可读 |
+| V8-8 | P0 | reduced | AC-V8-8 `auto + reduced` → 仍是 3D（`data-3d-reduced="1"`，不因 reduced 回落 V7）；`on + reduced` → 3D 挂载且 `_debug().reduced=true`、阶段只有 `idle`（无 focus/fly/land/cell45/bear）、无速度线 / 震动；关闭 reduced 后镜头链恢复 |
+| V8-9 | P0 | 320–430 | AC-V8-9 320×568 / 390×844 / 430×932：`data-board3d="on"`、无横向溢出（`scrollWidth ≤ innerWidth`）、canvas=1、host 尺寸随视口（V8 QA：296×303 / 366×552 / 406×640）、掷骰与图例在视口内可点；题卡卡-only 布局在 320 不溢出 |
+| V8-10 | P0 | 3D 图例 | AC-V8-10 3D 下 HUD「图例」可见可点；面板默认收起，点开后 11 行、短字齐全、一屏读完（320×568 也可）；面板矩形不覆盖暂停按钮与安全词（几何 + hit-test）；开合可重复、关闭后行动区回来；V7 下按钮 `display:none` / 面板不可见；题卡上来或 3D 回落时自动收起 |
+| V8-11 | P0 | 设备自检 | AC-V8-11 设置页存在 `[data-test="settings-board3d-status"]`，含 WebGL2 / reduced / 档位 / 上次 mount 文案；`data-webgl2 / data-reduced / data-board3d-set / data-board3d-mount / data-board3d-reason` 与实况一致；无 WebGL2 时主文案为「当前浏览器未开启 WebGL2，会使用 V7」；改动只读（不触发挂载、不写 settings）；从 3D 主桌离开后仍能显示上次结果 |
+| V8-12 | P0 | 性能 / 预算 | AC-V8-12 构建 `--check` 37/37 GREEN；index gzip ≤140KB、首屏总 gzip ≤180KB（V8.2.2 当前产物：139.88KB / 172.94KB；V8.2.0 发布值 139.86KB / 172.92KB）；3D chunk gzip ≤160KB（当前：155.06KB）；首屏不拉 chunk；主路径 0 pageerror / 0 console error（允许项单列）；3D 性能只记录 drawCalls / triangles / DPR / JS 更新，不以软件 fps 判产品 |
+| V8-13 | P0 | V7 回归 | AC-V8-13 V7 全量回归（cinema / cellstage / theme / V6.1 / 离线 / reduced / 响应式）保持全绿（V8 基线：567 PASS / 0 FAIL）；V8 3D 套件 108 PASS / 0 FAIL；P0 缺陷 0；引擎单测 0 failed；`couple2.*` 键名、`v:2` 结构、`takeoffMiss` 兼容不变 |
+| V8-14 | P0 | 验收以报告为准 | AC-V8-14 结论与数字引用 `reports/v6/qa-report.md`、`qa-e2e-v8.md`、`qa-e2e-v8-3d.md`、`qa-perf-v8.md`；V8.2 的 3D 视觉 / 图例 / 自检引用 FE 自测证据（`shots/v82-prod3d2/`、`shots/v82-table3d2/`）；spec / 发布说明不写未验证的真机 3D fps |
+
+### 0.3.3 明确不做（V8）
+
+- 不改任何规则、数值、题库、文案与存档结构；不新增玩法事件；不改安全词交互。
+- 不做 3D 机舱全景（3D 场景 = 机舱小桌板 + 云海/星轨/纸雕背景）；V7 的 `CabinScene` 只作为降级保留。
+- 不做 3D 题卡文字（题卡 / HUD / 安全词 / 暂停仍是 DOM）；不做 3D 小游戏（沿用 `MiniGame`）。
+- 不做自由视角 / 手势旋转 / 捏合缩放；不提供 3D 格位点选（选子仍走 HUD 与文字按钮）。
+- 不承诺 3D chunk ≤140KB：three r180 的 named-import 最小包已约 132–136KB gzip，按 ≤160KB 验收，140KB 记为已知偏离。
+- 不在发布文档写真机 iOS / Android 的 3D fps / 发热结论；无头 SwiftShader 帧率只作几何 / JS 参考。
+- 不做横屏 / 平板布局；320–430 竖屏仍是验收范围。
+- 不换线上域名 / 发布方式 / `couple2.*` 存档键名；不引入新的数据上报。
 
 ---
 

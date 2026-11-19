@@ -1,7 +1,295 @@
-# 今晚飞行棋 · 发布说明（V7.0.0）
+# 今晚飞行棋 · 发布说明（V8.2.2）
 
-> 本文件从 V7.0.0 起按版本向前追加；**V6.2.0、V6.1.0 与 V6.0.0（附录）的发布说明原样保留在下文**（含当次性能 / 验收数据）。
-> 本文不重复 QA 的测试数字；需要数字时请看 `reports/v6/` 下的报告。
+> 本文件从 V8.2.2 起按版本向前追加；**V8.2.1、V8.2.0、V8.1.0、V8.0.0、V7.0.0、V6.2.0、V6.1.0 与 V6.0.0（附录）的发布说明原样保留在下文**（含当次性能 / 验收数据）。
+> 本文件不重复 QA 的测试数字；需要数字时请看 `reports/v6/` 下的报告。**不写未验证的真机 3D fps。**
+
+## V8.2.2 · 2026-11-19
+
+- 版本：**8.2.2**（`app/src/app.js` → `App.version`；已确认）
+- 线上：<https://chundongtou.github.io/couple-game/>
+- 发布方式：不变（仓库根产物 + GitHub Pages `main` 自动部署）；工作台记录：本地提交 `4b9fc82`
+- 依据：3D 骰面错面（引擎 / HUD 掷出 5 点、3D 骰子显示 3 点）；`app/src/view/board3d/scene.js` 的 `_buildDie()` 与 `constants.js` 的 `DIE_FACES`
+- 验收：代码映射核对 + 构建产物实测；本段不声称全量 QA 复跑
+
+### 1. 为什么改
+
+V8.2 的 3D 骰子在部分点位上「引擎 / HUD 与 3D 骰面不一致」：`BoxGeometry` 的六个材质槽顺序是 **+X / -X / +Y / -Y / +Z / -Z**，而骰面贴图数组是按点数 1..6 排的；`_buildDie()` 之前直接 `faces.map(...)` 按数组顺序贴，等于把贴图贴到了错误的面上（例：引擎掷出 5 点，3D 骰子落定后显示 3 点）。这会让人以为掷骰结果被改了，属于必须修的显示错误。
+
+### 2. 变更
+
+- `scene.js` `_buildDie()`：材质按 `DIE_FACES.map((v) => new THREE.MeshLambertMaterial({ map: faces[v - 1] }))` 生成——`DIE_FACES = [3, 4, 1, 6, 2, 5]` 给出 +X/-X/+Y/-Y/+Z/-Z 六个轴上的真实点数，`faces[v-1]` 取对应贴图。
+- `dieFaceNormal(v)` / `dieSettleQuat(v)` 保持按 `DIE_FACES.indexOf(v)` 求法线（与贴图映射同源），保证「落定姿态」和「面贴图」一致。
+- 版本：`App.version = "8.2.2"`；`app/index.template.html` title/og 与 `manifest.webmanifest` name 升到 V8.2.2；重建 3D chunk（`assets/board3d.48364fb6.js`）与仓库根产物。
+- 其余 3D 场景、镜头链、题卡、规则、题库、存档、边界与安全词均未变。
+
+### 3. 性能与兼容
+
+| 指标 | V8.2.2 当前产物 | V8.2.1 / V8.2.0 | 门禁 |
+|---|---|---|---|
+| index gzip | **143,236 B = 139.88 KB** | 143,237 / 143,219 B（139.88 / 139.86 KB） | ≤140 KB |
+| 首屏总 gzip | **177,087 B = 172.94 KB** | 177,087 / 177,068 B（172.94 / 172.92 KB） | ≤180 KB |
+| 3D chunk gzip | **158,781 B = 155.06 KiB** | 155.05 / 155.05 KiB | ≤160 KiB |
+| SW | `couple-flight-v6-a21cab5e`（PRECACHE 9 项含 chunk） | `78c1f4bd` / `3a1cec27` | 离线可用 |
+
+- 构建门 37 项（V8 构建实测 37/37 GREEN；本次只改骰面映射并重建产物，未动构建项）。
+- 兼容：无迁移；`couple2.*` 与 `settings.board3d` 语义不变；发版后需要硬刷新 / 关闭 PWA 重开以更新 SW 缓存。
+
+### 4. 验收引用
+
+- 骰面一致性：代码映射（`DIE_FACES`）+ 3D 骰子落定截图与 HUD 文案核对；`reports/v6/` 的 V8 基线（V7 567/0、V8 3D 108/0、P0 0）不变。
+- 本段不声称 V8.2.2 的全量 QA 复跑（归 QA；`e2e_v8_3d.py` 的 `V8-3D-49` 仍需先改「默认 off」断言）。
+
+### 5. 回滚
+
+- 回滚到 V8.2.1：`git revert 4b9fc82` 后重新构建 / 推送即可；无数据迁移。
+- 或只回滚表现层：把 `settings.board3d` 设为 `off`，主桌直接用 V7。
+
+### 6. 已知限制 / 待验证
+
+- 沿用 V8.2：3D chunk 155.06 KiB（≤160 验收；140 目标不可达）、无 3D 机舱全景 / 自由视角、题卡文字 DOM、小游戏原面板、真机 3D fps / 发热未验、WebGL context lost 未覆盖、音效未真机校准。
+- 骰面映射目前以代码核对 + 人工截图验证；若要进自动化，建议 QA 加「截骰面 + 与 HUD 文案对拍」用例。
+
+### 7. 变更记录（V8.2.2）
+
+| 版本 | 日期 | 摘要 |
+|---|---|---|
+| 8.2.2 | 2026-11-19 | 修 3D 骰面错面：`BoxGeometry` 的 +X/-X/+Y/-Y/+Z/-Z 按 `DIE_FACES=[3,4,1,6,2,5]` 取贴图；版本升 8.2.2；chunk `48364fb6`（155.06KiB gzip），index 139.88KB / 首屏 172.94KB；玩法与规则不变。 |
+
+## V8.2.1 · 2026-11-19
+
+- 版本：**8.2.1**（`app/src/app.js` → `App.version`；已确认）
+- 线上：<https://chundongtou.github.io/couple-game/>
+- 发布方式：不变（仓库根产物 + GitHub Pages `main` 自动部署）；工作台记录：本地提交 `b6cbbd7`
+- 依据：设置页自查体验（3D 主桌块里「设备自检」不够显眼）；`docs/v6/spec.md` §0.3
+- 验收：沿用 V8.2 的构建与体积门禁；本段只记版本 / 文案变化，不引用未复跑的全量 QA
+
+### 1. 为什么改
+
+V8.2 给设置页加了设备自检，但块标题仍只写「3D 主桌 · 下次进主桌生效」，自检行又是 `dim` 弱化色——用户找不到「为什么这次没进 3D」。V8.2.1 只做一处可读性修正：**把「设备自检」写进标题、把自检行提亮**，并同步版本号与构建产物。
+
+### 2. 变更
+
+- 设置页「3D 主桌」块标题：`3D 主桌 · 下次进主桌生效` → `3D 主桌 · **设备自检** · 下次进主桌生效`。
+- 自检行 `data-test="settings-board3d-status"`：`small dim` → `small`（提亮），属性与文案逻辑不变（WebGL2 / reduced / 档位 / 上次 mount / reason）。
+- `App.version = "8.2.1"`；`app/index.template.html` title/og 与 `manifest.webmanifest` name 升到 V8.2.1；重建仓库根产物（index / sw / manifest）。
+- **3D 代码、chunk、规则、题库、存档、边界与安全词均未变**：3D chunk 仍是 `assets/board3d.55063017.js`（609,547 B raw / 158,776 B gzip = 155.05 KiB）。
+
+### 3. 性能与兼容
+
+| 指标 | V8.2.1 发布产物 | V8.2.0 发布值 | 门禁 |
+|---|---|---|---|
+| index gzip | **143,237 B = 139.88 KB** | 143,219 B = 139.86 KB | ≤140 KB |
+| 首屏总 gzip | **177,087 B = 172.94 KB** | 177,068 B = 172.92 KB | ≤180 KB |
+| 3D chunk gzip | 158,776 B = 155.05 KiB | 同左 | ≤160 KiB |
+| SW | `couple-flight-v6-78c1f4bd`（PRECACHE 9 项含 chunk） | `couple-flight-v6-3a1cec27` | 离线可用 |
+
+- 构建门 37 项（V8 构建实测 37/37 GREEN；本次只改版本/文案并重建产物，未动构建项）。
+- 兼容：无迁移；`couple2.*` 与 `settings.board3d` 语义不变；发版后需要硬刷新 / 关闭 PWA 重开以更新 SW 缓存。
+
+### 4. 验收引用
+
+- V8.2 验收口径不变：`reports/v6/qa-report.md`（V8.0 基线 567/0 + 108/0 + P0 0）、`shots/v82-prod3d2/`、`shots/v82-table3d2/`（119/119、0 console error）。
+- 本段不声称 V8.2.1 的全量 QA 复跑（归 QA；`e2e_v8_3d.py` 的 `V8-3D-49` 仍需先改「默认 off」断言）。
+
+### 5. 回滚
+
+- 回滚到 V8.2.0：`git revert b6cbbd7` 后重新构建 / 推送即可；无数据迁移。
+- 或只回滚表现层：把 `settings.board3d` 设为 `off`，主桌直接用 V7。
+
+### 6. 已知限制 / 待验证
+
+- 沿用 V8.2：3D chunk 155.05 KiB（≤160 验收；140 目标不可达）、无 3D 机舱全景 / 自由视角、题卡文字 DOM、小游戏原面板、真机 3D fps / 发热未验、WebGL context lost 未覆盖、音效未真机校准。
+- 本次只动设置页文案 / 样式与版本号，不改变上述任何限制。
+
+### 7. 变更记录（V8.2.1）
+
+| 版本 | 日期 | 摘要 |
+|---|---|---|
+| 8.2.1 | 2026-11-19 | 设置页「3D 主桌」块标题标注「设备自检」、自检行提亮；`App.version` / title / manifest 升到 8.2.1；重建根产物（index 139.88KB gzip / 首屏 172.94KB / SW 78c1f4bd）。3D chunk 与玩法不变。 |
+
+## V8.2.0 · 2026-11-19
+
+- 版本：**8.2.0**（`app/src/app.js` → `App.version`；已确认）
+- 线上：<https://chundongtou.github.io/couple-game/>
+- 发布方式：不变（仓库根产物 + GitHub Pages `main` 自动部署）；工作台记录：远程 main `3c920d1`，Actions run 144 success
+- 依据：`docs/v8/impl-freeze.md`、QA V8 的 3D 视觉缺陷（V8-V-01/02/03/04/05）、`docs/v6/spec.md` §0.3、`app/DESIGN.md` §19
+- 验收：3D 视觉修复由 FE 证据（`shots/v82-prod3d2/`）+ 图例/自检自测（`shots/v82-table3d2/`）覆盖；**完整 QA 套件对 V8.2 的复跑归 QA**，本文不把 V8.0 的 QA 数字当成 V8.2 的复跑结果
+
+### 1. 为什么改（用户反馈与目标）
+
+V8.1 已经把 3D 变成默认，但 QA 在 V8.0 构建上留了 **4 条视觉 P1 + 1 条 P2**：3D overview 上下暗场大、背景像空蓝（V8-V-01）、无机舱背景 / 无图例入口 / 格面语义弱（V8-V-03）、小熊压住格面字（V8-V-02）、飞行中远端格面中文随棋盘旋转斜置（V8-V-05），以及中心终点是平面金盘（V8-V-04，P2）。V8.2 的目标是**把 3D 从「能跑」收敛到「可以当默认画面」**，同时补上 3D 模式缺失的格子图例与设备自检，让「为什么没进 3D」可自查。
+
+### 2. 变更（变更源：`docs/v8/impl-freeze.md` + `shots/v82-prod3d2/HANDOFF.md`）
+
+#### 2.1 3D 视觉 P1（`app/src/view/board3d/**`）
+
+| QA 项 | 改法 | 证据（数值） |
+|---|---|---|
+| V8-V-01/03 overview 大片空蓝 | 垫面从纯色 Lambert 改为「织纹层（lambert，吃灯光）+ 暗角 / 灯池 / 嵌线叠层（basic）」；织纹为程序化 CanvasTexture（felt 绒布 / paper 木纹），按主题缓存；棋盘改用投影包围盒自动上下居中，占宽按 ring 口径 87% | 空区颜色种类 **6 → 798**、行均值 std **0.21 → 5.33**；占宽 **0.8707 / 0.8736 / 0.8708**（390/320/430，目标 86–88%）；上下留白 **138.9/138.9**（390）、41.0/41.4（320）、167.8/167.9（430） |
+| V8-V-02 小熊压字 | 舞台格 0.34→0.42 世界单位，换 256px 专用贴图（格面字偏前 + 类型名）；小熊移到格子左后（`STAGE_BEAR = {x:-0.072, z:-0.100, s:0.84}`） | 小熊真实网格轮廓 vs 格面字框：竖向重叠 **5px → 0px**；小熊左缘 **30.6 → 36.5px**（≥16）；舞台格右缘到卡片左界 **10.5 → 13.3px**；格面「真 / 真心话」完整可读 |
+| V8-V-05 fly 中文斜置 | 额外生成「无中文图集」，fly 期间 `tileMat.map` 切过去（只留色块 + 箭头/星图标），land / cell45 / return / reduced 恢复；两版图集除中文外像素一致 | fly 阶段“无中文”截图；飞机锁在屏幕中心 `lock.maxAbsX=0 / maxAbsY=0`（board θ=1.734、tx=3.06 在变） |
+| V8-V-04 中心平面金盘 | 改为鼓形圆柱（侧/顶双材质）+ 底盘环 + 悬浮环 + 挤出立体星徽 + 暖光晕；星徽慢转、悬环呼吸；顶面 256px 程序化金盘贴图，按主题换色 | drawCalls +2（hub 内 5 个 mesh）；overview 中心可见立体鼓面与星徽 |
+| V8-V-03 信息密度 | 3D 模式补 HUD「图例」（11 类格面短字）；设置页补「设备自检」；格面语义由图例补足 | 119/119 自测、0 console error；图例 11 行、320 一屏读完、不遮暂停/安全词 |
+
+#### 2.2 3D 图例入口（`table.js`）
+
+- HUD「暂停 / 规则 / 图例」新增 `data-test="board3d-legend"`；只在 3D 显示（`.v6-lbtn{display:none}` + `.v6-3d .v6-lbtn{display:inline-flex}`），V7 不显示，V7 原有「落点格名 → 格子说明」原样保留。
+- 面板 `data-test="board3d-legend-panel"`（默认 `hidden`）挂在 `.v6-boardwrap` 内，**顶边永远在 HUD 之下**，暂停与右上安全词不可能被遮（几何 + hit-test 双证）；11 行 `data-test="board3d-legend-row"`，内容与 `board3d/constants.js` 的 `GLYPH` 对齐（`真/敢/触/缘/温/轮/起/飞/停/归/·`，说明 ≤10 字）。
+- 开合 = HUD toggle + 面板「收起」；打开时加 `.v6-l3o` 收起底部行动区（避免一边看图例一边掷骰，320×568 一屏读完）；3D 回落 V7 或题卡要上来时自动收起。
+- 为控制 index 体积（140KB gzip 门禁）压掉了 Esc 收起、`role/aria-*` 装饰与渐变/毛玻璃（非任务卡要求，功能不变）。
+
+#### 2.3 设置页设备自检（`settings.js`）
+
+- 「3D 主桌」三档之下一行 `data-test="settings-board3d-status"`，文案示例：「当前设备：3D 可用 · 自动 · WebGL2 可用 · 减少动画：关 · 上次进主桌：用上了 3D / 用了 V7（原因）/ 还没进过主桌」；无 WebGL2 时主文案「当前浏览器未开启 WebGL2，会使用 V7」。
+- 机读属性 `data-webgl2 / data-reduced / data-board3d-set / data-board3d-mount / data-board3d-reason`；**只读**：不写 settings、不触发挂载、不改默认值/三档逻辑。
+- 读「上次 mount」优先级：`window.__V6_TEST__.board3d()`（主桌开着）→ `.v6-table[data-board3d]` → `window.__BOARD3D_LAST__`（卸载后的一行只读快照）。
+
+#### 2.4 不变的东西（重要）
+
+- **规则、数值、题库、文案、存档结构、导入导出、安全词机制与 V7 完全一致**；`App.Flight`、`App.BoardView`、`App.Cinema` 的数据与事件契约不变。
+- 3D 仍然只做表现层：题卡 / HUD / 安全词 / 暂停是 DOM，小游戏仍是 `MiniGame`；canvas `pointer-events:none`，选子仍走 HUD。
+- 版本：`App.version = "8.2.0"`；`app/index.template.html` title/og 为 V8.2；`manifest.webmanifest` name 为 V8.2。
+
+### 3. 性能与兼容
+
+- **构建**（`build_app.py --out dist/rebuild-v82-final --check`）：**37 passed / 0 failed → GREEN**；index 465,083 B raw / **143,219 B gzip = 139.86 KB**（门禁 140 KB，余量约 141 B）；首屏总 gzip **177,068 B = 172.92 KB**（门禁 180 KB）。
+- **3D chunk**：`assets/board3d.55063017.js`，**609,547 B raw（595.3 KiB）/ 158,776 B gzip = 155.05 KiB**（验收 ≤160 KiB）；两次重建哈希一致（确定性）；比 V8.0 的 `9dc51f0f`（152.3 KiB）增加约 2.75 KiB，来自 4 个新纹理生成器 + fly 双图集。
+- **SW**：`couple-flight-v6-3a1cec27`，PRECACHE 9 项（含 3D chunk）；离线机制沿用 V8 QA 已验证的「SW 预缓存 + 断网冷启动 3D 可挂载」，V8.2 只换了缓存版本与 chunk 哈希，发布前请按 `reports/v6/` 复核。
+- **3D 几何量**（headless SwiftShader）：drawCalls 44→50、triangles 3,516→4,084、DPR 2；**不作为产品 fps 结论**（真机 iOS / Android 未验）。
+- **存档**：`couple2.*` 键名、`v:2` 结构不变，**无迁移**；`settings.board3d` 缺省按 `auto`；V7 的进行中对局原样续玩。
+- **回退**：`board3d=off` 或任何失败路径都回完整 V7；3D 的视觉修复不影响 V7 的 `Cinema` / `CellStage` / `CabinScene`。
+
+### 4. 验收引用（不写数字，以报告为准）
+
+| 项 | 证据路径 | V8.2.0 状态 |
+|---|---|---|
+| 3D overview / fly / bear / 中心终点视觉 | `shots/v82-prod3d2/HANDOFF.md`、`v82/flat-report.json`、`table/after-*.png` | 4 项 P1 + 1 项 P2 已修（FE 证据） |
+| 3D 图例 / 设备自检 | `shots/v82-table3d2/HANDOFF.md`、`out/report.json`（119/119，0 console error / 0 pageerror） | PASS（FE 自测） |
+| V8 3D 基础验收（挂载/镜头链/固定飞机/五条降级/reduced/320–430/主题/SW） | `reports/v6/qa-e2e-v8-3d.md`、`reports/v6/qa-v8-handoff.md` | V8.0 构建上 108/0；V8.2 复跑待 QA |
+| V7 全量回归 | `reports/v6/qa-e2e-v8.md` | V8.0 构建上 567/0；V8.2 复跑待 QA |
+| 构建门 / 体积 | `reports/v6/qa-report.md`、`reports/v6/logs/v8-build-check.log` + V8.2 构建实测 | 37/37 GREEN；index 139.86KB / 首屏 172.92KB / chunk 155.05KB |
+| 汇总与发布判断 | `reports/v6/qa-report.md` | V8.0 口径 **PASS（含 P1）**；V8.2 视觉项已由 FE 证据关闭，**全量 QA 复跑后以新报告为准** |
+
+> 注意：`qa/v6/e2e_v8_3d.py` 的 `V8-3D-49` 仍断言「默认 off」，与 V8.1 起的 `auto` 不一致；QA 复跑前需先改断言，否则会误报。
+
+### 5. 回滚
+
+- 与 V7 相同：GitHub 上 revert 发布 commit（或 `git revert <commit>` 推 `main`），Pages 自动回到上一版。
+- V8.2 是纯表现层增量：回滚到 V8.1 / V8.0 / V7 **不需要任何数据迁移**，`couple2.*` 存档原样可用；`settings.board3d` 被旧版忽略（不报错），主桌回到旧默认或 V7。
+- 构建产物结构未变（单文件 index + cards + sw + icons **+ 3D chunk**）；回滚时 `index.html` / `assets/` / `sw.js` 要一起换，避免出现「旧 index 指向新 chunk 名 / 旧 SW 缓存名对不上」。
+- 只回滚 3D 的临时办法：把 `settings.board3d` 设成 `off`（设置 → 今晚的桌面 → 3D 主桌 → V7），不需要发版。
+
+### 6. 已知限制 / 待验证
+
+- **3D chunk 140KB 目标不可达**：three r180 的 named-import 最小包已约 132–136 KiB gzip，全场景再加约 30 KiB；V8.2 为 155.05 KiB，按 ≤160 KiB 验收，140 KiB 记为已知偏离（要砍能力才可能，需产品拍板）。
+- **没有 3D 机舱全景 / 自由视角**：3D 场景是「机舱小桌板 + 云海 / 星轨 / 纸雕背景」；只有导演镜头，不能手势旋转 / 缩放 / 转头；选子仍走 HUD。
+- **题卡文字仍 DOM、小游戏仍原面板**：3D 只画棋盘/飞机/骰子/格子/小熊。
+- **飞行中格面中文隐去**：fly 期间用无中文图集，land / cell45 / reduced 恢复；要看字请等落地或看 HUD 图例。
+- **320 格面短字仍偏小**（约 20px）：V8.2 用 HUD 图例补语义，极小屏可切回 V7。
+- **真机未验**：iOS Safari / Android 中低端 GPU 的 3D fps / 发热 / 耗电未验，本文不写手机 fps；无头 SwiftShader 帧率只作几何 / JS 参考。
+- **中途 WebGL context lost 未覆盖**：已验证的降级只有「无 WebGL2 / chunk 404 / mount 返回 null / mount 抛错 / off」五条。
+- **音效未做真机校准**：WebAudio 合成占位，无头环境只验证 `setSound` 代码路径。
+- **2D 侧还有 V7 遗留限制**：POV 非自由视角、小游戏未进 45° 舞台、格子序号只部分显示、主题不重绘主桌机舱（详见 V7 段）。
+
+### 7. 变更记录（V8.2.0）
+
+| 版本 | 日期 | 摘要 |
+|---|---|---|
+| 8.2.0 | 2026-11-19 | 3D 视觉 P1 修复：桌板绒布/木纹纹理 + 暗角、棋盘垂直居中 87% 宽、小熊移到格左后不压字、fly 隐去中文格字、中心终点立体（鼓面 + 星徽）；新增 3D HUD 图例（11 类格面短字）与设置页设备自检（WebGL2 / reduced / 档位 / 上次 mount）；构建 37/37、index 139.86KB / 首屏 172.92KB、3D chunk 155.05KB gzip。规则、数值、题库、存档、边界与安全词与 V7 一致。 |
+
+## V8.1.0 · 2026-11-19
+
+- 版本：**8.1.0**（`app/src/app.js` → `App.version`；已确认）
+- 线上：<https://chundongtou.github.io/couple-game/>
+- 发布方式：不变；工作台记录：远程 main `867ca72`（Actions run 142+ success）
+- 依据：用户反馈「打开游戏没啥变化，3D 也没有，跟随视角也没有」+ V8 QA `qa-v8-handoff.md` §6
+- 验收：以线上冒烟与 `reports/v6/` 的 V8 QA 基线为准；本段不写未跑过的数字
+
+### 1. 为什么改（根因）
+
+V8.0 以 **Beta 默认 off** 发布：设置页才能手动开 3D，大多数用户看到的是 V7，于是体感「完全没变化」。另外首次进 3D 要下载约 600KB chunk（3s 量级），没有提示时更像「没反应」。V8.1 只做最小修复：**默认切到 auto、把载入/成功/失败说清楚、reduced 不再回退 V7**，不动规则与 3D 实现。
+
+### 2. 变更
+
+- `table.js` / `settings.js` 的 `BOARD3D_DEFAULT`：`off` → **`auto`**；`auto` 不再因 reduced 回 V7（reduced 时 3D 自己走静态棋盘）。
+- 3D 首次载入 toast「正在载入 3D 主桌…」；激活 toast「3D 主桌已开启 · 飞机将固定在屏幕中心飞行」；无 WebGL2 / 失败 toast 明示回 2D；`off` 不提示。
+- 设置页文案去掉「Beta」，三档说明改为「自动 / V7 / 3D（强制尝试，失败自动回 V7）」，并说明「减少动画时是静态 3D」。
+- 入口不变：设置 → 今晚的桌面 → 3D 主桌（自动 / V7 / 3D）。
+- **注意**：3D 跟随 / 飞行镜头只在成功走子时出现（掷 6 起飞后再走一步）；无子可走时不会飞。
+
+### 3. 性能与兼容
+
+- 首屏仍不加载 3D chunk；默认（V8.1 起）进主桌才懒加载，失败不阻塞。
+- 存档：无迁移；`settings.board3d` 缺省按 `auto`；V7 / V6 存档照旧。
+- 回滚：把默认改回 `off` 并重新构建即可（或让用户手动选 V7）；数据不受影响。
+
+### 4. 验收引用
+
+- V8 QA 基线：`reports/v6/qa-report.md`、`qa-e2e-v8.md`、`qa-e2e-v8-3d.md`、`qa-perf-v8.md`（V8.0 构建）。
+- 线上冒烟：工作台记录 `shots/live-v81/`（默认 auto、3D canvas、chunk `9dc51f0f`、0 error）。
+- 复跑提醒：`e2e_v8_3d.py` 的 `V8-3D-49` 仍断言默认 off，需随 V8.1 改断言。
+
+### 5. 已知限制 / 待验证
+
+- 沿用 V8.0：3D chunk 约 152.3KB、无 3D 机舱全景 / 自由视角、题卡文字 DOM、小游戏原面板、真机 fps 未验。
+- 用户侧需要**硬刷新 / 关闭 PWA 重开**才能拿到新 SW 缓存；若仍无 3D，看是否出现「没开启 WebGL2」提示（多为浏览器 / 内置 WebView 限制），可在设置页自检（V8.2 起）确认。
+
+### 6. 变更记录（V8.1.0）
+
+| 版本 | 日期 | 摘要 |
+|---|---|---|
+| 8.1.0 | 2026-11-19 | `board3d` 默认 `off` → `auto`；首次载入 / 成功 / 失败均有提示；reduced 改为静态 3D 不再回退 V7；设置页去掉 Beta 文案。规则、题库、存档、边界与安全词不变。 |
+
+## V8.0.0 · 2026-11-19
+
+- 版本：**8.0.0**（`app/src/app.js` → `App.version`；已确认）
+- 线上：<https://chundongtou.github.io/couple-game/>
+- 发布方式：不变；工作台记录：远程 API commit `1e4ed24`（Actions run 140 success）
+- 依据：`docs/v8/impl-freeze.md`（用户拍板：全部 3D、固定飞机 + 棋盘旋转、45° 格子 + 3D 小熊 + 右侧内容卡）、`docs/v6/spec.md` §0.3、`app/DESIGN.md` §19
+- 验收：`reports/v6/qa-report.md`（V8 口径）、`qa-v8-handoff.md`；**本段只引用已跑过的数字，不写真机 fps**
+
+### 1. 为什么改（用户反馈与目标）
+
+V7 的 45° 舞台是 CSS 3D 透视、棋盘是 SVG，用户希望主桌「全部 3D」：摇骰后棋盘放大、视角落到飞机；飞行时**飞机固定在屏幕上，棋盘旋转 / 平移**制造前进错觉；到目标格后 45° 格子 + 3D 小熊 + 右侧内容卡。V8 用 three r180 做一路独立的 3D 主桌，**V7 完整保留**作为能力降级，避免「一次性全换」的风险。
+
+### 2. 变更
+
+- 新增 `app/src/view/board3d/`（entry / scene / director / camera / mapping / textures / parts / bear / constants）：3D 圆形棋盘（52 环格 + 4 机坪 + 4×5 航线 + 中心终点）、低模纸飞机、3D 骰子、桌板 / 阴影 / 云海背景、3D 机长小熊、三主题（cloud / star / paper）。
+- 镜头链：`overview → roll → focus → fly → land → cell45 → bear → return`；fly 期间相机停在 focus 位姿、飞机固定在屏幕中心、棋盘旋转 + 平移；题卡只出右侧 DOM 卡（`.v8-3d-card`，`.cs-left` 隐藏），做后 `returnToOverview` 回俯瞰。
+- 构建：`build_3d_chunk()` 产出 three 独立 IIFE chunk（懒加载、内容哈希、SW PRECACHE），index 只注入 `window.__BOARD3D_URL`，首屏不加载；`--with-3d` 默认开、`--no-3d` 可关；`--check` 增加 3D 校验项。
+- table / settings 接入 `settings.board3d`（`auto` / `off` / `on`），**Beta 默认 off**；失败路径（off / 无 WebGL2 / chunk 404 / mount 返回 null / mount 抛错）完整回 V7。
+- 版本：`App.version = "8.0.0"`；title / og / manifest 为 V8。
+
+### 3. 性能与兼容
+
+- **构建**（V8.0 最终构建）：37 passed / 0 failed GREEN；index 138.2KB gzip / 首屏 171.2KB gzip；3D chunk `assets/board3d.9dc51f0f.js` 586.6KB raw / **152.3KB gzip**（验收 ≤160KB；冻结单 140KB 记为已知偏离）。
+- **性能**（slow4G + 4×CPU）：DCL 1598ms（门槛 3500）、FCP 434ms（600）、主桌可掷骰 678ms（800）、heap 5.04MB（6）、断网冷启动 90ms（1500）、首屏请求 1（2）——均 PASS；3D 在 SwiftShader 下只记录几何 / JS（drawCalls 45–46 / triangles 3,518–3,520），**不以软件 fps 判产品**。
+- **兼容**：`couple2.*` 键名、`v:2` 结构、导入导出、V6/V7 存档全部不变，无迁移；V7 的 E2E / 引擎 / 视觉走原路径。
+- **回滚**：`settings.board3d=off` 或发版回退均可；V7 代码与资源未动。
+
+### 4. 验收引用
+
+| 项 | 报告路径 | V8.0.0 状态 |
+|---|---|---|
+| V7 全量回归（21 组） | `reports/v6/qa-e2e-v8.md` | **PASS 567 / FAIL 0 / SKIP 0** |
+| V8 真 3D 套件 | `reports/v6/qa-e2e-v8-3d.md` | **PASS 108 / FAIL 0 / SKIP 0** |
+| 性能预算 | `reports/v6/qa-perf-v8.md` | PASS 21 / FAIL 0 / SKIP 2（裸文件参考，不入门槛） |
+| 汇总 | `reports/v6/qa-report.md` | **PASS（含 P1）**；P0 0 / P1 4 + P2 1（视觉） |
+| 视觉评审 | `reports/v6/qa-v8-handoff.md` §5、`qa/v6/shots/v8-3d/` | 4 条 P1 + 1 条 P2（V8.2 全部修复） |
+
+### 5. 已知限制 / 待验证
+
+- 默认 `off`（Beta）：用户不手动开就看不到 3D（V8.1 修）。
+- 4 条视觉 P1 + 1 条 P2：overview 上下暗场 / 无机舱背景与图例入口 / 小熊压字 / fly 格字斜置；P2 为中心平面金盘（V8.2 全部修）。
+- 3D chunk 140KB 目标不可达（152.3KB），按 ≤160KB 验收。
+- 真机 iOS / Android 3D fps / 发热未验；中途 WebGL context lost 未覆盖；音效实际出声未验。
+- 无 3D 机舱全景 / 自由视角；题卡文字仍 DOM；小游戏仍 `MiniGame`。
+
+### 6. 变更记录（V8.0.0）
+
+| 版本 | 日期 | 摘要 |
+|---|---|---|
+| 8.0.0 | 2026-11-19 | 真 3D 主桌 Beta：three r180 独立 chunk 懒加载、3D 棋盘/飞机/骰子/小熊/三主题、镜头链 + 固定飞机棋盘旋转、45° 格子 + 右侧 DOM 卡；`board3d=auto / off / on`（Beta 默认 off），失败完整回 V7。构建 37/37、index 138.2KB / 首屏 171.2KB、chunk 152.3KB gzip；V7 回归 567/0、V8 3D 108/0、P0 0、P1 4 + P2 1。 |
 
 ## V7.0.0 · 2026-11-18
 
