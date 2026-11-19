@@ -12,6 +12,19 @@
     { id: "open", name: "不设限" }
   ];
   var CHIPS = ["束缚", "露出", "道具", "喝酒", "蒙眼", "角色"];
+  /* V8：3D 主桌（Beta）三档。auto=能跑 3D 就用；off=始终 V7；on=强制尝试，失败自动回 V7。
+     Beta 期默认 off（V7）：3D 构图/尺寸还在 prod3d 收尾、未过 QA；用户手动选过就按用户值。
+     只改「主桌画面」，规则/题卡/尺度/边界/存档一概不变。 */
+  var BOARD3D = [
+    { id: "auto", name: "自动", hint: "手机能跑 WebGL2 且没开「减少动画」时用 3D，否则用 V7" },
+    { id: "off", name: "V7", hint: "始终用原来的 V7 主桌" },
+    { id: "on", name: "3D", hint: "强制尝试 3D；开不了会自动回 V7" }
+  ];
+  var BOARD3D_DEFAULT = "off";      /* Beta：与 table.js 的 BOARD3D_DEFAULT 保持一致；QA 后改回 "auto" */
+  function board3dOf(s) {
+    var v = s && s.board3d;
+    return (v === "off" || v === "on" || v === "auto") ? v : BOARD3D_DEFAULT;
+  }
 
   function sw(key, label, hint, on) {
     return '<div class="switch"><span class="lb">' + U.escape(label) +
@@ -45,6 +58,13 @@
           var on = bounds.indexOf(b) >= 0;
           return '<button class="chip' + (on ? " on" : "") + '" data-bound="' + U.escape(b) + '" data-test="settings-bound-' + i + '" type="button">' + U.escape(b) + "</button>";
         }).join("");
+        var b3 = board3dOf(s);
+        var b3Chips = BOARD3D.map(function (m) {
+          var on = m.id === b3;
+          return '<button class="chip' + (on ? " on" : "") + '" data-board3d="' + m.id + '" data-test="settings-board3d-' + m.id + '" aria-pressed="' + (on ? "true" : "false") + '" type="button">' + m.name + "</button>";
+        }).join("");
+        var b3Note = (BOARD3D.filter(function (m) { return m.id === b3; })[0] || BOARD3D[0]).hint +
+          "。3D 只换主桌画面，题目、规则、边界都不变。";
 
         root.innerHTML =
           '<div class="page" data-test="settings">' +
@@ -60,6 +80,13 @@
               '<div class="glass set-card" style="padding:12px 14px 14px">' +
                 '<div class="small dim">换桌面改的是画面：背景、棋盘外圈、格位光晕、粒子、小熊的衣服。</div>' +
                 '<div class="chips mt-8" data-test="settings-themes">' + themeChips + "</div>" +
+                /* V8：3D 主桌（Beta）—— 只换主桌画面；进主桌时按开关/能力决定，失败自动回 V7 */
+                '<div style="padding:12px 0 2px;margin-top:12px;border-top:1px solid var(--line)" data-test="settings-board3d-wrap">' +
+                  '<div class="small dim">3D 主桌（Beta）<b class="gold"> · 下次进主桌生效</b></div>' +
+                  '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
+                  '<div class="small dim mt-8" data-test="settings-board3d-desc">' + U.escape(b3Note) + "</div>" +
+                  '<div class="small dim mt-8" data-test="settings-board3d-beta">Beta 阶段默认先用 V7；3D 画面还在调整，可以手动切「自动」或「3D」试试。</div>' +
+                "</div>" +
               "</div>" +
               '<div class="set-note" data-test="settings-theme-desc">' + U.escape(theme.name + (theme.desc ? " · " + theme.desc : "")) + " 题目、规则、你们的边界都不变。</div>" +
             "</div>" +
@@ -132,6 +159,15 @@
         App.UI.haptic("select");
         paint();
         App.UI.toast("桌面换了", { dur: 1200 });
+      });
+      /* V8：3D 主桌（Beta）三档 —— 立即落盘，下次进主桌生效；只换主桌画面，不动棋局 */
+      U.delegate(root, "[data-board3d]", "click", function (e, el) {
+        var id = el.getAttribute("data-board3d");
+        if (id !== "auto" && id !== "off" && id !== "on") return;
+        App.Store.saveSettings({ board3d: id });
+        App.UI.haptic("select");
+        paint();
+        App.UI.toast(id === "off" ? "主桌用 V7" : (id === "on" ? "主桌试试 3D" : "主桌自动选"), { dur: 1300 });
       });
       U.delegate(root, "[data-bound]", "click", function (e, el) {
         var name = el.getAttribute("data-bound");

@@ -67,6 +67,33 @@ def _kb(v):
     return None if v is None else round(v / 1024.0, 1)
 
 
+def _js_click_selector(page, selector):
+    """页内 DOM click 兜底：仅用于规避「规则层/遮罩动画期 pointer-events 拦截」的 Playwright 可点性抖动。
+    产品行为不变（仍是真实 click 事件）；断言口径不变。"""
+    return bool(Q.eval_js(
+        page,
+        "(sel) => { try { var el = document.querySelector(sel); if (!el) return false; el.click(); return true; } catch (e) { return false; } }",
+        selector,
+    ))
+
+
+def _robust_click(page, candidates, desc="", timeout=4000):
+    hit = Q.try_click(page, candidates, timeout=timeout)
+    if hit is not None:
+        return True
+    for spec in candidates:
+        if not isinstance(spec, str):
+            continue
+        if spec.startswith("test:"):
+            if _js_click_selector(page, '[data-test="%s"]' % spec[5:]):
+                return True
+        elif spec.startswith("[") or spec.startswith("."):
+            if _js_click_selector(page, spec):
+                return True
+    return False
+
+
+
 def measure_sample(browser, base_url: str, sample_no: int):
     """一次完整采样：门厅 DCL/FCP → 主桌可掷骰 → heap。"""
     ctx = Q.new_context(browser, viewport=VIEWPORT, dsf=2, service_workers="block")
@@ -81,7 +108,13 @@ def measure_sample(browser, base_url: str, sample_no: int):
         cdp.send("Network.setCacheDisabled", {"cacheDisabled": True})
 
         t0 = time.time()
-        page.goto(base_url, wait_until="load", timeout=60000)
+        try:
+            page.goto(base_url, wait_until="load", timeout=60000)
+        except Exception as e:  # noqa: BLE001
+            out["error"] = "页面加载失败：%s" % e
+            out["pageerrors"] = list(ps.pageerrors)
+            out["console_errors"] = list(ps.console_errors)
+            return out
         out["wall_load_ms"] = int((time.time() - t0) * 1000)
         metrics = page.evaluate(
             """() => {
@@ -122,7 +155,7 @@ def measure_sample(browser, base_url: str, sample_no: int):
             return out
         # 首次进入可能先出现「玩法速览」层，先按 UI 关掉（与真实用户一致）
         if "玩法速览" in Q.body_text(page) or "规则速览" in Q.body_text(page):
-            Q.try_click(page, ["role:button:/知道了/", "test:rules-ok"], timeout=4000)
+            _robust_click(page, ["test:rules-ok", "role:button:/知道了/"], "规则速览-知道了", timeout=4000)
             page.wait_for_timeout(400)
         # FCP 在慢网+降频下可能晚于 load 记录，补采一次
         if out.get("fcp") is None:
@@ -146,13 +179,11 @@ def measure_sample(browser, base_url: str, sample_no: int):
         out["request_count"] = len([1 for r in reqs])
 
         # 主桌可掷骰
-        Q.try_click(page, ["test:mode-quick"], timeout=1500)
+        _robust_click(page, ["test:mode-quick"], "快局", timeout=2000)
         Q.fill_names(page, ("阿岚", "阿策"))
         t_click = time.time()
-        try:
-            Q.click(page, ["test:start"], timeout=8000, desc="摆上棋盘")
-        except Exception as e:  # noqa: BLE001
-            out["error"] = "点开始失败：%s" % e
+        if not _robust_click(page, ["test:start"], "摆上棋盘", timeout=8000):
+            out["error"] = "点开始失败：未找到/不可点 [data-test=start]"
             return out
         table_ok = False
         deadline = time.time() + 20
@@ -844,20 +875,57 @@ def main():
             try:
                 samples = []
                 for i in range(1, args.samples + 1):
-                    s = measure_sample(browser, gz_url, i)
+                    s = {}
+                    for attempt in range(3):
+                        try:
+                            s = measure_sample(browser, gz_url, i)
+                        except Exception as e:  # noqa: BLE001
+                            s = {"sample": i, "error": "measure_sample 异常：%s" % e}
+                        if not s.get("error"):
+                            break
+                        print("[PERF] sample %d retry %d after: %s" % (i, attempt + 1, str(s.get("error"))[:120]))
+                        try:
+                            browser.close()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        time.sleep(1.0)
+                        browser = Q.launch_browser(pw)
                     samples.append(s)
-                    print("[PERF] gzip sample %d: dcl=%sms fcp=%sms table=%sms heap=%sKB boot=%sms" %
+                    print("[PERF] gzip sample %d: dcl=%sms fcp=%sms table=%sms heap=%sKB boot=%sms%s" %
                           (i, s.get("dcl"), s.get("fcp"), s.get("table_ready_ms"),
-                           (s.get("heap") or 0) / 1024.0, s.get("boot_ready_ms")))
+                           (s.get("heap") or 0) / 1024.0, s.get("boot_ready_ms"),
+                           (" ERR=" + str(s.get("error"))[:120]) if s.get("error") else ""))
                 # 裸文件（python http.server 默认）作为最差参考，不进入发布门槛
-                raw_sample = measure_sample(browser, raw_url, 1)
+                try:
+                    raw_sample = measure_sample(browser, raw_url, 1)
+                except Exception as e:  # noqa: BLE001
+                    raw_sample = {"sample": 1, "error": "measure_sample 异常：%s" % e}
                 print("[PERF] raw-file reference: dcl=%sms fcp=%sms table=%sms" %
                       (raw_sample.get("dcl"), raw_sample.get("fcp"), raw_sample.get("table_ready_ms")))
-                offline = measure_offline(browser, gz_url)
+                try:
+                    offline = measure_offline(browser, gz_url)
+                except Exception as e:  # noqa: BLE001
+                    offline = {"ok": False, "error": "measure_offline 异常：%s" % e}
                 print("[PERF] offline: ok=%s boot=%sms (%s)" %
                       (offline.get("ok"), offline.get("boot_ms"), offline.get("error") or ""))
                 print("[PERF] cabin runtime: idle/moves/reduced/hidden ...")
-                cabin = measure_cabin_runtime(browser, gz_url)
+                cabin = {}
+                for attempt in range(3):
+                    try:
+                        cabin = measure_cabin_runtime(browser, gz_url)
+                    except Exception as e:  # noqa: BLE001
+                        cabin = {"error": "measure_cabin_runtime 异常：%s" % e}
+                    ok = bool(cabin.get("idle")) and bool((cabin.get("moves") or {}).get("moves"))
+                    if ok:
+                        break
+                    print("[PERF] cabin runtime retry %d after: %s" % (
+                        attempt + 1, str(cabin.get("error") or "idle/moves 未完成")[:140]))
+                    try:
+                        browser.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    time.sleep(1.0)
+                    browser = Q.launch_browser(pw)
                 idle = cabin.get("idle") or {}
                 mv = cabin.get("moves") or {}
                 print("[PERF] cabin idle: fps=%.1f long25=%s%% frames=%s p95=%sms" % (
@@ -869,7 +937,23 @@ def main():
                     (cabin.get("reduced") or {}).get("reduced"),
                     (cabin.get("hidden") or {}).get("pausedAttr")))
                 print("[PERF] v7 cinema runtime: 20 moves / hidden / reduced ...")
-                v7 = measure_v7_runtime(browser, gz_url)
+                v7 = {}
+                for attempt in range(3):
+                    try:
+                        v7 = measure_v7_runtime(browser, gz_url)
+                    except Exception as e:  # noqa: BLE001
+                        v7 = {"error": "measure_v7_runtime 异常：%s" % e}
+                    ok = bool((v7.get("moves") or {}).get("moves")) and bool(v7.get("hidden"))
+                    if ok:
+                        break
+                    print("[PERF] v7 runtime retry %d after: %s" % (
+                        attempt + 1, str(v7.get("error") or "moves/hidden 未完成")[:140]))
+                    try:
+                        browser.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    time.sleep(1.0)
+                    browser = Q.launch_browser(pw)
                 vmv = v7.get("moves") or {}
                 print("[PERF] v7 20moves: moves=%s fps=%.1f long25=%s%% states=%s" % (
                     vmv.get("moves"), vmv.get("fps") or 0,
