@@ -42,8 +42,31 @@
     ["普通格", "不抽题，走过去"]
   ];
 
+  /* V8.2：3D 棋盘的格面短字图例（顺序 / 短字与 board3d/constants.js 的 GLYPH 对齐；
+   * 转盘格在 3D 格面写「轮」，这里名字用「转盘」，两种叫法都对得上）。描述控制在 ≤10 字。 */
+  var LEGEND3D = [
+    ["真", "真心话", "抽一张真心话"],
+    ["敢", "大冒险", "抽一张大冒险"],
+    ["触", "靠近", "抽一张靠近的题"],
+    ["缘", "命运", "两张挑一张"],
+    ["温", "温度计", "小游戏·温度计"],
+    ["轮", "转盘", "小游戏·转盘"],
+    ["起", "起飞", "掷6起飞，两次保底"],
+    ["飞", "飞点", "向前 12 格"],
+    ["停", "禁跳", "这一格不跳"],
+    ["归", "进航", "进自己的航线"],
+    ["·", "普通格", "不抽题，走过去"]
+  ];
+
   /* 单屏实例共享的对局状态（mount 时赋值；同一时刻只有一个主桌） */
   var state = null;
+  /* V8.2：3D 图例的行（短字徽标 + 名字 · 一句说明） */
+  function legend3dRows() {
+    return LEGEND3D.map(function (row) {
+      return '<div class="v6-l3r" data-test="board3d-legend-row"><b>' + U.escape(row[0]) + "</b>" +
+        "<span>" + U.escape(row[1]) + " · " + U.escape(row[2]) + "</span></div>";
+    }).join("");
+  }
   /* 当前主桌的 owner：BoardView 是单例，快速连开两局时上一屏的延迟 cleanup
    * 不能把新主桌刚挂好的棋盘拆掉（否则棋盘空白）。 */
   var tableOwner = null;
@@ -194,6 +217,19 @@
     ".v6-legend{margin:0;padding:0 0 0 2px;list-style:none;display:flex;flex-direction:column;gap:8px}",
     ".v6-legend li{font-size:13px;line-height:1.5;color:var(--dim,#C9B6CE)}",
     ".v6-legend b{color:var(--ink,#FBF3E7)}",
+    /* V8.2：3D 图例（入口只在 .v6-3d；面板挂 .v6-boardwrap，顶边永在 HUD 之下，压不到暂停/安全词） */
+    ".v6-lbtn{display:none}",
+    ".v6-3d .v6-lbtn{display:inline-flex}",
+    ".v6-l3{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;padding:6px 9px;",
+    "border-radius:14px;overflow:auto;background:#0e0a1a;border:1px solid var(--line,rgba(255,226,196,.16))}",
+    ".v6-l3[hidden]{display:none}",
+    ".v6-l3h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;padding-bottom:2px;",
+    "font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--dim,#C9B6CE)}",
+    ".v6-l3r{display:flex;gap:6px;align-items:flex-start;padding:2px 0;font-size:11px;line-height:1.32;color:var(--dim,#C9B6CE)}",
+    ".v6-l3r b{flex:none;width:18px;height:18px;border-radius:5px;text-align:center;line-height:18px;",
+    "font-size:11px;font-weight:700;color:#2C1C15;background:var(--amber,#F3C077)}",
+    /* 图例打开时收起底部行动区：不许一边看图例一边掷骰，同时把高度让给面板（320×568 也一屏读完） */
+    ".v6-l3o .v6-action{display:none}",
     "@media (max-height:720px){",
     ".v6-table{padding-top:calc(6px + var(--safe-t,0px));padding-bottom:calc(6px + var(--safe-b,0px))}",
     ".v6-status-line{font-size:10px}",
@@ -562,6 +598,7 @@
       var cardClose = null;
       var miniClose = null;
       var openKey = null;
+      var legendOpen = false;            /* V8.2：3D 图例面板是否展开 */
       var boardReady = false;
       var cinemaReady = false;
       var skipRequested = false;
@@ -580,6 +617,8 @@
             '<div class="v6-hud-tools">' +
               '<button type="button" class="v6-icon-btn" data-act="pause" data-test="pause" aria-label="先停一下">暂停</button>' +
               '<button type="button" class="v6-icon-btn" data-act="rules" data-test="rules" aria-label="玩法速览">规则</button>' +
+              /* V8.2：3D 图例入口（默认隐藏，.v6-3d 才出现；V7 的图例仍在落点格名那里） */
+              '<button type="button" class="v6-icon-btn v6-lbtn" data-act="legend3d" data-test="board3d-legend">图例</button>' +
             '</div>' +
             '<div class="v6-safe-slot" data-test="safe-slot" aria-hidden="true"></div>' +
           '</div>' +
@@ -622,7 +661,14 @@
           "</div>" +
           '<div class="v6-boardwrap"><div class="v6-board" data-board data-test="board"></div>' +
             /* V8：3D 主桌专用层；3D 可用时由 App.Board3D 挂载 canvas，V7 棋盘照旧保留在下面兜底 */
-            '<div class="v6-board3d" data-test="board3d" aria-hidden="true"></div></div>' +
+            '<div class="v6-board3d" data-test="board3d" aria-hidden="true"></div>' +
+            /* V8.2：3D 图例面板（只在 .v6-3d 里能被打开；挂在棋盘容器内，压不到 HUD/安全词/掷骰条） */
+            '<div class="v6-l3" data-test="board3d-legend-panel" hidden>' +
+              '<div class="v6-l3h"><span>格子图例 · 3D 棋盘</span>' +
+                '<button type="button" class="v6-icon-btn" data-act="legend3d-close" data-test="board3d-legend-close">收起</button>' +
+              "</div>" +
+              legend3dRows() +
+            "</div></div>" +
           '<div class="v6-action" data-test="action">' +
             '<div class="v6-actions" data-test="actions"></div>' +
             '<div class="v6-receipt" data-test="receipt"></div>' +
@@ -644,6 +690,8 @@
       var dieEl = root.querySelector("[data-test=die-face]");
       var dieTextEl = root.querySelector("[data-test=die-text]");
       var landingEl = root.querySelector("[data-test=landing]");
+      /* V8.2：3D 图例入口/面板 */
+      var legendPanelEl = root.querySelector("[data-test=board3d-legend-panel]");
 
       /* ---------- V8：3D 主桌挂载 / 回落（App.Board3D 契约见 docs/v8/impl-freeze.md §3.2） ----------
        * 顺序：V7 棋盘先挂（BoardView，便宜且保证零空白）→ 能力/开关允许时懒加载 chunk →
@@ -664,6 +712,13 @@
       function setB3Status(status, reason) {
         try { if (rootEl) rootEl.setAttribute("data-board3d", status); } catch (e) {}
         try { if (rootEl) rootEl.setAttribute("data-board3d-reason", reason || ""); } catch (e) {}
+        /* V8.2：把最近一次 mount 结果留在 window 上（table 卸载后设置页仍能读到）。
+         * 只读状态，不写盘、不改任何设置。 */
+        try {
+          window.__BOARD3D_LAST__ = { s: status, r: reason || "", m: board3dMode() };
+        } catch (e) {}
+        /* 不在 3D 了（回落/还没起来）：图例面板立刻收起，避免压在 V7 棋盘上 */
+        if (status !== "on") setLegend3d(false);
       }
       /* 优先用实例方法，模块只暴露命名空间方法时也能用（契约两种写法都兼容） */
       function b3Call(name, a, b, c) {
@@ -1366,6 +1421,7 @@
 
       function openPrompt(wait) {
         var prompt = wait.prompt || {};
+        setLegend3d(false);   /* V8.2：题卡要上来了，图例先收 */
         var ending = wait.type === "ending-prompt";
         var key = wait.type + ":" + (prompt.id || "x") + ":" + endingIndex(state);
         if (openKey === key && cardHost.firstChild) return;
@@ -1953,6 +2009,15 @@
         } catch (e) { if (window.console) console.error("[table] legend", e); }
       }
 
+      /* ---------- V8.2：3D 图例面板（开合不改棋局；关闭一键回主桌） ---------- */
+      function setLegend3d(open) {
+        legendOpen = !!(open && legendPanelEl && rootEl.classList.contains("v6-3d"));
+        if (!legendPanelEl) return false;
+        legendPanelEl.hidden = !legendOpen;
+        try { rootEl.classList.toggle("v6-l3o", legendOpen); } catch (e) {}
+        return legendOpen;
+      }
+
       /* ---------- 事件 ---------- */
       function onRootClick(e) {
         var el = e.target && e.target.closest ? e.target.closest("[data-act]") : null;
@@ -1962,6 +2027,8 @@
         if (act === "piece") { doMove(el.getAttribute("data-action-piece")); return; }
         if (act === "pause") { openPause(); return; }
         if (act === "legend") { openLegend(); return; }
+        if (act === "legend3d") { setLegend3d(!legendOpen); return; }
+        if (act === "legend3d-close") { setLegend3d(false); return; }
         if (act === "rules") { openRules(); return; }
         if (act === "to-ledger") { toLedger(); return; }
       }

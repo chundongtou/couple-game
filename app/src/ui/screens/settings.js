@@ -25,6 +25,57 @@
     return (v === "off" || v === "on" || v === "auto") ? v : BOARD3D_DEFAULT;
   }
 
+  /* V8.2：设备自检（只读）。口径同 table.js：WebGL2 是硬条件；auto/on/off 三档；减少动画只影响镜头。
+     不写 settings、不触发挂载。上次 mount 按 __V6_TEST__.board3d() → .v6-table[data-board3d] → __BOARD3D_LAST__ 读。 */
+  var WEBGL2 = null;
+  function webgl2Ok() {
+    if (WEBGL2 === null) {
+      try {
+        var gl = window.WebGL2RenderingContext ? document.createElement("canvas").getContext("webgl2") : null;
+        WEBGL2 = !!gl;
+        try { var l = gl && gl.getExtension("WEBGL_lose_context"); if (l) l.loseContext(); } catch (e) {}
+      } catch (e) { WEBGL2 = false; }
+    }
+    return WEBGL2;
+  }
+  function sysReduced() {
+    try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+    catch (e) { return false; }
+  }
+  function lastMount() {
+    var st = null, attr = null, reason = "", last = null;
+    try { if (window.__V6_TEST__ && window.__V6_TEST__.board3d) st = window.__V6_TEST__.board3d(); } catch (e) {}
+    try {
+      var el = document.querySelector(".v6-table[data-board3d]");
+      if (el) { attr = el.getAttribute("data-board3d"); reason = el.getAttribute("data-board3d-reason") || ""; }
+    } catch (e) {}
+    try { last = window.__BOARD3D_LAST__; } catch (e) {}
+    if (st && st.mode) return st.ready ? { s: "on", r: "" } : (st.pending ? { s: "pending", r: "" } : { s: "v7", r: st.reason || reason });
+    if (attr) return { s: attr, r: reason };
+    if (last) return { s: last.s || "idle", r: last.r || "" };
+    return { s: "idle", r: "" };
+  }
+  /* 只给「回落类」原因一句短语；off / no-webgl2 已经写在主文案里 */
+  function reasonWord(r) {
+    return r === "chunk" ? "3D 资源没拿到" : r === "api" ? "3D 模块没接上" : "3D 没起来";
+  }
+  function board3dStatus(s, mode) {
+    var gl = webgl2Ok(), red = !!s.reduced || sysReduced(), m = lastMount();
+    var mw = mode === "off" ? "已关（用 V7）" : (mode === "on" ? "强制 3D" : "自动");
+    var main = !gl ? "当前浏览器未开启 WebGL2，会使用 V7"
+      : mode === "off" ? "当前设备：3D 可用 · 已关（用 V7）"
+      : m.s === "on" ? "当前设备：3D 可用 · " + (mode === "on" ? "强制 3D" : "自动") + "（正在用 3D）"
+      : "当前设备：3D 可用 · " + mw;
+    var last = m.s === "on" ? "用上了 3D" : m.s === "pending" ? "3D 还在载入"
+      : m.s === "v7" ? "用了 V7" + (m.r && m.r !== "off" && m.r !== "no-webgl2" ? "（" + reasonWord(m.r) + "）" : "")
+      : "还没进过主桌";
+    return {
+      text: main + " · WebGL2 " + (gl ? "可用" : "不可用") + " · 减少动画：" + (red ? "开（静态）" : "关") +
+        " · 上次进主桌：" + last,
+      gl: gl, red: red, mode: mode, mount: m.s, reason: m.r
+    };
+  }
+
   function sw(key, label, hint, on) {
     return '<div class="switch"><span class="lb">' + U.escape(label) +
       (hint ? "<em>" + U.escape(hint) + "</em>" : "") + "</span>" +
@@ -64,6 +115,7 @@
         }).join("");
         var b3Note = (BOARD3D.filter(function (m) { return m.id === b3; })[0] || BOARD3D[0]).hint +
           "。3D 只换主桌画面，题目、规则、边界都不变。";
+        var b3st = board3dStatus(s, b3);   /* V8.2：设备自检（只读） */
 
         root.innerHTML =
           '<div class="page" data-test="settings">' +
@@ -83,8 +135,14 @@
                 '<div style="padding:12px 0 2px;margin-top:12px;border-top:1px solid var(--line)" data-test="settings-board3d-wrap">' +
                   '<div class="small dim">3D 主桌<b class="gold"> · 下次进主桌生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
+                  /* V8.2：设备自检（能不能跑 3D / 为什么这次没进 3D），一行读完 */
+                  '<div class="small dim mt-8" data-test="settings-board3d-status"' +
+                    ' data-webgl2="' + (b3st.gl ? "1" : "0") + '" data-reduced="' + (b3st.red ? "1" : "0") + '"' +
+                    ' data-board3d-set="' + b3 + '" data-board3d-mount="' + b3st.mount + '"' +
+                    (b3st.reason ? ' data-board3d-reason="' + U.escape(b3st.reason) + '"' : "") + ">" +
+                    U.escape(b3st.text) + "</div>" +
                   '<div class="small dim mt-8" data-test="settings-board3d-desc">' + U.escape(b3Note) + "</div>" +
-                  '<div class="small dim mt-8" data-test="settings-board3d-beta">Beta 阶段默认先用 V7；3D 画面还在调整，可以手动切「自动」或「3D」试试。</div>' +
+                  '<div class="small dim mt-8" data-test="settings-board3d-beta">默认「自动」：设备能跑 WebGL2 就用 3D，跑不动或没开启就自动回 V7；想固定一种画面可以手动切。</div>' +
                 "</div>" +
               "</div>" +
               '<div class="set-note" data-test="settings-theme-desc">' + U.escape(theme.name + (theme.desc ? " · " + theme.desc : "")) + " 题目、规则、你们的边界都不变。</div>" +

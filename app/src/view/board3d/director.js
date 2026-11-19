@@ -7,8 +7,8 @@
  * ========================================================================== */
 import * as THREE from '../../../render/node_modules/three/build/three.module.js';
 import {
-  DIE_SIZE, TILE_BOTTOM, STAGE_RISE, STAGE_AZIM, PLANE_Y,
-  DEG, clamp, lerp, easeInOut, easeOut, smoothstep, shortestDelta
+  DIE_SIZE, TILE_BOTTOM, STAGE_RISE, STAGE_AZIM, PLANE_Y, OVERVIEW_FILL,
+  DEG, TAU, clamp, lerp, easeInOut, easeOut, smoothstep, shortestDelta
 } from './constants.js';
 import {
   isMotionEvent, motionOrigin, motionDest, poseForSquare, interpPose, localOfSquare
@@ -134,6 +134,7 @@ export class Director {
     if (next) {
       this._instantNext = true;
       this.scene.flushAnims();
+      this.scene.setFlyMode(false);
       if (!this.busy) {
         this.holding = false;
         this.cellCtx = null;
@@ -240,14 +241,46 @@ export class Director {
     return null;
   }
 
+  /* overview：棋盘占宽 86–88%，并用投影包围盒把棋盘在 host 里上下居中
+   * （V8-V-01：之前上下留白靠固定 ny，320/390/430 三种纵横比下重心会偏） */
   _overview() {
-    return {
+    const radius = this.scene.rig.distForCover(3.70, OVERVIEW_FILL, 42);
+    const t = {
       center: new THREE.Vector3(0, 0.05, 0.24),
-      nx: 0, ny: 0.02,
-      /* fill=1.0：棋盘实际直径 ≈ 3.23/3.70 = 87% 的 host 宽度（冻结要求约 85–92%） */
-      radius: this.scene.rig.distForCover(3.70, 1.0, 42),
-      elev: 58, azim: 0, fov: 42
+      nx: 0, ny: 0,
+      radius, elev: 58, azim: 0, fov: 42
     };
+    t.ny = this._centerBias(t);
+    return t;
+  }
+
+  /* 以 ny=0 试算棋盘投影包围盒的上下缘，返回让"上下留白相等"的 ny。
+   * 只做投影测量，不渲染；测完把相机状态原样还回去（含 lock 状态）。 */
+  _centerBias(t) {
+    const rig = this.scene.rig;
+    const cam = this.scene.camera;
+    const b = this.scene.boardGroup;
+    const V = cam.position.constructor;
+    const save = rig.snapshotTarget();
+    const saveLock = rig.lockState;
+    let lo = 1e9, hi = -1e9;
+    try {
+      rig.lockState = null;
+      rig.snap({ center: t.center.clone(), nx: t.nx, ny: 0, radius: t.radius, elev: t.elev, azim: t.azim, fov: t.fov });
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * TAU;
+        const p = b.localToWorld(new V(Math.cos(a) * 3.30, 0.035, Math.sin(a) * 3.30)).project(cam);
+        if (p.y < lo) lo = p.y;
+        if (p.y > hi) hi = p.y;
+      }
+    } catch (e) {
+      lo = 0; hi = 0;
+    } finally {
+      rig.snap(save);
+      rig.lockState = saveLock;
+    }
+    if (!isFinite(lo) || !isFinite(hi)) return 0;
+    return +clamp(-(lo + hi) / 2, -0.12, 0.12).toFixed(4);
   }
 
   /* 宿主尺寸变化（table boardwrap 在 mount 后才定高 / 题卡开合会改高度）→ 按当前纵横比重算 overview 距离并回正 */
@@ -278,6 +311,7 @@ export class Director {
 
   /* 瞬时（reduced）：只落终态，不做镜头链 */
   async _runReduced(events) {
+    this.scene.setFlyMode(false);
     const dice = events.find((e) => e.type === 'dice');
     if (dice) this.scene.placeDie(dice.die);
     const motions = events.filter(isMotionEvent);
@@ -337,6 +371,7 @@ export class Director {
     await this._phaseFocus(pieceId, origin);
     this._setPhase('fly');
     this.scene.fixPlane(pieceId);
+    this.scene.setFlyMode(true);          /* 飞行中隐去格面中文（旋转斜置的字不做主视觉） */
     this.scene.lockProbeId = pieceId;
     this.scene.lockStats.reset();
     this.scene.setStreaks(true);
@@ -463,6 +498,7 @@ export class Director {
 
   async _phaseLand(pieceId, square) {
     this._setPhase('land');
+    this.scene.setFlyMode(false);         /* 落地：格面中文恢复（正立可读） */
     this.scene.rig.unlock();
     this.scene.lockProbeId = null;
     this.scene.setPlaneToSquare(pieceId, square);
@@ -612,6 +648,7 @@ export class Director {
     this.holding = false;
     this.scene.lockProbeId = null;
     this.scene.setStreaks(false);
+    this.scene.setFlyMode(false);
     this.scene.setTargetGlow(null);
     this.scene.setBearVisible(false);
     this.scene.bear.group.scale.setScalar(0.001);

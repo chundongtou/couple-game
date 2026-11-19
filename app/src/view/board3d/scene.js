@@ -8,7 +8,8 @@ import * as THREE from '../../../render/node_modules/three/build/three.module.js
 import {
   DEG, TAU, RING_N, RING_R, CELL, TILE_H, TILE_BOTTOM, TILE_TOP, HOME_STEPS, HOME_R0,
   HOME_PITCH, HOME_CELL, HANGAR_R, PLANE_HOVER, PLANE_Y, DIE_SIZE, STAGE_RISE, STAGE_AZIM,
-  COLORS, HOME_ENTRY, APRON_DEG, HEX, DIE_FACES, THEMES, themeOf,
+  STAGE_PLATE, STAGE_BEAR, STAGE_TEXT, HUB,
+  COLORS, HOME_ENTRY, APRON_DEG, HEX, DIE_FACES, THEMES, themeOf, KIND_LABEL,
   colorOfRing, kindOf, ringPhi, slotOf, uvOfSlot, SLOT_DARK, SLOT_HOME, SLOT_HANGAR,
   clamp, lerp, easeOut, smoothstep
 } from './constants.js';
@@ -218,6 +219,12 @@ export class BoardScene {
     this.scene.add(this.world);
     this.trayMat = new THREE.MeshLambertMaterial({ color: 0x3A2A24 });
     this.matMat = new THREE.MeshLambertMaterial({ color: 0x1E4A63 });
+    /* V8.2：垫面 = 织纹层（lambert，吃灯光）+ 暗角/灯池叠层（basic，纯样式）
+     * 目的：overview 里棋盘四周的空区读作"机舱小桌板"，而不是一大片纯色天空。 */
+    this.matOverMat = new THREE.MeshBasicMaterial({
+      map: null, transparent: true, opacity: 1, depthWrite: false, fog: false
+    });
+    this._matTexCache = {};
     this.trayGroup = new THREE.Group();
     const shape = new THREE.Shape();
     const w = TRAY.w, d = TRAY.d, r = TRAY.r;
@@ -245,15 +252,38 @@ export class BoardScene {
     mat.position.y = 0.002;
     mat.receiveShadow = true;
     this.trayGroup.add(mat);
+    const over = new THREE.Mesh(new THREE.PlaneGeometry(TRAY.w - 0.9, TRAY.d - 0.9, 1, 1), this.matOverMat);
+    over.rotation.x = -Math.PI / 2;
+    over.position.y = 0.0035;
+    this.trayGroup.add(over);
     this.world.add(this.trayGroup);
 
     this.boardGroup = new THREE.Group();
     this.world.add(this.boardGroup);
   }
 
+  /* 垫面贴图按主题懒生成并缓存（每个主题只做一次） */
+  _matTexFor(t) {
+    let e = this._matTexCache[t.id];
+    if (e) return e;
+    const weave = TX.buildWeaveTex(t.matTex, 128);
+    weave.repeat.set(20, 17);
+    const over = TX.buildMatOverlay(t.matTex, 512);
+    this._tex.push(weave, over);
+    e = { weave, over };
+    this._matTexCache[t.id] = e;
+    return e;
+  }
+
   _buildBoard() {
     const atlas = TX.buildAtlas();
     this._tex.push(atlas.tex);
+    this.atlasTex = atlas.tex;
+    /* fly 期间用"无中文"图集：飞行中棋盘旋转，格面中文会斜置/倒置；只留色块与图标，
+     * land/cell45 再换回有字图集。两版图集除中文外像素一致，切换不跳色。 */
+    this.atlasPlain = TX.buildAtlas({ glyph: false });
+    this._tex.push(this.atlasPlain.tex);
+    this.flyMode = false;
     this.boardFaceTex = TX.buildBoardFace();
     this._tex.push(this.boardFaceTex);
     this.tileMat = new THREE.MeshLambertMaterial({ map: atlas.tex, vertexColors: true });
@@ -324,23 +354,51 @@ export class BoardScene {
     this.padMesh.receiveShadow = true;
     this.boardGroup.add(this.padMesh);
 
-    /* 中心终点徽章 */
-    this.goalMedal = new THREE.Group();
-    const medal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.46, 0.5, 0.09, 32, 1),
-      new THREE.MeshLambertMaterial({ color: 0xF3C077, emissive: 0x3A2408 })
+    /* 中心终点：立体 hub（鼓形圆柱 + 底盘环 + 悬环 + 星徽 + 暖光晕），替代原平面金盘 */
+    this.hubGroup = new THREE.Group();
+    const hub = themeOf(this.theme).hub;
+    this.hubTopMat = new THREE.MeshLambertMaterial({ map: null, color: 0xFFFFFF, emissive: 0x000000 });
+    this.hubSideMat = new THREE.MeshLambertMaterial({ color: hub.side, emissive: 0x1A0E04 });
+    this.hubStarMat = new THREE.MeshLambertMaterial({ color: hub.star, emissive: 0x3A2408 });
+    this.hubRingMat = new THREE.MeshLambertMaterial({ color: hub.star, emissive: 0x2A1A06 });
+    const drum = new THREE.Mesh(
+      new THREE.CylinderGeometry(HUB.r, HUB.r + 0.07, HUB.h, 40, 1),
+      [this.hubSideMat, this.hubTopMat, this.hubSideMat]
     );
-    medal.position.y = 0.045;
-    this.goalMedal.add(medal);
-    const medalRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.56, 0.028, 8, 40),
-      new THREE.MeshLambertMaterial({ color: 0xFFE6B4, emissive: 0x2A1A06 })
-    );
-    medalRing.rotation.x = -Math.PI / 2;
-    medalRing.position.y = 0.02;
-    this.goalMedal.add(medalRing);
-    this.goalMedal.position.y = TILE_BOTTOM + 0.02;
-    this.boardGroup.add(this.goalMedal);
+    drum.position.y = HUB.h / 2;
+    drum.castShadow = this.shadows;
+    drum.receiveShadow = true;
+    this.hubGroup.add(drum);
+    const baseRing = new THREE.Mesh(new THREE.TorusGeometry(HUB.ringR, 0.030, 8, 44), this.hubRingMat);
+    baseRing.rotation.x = -Math.PI / 2;
+    baseRing.position.y = 0.012;
+    this.hubGroup.add(baseRing);
+    /* 悬环：比鼓面高出一点，随呼吸微升降（立体感来源之一） */
+    this.hubHalo = new THREE.Mesh(new THREE.TorusGeometry(0.315, 0.014, 6, 36), this.hubRingMat);
+    this.hubHalo.rotation.x = -Math.PI / 2;
+    this.hubHalo.position.y = HUB.h + 0.10;
+    this.hubGroup.add(this.hubHalo);
+    /* 星徽：挤出成有厚度的立体星，慢慢转 */
+    const starShape = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+      const rr = i % 2 === 0 ? HUB.starR : HUB.starR * 0.44;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      if (i === 0) starShape.moveTo(x, y); else starShape.lineTo(x, y);
+    }
+    starShape.closePath();
+    const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.030, bevelEnabled: false, curveSegments: 1 });
+    starGeo.rotateX(-Math.PI / 2);
+    this.hubStar = new THREE.Mesh(starGeo, this.hubStarMat);
+    this.hubStar.position.y = HUB.h + 0.014;
+    this.hubStar.castShadow = this.shadows;
+    this.hubGroup.add(this.hubStar);
+    this.hubGlow = makeGlowPlane(0.92, hub.glow);
+    this.hubGlow.position.y = HUB.h + 0.052;
+    this.hubGlow.material.opacity = 0.26;
+    this.hubGroup.add(this.hubGlow);
+    this.hubGroup.position.y = 0.035;
+    this.boardGroup.add(this.hubGroup);
 
     /* 目标格光晕 */
     this.targetGlow = makeGlowPlane(0.9, 0xFFC98A);
@@ -373,7 +431,12 @@ export class BoardScene {
     this.stageTile = null;
 
     this.bear = createBear();
-    this.stageGroup.add(this.bear.group);
+    /* 小熊座位：偏向舞台格左后（格面字在右前），不再压在字上 */
+    this.bearSeat = new THREE.Group();
+    this.bearSeat.position.set(STAGE_BEAR.x, 0, STAGE_BEAR.z);
+    this.bearSeat.scale.setScalar(STAGE_BEAR.s);
+    this.bearSeat.add(this.bear.group);
+    this.stageGroup.add(this.bearSeat);
 
     this.stageShadow = makeShadowPlane(1.5, 0);
     this.stageShadow.visible = false;
@@ -549,6 +612,13 @@ export class BoardScene {
         this._beaconRing.scale.setScalar(s);
         this._beaconRing.material.opacity = 0.5 + Math.sin(now * 0.0024) * 0.18;
       }
+      /* 中心 hub：星徽慢转 + 悬环呼吸（立体终点的动态线索） */
+      if (this.hubStar) {
+        this.hubStar.rotation.y = now * 0.00042;
+        this.hubHalo.position.y = HUB.h + 0.10 + Math.sin(now * 0.0016) * 0.018;
+        this.hubHalo.rotation.z = now * 0.0006;
+        this.hubGlow.material.opacity = 0.22 + Math.sin(now * 0.0022) * 0.06;
+      }
       this.streaks.update(dt, this.streaks.group.visible);
     }
 
@@ -624,9 +694,33 @@ export class BoardScene {
       this.sun.intensity = t.sunInt;
     }
     this.trayMat.color.set(t.tray);
-    this.matMat.color.set(t.mat);
     this.discTopMat.color.set(t.disc);
     this.discSideMat.color.set(t.discSide);
+    /* V8.2：垫面织纹 + 暗角叠层（按主题缓存）；垫面不再是纯色 */
+    const mt = this._matTexFor(t);
+    if (this.matMat.map !== mt.weave) {
+      this.matMat.map = mt.weave;
+      this.matMat.color.set(0xFFFFFF);
+      this.matMat.needsUpdate = true;
+    }
+    if (this.matOverMat && this.matOverMat.map !== mt.over) {
+      this.matOverMat.map = mt.over;
+      this.matOverMat.needsUpdate = true;
+    }
+    /* 中心 hub 换色/换顶面贴图 */
+    if (this.hubTopMat) {
+      if (!this._hubTex) this._hubTex = {};
+      if (!this._hubTex[t.id]) {
+        this._hubTex[t.id] = TX.buildHubTop(t.hub, 256);
+        this._tex.push(this._hubTex[t.id]);
+      }
+      this.hubTopMat.map = this._hubTex[t.id];
+      this.hubTopMat.needsUpdate = true;
+      this.hubSideMat.color.set(t.hub.side);
+      this.hubStarMat.color.set(t.hub.star);
+      this.hubRingMat.color.set(t.hub.star);
+      if (this.hubGlow) this.hubGlow.material.color.set(t.hub.glow);
+    }
     this.skyCloud.visible = t.sky === 'cloud';
     this.skyStar.visible = t.sky === 'star';
     this.skyPaper.visible = t.sky === 'paper';
@@ -636,19 +730,6 @@ export class BoardScene {
       sp.material.opacity = t.cloudOpacity;
       sp.material.color.set(t.cloudTint);
     });
-    if (t.id === 'paper') {
-      if (!this.paperTex) {
-        this.paperTex = TX.makePaperTex();
-        this._tex.push(this.paperTex);
-      }
-      this.matMat.map = this.paperTex;
-      this.matMat.color.set(0xFFFFFF);
-      this.matMat.needsUpdate = true;
-    } else if (this.matMat.map) {
-      this.matMat.map = null;
-      this.matMat.color.set(t.mat);
-      this.matMat.needsUpdate = true;
-    }
     if (this.bear) this.bear.setOutfit(t.bear);
     this.setDim(this.dimK);
     this.applyHeat(this.heat);
@@ -697,7 +778,10 @@ export class BoardScene {
     const trayF = lerp(0.5, 1, d);
     this.discTopMat.color.copy(new THREE.Color(t.disc).multiplyScalar(discF));
     this.trayMat.color.copy(new THREE.Color(t.tray).multiplyScalar(trayF));
-    this.matMat.color.copy(new THREE.Color(t.id === 'paper' ? 0xFFFFFF : t.mat).multiplyScalar(trayF));
+    /* 垫面：贴图自带主题色，用灰度乘数压暗即可 */
+    const matF = lerp(0.62, 1, d);
+    this.matMat.color.setRGB(matF, matF, matF);
+    if (this.matOverMat) this.matOverMat.opacity = lerp(0.85, 1, d);
     this.requestRender();
   }
 
@@ -934,6 +1018,19 @@ export class BoardScene {
     this.requestRender();
   }
 
+  /* fly 期间隐藏格面中文（棋盘旋转时斜置的字会变成主视觉）；land/cell45 恢复 */
+  setFlyMode(on) {
+    const flag = !!on;
+    if (flag === this.flyMode) return;
+    this.flyMode = flag;
+    const next = flag ? this.atlasPlain.tex : this.atlasTex;
+    if (this.tileMat && this.tileMat.map !== next) {
+      this.tileMat.map = next;
+      this.tileMat.needsUpdate = true;
+    }
+    this.requestRender();
+  }
+
   playRipple(instant) {
     this.ripple.position.set(0, 0.012, 0);
     this.ripple.visible = true;
@@ -967,38 +1064,43 @@ export class BoardScene {
       this.stageTile = null;
     }
     this.stageId = squareId;
-    /* 舞台格单独材质：主棋盘会变暗，但 45° 舞台要保持亮，字才读得清 */
     if (this.stageTileMat) {
-      this.stageTileMat.map = null;
+      if (this.stageTex) { this.stageTex.dispose(); this.stageTex = null; }
       this.stageTileMat.dispose();
     }
-    this.stageTileMat = this.tileMat.clone();
-    this.stageTileMat.color.setRGB(1, 1, 1);
-    this.stageTileMat.vertexColors = true;
-    this.stageTileMat.needsUpdate = true;
     const p = squareId ? /^home:(red|yellow|blue|green):(?:(\d+)|goal)$/.exec(squareId) : null;
-    let slot, sideColor;
+    let sideColor, kind, color;
     if (p) {
-      const color = p[1];
-      slot = uvOfSlot(SLOT_HOME + COLORS.indexOf(color));
+      color = p[1];
+      kind = 'entry';
       sideColor = TX.hexToRgb(HEX[color]).map((v) => (v / 255) * 0.42);
     } else if (squareId && /^ring:(\d+)$/.test(squareId)) {
       const n = Number(/^ring:(\d+)$/.exec(squareId)[1]);
-      const color = colorOfRing(n);
-      slot = uvOfSlot(slotOf(kindOf(n), color));
+      color = colorOfRing(n);
+      kind = kindOf(n);
       sideColor = TX.hexToRgb(HEX[color]).map((v) => (v / 255) * 0.42);
     } else {
-      slot = uvOfSlot(SLOT_DARK);
+      color = 'red';
+      kind = 'ring';
       sideColor = [0.16, 0.14, 0.18];
     }
+    /* V8.2：舞台格自带 256px 贴图（格面字偏前中、小熊站位在左后），不再复用 64px 图集：
+     * 字更大更清楚，且和小熊错开。 */
+    this.stageTex = TX.buildStagePlate(kind, color, KIND_LABEL[kind] || '', 256, STAGE_TEXT);
+    this._tex.push(this.stageTex);
+    this.stageTileMat = new THREE.MeshLambertMaterial({ map: this.stageTex, vertexColors: true });
     const geo = buildTileGeometry([{
-      x: 0, z: 0, rot: 0, w: CELL, d: CELL,
-      top: TILE_H, bottom: 0, uv: slot, side: sideColor
+      x: 0, z: 0, rot: STAGE_AZIM * DEG, w: STAGE_PLATE, d: STAGE_PLATE,
+      top: TILE_H, bottom: 0, uv: [0, 0, 1, 1], side: sideColor
     }]);
     this.stageTile = new THREE.Mesh(geo, this.stageTileMat);
     this.stageTile.castShadow = this.shadows;
     this.stageTile.receiveShadow = true;
     this.stageGroup.add(this.stageTile);
+    if (this.bearSeat) {
+      this.bearSeat.position.set(STAGE_BEAR.x, 0, STAGE_BEAR.z);
+      this.bearSeat.scale.setScalar(STAGE_BEAR.s);
+    }
   }
 
   setStageVisible(v) {
