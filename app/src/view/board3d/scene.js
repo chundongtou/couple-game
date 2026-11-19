@@ -31,7 +31,7 @@ import { localOfSquare, localOfPieceSquare, pieceLocals } from './mapping.js';
 
 const DISC_R = 3.30;
 const DIE_HOME = new THREE.Vector3(DIE_HOME_POS.x, DIE_HOME_POS.y, DIE_HOME_POS.z);
-const RELEASE_DIE = new THREE.Vector3(0.49, 0.80, 0.34);   /* 出手瞬间骰子中心（调参自 shots/v9.3-dice/sim2.mjs） */
+const RELEASE_DIE = new THREE.Vector3(1.032, 0.80, 1.032);   /* 出手瞬间骰子中心（调参自 shots/v9.4-dice/sim3.mjs） */
 const FOCUS_WORLD = new THREE.Vector3(0, PLANE_Y, 0);
 
 /* V9.3 摇骰时间线（毫秒；全部相对 tossDie 起点）：
@@ -1319,6 +1319,7 @@ export class BoardScene {
 
   _buildHand() {
     this._hand = makeHand();
+    if (this._hand.textures) this._tex.push(this._hand.textures[0], this._hand.textures[1]);
     this.scene.add(this._hand.group);
   }
 
@@ -2329,7 +2330,9 @@ export class BoardScene {
     if (t <= closeEnd) return this._poseLerp(S.grip, S.grip, 0, T.hp);
     if (t <= T.liftEnd) return this._poseLerp(S.grip, S.lift, eInOut((t - closeEnd) / T.liftMs), T.hp);
     if (t <= T.releaseAt) return this._poseLerp(S.lift, S.rel, eIn((t - T.liftEnd) / T.throwMs), T.hp);
-    if (t <= T.exitEnd) return this._poseLerp(S.rel, S.exit, eOut((t - T.releaseAt) / T.exitMs), T.hp);
+    const followEnd = T.releaseAt + 120;
+    if (t <= followEnd) return this._poseLerp(S.rel, S.follow, eOut((t - T.releaseAt) / 120), T.hp);
+    if (t <= T.exitEnd) return this._poseLerp(S.follow, S.exit, eOut((t - followEnd) / Math.max(1, T.exitMs - 120)), T.hp);
     return null;
   }
 
@@ -2352,10 +2355,11 @@ export class BoardScene {
     const posArr = new Float32Array(maxSteps * 3);
     const quatArr = new Float32Array(maxSteps * 4);
     const p = [RELEASE_DIE.x, RELEASE_DIE.y, RELEASE_DIE.z];
-    let vx = 0.85, vy = -0.42, vz = 0.43;
-    let wx = 12, wy = 6.5, wz = -9;
+    /* V9.4：从外侧 (1.03,1.03) 向棋盘中心抛（初速向内），落点 (0.63,0.63) */
+    let vx = -0.636, vy = -0.35, vz = -0.636;
+    let wx = 12.1, wy = 5.5, wz = -8.1;
     let q = { x: q0.x, y: q0.y, z: q0.z, w: q0.w };
-    let rand = this._mulberry(7 + this.dieValue * 131 % 97);
+    let rand = this._mulberry(5);
     const impacts = [];
     let restAt = 0, contact = 0;
     let n = 0;
@@ -2470,13 +2474,16 @@ export class BoardScene {
     this.die.quaternion.copy(pickupQ);
     const hoverDie = DIE_HOME.clone().add(new THREE.Vector3(0.02, 0.17, 0.04));
     const S = {
-      hover: this._handPoseForDie(hoverDie, 1.95, -0.16, 0.28),
-      grip: this._handPoseForDie(DIE_HOME, 1.95, -0.14, 0.30),
-      lift: this._handPoseForDie(new THREE.Vector3(0.56, 0.90, 0.39), 1.90, -0.02, 0.30),
-      rel: this._handPoseForDie(RELEASE_DIE, 1.62, 0.12, -0.02)
+      hover: this._handPoseForDie(hoverDie, 1.95, -0.18, 0.82),
+      grip: this._handPoseForDie(DIE_HOME, 1.95, -0.12, 0.92),
+      /* V9.4：托起到外侧高位，再向棋盘中心甩出；出手点/初速与刚体预演一致 */
+      lift: this._handPoseForDie(new THREE.Vector3(1.16, 0.88, 1.16), 1.90, -0.04, 0.90),
+      rel: this._handPoseForDie(RELEASE_DIE, 1.62, 0.12, 0.18)
     };
     S.start = { p: S.hover.p.clone().add(new THREE.Vector3(1.95, 0.02, -0.62)), q: S.hover.q.clone() };
-    S.exit = { p: S.rel.p.clone().add(new THREE.Vector3(1.30, 0.26, 0.52)), q: this._handQuat(1.30, 0.36, -0.16) };
+    /* 出手后先向内送一下（跟随），再从右上退出画面 */
+    S.follow = { p: S.rel.p.clone().add(new THREE.Vector3(-0.20, -0.10, -0.20)), q: this._handQuat(1.44, 0.28, -0.12) };
+    S.exit = { p: S.rel.p.clone().add(new THREE.Vector3(1.30, 0.30, 0.60)), q: this._handQuat(1.20, 0.40, -0.16) };
     /* 骰子握在手里时相对手腕的固定姿态 */
     const dieLocalQ = S.grip.q.clone().invert().multiply(pickupQ);
     const relQ = S.rel.q.clone().multiply(dieLocalQ);
