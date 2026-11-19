@@ -36,7 +36,11 @@ const FOCUS_WORLD = new THREE.Vector3(0, PLANE_Y, 0);
 function detectQuality() {
   const nav = typeof navigator !== 'undefined' ? navigator : {};
   const ua = nav.userAgent || '';
-  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return 'medium';
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) {
+    /* V9.2：高 DPR 手机默认 2K；低 DPR/老设备仍走标准。 */
+    return dpr >= 2 ? 'high' : 'medium';
+  }
   const mem = nav.deviceMemory || 8;
   const cores = nav.hardwareConcurrency || 8;
   return (mem <= 4 || cores <= 4) ? 'medium' : 'high';
@@ -124,7 +128,8 @@ export class BoardScene {
   /* ======================= 构建 ======================= */
   _buildRenderer() {
     const dpr = window.devicePixelRatio || 1;
-    const useAA = dpr < 2;
+    /* V9.2：2K 档不能关 AA；低画质才关。 */
+    const useAA = this.quality !== 'low';
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: useAA,

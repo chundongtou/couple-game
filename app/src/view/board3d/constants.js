@@ -160,9 +160,11 @@ export const CINE = {
  * 低画质只关粒子/额外点光/阴影/Bloom；小物 **保留** —— 主桌实机在慢设备上会自适应降档，
  * 若低档连小物一起关掉，用户看到的又回到「画面太干净」（V9.1 follow-up 实机截图即此因）。 */
 export const QUALITY = {
-  high: { dpr: 2.0, shadow: 2048, dust: 110, glow: true, grain: true, env: true, bloom: true, props: true, steam: true, motes: true },
-  medium: { dpr: 1.5, shadow: 1024, dust: 64, glow: true, grain: false, env: true, bloom: false, props: true, steam: true, motes: false },
-  low: { dpr: 1.0, shadow: 0, dust: 28, glow: false, grain: false, env: false, bloom: false, props: true, steam: false, motes: false }
+  /* V9.2：2K 档按设备原生 DPR（上限 3）渲染；标准 2x、流畅 1.5x。
+   * 之前手机一律 medium(1.5x)，在 2K/3x 屏上会被浏览器放大，看起来像像素级。 */
+  high: { dpr: 3.0, shadow: 2048, dust: 110, glow: true, grain: true, env: true, bloom: true, props: true, steam: true, motes: true },
+  medium: { dpr: 2.0, shadow: 1536, dust: 72, glow: true, grain: false, env: true, bloom: false, props: true, steam: true, motes: false },
+  low: { dpr: 1.5, shadow: 0, dust: 28, glow: false, grain: false, env: false, bloom: false, props: true, steam: false, motes: false }
 };
 
 /* --- V9.1 桌面小物布局（世界坐标：x 右、z 朝向观众；y=0 为桌布面） ---

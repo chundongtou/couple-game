@@ -104,6 +104,7 @@ class Board3DInstance {
     this.scene = new BoardScene(host, canvas, {
       reduced: this.reduced,
       theme: this.theme,
+      quality: this.opts.quality || undefined,
       shadows: this.opts.shadows !== false,
       adapt: this.opts.adapt !== false
     });
