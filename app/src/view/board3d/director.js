@@ -303,8 +303,8 @@ export class Director {
     const aspect = this.scene.rig.aspect || 1;
     const fit = clamp(0.657 / Math.max(0.35, aspect), 1, 1.32);
     return {
-      center: new THREE.Vector3(0.73, 0.28, 0.64),
-      nx: 0, ny: 0, radius: 3.6 * fit, elev: 50, azim: 7, fov: 42
+      center: new THREE.Vector3(0.76, 0.29, 0.64),
+      nx: 0, ny: 0, radius: 3.95 * fit, elev: 50, azim: 7, fov: 42
     };
   }
   _land() {
