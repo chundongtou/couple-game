@@ -2,9 +2,13 @@
  * V8 · 真 3D 主桌 · 相机（导演镜头）
  * 关键手法（P0 已验证）：把 [look 中心 + NDC 目标 + 距离/俯仰/方位] 解算成相机位姿；
  * focus/fly 时锁相机，让棋盘旋转+平移，飞机钉在屏幕中心。
+ * V9：加 zoom 系数（0.8–1.5×，见 zoom.js）。state.radius 始终是「基准距离」，
+ *     apply() 时乘 radiusFactor(zoom) —— 1× 与 V8 取景完全一致；
+ *     镜头链（active=false）时视觉先回 1×，回 idle 再平滑恢复用户缩放。
  * ========================================================================== */
 import * as THREE from '../../../render/node_modules/three/build/three.module.js';
 import { DEG, clamp, lerp, easeInOut } from './constants.js';
+import { ZoomState, radiusFactor, clampZoom } from './zoom.js';
 
 export class CameraRig {
   constructor(camera, opts = {}) {
@@ -23,7 +27,20 @@ export class CameraRig {
     this._up = new THREE.Vector3();
     this._proj = new THREE.Vector3();
     this._look = new THREE.Vector3();
+    /* V9 镜头缩放：阻尼状态在 CameraRig 内，apply() 每帧推进（场景主循环在跑）；
+     * reduced 时由 scene.renderNow() 单帧驱动，instant 立即到位。 */
+    this.zoom = new ZoomState();
+    this._lastApplyAt = 0;
   }
+
+  /* ---------------------------- V9 缩放接口 ---------------------------- */
+  setZoom(v) { return this.zoom.set(clampZoom(v)); }
+  zoomBy(f) { return this.zoom.by(f); }
+  resetZoom() { return this.zoom.reset(); }
+  setZoomActive(on) { return this.zoom.setActive(on); }
+  setZoomReduced(on) { return this.zoom.setInstant(on); }
+  get zoomValue() { return this.zoom.value; }
+  zoomInfo() { return this.zoom.info(); }
 
   setAspect(a) {
     this.aspect = Math.max(0.2, a || 1);
@@ -42,6 +59,9 @@ export class CameraRig {
 
   apply() {
     const cam = this.camera;
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const dt = this._lastApplyAt ? Math.min(80, Math.max(0, now - this._lastApplyAt)) : 16;
+    this._lastApplyAt = now;
     if (this.lockState) {
       cam.position.copy(this.lockState.pos);
       cam.quaternion.copy(this.lockState.quat);
@@ -51,10 +71,13 @@ export class CameraRig {
       return;
     }
     const cs = this.state;
+    /* V9：用户缩放只改「取景距离」，不改 look 中心/俯仰/方位；1× 时倍率=1，
+     * 与 V8 完全同构图。阻尼在这里按真实帧间隔推进，镜头链期间目标回 1×。 */
+    const distScale = radiusFactor(this.zoom.step(dt));
     if (cam.fov !== cs.fov) { cam.fov = cs.fov; cam.updateProjectionMatrix(); }
     const look = this._look.copy(cs.center);
     for (let i = 0; i < 3; i++) {
-      cam.position.copy(this.camPosFrom(look, cs.radius, cs.elev, cs.azim));
+      cam.position.copy(this.camPosFrom(look, cs.radius * distScale, cs.elev, cs.azim));
       cam.lookAt(look);
       cam.updateMatrixWorld(true);
       if (cs.nx === 0 && cs.ny === 0) break;
@@ -67,7 +90,7 @@ export class CameraRig {
       look.addScaledVector(this._right, (this._proj.x - cs.nx) * halfW);
       look.addScaledVector(this._up, (this._proj.y - cs.ny) * halfH);
     }
-    cam.position.copy(this.camPosFrom(look, cs.radius, cs.elev, cs.azim));
+    cam.position.copy(this.camPosFrom(look, cs.radius * distScale, cs.elev, cs.azim));
     cam.lookAt(look);
     this._applyShake();
     cam.updateMatrixWorld(true);

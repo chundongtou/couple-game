@@ -128,11 +128,11 @@
               "</div>" +
             "</div>" +
             '<div class="set-group"><div class="glabel">今晚的桌面</div>' +
-              '<div class="glass set-card" style="padding:12px 14px 14px">' +
+              '<div class="glass set-card set-pad">' +
                 '<div class="small dim">换桌面改的是画面：背景、棋盘外圈、格位光晕、粒子、小熊的衣服。</div>' +
                 '<div class="chips mt-8" data-test="settings-themes">' + themeChips + "</div>" +
                 /* V8：3D 主桌（Beta）—— 只换主桌画面；进主桌时按开关/能力决定，失败自动回 V7 */
-                '<div style="padding:12px 0 2px;margin-top:12px;border-top:1px solid var(--line)" data-test="settings-board3d-wrap">' +
+                '<div class="set-block set-sep" data-test="settings-board3d-wrap">' +
                   '<div class="small">3D 主桌 · <b class="gold">设备自检</b><b class="gold"> · 下次进主桌生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-board3d">' + b3Chips + "</div>" +
                   /* V8.2：设备自检（能不能跑 3D / 为什么这次没进 3D），一行读完 */
@@ -149,11 +149,11 @@
             "</div>" +
             '<div class="set-group"><div class="glabel">尺度与边界</div>' +
               '<div class="glass set-card">' +
-                '<div style="padding:12px 0 4px">' +
+                '<div class="set-block">' +
                   '<div class="small dim">灯拨到哪一档 · <b class="gold">下次开局生效</b></div>' +
                   '<div class="chips mt-8" data-test="settings-scales">' + scaleChips + "</div>" +
                 "</div>" +
-                '<div style="padding:10px 0 14px;border-top:1px solid var(--line)">' +
+                '<div class="set-block set-sep">' +
                   '<div class="small dim">今晚不做的 · 开局与暂停里都能改</div>' +
                   '<div class="chips mt-8" data-test="settings-bounds">' + boundChips + "</div>" +
                   '<div class="bound-row">' +
@@ -178,11 +178,11 @@
               '<div class="glass set-card">' +
                 '<div class="switch"><span class="lb">玩法速览<em>六条规则，随时再看</em></span>' +
                   '<button class="btn soft sm" data-act="rules" data-test="rules-open" type="button">翻开</button></div>' +
-                '<div class="switch"><span class="lb">版本<em>今晚飞行棋 V6</em></span>' +
+                '<div class="switch"><span class="lb">版本<em>今晚飞行棋 V9</em></span>' +
                   '<span class="small dim" data-test="version">' + U.escape(App.version || "6.0.0") + "</span></div>" +
               "</div>" +
             "</div>" +
-            '<div class="ver-line">今晚飞行棋 V6 · 午夜星轨 · 暖光纸感<br>这一页只在本机生效</div>' +
+            '<div class="ver-line">今晚飞行棋 V9 · 午夜机舱 · 电影写实<br>这一页只在本机生效</div>' +
           "</div>";
       }
 

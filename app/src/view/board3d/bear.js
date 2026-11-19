@@ -1,73 +1,106 @@
 /* ==========================================================================
- * V8 · 真 3D 主桌 · 低模小熊（球/圆柱/胶囊；无外部模型）
- * 三主题服装：cloud=pilot / star=starlight / paper=paper（只换帽/围巾/毛色材质）。
+ * V9 · 真 3D 主桌 · 小熊（绒布 / 毛毡 PBR，无外部模型）
+ *   - 球 / 胶囊基础体，按材质合并成 7 个 mesh（V8 是 ~20 个 draw）
+ *   - 绒布：felt color/normal 贴图 + roughness 0.95；帽子/围巾毛毡；帽徽黄铜
+ *   - 真实投影（castShadow），坐/站都在 45° 舞台格上
+ * 三主题服装：cloud=机长 / star=星轨 / paper=纸月（只换颜色，几何不变）
  * ========================================================================== */
 import * as THREE from '../../../render/node_modules/three/build/three.module.js';
-import { TILE_H, STAGE_AZIM, DEG } from './constants.js';
+import { TILE_H, STAGE_AZIM, DEG, MAT } from './constants.js';
+import { buildFeltTextures, buildBrushedBrass } from './textures.js';
+
+let _felt = null, _brass = null;
+function felt() {
+  if (!_felt) _felt = buildFeltTextures(0xCFC6BA, 128);
+  return _felt;
+}
+function brass() {
+  if (!_brass) _brass = buildBrushedBrass(96);
+  return _brass;
+}
 
 export function createBear() {
   const group = new THREE.Group();
+  const ft = felt();
+  const bt = brass();
+
   const mats = {
-    fur: new THREE.MeshLambertMaterial({ color: 0x9A6F4B }),
-    furDark: new THREE.MeshLambertMaterial({ color: 0x7A543A }),
-    cream: new THREE.MeshLambertMaterial({ color: 0xF0D9B5 }),
-    ink: new THREE.MeshLambertMaterial({ color: 0x2A1B16 }),
-    hat: new THREE.MeshLambertMaterial({ color: 0x2C3E66 }),
-    band: new THREE.MeshLambertMaterial({ color: 0xE8B65C }),
-    scarf: new THREE.MeshLambertMaterial({ color: 0xD8564C })
+    fur: new THREE.MeshStandardMaterial({
+      map: ft.map, normalMap: ft.normal, normalScale: new THREE.Vector2(0.85, 0.85),
+      color: 0x8A6A4C, roughness: MAT.felt.roughness, metalness: 0, envMapIntensity: 0.35
+    }),
+    furDark: new THREE.MeshStandardMaterial({
+      map: ft.map, normalMap: ft.normal, normalScale: new THREE.Vector2(0.7, 0.7),
+      color: 0x6C513A, roughness: 0.96, metalness: 0, envMapIntensity: 0.3
+    }),
+    cream: new THREE.MeshStandardMaterial({
+      map: ft.map, color: 0xE8D6BB, roughness: 0.9, metalness: 0, envMapIntensity: 0.35
+    }),
+    ink: new THREE.MeshStandardMaterial({ color: 0x141010, roughness: 0.22, metalness: 0.15, envMapIntensity: 0.9 }),
+    hat: new THREE.MeshStandardMaterial({
+      map: ft.map, normalMap: ft.normal, color: 0x25344E, roughness: 0.86, metalness: 0.02, envMapIntensity: 0.4
+    }),
+    band: new THREE.MeshStandardMaterial({
+      map: bt.map, normalMap: bt.normal, roughnessMap: bt.rough,
+      color: 0xC9A063, roughness: MAT.brass.roughness, metalness: MAT.brass.metalness, envMapIntensity: MAT.brass.envMapIntensity
+    }),
+    scarf: new THREE.MeshStandardMaterial({
+      map: ft.map, normalMap: ft.normal, color: 0x8E3B3B, roughness: 0.94, metalness: 0, envMapIntensity: 0.3
+    })
   };
 
-  const add = (geo, mat, x, y, z, rot) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    if (rot) m.rotation.set(rot[0] || 0, rot[1] || 0, rot[2] || 0);
-    m.castShadow = false;
-    group.add(m);
-    return m;
+  /* 收集每个材质的几何（先各自摆位，再按材质合并） */
+  const buckets = {};
+  const _o = new THREE.Object3D();
+  const add = (key, geo, x, y, z, rot, scale) => {
+    _o.position.set(x, y, z);
+    _o.rotation.set(rot ? rot[0] || 0 : 0, rot ? rot[1] || 0 : 0, rot ? rot[2] || 0 : 0);
+    _o.scale.set(scale ? scale[0] : 1, scale ? scale[1] : 1, scale ? scale[2] : 1);
+    _o.updateMatrix();
+    (buckets[key] = buckets[key] || []).push({ geo, matrix: _o.matrix.clone() });
   };
 
   /* 身体 / 头（帽子不压眼睛） */
-  add(new THREE.SphereGeometry(0.135, 12, 9), mats.fur, 0, 0.155, 0);
-  add(new THREE.SphereGeometry(0.125, 12, 9), mats.fur, 0, 0.375, 0);
-  add(new THREE.SphereGeometry(0.062, 10, 8), mats.cream, 0, 0.345, -0.100);    // 吻部
-  add(new THREE.SphereGeometry(0.019, 8, 6), mats.ink, 0, 0.365, -0.150);       // 鼻
-  add(new THREE.SphereGeometry(0.016, 6, 5), mats.ink, -0.05, 0.412, -0.108);   // 眼
-  add(new THREE.SphereGeometry(0.016, 6, 5), mats.ink, 0.05, 0.412, -0.108);
+  add('fur', new THREE.SphereGeometry(0.135, 14, 10), 0, 0.155, 0);
+  add('fur', new THREE.SphereGeometry(0.125, 14, 10), 0, 0.375, 0);
+  add('cream', new THREE.SphereGeometry(0.062, 12, 9), 0, 0.345, -0.100);   // 吻部
+  add('ink', new THREE.SphereGeometry(0.019, 10, 8), 0, 0.368, -0.152);     // 鼻
+  add('ink', new THREE.SphereGeometry(0.017, 8, 6), -0.050, 0.420, -0.116); // 眼
+  add('ink', new THREE.SphereGeometry(0.017, 8, 6), 0.050, 0.420, -0.116);
   /* 耳 */
-  add(new THREE.SphereGeometry(0.047, 10, 8), mats.furDark, -0.082, 0.462, 0.004);
-  add(new THREE.SphereGeometry(0.047, 10, 8), mats.furDark, 0.082, 0.462, 0.004);
+  add('furDark', new THREE.SphereGeometry(0.047, 12, 9), -0.082, 0.462, 0.004);
+  add('furDark', new THREE.SphereGeometry(0.047, 12, 9), 0.082, 0.462, 0.004);
   /* 手 / 脚 */
-  add(new THREE.CapsuleGeometry(0.028, 0.085, 3, 7), mats.fur, -0.128, 0.185, 0, [0, 0, 0.55]);
-  add(new THREE.CapsuleGeometry(0.028, 0.085, 3, 7), mats.fur, 0.128, 0.185, 0, [0, 0, -0.55]);
-  add(new THREE.SphereGeometry(0.05, 9, 7), mats.furDark, -0.062, 0.042, -0.018);
-  add(new THREE.SphereGeometry(0.05, 9, 7), mats.furDark, 0.062, 0.042, -0.018);
+  add('fur', new THREE.CapsuleGeometry(0.028, 0.085, 3, 8), -0.128, 0.185, 0, [0, 0, 0.55]);
+  add('fur', new THREE.CapsuleGeometry(0.028, 0.085, 3, 8), 0.128, 0.185, 0, [0, 0, -0.55]);
+  add('furDark', new THREE.SphereGeometry(0.05, 10, 8), -0.062, 0.042, -0.018);
+  add('furDark', new THREE.SphereGeometry(0.05, 10, 8), 0.062, 0.042, -0.018);
   /* 围巾 */
-  const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.032, 6, 16), mats.scarf);
-  scarf.position.set(0, 0.268, 0);
-  scarf.rotation.set(Math.PI / 2, 0, 0);
-  group.add(scarf);
-  const scarfTail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.026), mats.scarf);
-  scarfTail.position.set(0.095, 0.215, 0.05);
-  scarfTail.rotation.set(0.2, 0.1, -0.2);
-  group.add(scarfTail);
+  add('scarf', new THREE.TorusGeometry(0.118, 0.032, 7, 18), 0, 0.268, 0, [Math.PI / 2, 0, 0]);
+  add('scarf', new THREE.BoxGeometry(0.07, 0.1, 0.026), 0.095, 0.215, 0.05, [0.2, 0.1, -0.2]);
   /* 帽子（机长帽 / 星轨帽 / 纸帽共用结构） */
-  add(new THREE.CylinderGeometry(0.098, 0.106, 0.058, 14, 1), mats.hat, 0, 0.468, 0.012);
-  add(new THREE.CylinderGeometry(0.104, 0.104, 0.012, 16, 1), mats.band, 0, 0.443, 0.012);
-  const visor = add(new THREE.SphereGeometry(0.062, 12, 8), mats.hat, 0, 0.451, -0.088);
-  visor.scale.set(1.12, 0.2, 0.8);
+  add('hat', new THREE.CylinderGeometry(0.098, 0.106, 0.058, 16, 1), 0, 0.468, 0.012);
+  add('band', new THREE.CylinderGeometry(0.104, 0.104, 0.012, 18, 1), 0, 0.443, 0.012);
+  add('hat', new THREE.SphereGeometry(0.062, 14, 9), 0, 0.474, -0.062, null, [1.04, 0.17, 0.52]); // 帽檐（抬高，不挡眼睛）
   /* 帽徽 */
-  const badge = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.008, 5, 12), mats.band);
-  badge.position.set(0, 0.468, -0.092);
-  badge.rotation.set(-0.5, 0, 0);
-  group.add(badge);
+  add('band', new THREE.TorusGeometry(0.026, 0.008, 5, 14), 0, 0.468, -0.092, [-0.5, 0, 0]);
+
+  const geos = [];
+  for (const key of Object.keys(buckets)) {
+    const parts = buckets[key];
+    const merged = mergeParts(parts);
+    const mesh = new THREE.Mesh(merged, mats[key]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    geos.push(merged);
+    parts.forEach((p) => p.geo.dispose());
+  }
 
   group.position.y = TILE_H;
   group.rotation.y = Math.PI + STAGE_AZIM * DEG;
   group.scale.setScalar(0.001);
   group.visible = false;
-
-  const geos = [];
-  group.traverse((o) => { if (o.isMesh && o.geometry) geos.push(o.geometry); });
 
   return {
     group,
@@ -85,4 +118,28 @@ export function createBear() {
       Object.keys(mats).forEach((k) => mats[k].dispose());
     }
   };
+}
+
+/* 按材质合并：position / normal / uv */
+function mergeParts(parts) {
+  const pos = [], nrm = [], uv = [];
+  for (const { geo, matrix } of parts) {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone();
+    g.applyMatrix4(matrix);
+    const p = g.getAttribute('position');
+    const n = g.getAttribute('normal');
+    const u = g.getAttribute('uv');
+    for (let i = 0; i < p.count; i++) {
+      pos.push(p.getX(i), p.getY(i), p.getZ(i));
+      if (n) nrm.push(n.getX(i), n.getY(i), n.getZ(i));
+      if (u) uv.push(u.getX(i), u.getY(i)); else uv.push(0, 0);
+    }
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  if (nrm.length) out.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  else out.computeVertexNormals();
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  return out;
 }

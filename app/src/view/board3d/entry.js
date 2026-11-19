@@ -10,6 +10,10 @@
  *   App.Board3D.play(events, opts)     事件驱动镜头链，返回 Promise（永不 reject）
  *   App.Board3D.setTheme(id) / setReduced(flag) / setSound(flag)
  *   App.Board3D.skip() / unmount() / _debug()
+ *   V9 缩放（docs/v9/impl-freeze.md §3）：
+ *   App.Board3D.canZoom() / setZoom(v) / zoomBy(f) / resetZoom() / zoomInfo()
+ *       仅 overview/idle（且不在 play/holding）可用；镜头链中返回 false。
+ *       换局（重新 mount）重置为 1×；题卡/镜头链结束后自动恢复用户缩放。
  *
  * 本模块只创建 canvas（pointer-events:none）与场景；不建 HUD/题卡/按钮/主题条。
  * ========================================================================== */
@@ -18,7 +22,7 @@ import { VERSION, THEMES } from './constants.js';
 import { BoardScene } from './scene.js';
 import { Director } from './director.js';
 
-const HOST_ATTRS = ['data-3d-phase', 'data-3d-ready', 'data-3d-reduced', 'data-3d-theme', 'data-3d-mode', 'data-3d-fallback'];
+const HOST_ATTRS = ['data-3d-phase', 'data-3d-ready', 'data-3d-reduced', 'data-3d-theme', 'data-3d-mode', 'data-3d-fallback', 'data-3d-zoom', 'data-3d-zoom-value', 'data-3d-zoom-lock'];
 let current = null;
 
 function globalRoot() {
@@ -69,6 +73,8 @@ class Board3DInstance {
     this.ready = false;
     this._hostPositionSet = false;
     this._hostOldPosition = '';
+    this._refitTimer = 0;
+    this._zoomPumpUntil = 0;
   }
 
   async init() {
@@ -101,6 +107,7 @@ class Board3DInstance {
       shadows: this.opts.shadows !== false,
       adapt: this.opts.adapt !== false
     });
+    if (this.scene.rig) this.scene.rig.setZoomReduced(this.reduced);
     this.scene.onReady = () => this._onReady();
     if (this.scene.ready) this._onReady();
 
@@ -110,6 +117,7 @@ class Board3DInstance {
       sound: !!this.opts.sound,
       stageAim: this.opts.stageAim || { nx: 0, ny: 0.15 }
     });
+    this._hookZoomPhase();
     this.scene.onResize = () => {
       if (this.director) this.director.handleResize();
       this._fitNeeded = true;
@@ -154,6 +162,7 @@ class Board3DInstance {
     host.setAttribute('data-3d-theme', this.theme);
     host.setAttribute('data-3d-mode', this.mode);
     host.setAttribute('data-3d-phase', 'idle');
+    this._syncZoomHost();
 
     if (this.opts.state) {
       this.setState(this.opts.state, this.opts.view);
@@ -279,6 +288,12 @@ class Board3DInstance {
     this.host.setAttribute('data-3d-reduced', this.reduced ? '1' : '0');
     if (this.director) this.director.setReduced(this.reduced);
     else if (this.scene) this.scene.setReduced(this.reduced);
+    /* V9：reduced 下缩放即时到位（无动画），再补一帧把新距离画出来 */
+    if (this.scene && this.scene.rig) {
+      this.scene.rig.setZoomReduced(this.reduced);
+      this._syncZoomHost();
+      if (this.reduced) { try { this.scene.renderNow(); } catch (e) { /* noop */ } }
+    }
     return true;
   }
 
@@ -290,6 +305,114 @@ class Board3DInstance {
   skip() {
     if (this.director) this.director.skip();
     return true;
+  }
+
+  /* ---------------------- V9 镜头缩放（docs/v9/impl-freeze.md §3） ----------------------
+   * 锁定口径：只有 overview/idle（且不在 play/holding）允许改缩放；focus/fly/land/
+   * cell45/bear/题卡/加载一律拒绝（返回 false）。用户缩放值保留在相机里，回 idle 后
+   * 由 CameraRig 平滑恢复；新一局 mount 出新实例 = 1×。
+   *
+   * director.js 不在 fe-zoom 写作用域（V9 由 fe-cinematic 继续改镜头链），所以这里用
+   * 一段薄 hook 监听导演的阶段切换：不改变导演行为，只把「是否允许缩放 + 视觉是否先归 1×」
+   * 同步给相机。若将来 director 自己暴露阶段回调，可无损替换这 20 行。 */
+  _hookZoomPhase() {
+    const d = this.director;
+    if (!d || d.__zoomHooked) return;
+    d.__zoomHooked = true;
+    const orig = d._setPhase.bind(d);
+    d._setPhase = (name) => {
+      orig(name);
+      this._onPhase(name);
+    };
+    this._onPhase(d.phase);
+  }
+
+  _onPhase(name) {
+    const active = name === 'idle' || name === 'boot';
+    if (this.scene && this.scene.rig) this.scene.rig.setZoomActive(active);
+    if (this.host) this.host.setAttribute('data-3d-zoom-lock', active ? '0' : '1');
+    this._syncZoomHost();
+    if (active) this._zoomPump();   /* 回 idle：把恢复用户缩放的阻尼帧也推起来 */
+  }
+
+  /* 测试/调试用宿主属性：data-3d-zoom = 用户目标倍数，data-3d-zoom-value = 当前阻尼值 */
+  _syncZoomHost() {
+    const rig = this.scene && this.scene.rig;
+    if (!rig || !this.host || typeof rig.zoomInfo !== 'function') return;
+    const info = rig.zoomInfo();
+    this.host.setAttribute('data-3d-zoom', Number(info.target).toFixed(2));
+    this.host.setAttribute('data-3d-zoom-value', Number(info.value).toFixed(2));
+  }
+
+  canZoom() {
+    const d = this.director;
+    if (!this.ready || !this.scene || !d) return false;
+    if (this._busy || d.busy || d.holding) return false;
+    return d.phase === 'idle' || d.phase === 'boot';
+  }
+
+  zoomInfo() {
+    const rig = this.scene && this.scene.rig;
+    if (!rig || typeof rig.zoomInfo !== 'function') return null;
+    const info = rig.zoomInfo();
+    info.can = this.canZoom();
+    return info;
+  }
+
+  setZoom(v) {
+    if (!this.canZoom() || !this.scene || !this.scene.rig) return false;
+    const t = this.scene.rig.setZoom(v);
+    this._zoomChanged();
+    return t;
+  }
+
+  zoomBy(f) {
+    if (!this.canZoom() || !this.scene || !this.scene.rig) return false;
+    const t = this.scene.rig.zoomBy(f);
+    this._zoomChanged();
+    return t;
+  }
+
+  resetZoom() {
+    if (!this.canZoom() || !this.scene || !this.scene.rig) return false;
+    const t = this.scene.rig.resetZoom();
+    this._zoomChanged();
+    return t;
+  }
+
+  _zoomChanged() {
+    this._syncZoomHost();
+    if (this.reduced) { try { this.scene.renderNow(); } catch (e) { /* noop */ } }
+    this._zoomPump();
+    /* 缩放后按 host 尺寸 refit：重算 overview 距离/居中（纵横比变化或缩放后都按当前
+     * host 宽高取景，防止窗口尺寸/题卡开合把棋盘裁出框）。捏合期间高频触发 → 防抖，
+     * 且只在 idle（canZoom）才动镜头，绝不打断镜头链。 */
+    if (this._refitTimer) clearTimeout(this._refitTimer);
+    this._refitTimer = setTimeout(() => {
+      this._refitTimer = 0;
+      this._syncZoomHost();
+      if (!this.canZoom()) return;
+      try { this.director.handleResize(); } catch (e) { /* noop */ }
+      this._syncZoomHost();
+      if (this.reduced) { try { this.scene.renderNow(); } catch (e2) { /* noop */ } }
+    }, 160);
+  }
+
+  /* 阻尼需要连续帧推进。V8 场景是常驻 rAF 循环，requestRender 是 no-op；
+   * 这里再补 700ms 的 requestRender 泵，万一将来场景改成按需渲染，缩放也不会“跳一下”。 */
+  _zoomPump() {
+    if (this.reduced || !this.scene) return;
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (now < this._zoomPumpUntil) return;
+    this._zoomPumpUntil = now + 700;
+    const tick = () => {
+      if (!this.scene) return;
+      try { this.scene.requestRender(); } catch (e) { /* noop */ }
+      const t = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (t < this._zoomPumpUntil) requestAnimationFrame(tick);
+      else this._zoomPumpUntil = 0;
+    };
+    try { requestAnimationFrame(tick); } catch (e) { this._zoomPumpUntil = 0; }
   }
 
   /* table 在 CellStage 关闭/结算后显式调用；也可不调用——下一次 play() 会自动回俯瞰 */
@@ -304,6 +427,7 @@ class Board3DInstance {
 
   unmount() {
     if (this._fitTimer) { clearTimeout(this._fitTimer); this._fitTimer = 0; }
+    if (this._refitTimer) { clearTimeout(this._refitTimer); this._refitTimer = 0; }
     if (this._sizeTimer) { clearInterval(this._sizeTimer); this._sizeTimer = 0; }
     if (this.director) {
       try { this.director.dispose(); } catch (e) { /* noop */ }
@@ -328,11 +452,15 @@ class Board3DInstance {
     const d = this.director ? this.director.debug() : {};
     const s = this.scene ? this.scene.debugSnapshot() : {};
     const cur = s.current || null;
+    const rig = this.scene && this.scene.rig;
+    const z = rig && typeof rig.zoomInfo === 'function' ? rig.zoomInfo() : { value: 1, target: 1, min: 0.8, max: 1.5, active: true, instant: false, radiusFactor: 1 };
+    z.can = this.canZoom();
     return {
       version: VERSION,
       ready: !!this.ready,
       mounted: true,
       phase: d.phase || (s.phase || 'boot'),
+      zoom: z,
       pieces: this._pieces(this.state).map((p) => ({
         id: p.id, color: p.color, playerId: p.playerId, squareId: p.squareId, arrived: p.arrived
       })),
@@ -392,6 +520,12 @@ const Board3D = {
   setReduced(flag) { return current ? current.setReduced(flag) : false; },
   setSound(flag) { return current ? current.setSound(flag) : false; },
   skip() { return current ? current.skip() : false; },
+  /* V9 缩放：镜头链中恒定返回 false（锁定），overview/idle 返回新的 zoom 倍数 */
+  canZoom() { return current ? current.canZoom() : false; },
+  setZoom(v) { return current ? current.setZoom(v) : false; },
+  zoomBy(f) { return current ? current.zoomBy(f) : false; },
+  resetZoom() { return current ? current.resetZoom() : false; },
+  zoomInfo() { return current ? current.zoomInfo() : null; },
   returnToOverview() { return current ? current.returnToOverview() : Promise.resolve(false); },
   unmount() {
     if (!current) return false;

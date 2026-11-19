@@ -161,6 +161,19 @@
     ".v6-3d .v6-board{opacity:0;pointer-events:none;transition:opacity .24s var(--ease-out,ease-out)}",
     ".v6-3d .v6-cabin{display:none}",
     ".v6-3d .v6-boardwrap::before{opacity:0}",
+    /* V9：3D 缩放手势层（只覆盖 .v6-boardwrap = 棋盘区域；HUD/题卡/安全词在别的层）
+     * z2 在 3D 画布(1) 之上、3D 图例(4) 之下；只在 .v6-3d 显示，V7/回落时 display:none 不拦截点按。 */
+    ".v6-zoom{position:absolute;inset:0;z-index:2;display:none;touch-action:none;overscroll-behavior:contain;",
+    "-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}",
+    ".v6-3d .v6-zoom{display:block}",
+    ".v6-3d.v6-nozoom .v6-zoom{display:none}",
+    ".v6-zctl{position:absolute;right:2px;bottom:2px;z-index:3;display:flex;flex-direction:column;gap:5px;pointer-events:auto}",
+    ".v6-zbtn{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;cursor:pointer;",
+    "display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:17px;font-weight:700;line-height:1;",
+    "color:var(--ink,#FBF3E7);border:1px solid var(--line,rgba(255,226,196,.2));background:var(--glass,rgba(20,13,34,.74))}",
+    ".v6-zbtn:active{transform:scale(.94)}",
+    ".v6-zbtn[disabled]{opacity:.36;cursor:default}",
+    ".v6-zbtn[data-act=zoom-reset]{font-size:11px;letter-spacing:.02em}",
     /* V8：3D 模式下题卡只出右侧内容卡（cell45/bear 已由 3D 画，避免 2D/3D 双舞台）。
      * 左列留空给 3D 画面透出，卡片固定在第 2 列；V7（无 .v8-3d-card）保持 CellStage 原样。 */
     ".v6-table.v8-3d-card .cs-stage{grid-template-columns:36% minmax(0,1fr)}",
@@ -662,6 +675,14 @@
           '<div class="v6-boardwrap"><div class="v6-board" data-board data-test="board"></div>' +
             /* V8：3D 主桌专用层；3D 可用时由 App.Board3D 挂载 canvas，V7 棋盘照旧保留在下面兜底 */
             '<div class="v6-board3d" data-test="board3d" aria-hidden="true"></div>' +
+            /* V9：缩放层（双指/滚轮/双击 + 右下角 +/−/复位）；只在 3D 激活时显示 */
+            '<div class="v6-zoom" data-test="board3d-zoom-layer" aria-label="棋盘缩放（双指、滚轮、双击复位）">' +
+              '<div class="v6-zctl">' +
+                '<button type="button" class="v6-zbtn" data-act="zoom-in" data-test="board3d-zoom-in" aria-label="放大棋盘">+</button>' +
+                '<button type="button" class="v6-zbtn" data-act="zoom-out" data-test="board3d-zoom-out" aria-label="缩小棋盘">−</button>' +
+                '<button type="button" class="v6-zbtn" data-act="zoom-reset" data-test="board3d-zoom-reset" aria-label="复位缩放">1×</button>' +
+              '</div>' +
+            '</div>' +
             /* V8.2：3D 图例面板（只在 .v6-3d 里能被打开；挂在棋盘容器内，压不到 HUD/安全词/掷骰条） */
             '<div class="v6-l3" data-test="board3d-legend-panel" hidden>' +
               '<div class="v6-l3h"><span>格子图例 · 3D 棋盘</span>' +
@@ -692,6 +713,18 @@
       var landingEl = root.querySelector("[data-test=landing]");
       /* V8.2：3D 图例入口/面板 */
       var legendPanelEl = root.querySelector("[data-test=board3d-legend-panel]");
+      /* V9：3D 缩放层 / 右下角按钮 */
+      var zoomLayerEl = root.querySelector("[data-test=board3d-zoom-layer]");
+      var zoomInEl = root.querySelector("[data-test=board3d-zoom-in]");
+      var zoomOutEl = root.querySelector("[data-test=board3d-zoom-out]");
+      var zoomResetEl = root.querySelector("[data-test=board3d-zoom-reset]");
+      var zoomTicker = null;
+      var zoomPointers = {};
+      var zoomPinch = null;
+      var zoomTapAt = 0;
+      var zoomTapX = 0;
+      var zoomTapY = 0;
+      var zoomTapMoved = false;
 
       /* ---------- V8：3D 主桌挂载 / 回落（App.Board3D 契约见 docs/v8/impl-freeze.md §3.2） ----------
        * 顺序：V7 棋盘先挂（BoardView，便宜且保证零空白）→ 能力/开关允许时懒加载 chunk →
@@ -808,14 +841,15 @@
         try {
           rootEl.classList.add("v6-3d");
           rootEl.classList.add("v8-3d-card");   /* 3D 模式题卡只出右侧内容卡（见 CSS） */
+          /* V9：旧 chunk（无缩放 API）不显示缩放按钮层，避免点了没反应 */
+          var api = board3dApi();
+          var hasZoom = !!(api && typeof api.setZoom === "function" && typeof api.zoomInfo === "function");
+          if (!hasZoom) rootEl.classList.add("v6-nozoom");
+          else rootEl.classList.remove("v6-nozoom");
         } catch (e) {}
         board3dSyncState();       /* mount 时的 state/view 可能已过一拍，这里再对齐一次 */
         render();
-        /* 让用户明确知道已进 3D（只在本次主桌首次激活时提示） */
-        if (!board3d.activatedOnce) {
-          board3d.activatedOnce = true;
-          if (board3dMode() !== "off") toast("3D 主桌已开启 · 飞机将固定在屏幕中心飞行");
-        }
+        syncZoomUi();
       }
       function fallbackBoard3d(reason) {
         if (!alive) return null;
@@ -830,6 +864,8 @@
         }
         try { if (rootEl) rootEl.classList.remove("v6-3d"); } catch (e) {}
         try { if (rootEl) rootEl.classList.remove("v8-3d-card"); } catch (e) {}
+        try { if (rootEl) rootEl.classList.remove("v6-nozoom"); } catch (e) {}
+        syncZoomUi();
         try { if (board3dHost) board3dHost.innerHTML = ""; } catch (e) {}
         setB3Status("v7", board3d.reason);
         /* V7 完整路径：棋盘已在（mountBoard 提前挂好），补机舱 + 镜头 */
@@ -906,6 +942,119 @@
           if (alive) fallbackBoard3d("load-error");
         });
       }
+      /* ---------- V9：3D 缩放（双指/滚轮/双击 + 右下角按钮；冻结单 §3） ----------
+       * 口径：只有 overview/idle 可缩放；镜头链/题卡/加载中由 3D 的 canZoom() 返回 false，
+       * 这里据此禁用按钮并忽略手势。手势层只覆盖 .v6-boardwrap（棋盘区域），
+       * HUD/题卡/安全词都在别的层，天然不被挡；V7/无 WebGL 时 .v6-3d 不存在 → 层 display:none。 */
+      function b3CanZoom() {
+        if (!board3dReady()) return false;
+        var r = b3Call("canZoom");
+        return r === undefined ? false : !!r;
+      }
+      function b3ZoomInfo() {
+        if (!board3dReady()) return null;
+        var r = b3Call("zoomInfo");
+        return r && typeof r === "object" ? r : null;
+      }
+      function applyZoom(next) {
+        if (!board3dReady() || !b3CanZoom()) return false;
+        var r = b3Call("setZoom", next);
+        if (r === false || r === undefined) return false;
+        syncZoomUi();
+        return true;
+      }
+      function zoomStep(factor) {
+        var info = b3ZoomInfo();
+        if (!info) return false;
+        return applyZoom(info.target * factor);
+      }
+      function syncZoomUi() {
+        if (!zoomLayerEl || !zoomInEl) return;
+        var on = board3dReady();
+        var info = on ? b3ZoomInfo() : null;
+        var can = on && b3CanZoom();
+        var target = info ? info.target : 1;
+        zoomLayerEl.setAttribute("data-zoom", (info ? info.value : 1).toFixed(2));
+        zoomLayerEl.setAttribute("data-zoom-target", target.toFixed(2));
+        zoomLayerEl.setAttribute("data-zoom-locked", can ? "0" : "1");
+        zoomInEl.disabled = !can || (info ? target >= info.max - 0.001 : true);
+        zoomOutEl.disabled = !can || (info ? target <= info.min + 0.001 : true);
+        zoomResetEl.disabled = !can || Math.abs(target - 1) < 0.001;
+      }
+      /* 手势/滚轮/双击都必须落在棋盘的透明层上，且不能抢右下角按钮的点按 */
+      function zoomBlocked(e) {
+        if (!board3dReady() || !b3CanZoom()) return true;
+        var el = e && e.target;
+        if (el && el.closest && el.closest(".v6-zctl")) return true;
+        return false;
+      }
+      function onZoomDown(e) {
+        if (zoomBlocked(e)) return;
+        if (e.pointerType === "mouse") return;
+        try { zoomLayerEl.setPointerCapture(e.pointerId); } catch (err) {}
+        zoomPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        var ids = Object.keys(zoomPointers);
+        if (ids.length === 2) {
+          var a = zoomPointers[ids[0]], b = zoomPointers[ids[1]];
+          var info = b3ZoomInfo();
+          var dx = a.x - b.x, dy = a.y - b.y;
+          zoomPinch = { d: Math.max(1, Math.sqrt(dx * dx + dy * dy)), z: info ? info.target : 1 };
+          zoomTapMoved = true;
+          e.preventDefault();
+        } else {
+          zoomTapMoved = false;
+        }
+      }
+      function onZoomMove(e) {
+        if (!zoomPointers[e.pointerId]) return;
+        zoomPointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        if (!zoomPinch) return;
+        var ids = Object.keys(zoomPointers);
+        if (ids.length < 2) return;
+        var a = zoomPointers[ids[0]], b = zoomPointers[ids[1]];
+        var dx = a.x - b.x, dy = a.y - b.y;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d > 2 && zoomPinch.d > 1) {
+          zoomTapMoved = true;
+          applyZoom(zoomPinch.z * (d / zoomPinch.d));
+        }
+        e.preventDefault();
+      }
+      function onZoomUp(e) {
+        if (!zoomPointers[e.pointerId]) return;
+        delete zoomPointers[e.pointerId];
+        if (Object.keys(zoomPointers).length < 2) zoomPinch = null;
+        if (e.pointerType === "mouse" || zoomTapMoved) return;
+        /* 触屏双击复位（dblclick 在部分移动浏览器不派发，这里自己判） */
+        var t = now();
+        if (t - zoomTapAt < 320 && Math.abs(e.clientX - zoomTapX) < 30 && Math.abs(e.clientY - zoomTapY) < 30) {
+          zoomTapAt = 0;
+          if (b3Call("resetZoom") !== false) syncZoomUi();
+          return;
+        }
+        zoomTapAt = t;
+        zoomTapX = e.clientX;
+        zoomTapY = e.clientY;
+      }
+      function onZoomCancel(e) {
+        if (!zoomPointers[e.pointerId]) return;
+        delete zoomPointers[e.pointerId];
+        if (Object.keys(zoomPointers).length < 2) zoomPinch = null;
+      }
+      function onZoomWheel(e) {
+        if (zoomBlocked(e)) return;
+        if (e.ctrlKey || e.metaKey) return;   /* Ctrl/⌘+滚轮 留给浏览器缩放 */
+        e.preventDefault();
+        var info = b3ZoomInfo();
+        if (!info) return;
+        applyZoom(info.target * Math.exp(-(Number(e.deltaY) || 0) * 0.0012));
+      }
+      function onZoomDblClick(e) {
+        if (zoomBlocked(e)) return;
+        e.preventDefault();
+        if (b3Call("resetZoom") !== false) syncZoomUi();
+      }
+
       /* 3D 演出：替代 BoardView.play + Cinema 镜头链；永不 reject，另有超时兜底防 busy 卡死 */
       function runShow3d(opts, events) {
         return whenVisible().then(function () {
@@ -1378,6 +1527,7 @@
         renderActions();
         if (!busy && !finishing) syncHosts();
         syncCabinMood();          /* V6.2：机舱读当前热度/阶段/回合/胜者/遮罩 */
+        syncZoomUi();             /* V9：3D 缩放按钮/锁定态跟着阶段走 */
       }
 
       /* ---------- 交互层宿主（题卡/小游戏组件自己是 fixed 层） ---------- */
@@ -2025,6 +2175,9 @@
         var act = el.getAttribute("data-act");
         if (act === "roll") { doRoll(); return; }
         if (act === "piece") { doMove(el.getAttribute("data-action-piece")); return; }
+        if (act === "zoom-in") { zoomStep(1.13); return; }
+        if (act === "zoom-out") { zoomStep(1 / 1.13); return; }
+        if (act === "zoom-reset") { if (b3Call("resetZoom") !== false) syncZoomUi(); return; }
         if (act === "pause") { openPause(); return; }
         if (act === "legend") { openLegend(); return; }
         if (act === "legend3d") { setLegend3d(!legendOpen); return; }
@@ -2077,6 +2230,15 @@
       boardEl.addEventListener("board-pick", onBoardPick);
       boardEl.addEventListener("board-event", onBoardEvent);
       window.addEventListener("resize", onResize);
+      /* V9：缩放层手势（元素一定存在；defensive 一下） */
+      if (zoomLayerEl) {
+        zoomLayerEl.addEventListener("pointerdown", onZoomDown);
+        zoomLayerEl.addEventListener("pointermove", onZoomMove);
+        zoomLayerEl.addEventListener("pointerup", onZoomUp);
+        zoomLayerEl.addEventListener("pointercancel", onZoomCancel);
+        zoomLayerEl.addEventListener("wheel", onZoomWheel, { passive: false });
+        zoomLayerEl.addEventListener("dblclick", onZoomDblClick);
+      }
       var offSettings = null;
       try { if (App.Bus && App.Bus.on) offSettings = App.Bus.on("settings", onBusSettings); } catch (e) {}
       /* 系统「减少动画」偏好变化（无需刷新）：重新同步所有演出层 */
@@ -2104,6 +2266,11 @@
         tickAt = t;
         paintDuration();
       }, 1000);
+      /* V9：阶段切换（镜头链/题卡）时按钮锁定态要跟上；3D 未就绪时是 no-op */
+      zoomTicker = setInterval(function () {
+        if (!alive) return;
+        syncZoomUi();
+      }, 400);
 
       /* ---------- QA 钩子（只用于测试；不影响正常流程） ---------- */
       try {
@@ -2116,13 +2283,20 @@
           },
           getState: function () { return clone(state); },
           isBusy: function () { return !!busy; },
-          board3d: function () { try { return b3Status(); } catch (e) { return null; } }
+          board3d: function () { try { return b3Status(); } catch (e) { return null; } },
+          /* V9：缩放测试钩子（只读/直接走同一条 API 路径） */
+          zoom: function (v) {
+            if (v === undefined || v === null) return { can: b3CanZoom(), info: b3ZoomInfo() };
+            return applyZoom(Number(v));
+          },
+          zoomInfo: function () { return b3ZoomInfo(); }
         };
       } catch (e) {}
 
       return function cleanup() {
         alive = false;
         if (ticker) { clearInterval(ticker); ticker = null; }
+        if (zoomTicker) { clearInterval(zoomTicker); zoomTicker = null; }
         if (finishTimer) { clearTimeout(finishTimer); finishTimer = null; }
         try { if (offSettings) offSettings(); } catch (e) {}
         try {
@@ -2135,6 +2309,14 @@
         try { boardEl.removeEventListener("board-pick", onBoardPick); } catch (e) {}
         try { boardEl.removeEventListener("board-event", onBoardEvent); } catch (e) {}
         try { window.removeEventListener("resize", onResize); } catch (e) {}
+        if (zoomLayerEl) {
+          try { zoomLayerEl.removeEventListener("pointerdown", onZoomDown); } catch (e) {}
+          try { zoomLayerEl.removeEventListener("pointermove", onZoomMove); } catch (e) {}
+          try { zoomLayerEl.removeEventListener("pointerup", onZoomUp); } catch (e) {}
+          try { zoomLayerEl.removeEventListener("pointercancel", onZoomCancel); } catch (e) {}
+          try { zoomLayerEl.removeEventListener("wheel", onZoomWheel); } catch (e) {}
+          try { zoomLayerEl.removeEventListener("dblclick", onZoomDblClick); } catch (e) {}
+        }
         closeHosts();
         /* 只有仍是「当前主桌」时才拆棋盘/机舱（单例）：换屏/重开时上一屏的延迟 cleanup 直接跳过。
          * V7 顺序：Cinema → CabinScene → BoardView。Cinema 先还原 boardEl transform，
