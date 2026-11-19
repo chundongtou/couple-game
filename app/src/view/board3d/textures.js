@@ -91,6 +91,52 @@ let _shadowTex = null, _glowTex = null, _streakTex = null, _paper = null;
 let _dustTex = null;
 let _steamTex = null, _flameTex = null;
 
+/* V9.4 手套皮革：细颗粒/细纹高度 → 法线 + 粗糙度（128 够用；无外链） */
+export function buildLeatherTextures(size = 128) {
+  const SZ = size;
+  const { c, g } = canvas2d(SZ, SZ);
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, SZ, SZ);
+  const rnd = rng(90210);
+  /* 皮革颗粒：小亮点/暗点交错（低频起伏 + 细颗粒） */
+  for (let i = 0; i < 1100; i++) {
+    const x = rnd() * SZ, y = rnd() * SZ, rr = 0.4 + rnd() * 1.7;
+    g.globalAlpha = 0.05 + rnd() * 0.17;
+    g.fillStyle = rnd() > 0.5 ? '#BEBEBE' : '#4E4E4E';
+    g.beginPath();
+    g.arc(x, y, rr, 0, TAU);
+    g.fill();
+  }
+  /* 折痕/使用痕迹：短、断续、低对比 */
+  for (let i = 0; i < 16; i++) {
+    g.globalAlpha = 0.12 + rnd() * 0.16;
+    g.strokeStyle = rnd() > 0.5 ? '#3C3C3C' : '#C4C4C4';
+    g.lineWidth = 0.6 + rnd() * 0.9;
+    g.beginPath();
+    let x = rnd() * SZ, y = rnd() * SZ;
+    g.moveTo(x, y);
+    for (let k = 0; k < 4; k++) { x += (rnd() - 0.5) * 16; y += (rnd() - 0.5) * 16; g.lineTo(x, y); }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+  const normal = heightToNormal(c, 1.6);
+  /* 粗糙度：颗粒处略亮（更粗糙） */
+  const r = canvas2d(SZ, SZ);
+  const rctx = r.g;
+  rctx.drawImage(c, 0, 0);
+  const rd = rctx.getImageData(0, 0, SZ, SZ);
+  for (let i = 0; i < rd.data.length; i += 4) {
+    const l = (rd.data[i] + rd.data[i + 1] + rd.data[i + 2]) / 765;
+    const v = 150 + (1 - l) * 70;
+    rd.data[i] = rd.data[i + 1] = rd.data[i + 2] = v;
+  }
+  rctx.putImageData(rd, 0, 0);
+  return {
+    normal: texFromCanvas(normal, { srgb: false, aniso: 4 }),
+    rough: texFromCanvas(r.c, { srgb: false, aniso: 4 })
+  };
+}
+
 /* ------------------------------- 图标（雕刻线性） -------------------------------
  * 用 100×100 归一化坐标画线稿图标；atlas / 舞台 / 机坪共用。
  * mode='engrave'：先画深色偏移（凹槽阴影），再画浅色主体（受光边）。 */
