@@ -275,6 +275,137 @@ export function makePlane(colorHex, accentHex) {
 }
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
+/* ============================ 手（V9.3 程序化低模） ============================
+ * 局部坐标：手指朝 -Z，掌面法线 +Y，腕口/前臂沿 +Z。
+ * 手掌+腕口（皮革）1 draw + 4 指（合并）1 draw + 拇指 1 draw + 前臂/袖（布）1 draw = 4 draw。
+ * 手指/拇指各挂 pivot：setGrip(0..1) = 张开 → 合拢托住骰子。
+ * 尺寸相对骰子（0.34）刻意略大，保证 320–430 上轮廓可读。 */
+export function makeHand() {
+  const group = new THREE.Group();
+  group.name = 'hand';
+  group.visible = false;
+
+  const leather = new THREE.MeshStandardMaterial({
+    color: 0xB98A62, roughness: 0.56, metalness: 0.03, envMapIntensity: 0.7
+  });
+  const cloth = new THREE.MeshStandardMaterial({
+    color: 0x1B2531, roughness: 0.88, metalness: 0.02, envMapIntensity: 0.3
+  });
+  const T = (x, y, z) => { const m = new THREE.Matrix4(); m.makeTranslation(x, y, z); return m; };
+  const RX = (a) => { const m = new THREE.Matrix4(); m.makeRotationX(a); return m; };
+
+  /* ---- 手掌：圆角掌垫 + 腕口 + 指根垫（合并；同一皮革材质） ---- */
+  const palmParts = [];
+  const palm = new THREE.BoxGeometry(0.196, 0.058, 0.190, 1, 1, 1);
+  palmParts.push({ geo: palm, matrix: T(0, 0, 0) });
+  const heel = new THREE.BoxGeometry(0.168, 0.066, 0.062, 1, 1, 1);
+  palmParts.push({ geo: heel, matrix: T(0, -0.002, 0.082) });
+  const knuckle = new THREE.BoxGeometry(0.176, 0.036, 0.052, 1, 1, 1);
+  palmParts.push({ geo: knuckle, matrix: T(0, 0.022, -0.078) });
+  /* 腕口：短圆柱，略向外扩（飞行手套的收口） */
+  const cuff = new THREE.CylinderGeometry(0.086, 0.092, 0.052, 12, 1);
+  const cuffM = RX(Math.PI / 2); cuffM.setPosition(0, -0.004, 0.212);
+  palmParts.push({ geo: cuff, matrix: cuffM });
+  const palmGeo = mergeGeoms(palmParts);
+  palmParts.forEach((p) => p.geo.dispose());
+  const palmMesh = new THREE.Mesh(palmGeo, leather);
+  palmMesh.castShadow = true;
+  palmMesh.receiveShadow = true;
+  group.add(palmMesh);
+
+  /* ---- 四指：两节 + 圆指尖，合并 1 draw，挂在指根 pivot 上 ---- */
+  const fingers = new THREE.Group();
+  fingers.position.set(0, 0.006, -0.090);
+  const fParts = [];
+  const FINGERS = [
+    { x: -0.066, l0: 0.072, l1: 0.058, w: 0.034, sp: -0.010 },
+    { x: -0.021, l0: 0.080, l1: 0.064, w: 0.036, sp: -0.003 },
+    { x: 0.024, l0: 0.076, l1: 0.060, w: 0.035, sp: 0.003 },
+    { x: 0.067, l0: 0.064, l1: 0.050, w: 0.032, sp: 0.010 }
+  ];
+  const A0 = 0.16, A1 = 0.46;
+  for (const f of FINGERS) {
+    const y1 = -0.004 - Math.sin(A0) * f.l0;
+    const z1 = -Math.cos(A0) * f.l0;
+    const m0 = RX(-A0);
+    m0.setPosition(f.x, (-0.004 + y1) / 2, z1 / 2);
+    fParts.push({ geo: new THREE.BoxGeometry(f.w, f.w * 0.92, f.l0), matrix: m0 });
+    const x2 = f.x + f.sp;
+    const y2 = y1 - Math.sin(A1) * f.l1;
+    const z2 = z1 - Math.cos(A1) * f.l1;
+    const m1 = RX(-A1);
+    m1.setPosition(x2, (y1 + y2) / 2, (z1 + z2) / 2);
+    fParts.push({ geo: new THREE.BoxGeometry(f.w * 0.88, f.w * 0.82, f.l1), matrix: m1 });
+    fParts.push({ geo: new THREE.SphereGeometry(f.w * 0.42, 6, 4), matrix: T(x2, y2, z2) });
+  }
+  const fingerGeo = mergeGeoms(fParts);
+  fParts.forEach((p) => p.geo.dispose());
+  const fingerMesh = new THREE.Mesh(fingerGeo, leather);
+  fingerMesh.castShadow = true;
+  fingerMesh.receiveShadow = true;
+  fingers.add(fingerMesh);
+  group.add(fingers);
+
+  /* ---- 拇指：两节 + 指尖，指向内前（-x -z），挂在掌侧 pivot ---- */
+  const thumb = new THREE.Group();
+  thumb.position.set(0.096, -0.008, -0.044);
+  const thumbParts = [];
+  const d0 = new THREE.Vector3(-0.44, -0.30, -0.84).normalize();
+  const d1 = new THREE.Vector3(-0.74, -0.42, -0.52).normalize();
+  const seg = (from, dir, len, w, h) => {
+    const geo = new THREE.BoxGeometry(w, h, len);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
+    const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
+    m.setPosition(from.x + dir.x * len / 2, from.y + dir.y * len / 2, from.z + dir.z * len / 2);
+    thumbParts.push({ geo, matrix: m });
+  };
+  seg(new THREE.Vector3(0, 0, 0), d0, 0.078, 0.046, 0.042);
+  const j = d0.clone().multiplyScalar(0.078);
+  seg(j, d1, 0.062, 0.040, 0.036);
+  const tip = j.clone().addScaledVector(d1, 0.062);
+  thumbParts.push({ geo: new THREE.SphereGeometry(0.017, 6, 4), matrix: T(tip.x, tip.y, tip.z) });
+  const thumbGeo = mergeGeoms(thumbParts);
+  thumbParts.forEach((p) => p.geo.dispose());
+  const thumbMesh = new THREE.Mesh(thumbGeo, leather);
+  thumbMesh.castShadow = true;
+  thumbMesh.receiveShadow = true;
+  thumb.add(thumbMesh);
+  group.add(thumb);
+
+  /* ---- 前臂 / 袖：布质锥筒，向画面外延伸 ---- */
+  const sleeveParts = [];
+  const arm = new THREE.CylinderGeometry(0.108, 0.076, 0.74, 12, 1);
+  const armM = RX(Math.PI / 2); armM.setPosition(0, -0.018, 0.640);
+  sleeveParts.push({ geo: arm, matrix: armM });
+  const band = new THREE.CylinderGeometry(0.094, 0.100, 0.030, 12, 1);
+  const bandM = RX(Math.PI / 2); bandM.setPosition(0, -0.008, 0.258);
+  sleeveParts.push({ geo: band, matrix: bandM });
+  const sleeveGeo = mergeGeoms(sleeveParts);
+  sleeveParts.forEach((p) => p.geo.dispose());
+  const sleeveMesh = new THREE.Mesh(sleeveGeo, cloth);
+  sleeveMesh.castShadow = true;
+  sleeveMesh.receiveShadow = true;
+  group.add(sleeveMesh);
+
+  function setGrip(k) {
+    const c = k < 0 ? 0 : k > 1 ? 1 : k;
+    fingers.rotation.x = -0.10 - c * 0.82;
+    thumb.rotation.set(-0.10 - c * 0.34, 0.10 + c * 0.46, 0.02 + c * 0.16);
+  }
+  setGrip(0);
+
+  return {
+    group,
+    setGrip,
+    gripLocal: new THREE.Vector3(0, -0.202, -0.028),
+    dispose() {
+      palmGeo.dispose(); fingerGeo.dispose(); thumbGeo.dispose(); sleeveGeo.dispose();
+      leather.dispose(); cloth.dispose();
+      group.clear();
+    }
+  };
+}
+
 /* ============================ 光斑 / 阴影 / 涟漪 / 风线 ============================ */
 export function makeShadowPlane(size, opacity) {
   const m = new THREE.Mesh(

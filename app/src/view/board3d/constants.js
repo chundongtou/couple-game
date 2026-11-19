@@ -132,6 +132,12 @@ export const uvOfSlot = (slot) => {
 
 /* --- 骰子：BoxGeometry 面顺序 +X -X +Y -Y +Z -Z --- */
 export const DIE_FACES = [3, 4, 1, 6, 2, 5];
+/* V9.3：摇骰落点移到棋盘中心附近（黄/蓝进航格之间的空盘面，避开中心星徽与格块）。
+ * y = 圆盘上表面 + 半边长；骰子平躺，顶面即引擎点数。
+ * 注：V9.2 的 (1.62, 3.02) 在棋盘外缘桌面；建议的 (0.55, 0.9) 与蓝进航内格边缘只差 ~0，
+ * 这里取楔形空区 (0.84, 0.53)，到四条进航格/中心鼓/机库的最小间隙 ≥0.30。 */
+export const DIE_FLOOR = 0.038;                     // 棋盘圆盘上表面（CylinderGeometry top）
+export const DIE_HOME_POS = { x: 0.84, y: DIE_FLOOR + DIE_SIZE / 2, z: 0.53 };
 
 /* --- V9 材质规范（冻结单 §1.3 的 roughness/metalness 硬口径） --- */
 export const MAT = {

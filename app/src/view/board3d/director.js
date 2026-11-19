@@ -8,13 +8,13 @@
 import * as THREE from '../../../render/node_modules/three/build/three.module.js';
 import {
   DIE_SIZE, TILE_BOTTOM, STAGE_RISE, STAGE_AZIM, PLANE_Y, OVERVIEW_FILL,
-  DEG, TAU, clamp, lerp, easeInOut, easeOut, smoothstep, shortestDelta
+  DIE_HOME_POS, DEG, TAU, clamp, lerp, easeInOut, easeOut, smoothstep, shortestDelta
 } from './constants.js';
 import {
   isMotionEvent, motionOrigin, motionDest, poseForSquare, interpPose, localOfSquare
 } from './mapping.js';
 
-const DIE_HOME = new THREE.Vector3(1.62, DIE_SIZE / 2 + 0.002, 3.02);
+const DIE_HOME = new THREE.Vector3(DIE_HOME_POS.x, DIE_HOME_POS.y, DIE_HOME_POS.z);
 
 /* ------------------------------------------------------------------------- */
 /* 音效：WebAudio 极简合成（仅在 setSound(true) 且用户手势后可用；失败静默） */
@@ -82,6 +82,8 @@ class Sfx {
   }
   _can() { return this.on && this.ctx; }
   dice() { if (!this._can()) return; try { this._noise(0.18, 0.16); this._tone(220, 90, 0.14, 'triangle', 0.1); } catch (e) { /* noop */ } }
+  /* V9.3：骰子每次弹到棋盘上的木质轻撞（speed 0..1 控制音量/音高） */
+  diceLand(speed) { if (!this._can()) return; try { const k = clamp(Number(speed) || 0, 0, 1); const g = 0.05 + 0.11 * k; this._noise(0.05, g); this._tone(190 - 40 * k, 90, 0.085, 'triangle', g * 0.9); } catch (e) { /* noop */ } }
   whoosh() { if (!this._can()) return; try { this._noise(0.22, 0.1); } catch (e) { /* noop */ } }
   tick() { if (!this._can()) return; try { this._tone(520, 420, 0.05, 'sine', 0.025); } catch (e) { /* noop */ } }
   land() { if (!this._can()) return; try { this._tone(150, 70, 0.18, 'sine', 0.16); this._noise(0.08, 0.08); } catch (e) { /* noop */ } }
@@ -295,7 +297,15 @@ export class Director {
     return { center: new THREE.Vector3(0, PLANE_Y, 0), nx: 0, ny: 0, radius: 3.05, elev: 33, azim: 0, fov: 42 };
   }
   _roll() {
-    return { center: DIE_HOME.clone(), nx: 0, ny: -0.02, radius: 3.2, elev: 44, azim: 10, fov: 42 };
+    /* V9.3：摇骰取景对准新落点（棋盘中心附近）＋手从右下入画。
+     * 窄屏（390/430 的 boardwrap 纵横比≈0.63–0.66）按 host 纵横比自适应拉远，
+     * 保证「手—骰子—两次弹跳」都在框内；320 的宿主更扁，保持 1× 距离。 */
+    const aspect = this.scene.rig.aspect || 1;
+    const fit = clamp(0.657 / Math.max(0.35, aspect), 1, 1.32);
+    return {
+      center: new THREE.Vector3(0.74, 0.26, 0.48),
+      nx: 0, ny: 0, radius: 3.35 * fit, elev: 50, azim: 7, fov: 42
+    };
   }
   _land() {
     return { center: new THREE.Vector3(0, 0.12, 0), nx: 0, ny: 0.02, radius: 4.05, elev: 46, azim: 0, fov: 42 };
@@ -312,6 +322,7 @@ export class Director {
   /* 瞬时（reduced）：只落终态，不做镜头链 */
   async _runReduced(events) {
     this.scene.setFlyMode(false);
+    this.scene.setDieVisible(true);
     const dice = events.find((e) => e.type === 'dice');
     if (dice) this.scene.placeDie(dice.die);
     const motions = events.filter(isMotionEvent);
@@ -364,6 +375,9 @@ export class Director {
     const first = motionEvs[0];
     const pieceId = first.pieceId || (captureEv && captureEv.attackerId);
     if (!pieceId) return;
+    /* V9.3：骰子落点在棋盘中心附近；镜头链会让棋盘旋转/平移，骰子不随盘转 →
+     * 进入 focus/fly/land/cell45 时把骰子（和接触影）收起来，回俯瞰再出现。 */
+    this.scene.setDieVisible(false);
     this._movingPieceId = pieceId;
     this.scene.ensurePlane(pieceId, this._colorFor(pieceId), this._playerOf(pieceId));
     this.targetSquare = motionDest(motionEvs[motionEvs.length - 1]);
@@ -416,9 +430,16 @@ export class Director {
     this._setPhase('roll');
     const die = clamp(Number(diceEv.die) || 1, 1, 6);
     if (this.reduced) { this.scene.placeDie(die); return; }
-    await this._animateCamera(620, this._roll());
-    this.sfx.dice();
-    await this.scene.tossDie(die, this._instantNext || this._skipUntilIdle);
+    this.scene.setDieVisible(true);
+    this.sfx.whoosh();
+    /* 相机推近与「手进入」并行：roll 段总时长 = max(560, toss 2400) ≈ 2.4s ≤ 2.5s */
+    const camTask = this._animateCamera(560, this._roll());
+    const tossTask = this.scene.tossDie(die, this._instantNext || this._skipUntilIdle, {
+      onRelease: () => this.sfx.dice(),
+      onImpact: (t, speed) => this.sfx.diceLand(speed),
+      onSettle: () => this.sfx.tick()
+    });
+    await Promise.all([camTask, tossTask]);
   }
 
   async _phaseFocus(pieceId, origin) {
@@ -683,6 +704,7 @@ export class Director {
     }
     this.scene.applyPose({ theta: 0, tx: 0, tz: 0 });
     if (piece && sq) this.scene.setPlaneToSquare(piece, sq);
+    this.scene.setDieVisible(true);
     /* 不要在动画开始前算好的 target 上 snap：题卡收起/布局变化会在这 700ms 里改 host 高度，
      * 结束时应按“当前纵横比”重新计算 overview 距离。 */
     this.scene.rig.snap(this._overview());
@@ -703,7 +725,8 @@ export class Director {
       target: this.targetSquare,
       lastSquare: this._lastSquare,
       cell: this.cellCtx ? { ...this.cellCtx } : null,
-      movingPiece: this._movingPieceId
+      movingPiece: this._movingPieceId,
+      die: this.scene && this.scene.dieDebug ? this.scene.dieDebug() : null
     };
   }
 
