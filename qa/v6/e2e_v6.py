@@ -142,9 +142,11 @@ def new_page(ps_browser, url, viewport, rec: Recorder, label, **ctx_kw):
     # 在文档启动前把 board3d 固定为 off，避免默认 auto 把 V7 断言跑到 3D 上。
     try:
         page.add_init_script(
-            "(function(){ try { var raw = localStorage.getItem('couple2.settings');"
+            "(function(){ window.__E2E_BOARD3D_OFF__ = true;"
+            " try { var raw = localStorage.getItem('couple2.settings');"
             " var s = raw ? JSON.parse(raw) : {}; s.board3d = 'off';"
-            " localStorage.setItem('couple2.settings', JSON.stringify(s)); } catch (e) {} })();"
+            " localStorage.setItem('couple2.settings', JSON.stringify(s));"
+            " } catch (e) {} })();"
         )
     except Exception:
         pass
@@ -4508,9 +4510,10 @@ V7_AC_REGRESS = "AC-V7-11"
 
 V7_STATES = ("overview", "roll", "pov", "chase", "land", "cell45", "bear", "return")
 V7_THEME_EXPECT = {
-    "cloud": {"name": "云海机舱", "outfit": "pilot", "bg0": "#071320", "rim": "#8FC7E8"},
-    "star": {"name": "星轨夜航", "outfit": "starlight", "bg0": "#08060F", "rim": "#B9A4F0"},
-    "paper": {"name": "纸雕童话", "outfit": "paper", "bg0": "#140F0B", "rim": "#E3C79A"},
+    # V9.1：UI 令牌统一为墨黑 --bg0=#07080D；主题差异由 --v7-* / outfit / data-theme 承担。
+    "cloud": {"name": "云海机舱", "outfit": "pilot", "bg0": "#07080D", "rim": "#8FC7E8"},
+    "star": {"name": "星轨夜航", "outfit": "starlight", "bg0": "#07080D", "rim": "#B9A4F0"},
+    "paper": {"name": "纸雕童话", "outfit": "paper", "bg0": "#07080D", "rim": "#E3C79A"},
 }
 V7_CELL_KINDS = ("cell-truth", "cell-dare", "cell-touch", "capture", "stack-duo",
                  "home-entry", "ending", "fate")
@@ -4737,17 +4740,20 @@ def v7_new_page(browser, url, rec, label, theme=None, reduced=False, reduced_mot
                 init_script=None, extra_ctx=None):
     vp = Q.VIEWPORTS[label]
     script = init_script
-    seed = {}
+    # V9 回归口径：V7 组固定 2.5D/SVG，避免默认 auto 进 3D。
+    seed = {"board3d": "off"}
     if theme:
         seed["theme"] = theme
     if reduced:
         seed["reduced"] = True
-    if seed:
-        seed_js = "(() => { try { localStorage.setItem('couple2.settings', JSON.stringify(%s)); } catch (e) {} })();" % json.dumps(seed, ensure_ascii=False)
-        ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion,
-                            init_script=seed_js)
-    else:
-        ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion)
+    seed_js = ("(() => { window.__E2E_BOARD3D_OFF__ = true; try {"
+               " var raw = localStorage.getItem('couple2.settings');"
+               " var s = raw ? JSON.parse(raw) : {};"
+               " var seed = %s; for (var k in seed) s[k] = seed[k];"
+               " localStorage.setItem('couple2.settings', JSON.stringify(s));"
+               " } catch (e) {} })();") % json.dumps(seed, ensure_ascii=False)
+    ctx = Q.new_context(browser, viewport=vp, dsf=2, reduced_motion=reduced_motion,
+                        init_script=seed_js)
     if extra_ctx:
         extra_ctx(ctx, page=None)
     page = ctx.new_page()

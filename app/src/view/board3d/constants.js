@@ -157,28 +157,29 @@ export const CINE = {
 
 /* --- 画质档：high / medium / low（Bloom/DOF 轻量层只在 high） ---
  * V9.1：props = 桌面小物/机舱细节；steam = 咖啡蒸汽/蜡烛火焰；motes = 舷窗光尘。
- * 低画质关小物与粒子（冻结单 §4「低端关闭 Bloom/DOF/阴影降级」的延伸）。 */
+ * 低画质只关粒子/额外点光/阴影/Bloom；小物 **保留** —— 主桌实机在慢设备上会自适应降档，
+ * 若低档连小物一起关掉，用户看到的又回到「画面太干净」（V9.1 follow-up 实机截图即此因）。 */
 export const QUALITY = {
   high: { dpr: 2.0, shadow: 2048, dust: 110, glow: true, grain: true, env: true, bloom: true, props: true, steam: true, motes: true },
   medium: { dpr: 1.5, shadow: 1024, dust: 64, glow: true, grain: false, env: true, bloom: false, props: true, steam: true, motes: false },
-  low: { dpr: 1.0, shadow: 0, dust: 28, glow: false, grain: false, env: false, bloom: false, props: false, steam: false, motes: false }
+  low: { dpr: 1.0, shadow: 0, dust: 28, glow: false, grain: false, env: false, bloom: false, props: true, steam: false, motes: false }
 };
 
 /* --- V9.1 桌面小物布局（世界坐标：x 右、z 朝向观众；y=0 为桌布面） ---
- * 约束：都落在棋盘圆盘（R=3.30）之外；后排（z<-2.4）在 320/390/430 都从棋盘上沿
- * 露出，前排（z>3.4）在 390/430 的画面下沿，320 只有 3.47–3.7 的托盘能进画。
- * 数值由 shots/v9.1-cinematic/probe2.mjs 实测投影确定，改动请重跑探针。 */
+ * 约束：都落在棋盘圆盘（R=3.30）之外；后排（z<-2.4）从棋盘上沿露出（320/390/430 都可见），
+ * 前排收到 z≈3.6–4.3：390/430 落在棋盘下沿与底部行动区之间的可见带，并避开右下缩放按钮
+ * （host 右下 44×3 竖列）。数值由真实主桌 shots/v9.1-cinematic/table_check.mjs 实测确定。 */
 export const PROPS = {
   cup: { x: -1.72, z: 4.28, s: 2.0 },        /* V9 已有的珐琅咖啡杯（保留，加蒸汽） */
-  cup2: { x: -2.52, z: 4.62, s: 1.25 },      /* 第二只小茶杯：两个人 */
-  newspaper: { x: -2.98, z: 3.68, rot: 0.34 },
-  notebook: { x: -0.06, z: 4.58, rot: 0.10 },
+  cup2: { x: -2.42, z: 4.30, s: 1.25 },      /* 第二只小茶杯：两个人，收进可见带 */
+  newspaper: { x: -2.65, z: 4.08, rot: 0.50 },
+  notebook: { x: -0.10, z: 4.15, rot: 0.10 },/* 摊开的笔记本 + 钢笔 + 折叠眼镜 */
   glasses: { x: 0.74, z: 4.36, rot: -0.5 },
-  tickets: { x: -1.04, z: 4.98, rot: 0.22 },
-  cards: { x: 2.10, z: 4.88, rot: -0.16 },
-  keys: { x: 1.02, z: 4.58, rot: 0.4 },
-  tray: { x: 2.92, z: 3.64 },                /* 骰子托盘（空；真骰子仍在 DIE_HOME） */
-  blanket: { x: 2.46, z: 4.66, rot: 0.12 },
+  tickets: { x: -1.05, z: 4.42, rot: 0.22 },
+  cards: { x: 1.90, z: 4.35, rot: -0.16 },
+  keys: { x: 0.55, z: 4.15, rot: 0.4 },
+  tray: { x: 1.62, z: 3.62 },                /* 骰子托盘：在真骰子 DIE_HOME 正下方，避开缩放按钮 */
+  blanket: { x: 1.15, z: 4.35, rot: 0.12 },
   speaker: { x: -2.72, z: 2.58, rot: 0.52 },
   cassette: { x: -2.52, z: 3.44, rot: -0.26 },
   lamp: { x: -2.55, z: -3.20 },              /* 铜质小台灯（点光 + 灯罩自发光） */
