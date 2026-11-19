@@ -808,6 +808,10 @@
         board3d.pending = true;
         board3d.mounts = 0;
         setB3Status("pending", "");
+        if (board3dMode() !== "off" && !board3d.pendingNotified) {
+          board3d.pendingNotified = true;
+          toast("正在载入 3D 主桌…");
+        }
         loadBoard3dChunk().then(function (ok) {
           if (!alive) return null;
           if (!ok) return fallbackBoard3d("chunk");
