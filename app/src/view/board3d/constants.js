@@ -1,37 +1,54 @@
 /* ==========================================================================
- * V8 · 真 3D 主桌 · 常量与拓扑（生产模块，ESM）
+ * V9 · 真 3D 主桌 · 电影写实 · 常量与拓扑（生产模块，ESM）
  * 拓扑只读自 app/src/engine/flight-board.js（同源，不修改引擎）。
- * 这里只做渲染侧的几何/纹理/主题常量，不含任何引擎规则。
+ * 这里只做渲染侧的几何/材质/主题常量，不含任何引擎规则。
+ *
+ * V9 口径（docs/v9/impl-freeze.md §1）：午夜机舱 · 电影写实
+ *   - 材质：胡桃木 / 黄铜 / 绒布 / 象牙纸 / 珐琅 / 玻璃（MeshStandardMaterial PBR）
+ *   - 光照：ACESFilmic + 暖阅读灯 key + 舷窗冷 rim + 低 fill（PMREM 程序化环境）
+ *   - 场景：舱壁 / 舷窗 / 遮光板 / 阅读灯 / 小桌板 / 灰尘 / 轻雾 / 暗角颗粒
  * ========================================================================== */
 
-export const VERSION = 'v8-prod-3d-1';
+export const VERSION = 'v9-cinematic-1';
 export const DEG = Math.PI / 180;
 export const TAU = Math.PI * 2;
 
-/* --- 棋盘几何（P0 原型同参数，已验证手感） --- */
+/* --- 棋盘几何（P0 原型参数，V9 保持手感不变） --- */
 export const RING_N = 52;
 export const RING_R = 3.06;          // 环格中心半径
 export const CELL = 0.34;            // 环格边长
-export const TILE_H = 0.075;         // 格厚度
+export const TILE_H = 0.085;         // 格厚度（V9：略厚 + 倒角，读得出手工实木感）
 export const TILE_BOTTOM = 0.02;
-export const TILE_TOP = TILE_BOTTOM + TILE_H;   // 0.095
+export const TILE_TOP = TILE_BOTTOM + TILE_H;   // 0.105
+export const TILE_BEVEL = 0.10;      // 倒角比例（相对格宽，V9 新增）
 export const HOME_STEPS = 5;
 export const HOME_R0 = 2.46;
 export const HOME_PITCH = 0.40;
 export const HOME_CELL = 0.30;
 export const HANGAR_R = 1.95;
 export const PLANE_HOVER = 0.095;
-export const PLANE_Y = TILE_TOP + PLANE_HOVER;  // 飞机中心高（0.19）
+export const PLANE_Y = TILE_TOP + PLANE_HOVER;
 export const DIE_SIZE = 0.34;
 export const STAGE_RISE = 1.50;      // 目标格升起高度
 export const STAGE_AZIM = 24;        // 45° 舞台方位角
-/* V8.2：舞台格放大到比环格大（CELL=0.34 → 0.42），格面文字偏前、小熊站左后，
- * 两者在屏幕上不再互相遮挡；贴图用 256px 专用图（见 textures.buildStagePlate）。 */
 export const STAGE_PLATE = 0.42;
-export const STAGE_BEAR = { x: -0.072, z: -0.100, s: 0.84 };   // 小熊相对格心的座位（左后）
-export const STAGE_TEXT = { u: 0.58, v: 0.70 };                 // 格面字在图上的位置（u=横向，v=canvas 纵向比例，大=靠前）
-/* V8.2：overview 棋盘占宽目标（qa 口径用 ±3.23 投影，实测 86.3% → 约 87.5%） */
+export const STAGE_BEAR = { x: -0.072, z: -0.100, s: 0.84 };
+export const STAGE_TEXT = { u: 0.58, v: 0.70 };
 export const OVERVIEW_FILL = 1.015;
+
+/* --- 桌面 / 垫布（V9 重做：胡桃木小桌板 + 绒布垫，桌沿进入画面读作机舱小桌） ---
+ * 桌板向观众方向加长（z 偏移），让近端桌沿在 320–430 都落在画面外/画面最底，
+ * 避免俯瞰时下方出现一条黑色地板空带。 */
+export const TABLE = { w: 11.4, d: 12.6, h: 0.20, r: 0.55, z: 1.8 };
+export const FELT = { w: 9.6, d: 9.4, r: 0.30, z: 0.6 };
+/* 舱壁 / 舷窗 / 灯：世界坐标（overview 上方 15–25% 画面读作机舱） */
+export const CABIN = {
+  wallZ: -4.66, wallW: 30, wallH: 12, wallBottom: -0.34,
+  window: { x: 1.02, y: 0.78, w: 2.15, h: 1.18, z: -4.60 },
+  shade: 0.34,
+  lamp: { x: -2.10, y: 0.88, z: -4.30 },
+  floorY: -0.34
+};
 
 /* --- 中心终点（立体 hub） --- */
 export const HUB = { r: 0.44, h: 0.10, ringR: 0.60, starR: 0.20 };
@@ -55,10 +72,12 @@ export const CELL_KIND = {
 };
 FATE_CELLS.forEach((n) => { CELL_KIND[n] = 'fate'; });
 
-export const HEX = { red: 0xFF7A6B, yellow: 0xFFC857, blue: 0x7FA8FF, green: 0x63DDA0 };
-export const HEX_SOFT = { red: '#FFC6BA', yellow: '#FFE3AC', blue: '#C9D5FF', green: '#BFF0D8' };
+/* 四色 = 玩家身份色。V9 去掉荧光粉彩，改成低饱和珐琅色（仍可一眼区分）。 */
+export const HEX = { red: 0xC9544A, yellow: 0xD7A24A, blue: 0x5E7FB0, green: 0x5C8F72 };
+export const HEX_SOFT = { red: '#8E3A34', yellow: '#9A7332', blue: '#3F587C', green: '#3F6551' };
 export const COLOR_NAME = { red: '红', yellow: '黄', blue: '蓝', green: '绿' };
 
+/* 图标化后仍保留单字，用于图例/舞台/降级文案（环格不再印大号中文）。 */
 export const GLYPH = {
   takeoff: '起', fly: '飞', forbid: '停', fate: '缘', entry: '归',
   truth: '真', dare: '敢', touch: '触', thermo: '温', wheel: '轮', ring: '·'
@@ -92,7 +111,6 @@ export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t +
 export const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 export const smoothstep = (a, b, t) => { const x = clamp((t - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
 
-/* 角度差取最短（-PI..PI） */
 export function shortestDelta(from, to) {
   return ((to - from + Math.PI) % TAU + TAU) % TAU - Math.PI;
 }
@@ -115,57 +133,122 @@ export const uvOfSlot = (slot) => {
 /* --- 骰子：BoxGeometry 面顺序 +X -X +Y -Y +Z -Z --- */
 export const DIE_FACES = [3, 4, 1, 6, 2, 5];
 
+/* --- V9 材质规范（冻结单 §1.3 的 roughness/metalness 硬口径） --- */
+export const MAT = {
+  walnut: { roughness: 0.55, metalness: 0.05, normalScale: 0.65, envMapIntensity: 0.55 },
+  brass: { roughness: 0.32, metalness: 0.85, envMapIntensity: 1.25 },
+  felt: { roughness: 0.95, metalness: 0.00, normalScale: 1.15, envMapIntensity: 0.30 },
+  paper: { roughness: 0.80, metalness: 0.00, normalScale: 0.45, envMapIntensity: 0.45 },
+  enamel: { roughness: 0.42, metalness: 0.06, envMapIntensity: 0.80 },
+  glass: { roughness: 0.12, metalness: 0.00, envMapIntensity: 1.40 }
+};
+
+/* --- V9 镜头（scene 内部实现，不改 camera.js/director.js） ---
+ * director 的 overview 目标仍是 fov 42 / elev 58（其口径冻结）；
+ * scene 在渲染前做「长焦重构」：fov 42→38 + 相机沿视线后退等效距离（取景几乎不变），
+ * 并在俯瞰时把机位压到 50°，让画面上方露出舱壁/舷窗。 */
+export const CINE = {
+  fov: 38,
+  elev: 50,
+  overviewElevMin: 56,
+  lensK: Math.tan(21 * Math.PI / 180) / Math.tan(19 * Math.PI / 180),
+  drift: { x: 0.055, y: 0.038, yaw: 0.0011, fov: 0.10 }
+};
+
+/* --- 画质档：high / medium / low（Bloom/DOF 轻量层只在 high） --- */
+export const QUALITY = {
+  high: { dpr: 2.0, shadow: 2048, dust: 110, glow: true, grain: true, env: true, bloom: true },
+  medium: { dpr: 1.5, shadow: 1024, dust: 64, glow: true, grain: false, env: true, bloom: false },
+  low: { dpr: 1.0, shadow: 0, dust: 28, glow: false, grain: false, env: false, bloom: false }
+};
+
 /* --- 主题：材质 / 灯光 / 背景 / 小熊服装 ---
- * V8.2 新增 matTex（桌板垫面程序化贴图配方）与 hub（中心终点立体材质）：
- *   matTex.base / base2 = 垫面主色 / 暗部
- *   matTex.weave        = 织纹（felt）或木纹（wood）线色
- *   matTex.rim / pool   = 边缘嵌线高光 / 顶灯暖池（叠层用）
+ * V9 三主题都是「午夜机舱」的三个晚上，不再是粉彩/霓虹：
+ *   cloud = 云海夜航（默认）  star = 星轨夜航  paper = 纸月夜航
+ * 字段：
+ *   light   = 三灯（key 暖阅读灯 / rim 舷窗冷光 / fill 低补光）+ 环境 + 曝光
+ *   table   = 桌板/垫布/棋盘木色 tint（贴图是程序化中性木纹，靠 tint 分主题）
+ *   window  = 舷窗景观配色（程序化 canvas，无外链 HDR/图片）
+ *   hub/brass/felt/overlay/bear = 各主题材质口径
  */
 export const THEMES = {
   cloud: {
-    id: 'cloud', label: '云海机舱', sky: 'cloud',
-    ink: 0x0A1622, fog: 0x0C2334, fogDensity: 0.016,
-    hemiSky: 0xBED8FF, hemiGround: 0x2A2038, hemiInt: 0.9,
-    sunColor: 0xFFF1DC, sunInt: 1.3,
-    tray: 0x3A2A24, mat: 0x1E4A63, disc: 0x9FB6D8, discSide: 0x141C28,
-    cloud: true, cloudOpacity: 0.42, cloudTint: 0xFFFFFF, stars: false,
-    heatCool: 0x9FC7FF, heatWarm: 0xFFB060,
-    matTex: {
-      base: '#1D4560', base2: '#0C1E2E', weave: '#37718F', grain: 'felt',
-      rim: 'rgba(255,216,164,.22)', pool: 'rgba(255,186,110,.16)', vig: 'rgba(3,8,14,.90)'
+    id: 'cloud', label: '云海机舱',
+    exposure: 1.28,
+    ink: 0x05080D, fog: 0x0A1620, fogDensity: 0.0155,
+    light: {
+      hemiSky: 0x6F90B4, hemiGround: 0x14100C, hemiInt: 0.58,
+      key: 0xFFC080, keyInt: 4.1,
+      rim: 0x8FB6E8, rimInt: 1.45,
+      fill: 0xAEC2D6, fillInt: 0.46,
+      lamp: 0xFFB066, lampInt: 24, lampDist: 11,
+      env: 0.72
     },
-    hub: { top: 0xF3C077, side: 0xB8813C, star: 0xFFE9BE, glow: 0xFFC370 },
-    bear: { fur: 0x9A6F4B, furDark: 0x7A543A, hat: 0x2C3E66, band: 0xE8B65C, scarf: 0xD8564C }
+    tableTint: 0xEADCCB, feltTint: 0x5E7F8A, boardTint: 0xE2D0BA,
+    brass: 0xB08A57, brassRough: 0.30,
+    felt: { base: '#3E5A64', base2: '#22343C', weave: '#6F8E96' },
+    overlay: { vig: 'rgba(2,5,9,.92)', pool: 'rgba(255,178,104,.17)', rim: 'rgba(232,190,128,.26)' },
+    hub: { top: 0xE0B26C, side: 0x5A3C22, star: 0xF6DFB6, glow: 0xFFC070 },
+    window: {
+      top: '#071422', mid: '#173E58', low: '#6E93A6', cloud: '#C8DCE6',
+      moon: '#F6EAD2', moonX: 0.68, moonY: 0.26, moonR: 0.048, stars: 0.28, glare: 0.34
+    },
+    wallTint: 0x2E4257, floor: 0x0A0E12,
+    dust: 0xFFD9A8, dustOpacity: 0.55,
+    heatCool: 0x8FB6E8, heatWarm: 0xFFA860,
+    bear: { fur: 0x9C7B5A, furDark: 0x7A5C42, hat: 0x2B3C58, band: 0xD2A769, scarf: 0x9A4242 }
   },
   star: {
-    id: 'star', label: '星轨夜航', sky: 'star',
-    ink: 0x05030C, fog: 0x080515, fogDensity: 0.012,
-    hemiSky: 0x9C90E8, hemiGround: 0x1A1030, hemiInt: 0.72,
-    sunColor: 0xE6DDFF, sunInt: 1.05,
-    tray: 0x1E1832, mat: 0x241C42, disc: 0x8E86C8, discSide: 0x0F0A1C,
-    cloud: false, cloudOpacity: 0.0, cloudTint: 0xC8C0FF, stars: true,
-    heatCool: 0x8FA8FF, heatWarm: 0xFF9FC8,
-    matTex: {
-      base: '#241C46', base2: '#0A0718', weave: '#3A2F6E', grain: 'felt',
-      rim: 'rgba(203,192,255,.22)', pool: 'rgba(150,138,255,.15)', vig: 'rgba(2,1,6,.92)'
+    id: 'star', label: '星轨夜航',
+    exposure: 1.16,
+    ink: 0x04050B, fog: 0x070A16, fogDensity: 0.0145,
+    light: {
+      hemiSky: 0x6B74B4, hemiGround: 0x100D14, hemiInt: 0.52,
+      key: 0xFFBE8A, keyInt: 3.8,
+      rim: 0x93A8FF, rimInt: 1.65,
+      fill: 0x9FA8D8, fillInt: 0.42,
+      lamp: 0xFFAE73, lampInt: 21, lampDist: 10,
+      env: 0.66
     },
-    hub: { top: 0xDCD2FF, side: 0x6E5CA8, star: 0xFFF2FF, glow: 0xB0A0FF },
-    bear: { fur: 0x8E7196, furDark: 0x6B527A, hat: 0x3B2B5C, band: 0xC9D5FF, scarf: 0xB9A7E8 }
+    tableTint: 0xE2D8D2, feltTint: 0x585D80, boardTint: 0xDCCCB8,
+    brass: 0xA9855C, brassRough: 0.28,
+    felt: { base: '#333A5A', base2: '#1B1E33', weave: '#5D6690' },
+    overlay: { vig: 'rgba(1,2,7,.93)', pool: 'rgba(255,174,115,.15)', rim: 'rgba(214,196,150,.24)' },
+    hub: { top: 0xD9B47C, side: 0x4A3550, star: 0xF4E3C6, glow: 0xFFB87A },
+    window: {
+      top: '#03030C', mid: '#0E1230', low: '#2A3560', cloud: '#5A6690',
+      moon: '#F0E9FF', moonX: 0.70, moonY: 0.24, moonR: 0.05, stars: 1, glare: 0.22
+    },
+    wallTint: 0x262E48, floor: 0x07070C,
+    dust: 0xDCD6FF, dustOpacity: 0.45,
+    heatCool: 0x8FA8FF, heatWarm: 0xFFA0C0,
+    bear: { fur: 0x8E7C9C, furDark: 0x6E5F7C, hat: 0x332D57, band: 0xC7D0EA, scarf: 0x8C649C }
   },
   paper: {
-    id: 'paper', label: '纸雕童话', sky: 'paper',
-    ink: 0x120D0A, fog: 0x1A1109, fogDensity: 0.014,
-    hemiSky: 0xFFE0B8, hemiGround: 0x3A2A1C, hemiInt: 0.95,
-    sunColor: 0xFFE7C4, sunInt: 1.2,
-    tray: 0x4A3428, mat: 0x6B4A2E, disc: 0xBFAE94, discSide: 0x2A1C12,
-    cloud: true, cloudOpacity: 0.22, cloudTint: 0xFFE2B8, stars: false,
-    heatCool: 0xC9B08F, heatWarm: 0xFF9A4D,
-    matTex: {
-      base: '#5A4029', base2: '#22160D', weave: '#7A5A38', grain: 'wood',
-      rim: 'rgba(255,224,184,.20)', pool: 'rgba(255,158,80,.15)', vig: 'rgba(8,5,3,.90)'
+    id: 'paper', label: '纸月夜航',
+    exposure: 1.26,
+    ink: 0x0A0806, fog: 0x161009, fogDensity: 0.016,
+    light: {
+      hemiSky: 0xC8A98A, hemiGround: 0x1C140C, hemiInt: 0.62,
+      key: 0xFFCB94, keyInt: 4.3,
+      rim: 0xB8A894, rimInt: 1.05,
+      fill: 0xD8C0A2, fillInt: 0.52,
+      lamp: 0xFFB878, lampInt: 25, lampDist: 11,
+      env: 0.72
     },
-    hub: { top: 0xE8B65C, side: 0x8A5E2A, star: 0xFFE7C4, glow: 0xFFB061 },
-    bear: { fur: 0x9C7A55, furDark: 0x7C5C3C, hat: 0x8A6A4A, band: 0xF0D9B5, scarf: 0xA6483E }
+    tableTint: 0xF0DCC3, feltTint: 0x7E6542, boardTint: 0xE6CDA8,
+    brass: 0xC0955D, brassRough: 0.36,
+    felt: { base: '#6A5334', base2: '#3C2C19', weave: '#9A7A4C' },
+    overlay: { vig: 'rgba(8,5,2,.92)', pool: 'rgba(255,178,104,.22)', rim: 'rgba(240,206,150,.30)' },
+    hub: { top: 0xE8BA72, side: 0x5C3A1E, star: 0xFFE9C0, glow: 0xFFBE72 },
+    window: {
+      top: '#2A1A10', mid: '#6E4326', low: '#D0A070', cloud: '#F0D2A8',
+      moon: '#FFE6BE', moonX: 0.62, moonY: 0.30, moonR: 0.058, stars: 0.10, glare: 0.42
+    },
+    wallTint: 0x3A2C1E, floor: 0x0B0805,
+    dust: 0xFFD3A0, dustOpacity: 0.5,
+    heatCool: 0xC9A884, heatWarm: 0xFF9A4D,
+    bear: { fur: 0x9E7C58, furDark: 0x7E6042, hat: 0x74543A, band: 0xF0D8AE, scarf: 0x9E4438 }
   }
 };
 export function themeOf(id) {

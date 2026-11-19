@@ -2,12 +2,29 @@
  *
  * ⚠️ 本文件是**模板**，不要直接部署；仓库根的 `sw.js` 由
  *    `python tools/rebuild/build_app.py` 读本文件生成（占位符替换）。
- *    构建写入：couple-flight-v6-a21cab5e / a21cab5e / [
+ *    构建写入：couple-flight-v6-6899caa6 / 6899caa6 / [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./assets/audio.0921b2d6.js",
   "./assets/cards.6e682ef2.js",
-  "./assets/board3d.48364fb6.js",
+  "./assets/board3d.3aac52b4.js",
+  "./assets/audio/sfx-dice-shake.wav",
+  "./assets/audio/sfx-dice-land.wav",
+  "./assets/audio/sfx-hop.wav",
+  "./assets/audio/sfx-takeoff.wav",
+  "./assets/audio/sfx-fly.wav",
+  "./assets/audio/sfx-capture.wav",
+  "./assets/audio/sfx-stack.wav",
+  "./assets/audio/sfx-bear.wav",
+  "./assets/audio/sfx-card.wav",
+  "./assets/audio/sfx-stamp.wav",
+  "./assets/audio/sfx-chime.wav",
+  "./assets/audio/sfx-win.wav",
+  "./assets/audio/sfx-ui-tap.wav",
+  "./assets/audio/sfx-ui-select.wav",
+  "./assets/audio/amb-calm.wav",
+  "./assets/audio/amb-win.wav",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
@@ -15,8 +32,8 @@
 ]
  *
  * 策略（与 V5 保持一致，只换版本与清单）：
- *  - install：预缓存应用外壳 + 题库 + 图标（Promise.allSettled，单个 404 不阻塞安装），
- *             随后 self.skipWaiting() 立刻待命；
+ *  - install：预缓存应用外壳 + 题库 + 音频（audio chunk + 16 个 wav）+ 图标
+ *             （Promise.allSettled，单个 404 不阻塞安装），随后 self.skipWaiting() 立刻待命；
  *  - activate：删除非当前 CACHE 的旧缓存 + clients.claim() 接管已打开页面；
  *  - fetch：
  *      · 只接管同源 GET；跨域 / 非 GET / data: blob: 直接放行交给浏览器；
@@ -27,18 +44,37 @@
  * 发版：CACHE 版本 = "couple-flight-v6-" + 构建时 index.html 的 sha256 前 8 位，
  *       内容一变版本自动变，老用户下次打开即拿到新 SW。**禁止手改 sw.js。**
  */
-var CACHE = 'couple-flight-v6-a21cab5e';
-var BUILD = 'a21cab5e';
+var CACHE = 'couple-flight-v6-6899caa6';
+var BUILD = '6899caa6';
 
 /* 预缓存清单：相对路径，根目录 = 构建产物目录（GitHub Pages 子路径同样可用）。
- * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + PWA 图标。
- * assets/board.js（3D 棋盘，511KB）**不进预缓存**，属于可选特性，走 cache-first 运行时缓存。 */
+ * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + assets/audio.<hash>.js
+ *            + assets/audio/*.wav（V9：16 个，名字稳定）+ PWA 图标。
+ * assets/board.js（3D 棋盘，511KB）**不进预缓存**，属于可选特性，走 cache-first 运行时缓存。
+ * assets/board3d.<hash>.js（V8 3D 主桌）是懒加载 chunk，但**进预缓存**，保证离线也能进 3D 主桌。 */
 var PRECACHE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./assets/audio.0921b2d6.js",
   "./assets/cards.6e682ef2.js",
-  "./assets/board3d.48364fb6.js",
+  "./assets/board3d.3aac52b4.js",
+  "./assets/audio/sfx-dice-shake.wav",
+  "./assets/audio/sfx-dice-land.wav",
+  "./assets/audio/sfx-hop.wav",
+  "./assets/audio/sfx-takeoff.wav",
+  "./assets/audio/sfx-fly.wav",
+  "./assets/audio/sfx-capture.wav",
+  "./assets/audio/sfx-stack.wav",
+  "./assets/audio/sfx-bear.wav",
+  "./assets/audio/sfx-card.wav",
+  "./assets/audio/sfx-stamp.wav",
+  "./assets/audio/sfx-chime.wav",
+  "./assets/audio/sfx-win.wav",
+  "./assets/audio/sfx-ui-tap.wav",
+  "./assets/audio/sfx-ui-select.wav",
+  "./assets/audio/amb-calm.wav",
+  "./assets/audio/amb-win.wav",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

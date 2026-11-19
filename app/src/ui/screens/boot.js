@@ -127,7 +127,7 @@
       /* V7：今晚的桌面（三选一）。样式随 ui/themes.js 注入（.v7-theme-*），base.css 不动。 */
       function themeCard(t) {
         var on = themeId === t.id;
-        return '<button type="button" class="v7-theme-card' + (on ? " on" : "") + '" data-theme-pick="' + U.escape(t.id) + '" data-test="theme-' + U.escape(t.id) + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+        return '<button type="button" class="v7-theme-card v9t' + (on ? " on" : "") + '" data-theme-pick="' + U.escape(t.id) + '" data-test="theme-' + U.escape(t.id) + '" aria-pressed="' + (on ? "true" : "false") + '">' +
           '<span class="v7-tv" aria-hidden="true" style="background:' + U.escape(t.swatch || "") + '"></span>' +
           "<b>" + U.escape(t.name) + "</b>" +
           "<em>" + U.escape(t.hint || "") + "</em></button>";
@@ -143,14 +143,14 @@
       root.innerHTML =
         '<div class="page boot" data-test="boot">' +
           '<div class="kicker"><span class="spark"></span><span>TONIGHT</span><span class="rule"></span></div>' +
-          '<h1 class="boot-h1"><span class="l1">今晚</span><span class="grad-text">飞行棋</span></h1>' +
+          '<h1 class="boot-h1"><span class="l1">今晚</span><span class="l2">飞行棋</span></h1>' +
           '<p class="boot-sub">两个人，一部手机，一盘桌上的棋。<br>灯调暗一点，<b>慢慢来。</b></p>' +
           '<div class="boot-meta">' + metaPills + "</div>" +
           (hasSession
             ? '<button class="resume mt-16" data-go="resume" data-test="continue-flight" type="button">' +
-              '<span class="ic" aria-hidden="true">▶</span>' +
+              '<span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6.2 18 12l-9 5.8Z"/></svg></span>' +
               '<span class="tx"><b>继续今晚飞行棋</b><small>上次停下的地方还在</small></span>' +
-              '<span class="arw" aria-hidden="true">→</span></button>'
+              '<span class="arw" aria-hidden="true"></span></button>'
             : "") +
           '<div class="sect">' +
             '<div class="sect-label">今晚玩多久</div>' +
@@ -198,7 +198,7 @@
           "</div>" +
           '<div class="tiny dim center mt-12">长按「先收棋」可以随时停。做过的都留着。</div>' +
           '<div class="boot-cta">' +
-            '<button class="btn primary wide lg" data-go="start" data-test="start" aria-label="开始" type="button">摆上棋盘<span class="arw" aria-hidden="true">→</span></button>' +
+            '<button class="btn primary wide lg" data-go="start" data-test="start" aria-label="开始" type="button">摆上棋盘<span class="arw" aria-hidden="true"></span></button>' +
             '<div class="cta-hint">掷骰 · 走格 · 翻开一张题卡</div>' +
           "</div>" +
         "</div>";

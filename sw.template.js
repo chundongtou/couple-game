@@ -5,8 +5,8 @@
  *    构建写入：__CACHE_NAME__ / __BUILD_HASH__ / __PRECACHE__
  *
  * 策略（与 V5 保持一致，只换版本与清单）：
- *  - install：预缓存应用外壳 + 题库 + 图标（Promise.allSettled，单个 404 不阻塞安装），
- *             随后 self.skipWaiting() 立刻待命；
+ *  - install：预缓存应用外壳 + 题库 + 音频（audio chunk + 16 个 wav）+ 图标
+ *             （Promise.allSettled，单个 404 不阻塞安装），随后 self.skipWaiting() 立刻待命；
  *  - activate：删除非当前 CACHE 的旧缓存 + clients.claim() 接管已打开页面；
  *  - fetch：
  *      · 只接管同源 GET；跨域 / 非 GET / data: blob: 直接放行交给浏览器；
@@ -21,8 +21,10 @@ var CACHE = '__CACHE_NAME__';
 var BUILD = '__BUILD_HASH__';
 
 /* 预缓存清单：相对路径，根目录 = 构建产物目录（GitHub Pages 子路径同样可用）。
- * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + PWA 图标。
- * assets/board.js（3D 棋盘，511KB）**不进预缓存**，属于可选特性，走 cache-first 运行时缓存。 */
+ * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + assets/audio.<hash>.js
+ *            + assets/audio/*.wav（V9：16 个，名字稳定）+ PWA 图标。
+ * assets/board.js（3D 棋盘，511KB）**不进预缓存**，属于可选特性，走 cache-first 运行时缓存。
+ * assets/board3d.<hash>.js（V8 3D 主桌）是懒加载 chunk，但**进预缓存**，保证离线也能进 3D 主桌。 */
 var PRECACHE = __PRECACHE__;
 
 var INDEX_KEY = './index.html';

@@ -1,0 +1,559 @@
+{
+  "project": "今晚飞行棋 V9 · 音频素材",
+  "version": "9.0.0",
+  "generatedAt": "2026-11-19",
+  "generator": {
+    "method": "Python 3.12 + numpy 物理拟音/加法合成 + soundfile(libsndfile) 解码 CC0 ogg 层",
+    "sampleRate": 22050,
+    "bitDepth": 16,
+    "channels": 1,
+    "note": "一次性生成脚本在仓库外（tmp/audio9/gen_audio.py）；算法与参数见 GENERATOR.md，成品以 sha256 为准。"
+  },
+  "runtime": {
+    "api": "App.Audio.play(name) / startAmbience / stopAmbience / setScene",
+    "basePath": "assets/audio/（生产 index.html 根部）；app/dev/*.html 自动推导 ../assets/audio/",
+    "lazy": "unlock 后按优先级后台解码；amb-calm/amb-win 在 startAmbience 时懒加载",
+    "fallback": "资源 404/解码失败 → WebAudio 合成回退（不静默）"
+  },
+  "loopProof": {
+    "amb-calm": {
+      "periodicityMaxErr": 1.325748538727467e-12,
+      "copies1MaxErr": 0.0,
+      "samplesPerLoop": 176400,
+      "verdict": "EXACT"
+    },
+    "amb-win": {
+      "periodicityMaxErr": 1.1458056725643928e-12,
+      "copies1MaxErr": 5.662137425588298e-15,
+      "samplesPerLoop": 99225,
+      "verdict": "EXACT"
+    }
+  },
+  "totals": {
+    "fileCount": 16,
+    "sfxCount": 14,
+    "ambienceCount": 2,
+    "sfxBytes": 287706,
+    "ambienceBytes": 551338,
+    "sfxBudgetBytes": 307200,
+    "ambienceBudgetBytes": 614400,
+    "sfxBudgetUsedPct": 93.7,
+    "ambienceBudgetUsedPct": 89.7,
+    "maxPeakDbfs": -1.5,
+    "gameplayEffectiveLufsRange": [
+      -24.31,
+      -20.49
+    ],
+    "ambientEffectiveLufsRange": [
+      -34.32,
+      -33.25
+    ]
+  },
+  "files": [
+    {
+      "file": "amb-calm.wav",
+      "kind": "ambience",
+      "purpose": "主桌环境底噪（8 s 无缝循环）",
+      "bytes": 352844,
+      "durationSec": 8.0,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -6.0,
+      "rmsDbfs": -15.12,
+      "approxLufs": -17.86,
+      "playbackGainDb": null,
+      "effectiveLufs": -33.25,
+      "sha256": "6f54d94b7391753027ee07e9f19d01fc0d3a0e19ca9e2a1791875c010e7c8c9b",
+      "license": "self-made (numpy physical synthesis)",
+      "cc0Layers": [],
+      "selfMadeLayers": [
+        "机舱嗡鸣：55/110/165/220/275/330/440 Hz 整数周期正弦 + 周期调相 + 慢速 AM",
+        "空调低隆隆 / 细嘶（irfft 周期噪声）",
+        "舷窗外远雨（900 Hz 以上噪声带 + 两条整数周期 LFO）",
+        "云海低频气流起伏 + 偶发细雨点（wrap 叠加）",
+        "极轻 Dm add9 pad（146.875/220.125/293.75/329.625/440.25 Hz）"
+      ]
+    },
+    {
+      "file": "amb-win.wav",
+      "kind": "ambience",
+      "purpose": "win/ending 环境变体（4.5 s 无缝循环）",
+      "bytes": 198494,
+      "durationSec": 4.5,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -6.0,
+      "rmsDbfs": -16.55,
+      "approxLufs": -18.93,
+      "playbackGainDb": null,
+      "effectiveLufs": -34.32,
+      "sha256": "e0f48bf0621beef81273bd9440f97d76e00f7cc9010991a4235eeea6e0fd8249",
+      "license": "self-made (numpy physical synthesis)",
+      "cc0Layers": [],
+      "selfMadeLayers": [
+        "D 大调 add9 pad（146.75/185/220/293.5/330/370 Hz）+ 玻璃泛音 1174/1479/1760 Hz",
+        "两下柔和铃（587.33 / 880 Hz，0.55 s / 2.55 s，wrap 叠加）",
+        "保留低隆隆/远雨（-33 dB，比 calm 更轻）"
+      ]
+    },
+    {
+      "file": "sfx-bear.wav",
+      "kind": "sfx",
+      "purpose": "小熊出现 / 软绒互动",
+      "bytes": 19448,
+      "durationSec": 0.44,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -12.53,
+      "rmsDbfs": -24.5,
+      "approxLufs": -24.55,
+      "playbackGainDb": 2.1,
+      "effectiveLufs": -24.31,
+      "sha256": "80202634a793bf43a06367783fce8a998afce97c3d08d032216947b8437f498e",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "RPG Audio",
+          "url": "https://kenney.nl/assets/rpg-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "rpg",
+          "sourceFile": "cloth3.ogg",
+          "sourceUrl": "https://kenney.nl/assets/rpg-audio (Audio/cloth3.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "绒布软吱（480→640 Hz 滑音 + 7 Hz 颤音，1.8 kHz 低通）"
+      ]
+    },
+    {
+      "file": "sfx-capture.wav",
+      "kind": "sfx",
+      "purpose": "击落（重木撞 + 低频冲击）",
+      "bytes": 20330,
+      "durationSec": 0.46,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -6.79,
+      "rmsDbfs": -20.0,
+      "approxLufs": -23.41,
+      "playbackGainDb": 1.5,
+      "effectiveLufs": -23.76,
+      "sha256": "7a176984e889faddb4957db7e076ffe016a0165434bc376b31cfe1fa1124296d",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Impact Sounds (1.0)",
+          "url": "https://kenney.nl/assets/impact-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "impact",
+          "sourceFile": "impactWood_heavy_001.ogg",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds (Audio/impactWood_heavy_001.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "58 Hz 冲击（ratio 1/1.58/2.6）+ 软限幅"
+      ]
+    },
+    {
+      "file": "sfx-card.wav",
+      "kind": "sfx",
+      "purpose": "题卡滑出 + 落卡",
+      "bytes": 15920,
+      "durationSec": 0.36,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -4.47,
+      "rmsDbfs": -23.0,
+      "approxLufs": -22.88,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -23.74,
+      "sha256": "2cefce777a2db161ecdc69234a3eb04b9ab6e00bb91be36f3d19a3c299d8fad6",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "card-slide-3.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/card-slide-3.ogg)"
+        },
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "card-place-2.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/card-place-2.ogg)"
+        }
+      ],
+      "selfMadeLayers": []
+    },
+    {
+      "file": "sfx-chime.wav",
+      "kind": "sfx",
+      "purpose": "收尾钟片 / 提示",
+      "bytes": 35324,
+      "durationSec": 0.8,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -10.48,
+      "rmsDbfs": -22.0,
+      "approxLufs": -21.26,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -22.12,
+      "sha256": "6eab9f2cc4a86806e8e05874d2929895946727eefd1e55b5426f164d455730ad",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Interface Sounds (1.0)",
+          "url": "https://kenney.nl/assets/interface-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "interface",
+          "sourceFile": "bong_001.ogg",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds (Audio/bong_001.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "880 Hz 加法钟：六条泛音 1/2/2.76/4.07/5.43/8.0，各自衰减 + 0.55 s 混响"
+      ]
+    },
+    {
+      "file": "sfx-dice-land.wav",
+      "kind": "sfx",
+      "purpose": "骰子落定（桌面撞击 + 低频 + 二次轻弹）",
+      "bytes": 17684,
+      "durationSec": 0.4,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -5.93,
+      "rmsDbfs": -20.5,
+      "approxLufs": -22.9,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -23.75,
+      "sha256": "75849efbf57d985f1923a1e56e3601b440cdcd2f6fc00d650e906c282a44fd88",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "die-throw-1.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/die-throw-1.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "74 Hz 衰减 boom（ratio 1/1.63/2.4）+ 520 Hz 桌面 tick ×2"
+      ]
+    },
+    {
+      "file": "sfx-dice-shake.wav",
+      "kind": "sfx",
+      "purpose": "掷骰滚动（3 变体由播放率/声像随机化产生）",
+      "bytes": 27386,
+      "durationSec": 0.62,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -1.5,
+      "rmsDbfs": -25.81,
+      "approxLufs": -24.69,
+      "playbackGainDb": 2.6,
+      "effectiveLufs": -23.95,
+      "sha256": "78f90d5de367f3b1344263a53a94e24099b3dad34bdfe4e8e5524fd32679616b",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "dice-shake-1.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/dice-shake-1.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "木杯/桌面模态共振（420/380/460/330 Hz 四击）+ 低频体感 + 短混响"
+      ]
+    },
+    {
+      "file": "sfx-fly.wav",
+      "kind": "sfx",
+      "purpose": "飞行（更长 whoosh + 纸张气流）",
+      "bytes": 24740,
+      "durationSec": 0.56,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -9.03,
+      "rmsDbfs": -22.0,
+      "approxLufs": -19.63,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -20.49,
+      "sha256": "30c7c5bb3f72089da705cc0b7b81d36ae96625bce3a93b695fcbbebf2bf25840",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "card-slide-6.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/card-slide-6.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "时变带通 whoosh（600→4200→1200 Hz）+ 220→620 Hz 体感"
+      ]
+    },
+    {
+      "file": "sfx-hop.wav",
+      "kind": "sfx",
+      "purpose": "走一格 / 轻放棋子",
+      "bytes": 7982,
+      "durationSec": 0.18,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -4.42,
+      "rmsDbfs": -24.0,
+      "approxLufs": -23.94,
+      "playbackGainDb": 2.0,
+      "effectiveLufs": -23.8,
+      "sha256": "f84d883fca8840513c4ae8ab5eb8cc89763a63935f3382ad608fb5eeaaecd5ca",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Impact Sounds (1.0)",
+          "url": "https://kenney.nl/assets/impact-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "impact",
+          "sourceFile": "impactWood_light_001.ogg",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds (Audio/impactWood_light_001.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "纸/绒布轻擦噪声（2.2 kHz 高通 + 30 ms）"
+      ]
+    },
+    {
+      "file": "sfx-stack.wav",
+      "kind": "sfx",
+      "purpose": "叠机 / 收拢",
+      "bytes": 14156,
+      "durationSec": 0.32,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -2.32,
+      "rmsDbfs": -23.5,
+      "approxLufs": -21.16,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -22.02,
+      "sha256": "1b508a04067fbe6e6784789f6e9038f4700e4fb026a5ba17f6349f0cafe09b18",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Casino Audio (1.1)",
+          "url": "https://kenney.nl/assets/casino-audio",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "casino",
+          "sourceFile": "chips-stack-1.ogg",
+          "sourceUrl": "https://kenney.nl/assets/casino-audio (Audio/chips-stack-1.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "700/880/620 Hz 纸片轻放三击"
+      ]
+    },
+    {
+      "file": "sfx-stamp.wav",
+      "kind": "sfx",
+      "purpose": "盖章 / 收尾确认",
+      "bytes": 12392,
+      "durationSec": 0.28,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -3.28,
+      "rmsDbfs": -20.5,
+      "approxLufs": -22.55,
+      "playbackGainDb": 1.5,
+      "effectiveLufs": -22.9,
+      "sha256": "edaeeb91c3d11196592b2766d05995c95f557a405bb6a03b30843033f444ae74",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Impact Sounds (1.0)",
+          "url": "https://kenney.nl/assets/impact-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "impact",
+          "sourceFile": "impactPlate_heavy_002.ogg",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds (Audio/impactPlate_heavy_002.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "纸拍瞬态（1.2 kHz 高通 + 6 ms 衰减）"
+      ]
+    },
+    {
+      "file": "sfx-takeoff.wav",
+      "kind": "sfx",
+      "purpose": "起飞（气流 whoosh + 软落地）",
+      "bytes": 22976,
+      "durationSec": 0.52,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -8.73,
+      "rmsDbfs": -22.0,
+      "approxLufs": -20.02,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -20.88,
+      "sha256": "d206bacbebd6043736e5c9ecadb1b4f432865c391bda9f9b386d8425b6645be9",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Impact Sounds (1.0)",
+          "url": "https://kenney.nl/assets/impact-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "impact",
+          "sourceFile": "impactSoft_medium_002.ogg",
+          "sourceUrl": "https://kenney.nl/assets/impact-sounds (Audio/impactSoft_medium_002.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "时变带通 whoosh（500→3400→1500 Hz）+ 170→430 Hz 气流体感"
+      ]
+    },
+    {
+      "file": "sfx-ui-select.wav",
+      "kind": "sfx",
+      "purpose": "UI 选择",
+      "bytes": 6658,
+      "durationSec": 0.15,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -8.78,
+      "rmsDbfs": -27.0,
+      "approxLufs": -26.83,
+      "playbackGainDb": 4.2,
+      "effectiveLufs": -24.49,
+      "sha256": "e38cb45c062e50a8ad70e84c533be30c76b1439314f3505499e667ba3a473b2c",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Interface Sounds (1.0)",
+          "url": "https://kenney.nl/assets/interface-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "interface",
+          "sourceFile": "select_002.ogg",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds (Audio/select_002.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "520 Hz 轻木尾（ratio 1/2.1/3.3）"
+      ]
+    },
+    {
+      "file": "sfx-ui-tap.wav",
+      "kind": "sfx",
+      "purpose": "UI 轻触",
+      "bytes": 5336,
+      "durationSec": 0.12,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -11.6,
+      "rmsDbfs": -27.0,
+      "approxLufs": -26.81,
+      "playbackGainDb": 4.2,
+      "effectiveLufs": -24.47,
+      "sha256": "e3647be554b39a4d7aa5ecf5ac1c3bf506300ffa8e59371beaeffb9e9f74c34c",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Interface Sounds (1.0)",
+          "url": "https://kenney.nl/assets/interface-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "interface",
+          "sourceFile": "click_004.ogg",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds (Audio/click_004.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "640 Hz 木尾（ratio 1/2.3/3.7）"
+      ]
+    },
+    {
+      "file": "sfx-win.wav",
+      "kind": "sfx",
+      "purpose": "胜利 / 收尾和弦",
+      "bytes": 57374,
+      "durationSec": 1.3,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "peakDbfs": -9.91,
+      "rmsDbfs": -20.5,
+      "approxLufs": -20.84,
+      "playbackGainDb": 1.0,
+      "effectiveLufs": -22.67,
+      "sha256": "770b33f314f12ce9e77125a2611ca54bb4c12290d400098f887088e749f326f7",
+      "license": "CC0 1.0 (Kenney layers) + self-made (numpy physical synthesis)",
+      "cc0Layers": [
+        {
+          "name": "Interface Sounds (1.0)",
+          "url": "https://kenney.nl/assets/interface-sounds",
+          "author": "Kenney Vleugels (Kenney.nl)",
+          "license": "CC0 1.0",
+          "packKey": "interface",
+          "sourceFile": "bong_001.ogg",
+          "sourceUrl": "https://kenney.nl/assets/interface-sounds (Audio/bong_001.ogg)"
+        }
+      ],
+      "selfMadeLayers": [
+        "D-F#-A-D-E 柔槌琶音（293.66/369.99/440/587.33/739.99 Hz）+ 146.83/220 Hz 铺底 + 0.7 s 混响"
+      ]
+    }
+  ]
+}

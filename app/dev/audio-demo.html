@@ -1,0 +1,432 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>V9 音频自测台 · couple-game</title>
+<style>
+  :root{
+    --ink:#07080D;--deep:#0C1722;--wood:#3A2519;--brass:#B08A57;--amber:#E0A45E;
+    --paper:#F1E4CE;--wine:#732A35;--moss:#4E6B62;--mist:#5F7A8C;
+    --line:rgba(176,138,87,.34);--dim:#9B948A;--ok:#7FC9A8;--bad:#E08A80;
+    --serif:"Noto Serif SC","Songti SC",STSong,serif;
+    --sans:"Noto Sans SC","Microsoft YaHei",-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:var(--sans)}
+  body{max-width:460px;margin:0 auto;padding:16px 14px 48px;
+    background:radial-gradient(120% 70% at 50% 0%,#13202b 0%,#0a1017 42%,#07080D 100%)}
+  h1{font-family:var(--serif);font-size:22px;letter-spacing:.08em;margin:4px 0 2px;color:var(--amber);font-weight:600}
+  h2{font-family:var(--serif);font-size:13px;letter-spacing:.14em;color:var(--brass);margin:22px 0 8px;
+    padding-bottom:6px;border-bottom:1px solid var(--line);font-weight:600}
+  .sub{font-size:11px;color:var(--dim);line-height:1.6}
+  .card{border:1px solid var(--line);border-radius:10px;background:rgba(12,23,34,.72);
+    box-shadow:inset 0 1px 0 rgba(241,228,206,.05);padding:10px 11px;margin-top:8px}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .row+.row{margin-top:8px}
+  button{font-family:inherit;font-size:12px;color:var(--paper);background:linear-gradient(180deg,#24313c,#18222b);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:36px;cursor:pointer}
+  button:active{transform:translateY(1px)}
+  button.brass{background:linear-gradient(180deg,#8a6a42,#5d452a);border-color:#c9a26b;color:#f7e9d2}
+  button.warn{background:linear-gradient(180deg,#4a2a30,#301a1f);border-color:#8f4a56}
+  button:disabled{opacity:.45}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:11.5px;line-height:1.55}
+  .kv b{font-weight:500;color:var(--dim);white-space:nowrap}
+  .kv span{color:var(--paper);font-variant-numeric:tabular-nums;word-break:break-all}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .dim{color:var(--dim)}
+  .tokenrow{display:grid;grid-template-columns:auto 1fr auto;gap:6px 9px;align-items:center;
+    padding:7px 0;border-bottom:1px dashed rgba(176,138,87,.18);font-size:11.5px}
+  .tokenrow:last-child{border-bottom:0}
+  .tokenrow .name{font-family:ui-monospace,Consolas,monospace;color:var(--amber);letter-spacing:.02em}
+  .tokenrow .meta{color:var(--dim);font-size:10.5px;font-variant-numeric:tabular-nums}
+  .tokenrow button{min-height:30px;padding:4px 9px;font-size:11px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips button{min-height:30px;padding:4px 9px;font-size:11px}
+  canvas{width:100%;height:64px;display:block;background:#080d13;border:1px solid rgba(176,138,87,.18);border-radius:6px}
+  table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}
+  th,td{text-align:left;padding:5px 4px;border-bottom:1px solid rgba(176,138,87,.16);vertical-align:top;word-break:break-word}
+  th{color:var(--brass);font-weight:500}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--amber)}
+  input[type=range]{width:100%;accent-color:#B08A57}
+  .meter{height:5px;border-radius:3px;background:#101a23;overflow:hidden;margin-top:5px}
+  .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4E6B62,#B08A57,#E0A45E)}
+  .note{font-size:10.5px;color:var(--dim);line-height:1.65;margin-top:6px}
+  .tag{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:9.5px;color:var(--brass);margin-right:4px}
+</style>
+</head>
+<body>
+<h1>V9 音频自测台</h1>
+<div class="sub">采样拟音 14 件 + 环境循环 2 条 · 22.05 kHz / mono / PCM16 · 总线：sfx / ambience / music → master → compressor → limiter</div>
+
+<div class="card">
+  <div class="row">
+    <button class="brass" data-test="unlock">① 解锁音频并加载采样</button>
+    <button data-test="play-all">② 全部顺序播放</button>
+  </div>
+  <div class="row" style="margin-top:9px">
+    <div class="kv" style="flex:1;min-width:0">
+      <b>AudioContext</b><span data-test="ctx-state">none</span>
+      <b>采样 base</b><span data-test="audio-base" style="word-break:break-all">-</span>
+      <b>已解码</b><span data-test="state-loaded">0 / 16</span>
+      <b>加载失败</b><span data-test="state-failed">-</span>
+    </div>
+  </div>
+  <div class="meter"><i data-test="load-meter"></i></div>
+  <div class="note" data-test="unlock-note">首次手势前 WebAudio 处于 suspended（浏览器策略）；点①后应变为 running 并开始后台解码。</div>
+</div>
+
+<h2>总线 / 音量</h2>
+<div class="card">
+  <div class="kv">
+    <b>master</b><span data-test="vol-master">0.85</span>
+    <b>sfx</b><span data-test="vol-sfx">0.95</span>
+    <b>ambience</b><span data-test="vol-ambience">0.200</span>
+    <b>music</b><span data-test="vol-music">0.85</span>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <input type="range" min="0" max="1.4" step="0.01" value="0.95" data-vol="sfx" aria-label="sfx 音量">
+  </div>
+  <div class="row">
+    <input type="range" min="0" max="0.8" step="0.005" value="0.2" data-vol="ambience" aria-label="ambience 音量">
+  </div>
+  <div class="row">
+    <input type="range" min="0" max="1.4" step="0.01" value="0.85" data-vol="music" aria-label="music 音量">
+  </div>
+  <div class="row">
+    <button data-test="sound-off">声音开关：关</button>
+    <button data-test="sound-on">声音开关：开</button>
+    <button data-test="vol-reset">恢复默认</button>
+    <span class="dim" data-test="sound-state">enabled</span>
+  </div>
+  <div class="note">关声音 = master 拉 0 并停环境源（保留“想开环境”意图）；减少动画不影响音频开关。</div>
+</div>
+
+<h2>环境（无缝循环 / 场景变体）</h2>
+<div class="card">
+  <div class="row">
+    <button class="brass" data-test="amb-start">开始环境</button>
+    <button data-test="amb-stop">停止环境</button>
+    <button data-test="scene-calm">calm</button>
+    <button data-test="scene-win">win</button>
+    <button data-test="scene-ending">ending</button>
+  </div>
+  <div class="kv" style="margin-top:8px">
+    <b>状态</b><span data-test="amb-state">stopped</span>
+    <b>场景</b><span data-test="amb-scene">calm</span>
+    <b>来源</b><span data-test="amb-source">-</span>
+  </div>
+  <div class="note">calm = 机舱 55/110/165/220/275/330/440 Hz 嗡鸣 + 空调嘶声 + 舷窗外远雨 + 极轻 Dm add9 pad；
+    win = D 大调 add9 + 玻璃泛音 + 两下柔铃；ending = win 循环降速/低通变体。接缝为整数周期构造，逐样本可证。</div>
+</div>
+
+<h2>单件试听（14 件）</h2>
+<div class="card" data-test="token-list"></div>
+
+<h2>波形 / 峰值（OfflineAudioContext 走真实总线）</h2>
+<div class="card">
+  <div class="row">
+    <button data-test="render-selected">渲染选中 token</button>
+    <button data-test="stress">14 音齐发（限幅压力）</button>
+  </div>
+  <canvas data-test="wave" width="800" height="128"></canvas>
+  <div class="kv" style="margin-top:8px">
+    <b>渲染结果</b><span data-test="render-result">-</span>
+    <b>压力测试</b><span data-test="stress-result">-</span>
+  </div>
+  <div class="note">离线渲染使用与实机相同的 master → compressor(threshold -14/ratio 8) → 4× 过采样软限幅链；
+    峰值 &lt; 1.0 即不削波。压力测试把全部 token 在同一时刻叠放。</div>
+</div>
+
+<h2>旧 token 兼容（共 27 个 token：旧 26 + bear）</h2>
+<div class="card">
+  <div class="chips" data-test="legacy-tokens"></div>
+  <div class="note">旧代码全部只调 <code>App.Audio.play(name)</code>；旧 26 个 token 与新增 bear 都映射到采样层（音高/音量/滤波随机化）。</div>
+</div>
+
+<h2>路由联动（主桌启动 / 离开停止）</h2>
+<div class="card">
+  <div class="row">
+    <button data-test="route-table">App.Bus.emit route=table</button>
+    <button data-test="route-ledger">App.Bus.emit route=ledger</button>
+  </div>
+  <div class="kv" style="margin-top:8px">
+    <b>结果</b><span data-test="route-result">-</span>
+  </div>
+  <div class="note">audio.js 订阅 App.Bus 的 route 事件：进入主桌自动 startAmbience()，离开主桌 stopAmbience() 并把场景复位 calm；
+    不需要改 table.js（写作用域约束）。win/ending token 播放时自动切场景。</div>
+</div>
+
+<h2>页面隐藏暂停</h2>
+<div class="card">
+  <div class="row">
+    <button data-test="vis-hide">模拟页面隐藏</button>
+    <button data-test="vis-show">模拟页面恢复</button>
+  </div>
+  <div class="kv" style="margin-top:8px">
+    <b>结果</b><span data-test="vis-result">-</span>
+  </div>
+  <div class="note">隐藏 → AudioContext.suspend()（环境/音效全停）；恢复 → 仅当声音开关为开时 resume，环境按意图续播。</div>
+</div>
+
+<h2>素材清单 / 许可（体积预算：SFX ≤300KB、ambient ≤600KB）</h2>
+<div class="card">
+  <div class="kv">
+    <b>SFX 合计</b><span data-test="size-sfx">287706 B / 300 KB</span>
+    <b>环境合计</b><span data-test="size-amb">551338 B / 600 KB</span>
+    <b>许可</b><span>Kenney CC0 1.0 + 自制（numpy 物理合成）</span>
+  </div>
+</div>
+<table data-test="manifest">
+  <thead><tr><th style="width:27%">文件</th><th style="width:12%">字节</th><th style="width:8%">秒</th><th>构成 / 许可</th></tr></thead>
+  <tbody>
+    <tr><td><code>sfx-dice-shake.wav</code></td><td class="num">27386</td><td class="num">0.62</td><td>Kenney Casino Audio <code>dice-shake-1.ogg</code> + 自制木杯共振/桌面低频（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-dice-land.wav</code></td><td class="num">17684</td><td class="num">0.40</td><td>Kenney Casino Audio <code>die-throw-1.ogg</code> + 自制 74Hz 桌面 boom/回弹（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-hop.wav</code></td><td class="num">7982</td><td class="num">0.18</td><td>Kenney Impact Sounds <code>impactWood_light_001.ogg</code> + 自制纸/绒布轻放（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-takeoff.wav</code></td><td class="num">22976</td><td class="num">0.52</td><td>自制气流 whoosh（时变带通）+ Kenney <code>impactSoft_medium_002.ogg</code>（自制 + CC0）</td></tr>
+    <tr><td><code>sfx-fly.wav</code></td><td class="num">24740</td><td class="num">0.56</td><td>自制长 whoosh + Kenney Casino <code>card-slide-6.ogg</code> 空气层（自制 + CC0）</td></tr>
+    <tr><td><code>sfx-capture.wav</code></td><td class="num">20330</td><td class="num">0.46</td><td>Kenney Impact <code>impactWood_heavy_001.ogg</code> + 自制 58Hz 冲击（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-stack.wav</code></td><td class="num">14156</td><td class="num">0.32</td><td>Kenney Casino <code>chips-stack-1.ogg</code> + 自制纸片双轻放（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-bear.wav</code></td><td class="num">19448</td><td class="num">0.44</td><td>Kenney RPG Audio <code>cloth3.ogg</code> + 自制绒布软吱（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-card.wav</code></td><td class="num">15920</td><td class="num">0.36</td><td>Kenney Casino <code>card-slide-3.ogg</code> + <code>card-place-2.ogg</code>（CC0）</td></tr>
+    <tr><td><code>sfx-stamp.wav</code></td><td class="num">12392</td><td class="num">0.28</td><td>Kenney Impact <code>impactPlate_heavy_002.ogg</code> + 自制纸拍（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-chime.wav</code></td><td class="num">35324</td><td class="num">0.80</td><td>自制加法钟（880Hz 泛音列）+ Kenney Interface <code>bong_001.ogg</code>（自制 + CC0）</td></tr>
+    <tr><td><code>sfx-win.wav</code></td><td class="num">57374</td><td class="num">1.30</td><td>自制暖和弦（D-F#-A-D-E 柔槌 + 低频铺底）+ Kenney <code>bong_001.ogg</code>（自制 + CC0）</td></tr>
+    <tr><td><code>sfx-ui-tap.wav</code></td><td class="num">5336</td><td class="num">0.12</td><td>Kenney Interface <code>click_004.ogg</code> + 自制木尾（CC0 + 自制）</td></tr>
+    <tr><td><code>sfx-ui-select.wav</code></td><td class="num">6658</td><td class="num">0.15</td><td>Kenney Interface <code>select_002.ogg</code> + 自制轻木（CC0 + 自制）</td></tr>
+    <tr><td><code>amb-calm.wav</code></td><td class="num">352844</td><td class="num">8.00</td><td>100% 自制：整数周期嗡鸣/气流/远雨/细雨点/Dm add9 pad；8s 无缝循环</td></tr>
+    <tr><td><code>amb-win.wav</code></td><td class="num">198494</td><td class="num">4.50</td><td>100% 自制：D 大调 add9 pad + 玻璃泛音 + 柔铃；4.5s 无缝循环</td></tr>
+  </tbody>
+</table>
+<div class="note">
+  <span class="tag">CC0</span>Kenney.nl：Casino Audio / Impact Sounds / Interface Sounds / RPG Audio（License.txt 随包，CC0 1.0）；
+  <span class="tag">自制</span>numpy 物理拟音/加法合成（本仓库 tools 之外的一次性生成脚本，见 MANIFEST.json 的 generatedBy）。
+  生成报告：峰值 / RMS / 近似 LUFS / sha256 / 循环无缝证明在 <code>app/assets/audio/MANIFEST.json</code>。
+</div>
+
+<h2>API（保持 play，新增环境/场景）</h2>
+<div class="card">
+  <div class="note" style="font-family:ui-monospace,Consolas,monospace;line-height:1.9">
+    App.Audio.play(name) · unlock() · setEnabled(on) · enabled()<br>
+    startAmbience({scene}) · stopAmbience(ms) · setScene('calm'|'win'|'ending') · scene()<br>
+    setVolumes({master,sfx,ambience,music}) · setBase(path) · preload() · state() / debug()<br>
+    render(tokens, seconds, wantPeaks) → {peak, peakDbfs, rmsDbfs, clipped, peaks}（QA 用）<br>
+    on('load'|'error'|'state'|'ambience', fn) · off(event, fn)
+  </div>
+</div>
+
+<script src="../src/core/bus.js"></script>
+<script src="../src/core/audio.js"></script>
+<script>
+(function () {
+  var A = window.App.Audio;
+  var TOKENS = [
+    ["diceShake", "sfx-dice-shake.wav"], ["diceLand", "sfx-dice-land.wav"],
+    ["hop", "sfx-hop.wav"], ["takeoff", "sfx-takeoff.wav"], ["fly", "sfx-fly.wav"],
+    ["capture", "sfx-capture.wav"], ["stack", "sfx-stack.wav"], ["bear", "sfx-bear.wav"],
+    ["cardIn", "sfx-card.wav"], ["stamp", "sfx-stamp.wav"], ["chime", "sfx-chime.wav"],
+    ["win", "sfx-win.wav"], ["tap", "sfx-ui-tap.wav"], ["select", "sfx-ui-select.wav"]
+  ];
+  var LEGACY = ["tap", "select", "flip", "tick", "chime", "coin", "soft", "warn", "error",
+                "reveal", "combo", "act", "ending", "heatUp", "milestone", "cardIn", "stamp", "win", "safe"];
+  var META = {
+    diceShake: "0.62s -24.7 LUFS", diceLand: "0.40s -22.9", hop: "0.18s -23.9",
+    takeoff: "0.52s -20.0", fly: "0.56s -19.6", capture: "0.46s -23.4",
+    stack: "0.32s -21.2", bear: "0.44s -24.6", cardIn: "0.36s -22.9",
+    stamp: "0.28s -22.6", chime: "0.80s -21.3", win: "1.30s -20.8",
+    tap: "0.12s -26.8", select: "0.15s -26.8"
+  };
+  function q(s, r) { return (r || document).querySelector(s); }
+  function qa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function text(s, v) { var e = q(s); if (e) e.textContent = v; }
+  function status(s, v, cls) { var e = q(s); if (!e) return; e.textContent = v; e.className = cls || ""; }
+
+  // 单件列表
+  var list = q("[data-test=token-list]");
+  TOKENS.forEach(function (t) {
+    var row = document.createElement("div");
+    row.className = "tokenrow";
+    row.innerHTML = '<button data-test="token-play-' + t[0] + '">播</button>' +
+      '<div><span class="name">' + t[0] + '</span><div class="meta">' + t[1] + " · " + META[t[0]] + '</div></div>' +
+      '<button data-test="token-wave-' + t[0] + '">波形</button>';
+    list.appendChild(row);
+  });
+  // 旧 token chips
+  var chips = q("[data-test=legacy-tokens]");
+  LEGACY.forEach(function (n) {
+    var b = document.createElement("button");
+    b.textContent = n;
+    b.setAttribute("data-test", "legacy-" + n);
+    b.onclick = function () { A.unlock(); A.play(n); };
+    chips.appendChild(b);
+  });
+
+  function updateState() {
+    var st = A.state();
+    text("[data-test=ctx-state]", st.ctxState);
+    text("[data-test=audio-base]", st.base);
+    var total = 16;
+    text("[data-test=state-loaded]", st.loaded.length + " / " + total);
+    text("[data-test=state-failed]", st.failed.length ? st.failed.join(",") : "无");
+    var m = q("[data-test=load-meter]");
+    if (m) m.style.width = Math.round(st.loaded.length / total * 100) + "%";
+    text("[data-test=sound-state]", st.enabled ? "enabled" : "disabled");
+    text("[data-test=vol-master]", st.volumes.master.toFixed(2));
+    text("[data-test=vol-sfx]", st.volumes.sfx.toFixed(2));
+    text("[data-test=vol-ambience]", st.volumes.ambience.toFixed(3));
+    text("[data-test=vol-music]", st.volumes.music.toFixed(2));
+    var amb = st.ambience;
+    text("[data-test=amb-state]", amb.playing ? "playing" : (amb.wanted ? "wanted" : "stopped"));
+    text("[data-test=amb-scene]", amb.scene);
+    text("[data-test=amb-source]", amb.playing ? (amb.synthesized ? "synth-fallback" : "wav-loop") : "-");
+  }
+
+  function unlock() {
+    A.unlock();
+    A.preload().then(function () { updateState(); }).catch(function () { updateState(); });
+    setTimeout(updateState, 120);
+    setTimeout(updateState, 900);
+    setTimeout(updateState, 2200);
+  }
+  q("[data-test=unlock]").onclick = unlock;
+
+  // 音量
+  qa("[data-vol]").forEach(function (r) {
+    r.oninput = function () {
+      var v = {};
+      v[r.getAttribute("data-vol")] = parseFloat(r.value);
+      A.setVolumes(v); updateState();
+    };
+  });
+  q("[data-test=vol-reset]").onclick = function () {
+    A.setVolumes({ master: 0.85, sfx: 0.95, ambience: 0.2, music: 0.85 });
+    qa("[data-vol]").forEach(function (r) {
+      var k = r.getAttribute("data-vol");
+      r.value = { sfx: 0.95, ambience: 0.2, music: 0.85 }[k];
+    });
+    updateState();
+  };
+  q("[data-test=sound-off]").onclick = function () { A.setEnabled(false); updateState(); };
+  q("[data-test=sound-on]").onclick = function () { A.setEnabled(true); updateState(); };
+
+  // 环境
+  q("[data-test=amb-start]").onclick = function () { A.unlock(); A.startAmbience(); setTimeout(updateState, 300); setTimeout(updateState, 2600); };
+  q("[data-test=amb-stop]").onclick = function () { A.stopAmbience(400); setTimeout(updateState, 500); };
+  ["calm", "win", "ending"].forEach(function (s) {
+    q("[data-test=scene-" + s + "]").onclick = function () { A.setScene(s); setTimeout(updateState, 500); };
+  });
+
+  // 单件播放
+  TOKENS.forEach(function (t) {
+    q("[data-test=token-play-" + t[0] + "]").onclick = function () { A.unlock(); A.play(t[0]); };
+    q("[data-test=token-wave-" + t[0] + "]").onclick = function () { drawToken(t[0]); };
+  });
+
+  // 顺序播放
+  q("[data-test=play-all]").onclick = function () {
+    A.unlock();
+    var i = 0;
+    (function next() {
+      if (i >= TOKENS.length) return;
+      var name = TOKENS[i++][0];
+      A.play(name);
+      setTimeout(next, 520);
+    })();
+  };
+
+  // 波形
+  var waveCtx = null;
+  function drawPeaks(peaks, label) {
+    var cv = q("[data-test=wave]");
+    var c2 = cv.getContext("2d");
+    c2.clearRect(0, 0, cv.width, cv.height);
+    c2.fillStyle = "#080d13"; c2.fillRect(0, 0, cv.width, cv.height);
+    c2.strokeStyle = "rgba(176,138,87,.25)"; c2.beginPath();
+    c2.moveTo(0, cv.height / 2); c2.lineTo(cv.width, cv.height / 2); c2.stroke();
+    var n = peaks.length, w = cv.width / n;
+    c2.fillStyle = "#E0A45E";
+    for (var i = 0; i < n; i++) {
+      var h = Math.max(1, peaks[i] * (cv.height * 0.9));
+      c2.fillRect(i * w, (cv.height - h) / 2, Math.max(1, w - 0.4), h);
+    }
+    c2.fillStyle = "#9B948A"; c2.font = "12px Consolas, monospace";
+    c2.fillText(label, 8, 16);
+  }
+  function drawToken(name) {
+    A.unlock();
+    A.preload().then(function () {
+      return A.render([name], 1.6, true);
+    }).then(function (r) {
+      drawPeaks(r.peaks, name + "  peak " + r.peakDbfs.toFixed(1) + " dBFS");
+      status("[data-test=render-result]", name + " · peak " + r.peakDbfs.toFixed(2) + " dBFS · rms " +
+        r.rmsDbfs.toFixed(2) + " dBFS · " + (r.clipped ? "CLIPPED" : "no-clip"), r.clipped ? "bad" : "ok");
+    }).catch(function (e) { status("[data-test=render-result]", "渲染失败：" + e.message, "bad"); });
+  }
+  q("[data-test=render-selected]").onclick = function () { drawToken("diceShake"); };
+
+  // 压力测试
+  q("[data-test=stress]").onclick = function () {
+    A.unlock();
+    A.preload().then(function () { return A.render(A.tokens, 2.5, false); }).then(function (r) {
+      status("[data-test=stress-result]", A.tokens.length + " tokens 叠放 · peak " + r.peakDbfs.toFixed(2) +
+        " dBFS · rms " + r.rmsDbfs.toFixed(2) + " dBFS · " + (r.clipped ? "CLIPPED" : "PASS（<1.0 不削波）"),
+        r.clipped ? "bad" : "ok");
+    }).catch(function (e) { status("[data-test=stress-result]", "失败：" + e.message, "bad"); });
+  };
+
+  // 路由联动：进入主桌自动开环境，离开停止并复位场景
+  q("[data-test=route-table]").onclick = function () {
+    A.unlock();
+    if (App.Bus) App.Bus.emit("route", { name: "table" });
+    setTimeout(function () {
+      var st = A.state();
+      status("[data-test=route-result]", "route=table → ambience=" +
+        (st.ambience.playing ? "playing" : (st.ambience.wanted ? "wanted" : "stopped")),
+        st.ambience.wanted ? "ok" : "bad");
+      updateState();
+    }, 2800);
+  };
+  q("[data-test=route-ledger]").onclick = function () {
+    if (App.Bus) App.Bus.emit("route", { name: "ledger" });
+    setTimeout(function () {
+      var st = A.state();
+      var off = !st.ambience.playing && !st.ambience.wanted && st.ambience.scene === "calm";
+      status("[data-test=route-result]", "route=ledger → ambience=" +
+        (st.ambience.playing ? "playing" : "stopped") + " · scene=" + st.ambience.scene, off ? "ok" : "bad");
+      updateState();
+    }, 1400);
+  };
+
+  // 页面隐藏模拟（复刻 visibilitychange 路径）
+  function fakeHidden(hidden) {
+    try {
+      Object.defineProperty(document, "hidden", { configurable: true, get: function () { return hidden; } });
+    } catch (e) {}
+    document.dispatchEvent(new Event("visibilitychange"));
+    setTimeout(function () {
+      var st = A.state();
+      status("[data-test=vis-result]", (hidden ? "隐藏后" : "恢复后") + " ctx=" + st.ctxState +
+        " · ambience=" + (st.ambience.playing ? "playing" : "stopped"),
+        st.ctxState === (hidden ? "suspended" : "running") ? "ok" : "dim");
+    }, 400);
+  }
+  q("[data-test=vis-hide]").onclick = function () { fakeHidden(true); };
+  q("[data-test=vis-show]").onclick = function () { fakeHidden(false); };
+
+  // 事件日志
+  A.on("error", function (e) {
+    var el = q("[data-test=unlock-note]");
+    if (el) el.textContent = "采样加载失败（将用合成回退）：" + e.file + " · " + e.error;
+  });
+  A.on("load", updateState);
+  A.on("ambience", updateState);
+  A.on("state", updateState);
+  A.on("error", updateState);
+
+  updateState();
+  setTimeout(updateState, 600);
+})();
+</script>
+</body>
+</html>
