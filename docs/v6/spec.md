@@ -1,10 +1,10 @@
-# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 / V7 / V8 变更）
+# 今晚飞行棋 V6 · 需求规格（spec，含 V6.1 / V6.2 / V7 / V8 / V9 / V9.1 变更）
 
 - 作者：PA（产品分析）
-- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**；**V7 同步：2026-11-18**；**V8 同步：2026-11-19**
-- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**；**V7「云海机舱 · 45° 格子剧场」已实现**（镜头链 / 45° 格子舞台 / 三主题 / 小熊，规则不变），增量与 AC 见 **§0.2**；**V8「真 3D 主桌」已发布**（3D 默认 auto / 固定飞机飞行 / 3D 格子+小熊 / V7 降级，规则不变），增量与 AC 见 **§0.3**。§10 的旧拍板记录保留作历史，与 §0 / §0.1 / §0.2 / §0.3 冲突处一律以对应小节与冻结单为准。
-- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）、`task-32`（V7 文档同步）、`task-42`（V8 文档同步）；上游：`docs/v6/audit.md`、`docs/v7/impl-freeze.md`、`docs/v8/impl-freeze.md`；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
-- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`；V7 的镜头 / 舞台 / 主题用 `AC-V7-<n>`；V8 的真 3D 主桌用 `AC-V8-<n>`。
+- 日期：2026-11-16（V6.0 草案）；**V6.1 同步：2026-11-17**；**V6.2 同步：2026-11-18**；**V7 同步：2026-11-18**；**V8 同步：2026-11-19**；**V9 同步：2026-11-19**；**V9.1 同步：2026-11-19**
+- 状态：**V6.0.0 已上线**；**V6.1 规则调整已由用户拍板**（结束=一方全部飞机到家；6 起飞 + 两回合保底），增量见 **§0**；**V6.2 沉浸主桌已实现**（机舱场景 + 全动态镜头，规则不变），增量见 **§0.1**；**V7「云海机舱 · 45° 格子剧场」已实现**（镜头链 / 45° 格子舞台 / 三主题 / 小熊，规则不变），增量与 AC 见 **§0.2**；**V8「真 3D 主桌」已发布**（3D 默认 auto / 固定飞机飞行 / 3D 格子+小熊 / V7 降级，规则不变），增量与 AC 见 **§0.3**；**V9「午夜机舱 · 电影写实」已发布（9.0.1）**（PBR 电影写实 / 采样音频 + 环境循环 / 3D 缩放，规则不变），增量与 AC 见 **§0.4**；**V9.1「桌面小物 + 纯音乐」已实现（9.1.1）**（14 类小物 / 7 项氛围动画 / 13.52s 无缝纯音乐 / 暂停按钮 44px，规则不变），增量与 AC 见 **§0.5**。§10 的旧拍板记录保留作历史，与 §0–§0.5 冲突处一律以对应小节与冻结单为准。
+- 关联任务：`task-1`（V6.0）、`task-20`（V6.1 文档同步）、`task-26`（V6.2 文档同步）、`task-32`（V7 文档同步）、`task-42`（V8 文档同步）、`task-48`（V9 文档同步）、`task-53`（V9.1 文档同步）；上游：`docs/v6/audit.md`、`docs/v7/impl-freeze.md`、`docs/v8/impl-freeze.md`、`docs/v9/impl-freeze.md`、`app/assets/audio/{README,LICENSES,INTEGRATION}.md`；下游：AR 架构、FE 视觉 spike、BE 引擎、QA 验收、DOC 发布说明
+- 需求编号规则：`模块-序号`（A 开局 / B 主桌 / C 题卡 / D 小游戏 / E 玩法 / F 收尾回顾 / G 安全设置存档 / H 体验基线）。验收标准编号 `AC-<需求号>-<n>`；V6.2 的沉浸主桌用 `AC-V62-<n>`；V7 的镜头 / 舞台 / 主题用 `AC-V7-<n>`；V8 的真 3D 主桌用 `AC-V8-<n>`；V9 的电影写实 / 音频 / 缩放用 `AC-V9-<n>`；V9.1 的小物 / 纯音乐 / 暂停 / 构建用 `AC-V91-<n>`。
 - **红线**：不修改 `app/src/data/cards.js` 题库原文；不新增露骨文案；不引入账号/云同步；不破坏现有存档与安全词；边界永远优先于尺度。
 
 ---
@@ -168,6 +168,129 @@
 - 不在发布文档写真机 iOS / Android 的 3D fps / 发热结论；无头 SwiftShader 帧率只作几何 / JS 参考。
 - 不做横屏 / 平板布局；320–430 竖屏仍是验收范围。
 - 不换线上域名 / 发布方式 / `couple2.*` 存档键名；不引入新的数据上报。
+
+---
+
+## 0.4 V9 变更（2026-11-19，午夜机舱 · 电影写实）
+
+> 背景：用户对 V8 的「功能完整但像原型」不满意，拍板 **视觉方向 C = 电影写实**、**音效要真实拟音 + 环境音乐都要**、素材 **自制采样 + CC0**、镜头 **双指 + 按钮缩放**、范围 **直接 P1 全量视觉重做**。
+> 唯一协调口径：`docs/v9/impl-freeze.md`。V9 是**表现层重做**：规则、数值、题库、存档结构、边界与安全词与 V8 完全一致；3D 默认 `auto`、V8 功能与 V7 降级全部保留。实现细节见 `app/DESIGN.md` §20；音频素材文档见 `app/assets/audio/{README,LICENSES,INTEGRATION}.md`。
+
+### 0.4.1 范围与不变量
+
+1. **视觉方向**：3D 主桌换成「午夜机舱 · 电影写实」——PBR 胡桃木 / 黄铜 / 绒布 / 象牙纸 / 珐琅 / 玻璃；`ACESFilmicToneMapping` + `SRGBColorSpace`；暖阅读灯 key + 舷窗冷 rim + 低 fill + 程序化 PMREM 环境；机舱舷窗 / 遮光板 / 阅读灯 / 桌板 / 绒布垫 / 茶杯 / 灰尘 / 暗角颗粒；**无外链 HDR / 贴图 / 字体**。
+2. **棋盘 / 棋子**：52 环格 + 4 机坪 + 20 航线 + 中心终点拓扑不变；格块加厚（0.085）+ 倒角（10%），格面改**雕刻图标**（环格不再印大号中文，语义看 HUD 图例 / 舞台标签）；中心立体黄铜星徽；纸飞机纸材质 + 折痕 + 黄铜配重；小熊绒布 / 毛毡质感，三主题换装。
+3. **UI**：墨黑 / 深海蓝 / 黄铜 / 暖纸令牌；标题衬线、正文无衬线；门厅 / 主桌 / 设置 / 回顾 / 题卡统一；去掉粉彩 / 厚渐变 / emoji，图标改线性 / 内联 SVG；`data-test` 与流程 / 文案 / 安全词不变。
+4. **音频素材**：14 件采样 SFX + 2 条无缝环境循环，共 16 个 WAV、**819.4 KB**、22.05 kHz / mono / 16-bit PCM；SFX 预算 300 KB（实测 93.7%）、环境预算 600 KB（89.7%）；最大峰值 ≤ -1.5 dBFS；玩法 SFX 有效响度约 -24.3～-20.5 LUFS、环境约 -33～-34 LUFS；许可 = Kenney 四包 CC0 1.0 + 自制 numpy 合成。
+5. **音频引擎**：voice → sfx / ambience / music 三子总线 → master → compressor → 软限幅 → destination；程序化 IR 混响、`StereoPanner`、随机音高 / 音量 / 声像；保留 `App.Audio.play(name)`（27 token），新增 `startAmbience / stopAmbience / setScene / setVolumes / preload / render`；主桌起环境、离开停；win / ending 换场景；缺资源走合成回退。
+6. **首次手势 / 开关 / 隐藏**：首次 `pointerdown / touchstart / keydown` 才创建 / 恢复 AudioContext 并后台解码；音频**不进首屏**、首屏无 wav preload / prefetch；声音开关走 master 静音并停环境，重开恢复；页面隐藏 `suspend()`、回前台仅当开关为开才 resume。
+7. **缩放范围**：3D overview / idle 支持 **0.8×–1.5×**（相机距离倍率 0.7–1.4）；双指捏合、滚轮、右下 +/−/1×、双击 / 双触复位；按钮一档 1.13×；阻尼约 110ms；1× 等于 V8 基准取景。
+8. **缩放锁定 / 恢复**：roll / focus / fly / land / cell45 / bear 镜头链、题卡打开、加载中 `canZoom()` 为 false；镜头链期间视觉先回 1×、`target` 保留；回 idle 恢复用户缩放；换局 / 重新 mount 重置 1×；缩放不写存档；V7 主桌没有缩放。
+9. **缩放不挡 UI**：缩放层只覆盖棋盘区，`touch-action:none`，不遮挡 HUD / 题卡 / 安全词；按钮 44px 命中区；缩小后按 host 宽度重新取景，320–430 不裁切。
+10. **320–430**：320×568 / 360×640 / 390×844 / 430×932 无横向溢出；3D canvas 跟随宿主尺寸；HUD / 掷骰 / 缩放按钮 / 安全词可点；题卡只出右侧卡时不溢出。
+11. **V8 功能回归**：3D 挂载 / 镜头链 / 固定飞机 / 45° + 小熊 / 五条降级 / reduced / 三主题 / SW 离线全部保留；V8 的 `settings.board3d`（`auto|off|on`）语义不变；V8 规则与 V7 降级不退化。
+12. **构建 / 预算**：index gzip ≤140 KB、首屏总 gzip ≤180 KB；3D chunk 构建门目标 ≤180 KB（冻结单 §4 上限 200 KB；**V9.1 起改为 `--budget-3d 200` 验收，见 §0.5**）；音频 16 个 wav 进 SW PRECACHE；`--check` 发布门 **48 项**（V9.1 扩到 **49 项**）；首屏不内联 audio.js、不 preload 3D / wav。
+13. **首载体验**：V9.0.1 起门厅启动 900ms 后后台预取 3D chunk（只下载不执行）；首装仍需下载 chunk + 819.4 KB 音频，真机 / 弱网数字待复测；SW 接管后走缓存。
+14. **版本**：`App.version = "9.0.1"`；`app/index.template.html` title / og 与 `manifest.webmanifest` name 为 V9.0.1；3D 模块自报 `v9-cinematic-1`（不随补丁号变化）。
+
+### 0.4.2 验收标准（V9）
+
+| ID | 优先级 | 需求 | 可执行验收标准 |
+|---|---|---|---|
+| V9-1 | P0 | 电影写实材质 | AC-V9-1 3D 主桌使用 `MeshStandardMaterial` PBR；材质参数与 DESIGN §20.1 表一致（胡桃木 0.55/0.05、黄铜 0.85/0.32、绒布 0.95、纸 0.80、珐琅 0.42、玻璃 0.12）；全部程序化贴图、无外链 HDR / 图片；overview / fly / cell45 / bear 在 390 / 320 / 430 截图与 V8 对比可见材质 / 光照 / 字体 / UI 升级；0 布局溢出 |
+| V9-2 | P0 | 光照 / 色调 / 画质档 | AC-V9-2 `outputColorSpace = sRGB`、`toneMapping = ACESFilmic`，曝光 1.16–1.28（按主题）；暖 key + 冷 rim + 低 fill + 阅读灯点光 + `PCFSoftShadowMap`；`PMREMGenerator` 程序化环境（无外链）；high / medium / low 三档（DPR 2/1.5/1.0、阴影 2048/1024/0、灰尘 110/64/28、颗粒 / 发光 / 环境按档）；移动端默认 medium；reduced 只画静态帧；无重后处理链 |
+| V9-3 | P0 | 机舱 / 棋盘 / 棋子 / 小熊 | AC-V9-3 3D 场景含舱壁、圆角舷窗（程序化景观）、遮光板、阅读灯、小桌板、绒布垫、茶杯、灰尘、暗角颗粒；52 + 16 + 20 + 4 拓扑不变；格块有厚度 + 倒角，环格只有雕刻图标（无大号中文）；中心立体黄铜星徽；纸飞机纸材质 + 黄铜配重；小熊绒布 / 毛毡材质且三主题换装 |
+| V9-4 | P0 | UI 令牌 / 字体统一 | AC-V9-4 门厅 / 主桌 / 设置 / 回顾 / 题卡使用 V9 令牌（墨黑 `#07080D`、深海蓝 `#0C1722`、黄铜 `#B08A57`、暖琥珀 `#E0A45E`、暖纸 `#F1E4CE`、米白 `#F2E8D8`）；标题衬线、正文无衬线；无粉彩大面积 / 厚渐变 / emoji；`data-test` 0 missing / 0 new；320 / 390 / 430 无横向溢出；安全词 / 边界 / 文案不变 |
+| V9-5 | P0 | 音频素材与许可 | AC-V9-5 `assets/audio/` 有 14 个 SFX + 2 个环境（16 个 WAV，819.4 KB），22.05 kHz / mono / PCM16；SFX ≤300 KB（实测 287,706 B / 93.7%）、环境 ≤600 KB（551,338 B / 89.7%）；峰值 ≤ -1.5 dBFS；SFX 有效响度 -24.3～-20.5 LUFS、环境 -33～-34；两条环境循环逐样本误差约 1e-12；`LICENSES.md` 记录 Kenney 四包 CC0 1.0 + 自制；运行时不发任何外链请求 |
+| V9-6 | P0 | 音频引擎 / 总线 / 生命周期 | AC-V9-6 master→compressor→软限幅，sfx / ambience / music 三子总线，混响 / 声像 / 随机；`play(name)` 保留、27 token 可播；`startAmbience / stopAmbience / setScene / setVolumes / preload / render` 存在；`route=table` 自动起环境、离开停、win/ending 换场景；声音开关生效；页面隐藏 suspend、回前台按开关 resume；缺 wav 时合成回退；0 console error、无削波 |
+| V9-7 | P0 | 首次手势 / 静音 / 隐藏暂停 | AC-V9-7 首次手势前 `App.Audio.state().ctxState === "none"`、`loaded` 为空、0 个 wav 请求、0 解码；首次 `pointerdown / touchstart / keydown` 后 ctx running、14 件 SFX 解码、0 失败；声音开关关 → master 目标 0.0001 且环境停；页面隐藏 → suspended、回前台且开关为开才 resume（快速切换有补救 resume） |
+| V9-8 | P0 | 音频接入 / 缓存 / 体积 | AC-V9-8 audio.js 外置为 `assets/audio.<hash>.js` 并以 `defer` 引用（index 不内联）；首屏无 wav preload / prefetch；产物 `assets/audio/` 16 个 wav 齐全；SW PRECACHE 含 audio chunk + 16 wav（共 26 项）；断网后 `play()` 仍能从 SW cache 解码；首装多 819.4 KB 属预期并写入文档 |
+| V9-9 | P0 | 缩放范围 / 手势 | AC-V9-9 `setZoom(9) / setZoom(0.01)` 夹取到 1.5 / 0.8；1.5 距离倍率 ≈0.70、0.8 ≈1.25、1× = 1.00；双指捏合 / 滚轮 / +/− 按钮（一档 1.13）/ 双击 / 双触均可改变或复位；按钮 44px 命中区、到边界禁用；阻尼约 110ms；宿主 `data-3d-zoom` / `data-3d-zoom-value` / `data-3d-zoom-lock` 可断言；320 / 390 / 430 缩放后不裁切 |
+| V9-10 | P0 | 缩放锁定 / 恢复 / reduced | AC-V9-10 镜头链 / 题卡打开时 `canZoom()=false`、按钮禁用、`data-zoom-locked="1"`、视觉 value 先回 1× 且 target 保留；回 idle 后恢复到用户值（如 1.35）；换局 / 重新 mount 回 1×；reduced 下 instant=true、无阻尼；V7 无缩放层；缩放层不挡 HUD / 题卡 / 安全词；缩放不写 `localStorage` |
+| V9-11 | P0 | 320–430 / HUD 不遮挡 | AC-V9-11 320×568 / 360×640 / 390×844 / 430×932：`data-board3d="on"`、无横向溢出（`scrollWidth ≤ innerWidth`）、缩放层矩形 == `.v6-boardwrap`、三个缩放按钮与 HUD / 安全词 / 题卡几何不相交（hit-test 命中自身）、暂停 / 安全词 / 图例仍可点；题卡卡-only 布局在 320 不溢出。**V9.1.0 已把主桌「暂停」按钮从 42px 补到 ≥44×44（AC-H1-1），V9.1.1 的 V7 全量 567/0 覆盖四视口。** |
+| V9-12 | P0 | 构建 / 预算 | AC-V9-12 `build_app.py --check` **48/48 GREEN**（V9.0 口径；V9.1 见 AC-V91-10 的 49/49）；index gzip ≤140 KB（V9.0.1 实测 141,961 B = 138.63 KB）；首屏总 gzip ≤180 KB（181,674 B = 177.42 KB）；3D chunk 构建门目标 ≤180 KB（170,456 B = 166.46 KB；冻结单上限 200 KB）；16 wav 819.4 KB；SW PRECACHE 26 项；首页无 3D `<script src>` / preload，audio 为 defer，无 wav preload；主路径 0 pageerror / 0 console error |
+| V9-13 | P0 | V8 回归 / 规则零改动 | AC-V9-13 V8 的 3D 挂载 / 镜头链 / 固定飞机 / 45° + 小熊 / 五条降级 / reduced / 320–430 / 三主题 / SW 离线全部保留；V7 / V6.1 的规则、题库、存档（`v:2`、`takeoffMiss`）、安全词 / 暂停流程不变；引擎单测 0 failed；V8 的 `settings.board3d` 三档语义不变；V9 不改任何规则 / 数值 / 题库 / 文案 / 存档键名 |
+| V9-14 | P0 | 验收以报告为准 | AC-V9-14 结论与数字引用 `reports/v6/qa-e2e-v911-final2.md`（V7 全量 **567 PASS / 0 FAIL / 0 SKIP**，2026-11-19 17:30）与 `reports/v6/qa-e2e-v9-smoke.md`（V9 冒烟 78/0，历史）；FE 自测引用 `shots/v9-cinematic/`、`shots/v9-zoom/`（模块 42/42）、`shots/v9-ui/`（120/120）、`shots/audio9/`（V9 音频 32/32 + 19/19 + 离线 10/10）、`shots/v9.1-smoke/`、`shots/v9.1-audio/`、`shots/build9/`；spec / 发布说明**不写未验证的真机 3D fps / 发热，也不写未做的人耳试听结论**；**V9.1.1 的 V7 全量已全绿，3D 路径以独立冒烟为准，不把 V7 567/0 当成 3D 全量结论** |
+
+### 0.4.3 明确不做（V9）
+
+- 不改任何规则、数值、题库、文案与存档结构；不新增玩法事件；不改安全词交互；不新增露骨内容。
+- 不做 3D 机舱全景 / 自由环顾 / 手势旋转；缩放只做 0.8×–1.5× 且只在 3D 的 overview / idle；不提供 3D 格位点选。
+- 不做 3D 题卡文字（题卡 / HUD / 安全词 / 暂停仍是 DOM）；不做 3D 小游戏（沿用 `MiniGame`）。
+- 不引外链 HDR / 贴图 / 字体 / 音频；不做运行时音频生成；不新增第三方请求。
+- 不承诺真机 fps / 发热 / 耗电 / 人耳混音结论；无头 SwiftShader 帧率只作几何 / JS 参考。
+- V7 主桌不加缩放；不给 V7 的 SVG 棋盘 / 机舱做 V9 换肤（降级画面仍是 V8 配色）。
+- 不把 3D chunk / audio.js / wav 塞进首屏；不新增 wav preload / prefetch。
+- 不在本版把 3D chunk 压回 140 KB（PBR + 环境后已改为 180 KB 目标 / 200 KB 上限）。
+- 不换线上域名 / 发布方式 / `couple2.*` 存档键名；不引入新的数据上报。
+
+### 0.4.4 V8 回归与历史保留
+
+- V8 的 3D 路径（`docs/v8/impl-freeze.md`、`AC-V8-*`）与 V7 / V6.1 的规则验收全部继续有效；V9 只叠加表现层，不重写既有 AC。
+- V8.2.2 的骰面映射（`DIE_FACES = [3, 4, 1, 6, 2, 5]`）与 3D 镜头链参数不变；V9 只改材质 / 光照 / 环境 / UI / 音频 / 缩放。
+- V8 的 37 项发布门在 V9 扩到 48 项、V9.1 扩到 **49 项**（新增音频 chunk / 16→17 wav / music / 预算 / SW 条目），历史数字保留在 `docs/v6/release-notes.md` 的 V8 段。
+- 旧版本（V6.0 / V6.1 / V6.2 / V7 / V8）的 §0–§0.3 与附录保留作历史，不因 V9 删除或改写。
+
+**当前 QA 状态（2026-11-19 17:30，`reports/v6/qa-e2e-v911-final2.md`，`dist/release-v911`）**：
+
+- **V7 全量 E2E：567 PASS / 0 FAIL / 0 SKIP**（552.0s；`e2e_v6.py --dist dist/release-v911`，`__E2E_BOARD3D_OFF__` 夹具强制 `board3d=off`，覆盖 env / boot / main / skip / takeoff / win / notend / legacy / resume / pause / minigame / fate / events / responsive / offline / reduced / cabin / cinema / cellstage / theme / v7responsive）。
+- **构建门：49/49 GREEN**（`build_app.py --check --budget-3d 200`）。
+- 3D / 音频 / 缩放冒烟：`shots/v9.1-smoke/`、`shots/v9.1-audio/`；V9 缩放证据仍在 `shots/v9-zoom/`（模块 42/42）。
+- 结论：**V9.1.1 的 V7 全量 E2E 已全绿**；3D 路径（3D 挂载 / 镜头链 / 缩放 / 音频）由独立冒烟覆盖，不是 V7 全量套件的一部分；真机 fps / 发热 / 人耳混音仍未验，spec / release notes 不写这些结论。
+
+---
+
+## 0.5 V9.1 变更（2026-11-19，桌面小物 / 纯音乐 / 暂停 44px）
+
+> 背景：用户反馈 V9.0 的 3D 主桌「画面太干净」；V9.1 在不改规则与玩法的前提下，给机舱/桌面加生活小物与氛围动画，并补一条舒缓纯音乐；同时修 V9.0.1 遗留的主桌暂停按钮命中区不足（42px < 44px）。
+> 口径：`docs/v9/impl-freeze.md`（V9 父冻结单）+ `app/assets/audio/{README,LICENSES,INTEGRATION}.md`（music 与素材）；V9.1.1 的修复见 §0.5.1 第 6 条。**V9.1 仍是表现层增量**：规则、数值、题库、存档结构、边界与安全词与 V9 完全一致。
+
+### 0.5.1 范围与不变量
+
+1. **桌面小物 14 类**：双杯（咖啡杯 + 第二只茶杯，带蒸汽）、报纸、摊开的笔记本 + 钢笔 + 书签 + 折叠眼镜、车票/卡片、钥匙、骰子托盘、毛毯、音箱 + 磁带、书堆 + 杂志 + 明信片、小绿植、铜台灯 + 桌面光池、蜡烛 + 烛焰、立式相框；全部程序化几何 + 共享材质桶，无外部模型 / 贴图。
+2. **机舱细节**：行李舱 + 暖白灯带 + 光晕、窗帘 + 黄铜杆、舱壁壁板接缝 / 铆钉、地毯织纹、毡垫缝线、窗外远景灯火 + 机翼 + 红色信标。
+3. **氛围动画 7 项**：咖啡蒸汽、烛焰、铜台灯光晕/灯罩呼吸、阅读灯呼吸 + 轻微闪烁、窗帘轻摆、舷窗光缓慢变化、舷窗光尘上浮；`reduced` 全静态（不跑 rAF）。
+4. **纯音乐**：`mus-calm.wav` 13.52 s / 71 BPM / D 大调 / 4 小节无缝循环（自制，596,332 B，峰值 -2.5 dBFS，循环误差约 1.9e-12 / 边界阶跃 -45.5 dBFS）；接入 `music` 总线，`musicLevel` 默认 0.095（低于 ambience，不抢 SFX），主桌与 ambience 一起淡入，win / ending 换亮 / 降速低通变体。
+5. **暂停按钮 44px**：主桌 `.v6-table .v6-icon-btn` 的 `min-width/min-height` 从 42px 改为 **44px**，满足 AC-H1-1；不与安全词区域重叠的行为不变。
+6. **V9.1.1 修复**：`low` 画质保留小物（只关蒸汽 / 光尘 / 额外点光 / 阴影）；前排小物收进真实主桌可见裁切带（390/430 可见 10/10 锚点；320 前排下半仍裁，见 §0.5.3）；`e2e_v6.py` 用 `window.__E2E_BOARD3D_OFF__` 夹具强制 `board3d=off`，使 V7 回归组稳定复跑。
+7. **不变量**：不改任何规则、数值、题库、存档结构、边界与安全词；不改 `settings.board3d` / `settings.theme` 语义；不新增设置项；音频仍走首次手势解锁 / 声音开关 / 页面隐藏暂停。
+8. **构建 / 体积**：`--check --budget-3d 200` **49 项**；index gzip **138.66 KB**、首屏总 gzip **179.12 KB**、3D chunk **174.58 KB gzip**、audio chunk **7,585 B gzip（≈7.41 KiB）**、17 个 wav **1,435,376 B**、SW **27 项**。
+9. **首载**：沿用 V9.0.1 的 boot 900ms 后台预取 3D chunk；首次安装仍要下载 3D chunk + 约 1.4 MB 音频（SW 预缓存），真机 / 弱网数字待复测。
+10. **版本**：`App.version = "9.1.1"`；`app/index.template.html` title / og 与 `manifest.webmanifest` name 为 9.1.1；3D chunk `assets/board3d.d33bf008.js`；SW `couple-flight-v6-328928a4`。
+
+### 0.5.2 验收标准（V9.1）
+
+| ID | 优先级 | 需求 | 可执行验收标准 |
+|---|---|---|---|
+| V91-1 | P0 | 14 类桌面小物 | AC-V91-1 3D 主桌含双杯 + 蒸汽、报纸、笔记本 + 钢笔 + 书签 + 折叠眼镜、车票/卡片、钥匙、骰子托盘、毛毯、音箱 + 磁带、书堆 + 杂志 + 明信片、绿植、铜台灯 + 光池、蜡烛 + 烛焰、立式相框；390/430 真实主桌可见 10/10 锚点、不压棋盘 / 题卡 / 缩放按钮；320 可见后排 5 件 + 双杯 + 托盘（前排下半裁切，见 §0.5.3）；0 console error |
+| V91-2 | P0 | 机舱细节与 7 项动画 | AC-V91-2 3D 场景含行李舱 / 灯带 / 窗帘 / 壁板铆钉 / 地毯织纹 / 窗外远景灯火 + 机翼 + 信标；7 项氛围动画在 high/medium 运行（蒸汽、烛焰、台灯、阅读灯、窗帘、窗光、光尘）；`reduced` 下全静态（两帧截图字节相同、rAF=0）；截图 390/320/430 × overview/fly/cell45/bear |
+| V91-3 | P0 | 画质档 / low 小物 | AC-V91-3 `QUALITY` 有 props/steam/motes：high/medium 开蒸汽 + 光尘；**low 保留 props**（steam/motes false、额外点光 0、阴影 0、DPR 1）；low 下 propGroup=true、小物仍在；medium draw 84/82/84、tris 约 13.3k；low draw 74–76、tris 约 13.1k；预算 draw ≤110 / tris ≤28k；0 console error |
+| V91-4 | P0 | 纯音乐素材 | AC-V91-4 `mus-calm.wav` 为 13.52 s / 71 BPM / D 大调 / 4 小节、22.05 kHz mono PCM16、596,332 B；无缝循环误差约 1.9e-12、循环边界阶跃 -45.5 dBFS；峰值 -2.5 dBFS；music 预算 596,332 / 614,400 B（97.1%）；`LICENSES.md` / `MANIFEST.json` 记录自制与循环证明 |
+| V91-5 | P0 | music 总线 / 生命周期 | AC-V91-5 `App.Audio.startMusic / stopMusic / music / setMusicLevel` 存在；`startAmbience()` 同时起环境 + music，`stopAmbience()` 一起停；`musicLevel` 默认 0.095，music 经 music 总线 0.85 + master 0.85；win 更亮、ending 降速低通；页面隐藏 / 声音开关 / 离开主桌同步；music RMS 比 ambience 低约 1.18 dB（不抢 SFX）；缺文件走合成回退；0 console error、无削波 |
+| V91-6 | P0 | 17 wav / SW / 首屏 | AC-V91-6 17 个 wav（14 SFX + 2 env + 1 music）共 1,435,376 B；产物 `assets/audio/` 齐全；audio chunk 外置 defer（20,545 B raw / 7,585 B gzip）；首屏无 wav preload / prefetch；SW PRECACHE 27 项（含 audio chunk + 17 wav）；断网后 `play('tap')` / music 仍能从 SW cache 解码 |
+| V91-7 | P0 | 暂停按钮 44px | AC-V91-7 主桌「暂停」按钮在 320×568 / 360×640 / 390×844 / 430×932 的命中区均 ≥44×44（`.v6-table .v6-icon-btn` min-width/min-height 44px）；仍不与安全词区域重叠、可点；V9.1.1 的 V7 全量覆盖四个视口 |
+| V91-8 | P0 | V9.1.1 可见性修复 | AC-V91-8 `low` 档 propGroup=true、小物可见，台灯 / 蜡烛额外点光为 0；前排 props 收进 z≈3.6–4.35 的可见带；390/320/430 真实主桌 10/10 锚点、棋盘 / 缩放按钮 / cell45 / bear 的 hit-test 全空；320 前排下半裁切不造成布局溢出 / HUD 遮挡；0 console error |
+| V91-9 | P0 | V7 e2e 夹具 | AC-V91-9 `e2e_v6.py` 在页面设置 `window.__E2E_BOARD3D_OFF__ = true`；`table.js` 的 `board3dMode()` 优先返回 `"off"`；V7 组（cabin / cinema / cellstage / theme / v7responsive）在该夹具下能挂载并全绿；不设该全局量时用户设置行为不变（0 副作用） |
+| V91-10 | P0 | 构建 / 预算 | AC-V91-10 `build_app.py --check --budget-3d 200` → **49/49 GREEN**；index gzip ≤140 KB（138.66）、首屏总 gzip ≤180 KB（179.12）、3D chunk ≤200 KB（174.58）、audio chunk 7,585 B gzip（≈7.41 KiB）、17 wav 1.4 MB、SW 27 项；首屏无 3D `<script src>` / preload，audio defer，无 wav preload；主路径 0 pageerror / 0 console error |
+| V91-11 | P0 | V7 全量 E2E | AC-V91-11 `e2e_v6.py --dist dist/release-v911` → **567 PASS / 0 FAIL / 0 SKIP**（`__E2E_BOARD3D_OFF__` 夹具；覆盖 V6.1 主路径 / 暂停 / 小游戏 / 命运 / 响应式 / 离线 / reduced / cabin / cinema / cellstage / theme / v7responsive）；报告 `reports/v6/qa-e2e-v911-final2.md` |
+| V91-12 | P0 | 规则零改动 / V8 回归 | AC-V91-12 V9.1 不改规则、数值、题库、存档（`v:2`、`takeoffMiss`）、`couple2.*` 键名、边界与安全词；V8 的 3D 镜头链 / 固定飞机 / 45° + 小熊 / 五条降级 / reduced / 三主题 / SW 离线保留；V7 主桌完整可用；引擎单测 0 failed |
+
+### 0.5.3 明确不做（V9.1）
+
+- 不改任何规则、数值、题库、文案与存档结构；不新增玩法事件；不改安全词交互。
+- 不做座椅靠背 / 扶手（机位下会压桌面）；骰子托盘保持空盘（真骰子仍在 `DIE_HOME`）；相框照片是程序化夜色散景，不画人物。
+- **不修 320 前排小物下半裁切**：390/430 已 10/10 可见；320 为给棋盘 / 按钮让位，登记为已知限制。
+- 不把纯音乐拉长到 16–24 s（当前 13.52 s 是 600 KB 预算下的回退档）；后续换 OGG/FLAC 再说。
+- 不承诺真机 3D fps / 发热 / 人耳混音结论；无头 SwiftShader 只作 draw / tris / JS 参考。
+- V7 主桌仍不加缩放、不换 V9.1 配色；首屏骨架屏仍是旧星轨紫。
+- 不引外链音频 / 贴图 / 字体；不把 wav / 3D chunk 塞进首屏；不新增设置项。
+
+### 0.5.4 QA 与回归结论
+
+- **V7 全量 E2E：567 PASS / 0 FAIL / 0 SKIP**（`reports/v6/qa-e2e-v911-final2.md`，552.0s，`dist/release-v911`，V7 夹具强制 `board3d=off`）。
+- **构建门：49/49 GREEN**（`build_app.py --check --budget-3d 200`）。
+- **3D / 音频 / 缩放冒烟**：`shots/v9.1-smoke/`、`shots/v9.1-audio/`；V9 缩放证据 `shots/v9-zoom/`（模块 42/42）。
+- 真机 3D fps / 发热 / 人耳混音未验；本 spec 不写这些数字。V9.1.1 不把 V7 全量 567/0 当成 3D / 音频的验收结论——3D 路径以独立冒烟为准。
 
 ---
 
