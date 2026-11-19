@@ -23,18 +23,20 @@ V8 3D 懒加载（docs/v8/impl-freeze.md §3.1，本脚本 build_3d_chunk()）�
   · 产出 assets/board3d.<内容哈希>.js（IIFE，target=es2018，charset=utf8）；
   · index 只注入 window.__BOARD3D_URL（内联 1 行，无 <script src>，不阻塞首屏）；
   · 该 chunk 进 sw.js PRECACHE（离线可用），但不计入首屏 gzip 预算；
-  · 目标 ≤180KB gzip（V9 PBR 场景实测 ~166.5KB；--budget-3d 可覆盖，仅报告/告警，不判 RED）；
+  · 目标 ≤180KB gzip（V9.0 PBR 场景实测 ~166.5KB；V9.1 桌面小物/机舱细节 174.5KB，按 impl-freeze §4
+    的 ≤200KB 验收可用 --budget-3d 200 覆盖；--budget-3d 仅报告/告警，不判 RED）；
   · entry 未就绪（并行开发期）→ [WARN] 跳过，index 不注入 URL，--check 不判 RED。
   · --with-3d 默认开（生产）；--no-3d 关闭。
 
 V9 音频（docs/v9/impl-freeze.md §2 / app/assets/audio/INTEGRATION.md，本脚本接入）：
-  · app/assets/audio/*.wav（16 个，≈819KB）原样拷到产物 assets/audio/（名字稳定，不改名/不加哈希，
-    因为 core/audio.js 的 FILES 表写死文件名）；16 条全部进 sw.js PRECACHE（离线可播）；
+  · app/assets/audio/*.wav（V9.1：17 个，≈1,401.7 KiB；14 SFX + 2 ambience + 1 music）原样拷到产物
+    assets/audio/（名字稳定，不改名/不加哈希，因为 core/audio.js 的 FILES 表写死文件名）；
+    17 条全部进 sw.js PRECACHE（离线可播）；
   · src/core/audio.js 从内联 JS_MODULES **拆出**成独立 IIFE chunk assets/audio.<内容哈希>.js（esbuild
     minify），index 里写 <script src="assets/audio.<hash>.js" defer>：defer 在 DOMContentLoaded（App boot）
     之前执行，而 App.Bus 已由内联 bundle 在解析期定义，所以 App.Audio 一定在 boot 前就绪；
   · 该 chunk 计入首屏 gzip（index+cards+audio+manifest ≤180KB）并进 sw.js PRECACHE；
-  · --check 校验：16 个 wav 在产物（RIFF/WAVE 头非空）+ 数量 ==16 + 16 条 PRECACHE + audio chunk 哈希/落盘。
+  · --check 校验：17 个 wav 在产物（RIFF/WAVE 头非空）+ 数量 ==17 + 17 条 PRECACHE + audio chunk 哈希/落盘。
 
 V6 口径（docs/v6/architecture.md §3）：
   · 首屏 = 一个内联 index.html（CSS + core + engine + view + ui + 启动全部内联）；
@@ -70,16 +72,18 @@ BOARD3D_ENTRY = APP / "src" / "view" / "board3d" / "entry.js"
 BOARD3D_THREE = APP / "render" / "node_modules" / "three" / "build" / "three.module.min.js"
 BOARD3D_PREFIX = "assets/board3d"        # 产物名：assets/board3d.<hash>.js
 BOARD3D_URL_VAR = "__BOARD3D_URL"        # index 内联：window.__BOARD3D_URL = "<chunk>"
-# V9：PBR 场景（PMREM/程序化纹理/PBR 材质）实测 ~166.5KB gzip；impl-freeze §4 验收上限 ≤200KB，
-# 任务卡 V9 按 ≤180KB 验收。该值只影响 --check 的报告/告警（不判 RED），--budget-3d 可覆盖。
+# V9：PBR 场景（PMREM/程序化纹理/PBR 材质）V9.0 实测 ~166.5KB gzip、V9.1 桌面小物/机舱细节
+# 实测 174.5KB gzip；impl-freeze §4 验收上限 ≤200KB（V9.1 构建用 --budget-3d 200 对齐）。
+# 该值只影响 --check 的报告/告警（不判 RED），--budget-3d 可覆盖。
 BOARD3D_GZIP_TARGET = 180 * 1024
 
-# V9 音频：源 assets/audio/*.wav（16 个）→ 产物 assets/audio/（同名）；core/audio.js 拆成独立 defer chunk。
+# V9 音频：源 assets/audio/*.wav（V9.1：17 个）→ 产物 assets/audio/（同名）；core/audio.js 拆成独立 defer chunk。
 AUDIO_SRC = APP / "assets" / "audio"
 AUDIO_MODULE = "src/core/audio.js"
 AUDIO_PREFIX = "assets/audio"            # 产物名：assets/audio.<内容哈希>.js
 AUDIO_WAV_REL = "assets/audio"           # 产物目录：assets/audio/*.wav
 # 顺序 = app/assets/audio/INTEGRATION.md §2 的预缓存口径；名字必须与 audio.js 的 FILES 表一致。
+# V9.1 第 17 个是 music 床 mus-calm.wav（13.52s / 596,332 B，懒加载、进预缓存）。
 AUDIO_WAVS = (
     "sfx-dice-shake.wav",
     "sfx-dice-land.wav",
@@ -97,6 +101,7 @@ AUDIO_WAVS = (
     "sfx-ui-select.wav",
     "amb-calm.wav",
     "amb-win.wav",
+    "mus-calm.wav",
 )
 
 CACHE_PREFIX = "couple-flight-v6-"
@@ -277,7 +282,7 @@ def script_refs(html):
 
 def expected_precache(out, html, extra=(), audio=()):
     """PRECACHE 的唯一真相来源：'./' + index + manifest + index 引用的每个外链脚本 + 额外懒加载 chunk
-    + V9 的 16 个音频 wav + PWA 图标。
+    + V9 的 17 个音频 wav + PWA 图标。
 
     extra：不进首屏 <script src>、但必须离线可用的独立 chunk（V8 的 assets/board3d.<hash>.js）。
     audio：V9 音频 wav 文件名（assets/audio/ 下同名；audio.js 懒加载，必须离线可播）。
@@ -509,7 +514,7 @@ def build_audio_chunk(minify=True, esbuild=None):
 
 
 def copy_audio_assets(out):
-    """V9：把 16 个 wav 原样拷到 <out>/assets/audio/（名字稳定，不加哈希）。
+    """V9：把 17 个 wav（14 SFX + 2 ambience + 1 music）原样拷到 <out>/assets/audio/（名字稳定，不加哈希）。
 
     返回 dict(copied/missing/dir/total)。缺源文件时删掉产物里的同名旧文件，避免「假绿」；
     清单外的陈旧 wav 也清掉，保证同一份源码重复构建的产物一致。
@@ -725,7 +730,7 @@ def build(out, release, board, strict, split_screens=False,
         write_text(out / app_name, js)
     write_text(out / "index.html", html)
 
-    # V9 音频 wav：原样拷进 assets/audio/（16 个，名字与 audio.js 的 FILES 一致）
+    # V9 音频 wav：原样拷进 assets/audio/（17 个，名字与 audio.js 的 FILES 一致）
     audio_copy = copy_audio_assets(out)
 
     # 静态资源：manifest / icons（--release 写仓库根时源与目标是同一文件，跳过复制）
@@ -1019,7 +1024,7 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
                           " three.module.js（unmin，esbuild 自己压）→ 实测省 ~4.5 KB gzip"
                           % len(min_three))
                 for tip in (
-                    "  · V9 验收线是 ≤180 KB gzip（PBR 场景实测 ~166.5 KB）；超出先查场景侧新增",
+                    "  · V9 验收线是 ≤200 KB gzip（impl-freeze §4；V9.1 实测 ~174.5 KB，--budget-3d 200）；超出先查场景侧新增",
                     "  · ExtrudeGeometry 边际最大（≈8.8 KB gzip），Sprite/Points/PointLight/Fog/阴影 均 <1 KB",
                     "  · 这是懒加载 chunk（不进首屏、失败回落 V7）：确需更大体积请 lead 拍板",
                     "  · 临时对齐口径：--budget-3d <KB>（仅影响本行输出，不判 RED）",
@@ -1028,7 +1033,7 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
             print("[CHECK]       chunk: %s raw %.1f KB / gzip %.1f KB" % (
                 three_rel, kb(len(chunk_bytes)), kb(gz3d)))
 
-    # 5c) V9 音频：core/audio.js 独立 defer chunk；16 个 wav 随包 + 懒加载（不进首屏）
+    # 5c) V9 音频：core/audio.js 独立 defer chunk；17 个 wav（含 music 床）随包 + 懒加载（不进首屏）
     m_audio = re.search(r'<script\b[^>]*\bsrc\s*=\s*["\'](assets/audio\.[0-9a-f]{8}\.js)["\'][^>]*>',
                         html)
     audio_rel = m_audio.group(1) if m_audio else ""
@@ -1068,19 +1073,27 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
             head = p.read_bytes()[:12]
             if len(head) < 12 or head[:4] != b"RIFF" or head[8:12] != b"WAVE":
                 bad_wav.append(name)
-    expect("音频：16 个 wav 都在产物 assets/audio/", not missing_wav, ", ".join(missing_wav))
-    expect("音频：产物 wav 数量 == 16（无缺失/多余）",
+    wav_count = len(AUDIO_WAVS)
+    expect("音频：%d 个 wav 都在产物 assets/audio/" % wav_count, not missing_wav,
+           ", ".join(missing_wav))
+    expect("音频：产物 wav 数量 == %d（无缺失/多余）" % wav_count,
            len(wavs) == len(AUDIO_WAVS) and set(wavs) == set(AUDIO_WAVS),
            "disk=%d %s" % (len(wavs), ",".join(wavs)))
     expect("音频：wav 非空且为 RIFF/WAVE", not empty_wav and not bad_wav,
            ", ".join(empty_wav + bad_wav))
+    music_wav = audio_dir / "mus-calm.wav"
+    expect("音频：music 床 mus-calm.wav 随包（V9.1 第 %d 个）" % wav_count,
+           music_wav.is_file() and music_wav.stat().st_size > 0,
+           "缺失或空文件")
     sfx_bytes = sum((audio_dir / n).stat().st_size for n in AUDIO_WAVS
                     if n.startswith("sfx-") and (audio_dir / n).is_file())
     amb_bytes = sum((audio_dir / n).stat().st_size for n in AUDIO_WAVS
                     if n.startswith("amb-") and (audio_dir / n).is_file())
-    print("[CHECK]       audio assets: %d wav %.1f KB（SFX %.1f KB / ambience %.1f KB）" % (
+    mus_bytes = sum((audio_dir / n).stat().st_size for n in AUDIO_WAVS
+                    if n.startswith("mus-") and (audio_dir / n).is_file())
+    print("[CHECK]       audio assets: %d wav %.1f KB（SFX %.1f KB / ambience %.1f KB / music %.1f KB）" % (
         len([n for n in AUDIO_WAVS if (audio_dir / n).is_file()]),
-        kb(sfx_bytes + amb_bytes), kb(sfx_bytes), kb(amb_bytes)))
+        kb(sfx_bytes + amb_bytes + mus_bytes), kb(sfx_bytes), kb(amb_bytes), kb(mus_bytes)))
 
     # 6) sw.js：CACHE 哈希 / PRECACHE 与磁盘一致 / 不含 V6 board.js、含 V8 3D chunk
     sw_path = out / "sw.js"
@@ -1123,7 +1136,7 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
                    "PRECACHE 缺 ./%s" % (audio_rel or "assets/audio.<hash>.js"))
             miss_audio = [e for e in ("./" + AUDIO_WAV_REL + "/" + n for n in AUDIO_WAVS)
                           if e not in precache]
-            expect("音频：sw PRECACHE 含 16 个 wav（离线可播）", not miss_audio,
+            expect("音频：sw PRECACHE 含 %d 个 wav（离线可播）" % len(AUDIO_WAVS), not miss_audio,
                    ", ".join(miss_audio))
             pre_bytes = sum((out / rel_of(e)).stat().st_size for e in precache
                             if e != "./" and (out / rel_of(e)).is_file())

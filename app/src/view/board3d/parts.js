@@ -40,6 +40,38 @@ export function mergeGeoms(parts) {
   return out;
 }
 
+/* 把若干 { geo, matrix, color:[r,g,b] } 合并成一个带顶点色的几何（V9.1 桌面小物）
+ * 小物按「材质桶」合并：所有彩色哑光件（书皮/陶盆/磁带壳/蜡烛）1 draw，
+ * 纸张/印刷/黄铜/布/叶子各自 1 draw，避免每个小物一个 draw。 */
+export function mergePropGeoms(parts) {
+  const pos = [], nrm = [], uv = [], col = [];
+  const d = new THREE.Object3D();
+  for (const p of parts) {
+    let g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
+    const m = p.matrix;
+    if (m) g.applyMatrix4(m);
+    const pa = g.getAttribute('position');
+    const na = g.getAttribute('normal');
+    const ua = g.getAttribute('uv');
+    const c = p.color || [1, 1, 1];
+    for (let i = 0; i < pa.count; i++) {
+      pos.push(pa.getX(i), pa.getY(i), pa.getZ(i));
+      if (na) nrm.push(na.getX(i), na.getY(i), na.getZ(i));
+      else nrm.push(0, 1, 0);
+      if (ua) uv.push(ua.getX(i), ua.getY(i)); else uv.push(0.5, 0.5);
+      col.push(c[0], c[1], c[2]);
+    }
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  d.position.set(0, 0, 0);
+  return out;
+}
+
 /* ============================ 格块（带倒角） ============================
  * tiles: [{x,z,rot,w,d,top,bottom,uv,side,color,bevel}]
  * 顶面 = 内缩矩形；四周 4 条斜面；四周 4 个侧面。每格 18 三角形。 */

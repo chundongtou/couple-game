@@ -2,13 +2,13 @@
  *
  * ⚠️ 本文件是**模板**，不要直接部署；仓库根的 `sw.js` 由
  *    `python tools/rebuild/build_app.py` 读本文件生成（占位符替换）。
- *    构建写入：couple-flight-v6-0777edcb / 0777edcb / [
+ *    构建写入：couple-flight-v6-acfa5017 / acfa5017 / [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./assets/audio.0921b2d6.js",
+  "./assets/audio.36e25195.js",
   "./assets/cards.6e682ef2.js",
-  "./assets/board3d.3aac52b4.js",
+  "./assets/board3d.dd84f485.js",
   "./assets/audio/sfx-dice-shake.wav",
   "./assets/audio/sfx-dice-land.wav",
   "./assets/audio/sfx-hop.wav",
@@ -25,6 +25,7 @@
   "./assets/audio/sfx-ui-select.wav",
   "./assets/audio/amb-calm.wav",
   "./assets/audio/amb-win.wav",
+  "./assets/audio/mus-calm.wav",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
@@ -32,7 +33,7 @@
 ]
  *
  * 策略（与 V5 保持一致，只换版本与清单）：
- *  - install：预缓存应用外壳 + 题库 + 音频（audio chunk + 16 个 wav）+ 图标
+ *  - install：预缓存应用外壳 + 题库 + 音频（audio chunk + 17 个 wav）+ 图标
  *             （Promise.allSettled，单个 404 不阻塞安装），随后 self.skipWaiting() 立刻待命；
  *  - activate：删除非当前 CACHE 的旧缓存 + clients.claim() 接管已打开页面；
  *  - fetch：
@@ -44,21 +45,21 @@
  * 发版：CACHE 版本 = "couple-flight-v6-" + 构建时 index.html 的 sha256 前 8 位，
  *       内容一变版本自动变，老用户下次打开即拿到新 SW。**禁止手改 sw.js。**
  */
-var CACHE = 'couple-flight-v6-0777edcb';
-var BUILD = '0777edcb';
+var CACHE = 'couple-flight-v6-acfa5017';
+var BUILD = 'acfa5017';
 
 /* 预缓存清单：相对路径，根目录 = 构建产物目录（GitHub Pages 子路径同样可用）。
  * 构建时生成：'./' + index + manifest + assets/cards.<hash>.js + assets/audio.<hash>.js
- *            + assets/audio/*.wav（V9：16 个，名字稳定）+ PWA 图标。
+ *            + assets/audio/*.wav（V9.1：17 个 = 14 SFX + 2 ambience + 1 music，名字稳定）+ PWA 图标。
  * assets/board.js（3D 棋盘，511KB）**不进预缓存**，属于可选特性，走 cache-first 运行时缓存。
  * assets/board3d.<hash>.js（V8 3D 主桌）是懒加载 chunk，但**进预缓存**，保证离线也能进 3D 主桌。 */
 var PRECACHE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./assets/audio.0921b2d6.js",
+  "./assets/audio.36e25195.js",
   "./assets/cards.6e682ef2.js",
-  "./assets/board3d.3aac52b4.js",
+  "./assets/board3d.dd84f485.js",
   "./assets/audio/sfx-dice-shake.wav",
   "./assets/audio/sfx-dice-land.wav",
   "./assets/audio/sfx-hop.wav",
@@ -75,6 +76,7 @@ var PRECACHE = [
   "./assets/audio/sfx-ui-select.wav",
   "./assets/audio/amb-calm.wav",
   "./assets/audio/amb-win.wav",
+  "./assets/audio/mus-calm.wav",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",

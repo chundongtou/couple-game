@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <link rel="icon" href="data:,">
-<title>V9 音频自测台 · couple-game</title>
+<title>V9.1 音频自测台 · couple-game</title>
 <style>
   :root{
     --ink:#07080D;--deep:#0C1722;--wood:#3A2519;--brass:#B08A57;--amber:#E0A45E;
@@ -57,8 +57,8 @@
 </style>
 </head>
 <body>
-<h1>V9 音频自测台</h1>
-<div class="sub">采样拟音 14 件 + 环境循环 2 条 · 22.05 kHz / mono / PCM16 · 总线：sfx / ambience / music → master → compressor → limiter</div>
+<h1>V9.1 音频自测台</h1>
+<div class="sub">采样拟音 14 件 + 环境循环 2 条 + 舒缓纯音乐 1 条 · 22.05 kHz / mono / PCM16 · 总线：sfx / ambience / music → master → compressor → limiter</div>
 
 <div class="card">
   <div class="row">
@@ -69,7 +69,7 @@
     <div class="kv" style="flex:1;min-width:0">
       <b>AudioContext</b><span data-test="ctx-state">none</span>
       <b>采样 base</b><span data-test="audio-base" style="word-break:break-all">-</span>
-      <b>已解码</b><span data-test="state-loaded">0 / 16</span>
+      <b>已解码</b><span data-test="state-loaded">0 / 17</span>
       <b>加载失败</b><span data-test="state-failed">-</span>
     </div>
   </div>
@@ -84,6 +84,7 @@
     <b>sfx</b><span data-test="vol-sfx">0.95</span>
     <b>ambience</b><span data-test="vol-ambience">0.200</span>
     <b>music</b><span data-test="vol-music">0.85</span>
+    <b>music 床</b><span data-test="vol-musicLevel">0.095</span>
   </div>
   <div class="row" style="margin-top:8px">
     <input type="range" min="0" max="1.4" step="0.01" value="0.95" data-vol="sfx" aria-label="sfx 音量">
@@ -92,7 +93,10 @@
     <input type="range" min="0" max="0.8" step="0.005" value="0.2" data-vol="ambience" aria-label="ambience 音量">
   </div>
   <div class="row">
-    <input type="range" min="0" max="1.4" step="0.01" value="0.85" data-vol="music" aria-label="music 音量">
+    <input type="range" min="0" max="1.4" step="0.01" value="0.85" data-vol="music" aria-label="music 总线音量">
+  </div>
+  <div class="row">
+    <input type="range" min="0" max="0.4" step="0.005" value="0.095" data-vol="musicLevel" aria-label="music 床音量">
   </div>
   <div class="row">
     <button data-test="sound-off">声音开关：关</button>
@@ -100,7 +104,7 @@
     <button data-test="vol-reset">恢复默认</button>
     <span class="dim" data-test="sound-state">enabled</span>
   </div>
-  <div class="note">关声音 = master 拉 0 并停环境源（保留“想开环境”意图）；减少动画不影响音频开关。</div>
+  <div class="note">关声音 = master 拉 0 并停环境/音乐源（保留“想开”的意图）；减少动画不影响音频开关。music 床 0.095 是源级增益，低于 ambience；music 总线 0.85 保留给 win/ending stinger。</div>
 </div>
 
 <h2>环境（无缝循环 / 场景变体）</h2>
@@ -121,6 +125,23 @@
     win = D 大调 add9 + 玻璃泛音 + 两下柔铃；ending = win 循环降速/低通变体。接缝为整数周期构造，逐样本可证。</div>
 </div>
 
+<h2>舒缓纯音乐（music 总线 / 无缝循环）</h2>
+<div class="card">
+  <div class="row">
+    <button class="brass" data-test="music-start">开始 music</button>
+    <button data-test="music-stop">停止 music</button>
+    <button data-test="music-solo">music 单独</button>
+    <button data-test="music-mix">ambience + music</button>
+  </div>
+  <div class="kv" style="margin-top:8px">
+    <b>状态</b><span data-test="music-state">stopped</span>
+    <b>场景 / 来源</b><span data-test="music-scene">calm / -</span>
+    <b>床增益 / 速率</b><span data-test="music-level">0.095 / 1.00x</span>
+    <b>循环</b><span data-test="music-loop">13.52 s · loop=true</span>
+  </div>
+  <div class="note">mus-calm.wav：D 大调 / 71 BPM / 4 小节 / 13.52 s 整数周期无缝；music 床 0.095 × 场景（win 1.12 更亮，ending 0.86 降速低通），经 music 总线 0.85；离线实测 music RMS 比 ambience 低约 1.18 dB、峰值约 -16.5 dBFS，不抢 SFX；win/ending token 播放时自动切变体。素材 100% 自制（numpy 加法合成），无外链。</div>
+</div>
+
 <h2>单件试听（14 件）</h2>
 <div class="card" data-test="token-list"></div>
 
@@ -129,6 +150,8 @@
   <div class="row">
     <button data-test="render-selected">渲染选中 token</button>
     <button data-test="stress">14 音齐发（限幅压力）</button>
+    <button data-test="render-music">渲染 music（27s 双循环）</button>
+    <button data-test="render-mix">渲染 ambience+music+win</button>
   </div>
   <canvas data-test="wave" width="800" height="128"></canvas>
   <div class="kv" style="margin-top:8px">
@@ -170,12 +193,13 @@
   <div class="note">隐藏 → AudioContext.suspend()（环境/音效全停）；恢复 → 仅当声音开关为开时 resume，环境按意图续播。</div>
 </div>
 
-<h2>素材清单 / 许可（体积预算：SFX ≤300KB、ambient ≤600KB）</h2>
+<h2>素材清单 / 许可（体积预算：SFX ≤300KB、ambient/music ≤600KB）</h2>
 <div class="card">
   <div class="kv">
     <b>SFX 合计</b><span data-test="size-sfx">287706 B / 300 KB</span>
     <b>环境合计</b><span data-test="size-amb">551338 B / 600 KB</span>
-    <b>许可</b><span>Kenney CC0 1.0 + 自制（numpy 物理合成）</span>
+    <b>music 合计</b><span data-test="size-music">596332 B / 600 KB（97.1%）</span>
+    <b>许可</b><span>Kenney CC0 1.0 + 自制（numpy 物理合成 / 加法合成）</span>
   </div>
 </div>
 <table data-test="manifest">
@@ -197,22 +221,25 @@
     <tr><td><code>sfx-ui-select.wav</code></td><td class="num">6658</td><td class="num">0.15</td><td>Kenney Interface <code>select_002.ogg</code> + 自制轻木（CC0 + 自制）</td></tr>
     <tr><td><code>amb-calm.wav</code></td><td class="num">352844</td><td class="num">8.00</td><td>100% 自制：整数周期嗡鸣/气流/远雨/细雨点/Dm add9 pad；8s 无缝循环</td></tr>
     <tr><td><code>amb-win.wav</code></td><td class="num">198494</td><td class="num">4.50</td><td>100% 自制：D 大调 add9 pad + 玻璃泛音 + 柔铃；4.5s 无缝循环</td></tr>
+    <tr><td><code>mus-calm.wav</code></td><td class="num">596332</td><td class="num">13.52</td><td>100% 自制：D 大调 / 71 BPM / 4 小节（Dmaj9-Bm7-Gmaj9-A7sus4）钢琴+铺底+弦乐；整数周期 + wrap 瞬态 + 2.8s 卷积混响；13.52s 无缝循环</td></tr>
   </tbody>
 </table>
 <div class="note">
   <span class="tag">CC0</span>Kenney.nl：Casino Audio / Impact Sounds / Interface Sounds / RPG Audio（License.txt 随包，CC0 1.0）；
-  <span class="tag">自制</span>numpy 物理拟音/加法合成（本仓库 tools 之外的一次性生成脚本，见 MANIFEST.json 的 generatedBy）。
+  <span class="tag">自制</span>numpy 物理拟音/加法合成（本仓库 tools 之外的一次性生成脚本，见 MANIFEST.json 的 generatedBy；music 生成脚本随素材目录存档）。
   生成报告：峰值 / RMS / 近似 LUFS / sha256 / 循环无缝证明在 <code>app/assets/audio/MANIFEST.json</code>。
 </div>
 
-<h2>API（保持 play，新增环境/场景）</h2>
+<h2>API（保持 play，新增环境/场景/music）</h2>
 <div class="card">
   <div class="note" style="font-family:ui-monospace,Consolas,monospace;line-height:1.9">
     App.Audio.play(name) · unlock() · setEnabled(on) · enabled()<br>
     startAmbience({scene}) · stopAmbience(ms) · setScene('calm'|'win'|'ending') · scene()<br>
-    setVolumes({master,sfx,ambience,music}) · setBase(path) · preload() · state() / debug()<br>
+    startMusic() · stopMusic(ms) · music() · setMusicLevel(level)<br>
+    setVolumes({master,sfx,ambience,music,musicLevel}) · setBase(path) · preload() · state() / debug()<br>
     render(tokens, seconds, wantPeaks) → {peak, peakDbfs, rmsDbfs, clipped, peaks}（QA 用）<br>
-    on('load'|'error'|'state'|'ambience', fn) · off(event, fn)
+    renderMix({seconds,music,ambience,scene,sfx,seam}) → {peak,peaks,seam,...}（music 混音 QA）<br>
+    on('load'|'error'|'state'|'ambience'|'music', fn) · off(event, fn)
   </div>
 </div>
 
@@ -266,7 +293,7 @@
     var st = A.state();
     text("[data-test=ctx-state]", st.ctxState);
     text("[data-test=audio-base]", st.base);
-    var total = 16;
+    var total = 17;
     text("[data-test=state-loaded]", st.loaded.length + " / " + total);
     text("[data-test=state-failed]", st.failed.length ? st.failed.join(",") : "无");
     var m = q("[data-test=load-meter]");
@@ -276,10 +303,16 @@
     text("[data-test=vol-sfx]", st.volumes.sfx.toFixed(2));
     text("[data-test=vol-ambience]", st.volumes.ambience.toFixed(3));
     text("[data-test=vol-music]", st.volumes.music.toFixed(2));
+    text("[data-test=vol-musicLevel]", st.volumes.musicLevel.toFixed(3));
     var amb = st.ambience;
     text("[data-test=amb-state]", amb.playing ? "playing" : (amb.wanted ? "wanted" : "stopped"));
     text("[data-test=amb-scene]", amb.scene);
     text("[data-test=amb-source]", amb.playing ? (amb.synthesized ? "synth-fallback" : "wav-loop") : "-");
+    var mus = st.music;
+    text("[data-test=music-state]", mus.playing ? "playing" : (mus.wanted ? "wanted" : "stopped"));
+    text("[data-test=music-scene]", mus.scene + " / " + (mus.playing ? (mus.synthesized ? "synth-fallback" : "wav-loop") : "-"));
+    text("[data-test=music-level]", st.volumes.musicLevel.toFixed(3) + " / " + mus.rate.toFixed(2) + "x");
+    text("[data-test=music-loop]", (mus.duration ? mus.duration.toFixed(2) : "13.52") + " s · loop=true");
   }
 
   function unlock() {
@@ -300,10 +333,10 @@
     };
   });
   q("[data-test=vol-reset]").onclick = function () {
-    A.setVolumes({ master: 0.85, sfx: 0.95, ambience: 0.2, music: 0.85 });
+    A.setVolumes({ master: 0.85, sfx: 0.95, ambience: 0.2, music: 0.85, musicLevel: 0.095 });
     qa("[data-vol]").forEach(function (r) {
       var k = r.getAttribute("data-vol");
-      r.value = { sfx: 0.95, ambience: 0.2, music: 0.85 }[k];
+      r.value = { sfx: 0.95, ambience: 0.2, music: 0.85, musicLevel: 0.095 }[k];
     });
     updateState();
   };
@@ -316,6 +349,36 @@
   ["calm", "win", "ending"].forEach(function (s) {
     q("[data-test=scene-" + s + "]").onclick = function () { A.setScene(s); setTimeout(updateState, 500); };
   });
+
+  // 舒缓纯音乐
+  function waitLoaded(name, timeoutMs) {
+    return new Promise(function (resolve) {
+      var t0 = Date.now();
+      (function poll() {
+        if (A.state().loaded.indexOf(name) >= 0 || Date.now() - t0 > (timeoutMs || 8000)) return resolve();
+        setTimeout(poll, 120);
+      })();
+    });
+  }
+  function musicReady() {
+    A.unlock();
+    A.startMusic();
+    return waitLoaded("musCalm", 10000);
+  }
+  q("[data-test=music-start]").onclick = function () {
+    A.unlock(); A.startMusic();
+    setTimeout(updateState, 300); setTimeout(updateState, 2800);
+  };
+  q("[data-test=music-stop]").onclick = function () { A.stopMusic(500); setTimeout(updateState, 650); };
+  q("[data-test=music-solo]").onclick = function () {
+    A.stopAmbience(300);
+    setTimeout(function () { A.startMusic(); updateState(); }, 700);
+    setTimeout(updateState, 3000);
+  };
+  q("[data-test=music-mix]").onclick = function () {
+    A.unlock(); A.startAmbience();
+    setTimeout(updateState, 300); setTimeout(updateState, 3000);
+  };
 
   // 单件播放
   TOKENS.forEach(function (t) {
@@ -365,6 +428,36 @@
   }
   q("[data-test=render-selected]").onclick = function () { drawToken("diceShake"); };
 
+  // music 渲染：先确保 musCalm 解码，再走真实总线离线渲染
+  q("[data-test=render-music]").onclick = function () {
+    musicReady().then(function () {
+      A.stopMusic(40);
+      return new Promise(function (res) { setTimeout(res, 450); });
+    }).then(function () {
+      return A.renderMix({ seconds: 27.1, music: true, ambience: false, scene: "calm", sfx: [], seam: true });
+    }).then(function (r) {
+      drawPeaks(r.peaks, "music only · " + r.loopSec.toFixed(2) + "s loop · seam " + (r.seam ? r.seam.verdict : "-"));
+      var seam = r.seam ? " · seam " + r.seam.verdict + "（jump " + r.seam.jumpDbfs.toFixed(1) +
+        " dBFS；2nd " + r.seam.second.toFixed(5) + " / p99.9 " + r.seam.secondP999.toFixed(5) + "）" : "";
+      status("[data-test=render-result]", "music only · peak " + r.peakDbfs.toFixed(1) + " · rms " +
+        r.rmsDbfs.toFixed(1) + " dBFS · " + (r.clipped ? "CLIPPED" : "no clip") + seam, r.clipped ? "bad" : "ok");
+    }).catch(function (e) { status("[data-test=render-result]", "music 渲染失败：" + e.message, "bad"); });
+  };
+  q("[data-test=render-mix]").onclick = function () {
+    A.unlock(); A.startAmbience();
+    waitLoaded("ambCalm", 10000).then(function () { return waitLoaded("musCalm", 10000); }).then(function () {
+      A.stopAmbience(40);
+      return new Promise(function (res) { setTimeout(res, 450); });
+    }).then(function () {
+      return A.renderMix({ seconds: 15.2, music: true, ambience: true, scene: "calm", sfx: ["win"], seam: false });
+    }).then(function (r) {
+      drawPeaks(r.peaks, "ambience + music + win stinger · peak " + r.peakDbfs.toFixed(1) + " dBFS");
+      status("[data-test=render-result]", "ambience+music+win · peak " + r.peakDbfs.toFixed(1) + " · rms " +
+        r.rmsDbfs.toFixed(1) + " dBFS · " + (r.clipped ? "CLIPPED" : "no clip（music 床低于 ambience）"),
+        r.clipped ? "bad" : "ok");
+    }).catch(function (e) { status("[data-test=render-result]", "混音渲染失败：" + e.message, "bad"); });
+  };
+
   // 压力测试
   q("[data-test=stress]").onclick = function () {
     A.unlock();
@@ -382,8 +475,9 @@
     setTimeout(function () {
       var st = A.state();
       status("[data-test=route-result]", "route=table → ambience=" +
-        (st.ambience.playing ? "playing" : (st.ambience.wanted ? "wanted" : "stopped")),
-        st.ambience.wanted ? "ok" : "bad");
+        (st.ambience.playing ? "playing" : (st.ambience.wanted ? "wanted" : "stopped")) +
+        " · music=" + (st.music.playing ? "playing" : (st.music.wanted ? "wanted" : "stopped")),
+        st.ambience.wanted && st.music.wanted ? "ok" : "bad");
       updateState();
     }, 2800);
   };
@@ -391,9 +485,10 @@
     if (App.Bus) App.Bus.emit("route", { name: "ledger" });
     setTimeout(function () {
       var st = A.state();
-      var off = !st.ambience.playing && !st.ambience.wanted && st.ambience.scene === "calm";
+      var off = !st.ambience.playing && !st.ambience.wanted && !st.music.playing && !st.music.wanted && st.ambience.scene === "calm";
       status("[data-test=route-result]", "route=ledger → ambience=" +
-        (st.ambience.playing ? "playing" : "stopped") + " · scene=" + st.ambience.scene, off ? "ok" : "bad");
+        (st.ambience.playing ? "playing" : "stopped") + " · music=" +
+        (st.music.playing ? "playing" : "stopped") + " · scene=" + st.ambience.scene, off ? "ok" : "bad");
       updateState();
     }, 1400);
   };
@@ -407,7 +502,8 @@
     setTimeout(function () {
       var st = A.state();
       status("[data-test=vis-result]", (hidden ? "隐藏后" : "恢复后") + " ctx=" + st.ctxState +
-        " · ambience=" + (st.ambience.playing ? "playing" : "stopped"),
+        " · ambience=" + (st.ambience.playing ? "playing" : "stopped") +
+        " · music=" + (st.music.playing ? "playing" : "stopped"),
         st.ctxState === (hidden ? "suspended" : "running") ? "ok" : "dim");
     }, 400);
   }
@@ -421,6 +517,7 @@
   });
   A.on("load", updateState);
   A.on("ambience", updateState);
+  A.on("music", updateState);
   A.on("state", updateState);
   A.on("error", updateState);
 

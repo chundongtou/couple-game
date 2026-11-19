@@ -138,6 +138,16 @@ def new_page(ps_browser, url, viewport, rec: Recorder, label, **ctx_kw):
     ctx = Q.new_context(ps_browser, viewport=viewport, **ctx_kw)
     page = ctx.new_page()
     ps = Q.PageSession(ctx, page)
+    # V9 回归口径：e2e_v6 验收的是 V7 SVG 主桌；V9 3D 由 e2e_v8_3d 单独验。
+    # 在文档启动前把 board3d 固定为 off，避免默认 auto 把 V7 断言跑到 3D 上。
+    try:
+        page.add_init_script(
+            "(function(){ try { var raw = localStorage.getItem('couple2.settings');"
+            " var s = raw ? JSON.parse(raw) : {}; s.board3d = 'off';"
+            " localStorage.setItem('couple2.settings', JSON.stringify(s)); } catch (e) {} })();"
+        )
+    except Exception:
+        pass
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=30000)
     except Exception as e:  # noqa: BLE001

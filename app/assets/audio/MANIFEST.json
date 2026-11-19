@@ -1,16 +1,16 @@
 {
   "project": "今晚飞行棋 V9 · 音频素材",
-  "version": "9.0.0",
+  "version": "9.1.0",
   "generatedAt": "2026-11-19",
   "generator": {
     "method": "Python 3.12 + numpy 物理拟音/加法合成 + soundfile(libsndfile) 解码 CC0 ogg 层",
     "sampleRate": 22050,
     "bitDepth": 16,
     "channels": 1,
-    "note": "一次性生成脚本在仓库外（tmp/audio9/gen_audio.py）；算法与参数见 GENERATOR.md，成品以 sha256 为准。"
+    "note": "一次性生成脚本在仓库外（tmp/audio9/gen_audio.py）；music 使用 app/assets/audio/gen_music.py（随素材目录存档）。算法与参数见 GENERATOR.md，成品以 sha256 为准。"
   },
   "runtime": {
-    "api": "App.Audio.play(name) / startAmbience / stopAmbience / setScene",
+    "api": "App.Audio.play(name) / startAmbience / stopAmbience / setScene / startMusic / stopMusic / music / setMusicLevel",
     "basePath": "assets/audio/（生产 index.html 根部）；app/dev/*.html 自动推导 ../assets/audio/",
     "lazy": "unlock 后按优先级后台解码；amb-calm/amb-win 在 startAmbience 时懒加载",
     "fallback": "资源 404/解码失败 → WebAudio 合成回退（不静默）"
@@ -27,10 +27,17 @@
       "copies1MaxErr": 5.662137425588298e-15,
       "samplesPerLoop": 99225,
       "verdict": "EXACT"
+    },
+    "mus-calm": {
+      "periodicityMaxErr": 1.9011250906864063e-12,
+      "steadyStateMaxErr": 1.9011250906864063e-12,
+      "samplesPerLoop": 298144,
+      "boundaryStepDbfs": -45.541324716063514,
+      "verdict": "EXACT"
     }
   },
   "totals": {
-    "fileCount": 16,
+    "fileCount": 17,
     "sfxCount": 14,
     "ambienceCount": 2,
     "sfxBytes": 287706,
@@ -47,7 +54,14 @@
     "ambientEffectiveLufsRange": [
       -34.32,
       -33.25
-    ]
+    ],
+    "musicCount": 1,
+    "musicBytes": 596332,
+    "musicBudgetBytes": 614400,
+    "musicBudgetUsedPct": 97.1,
+    "runtimeTotalBytes": 1435376,
+    "runtimeTotalKiB": 1401.7,
+    "musicEffectiveLufs": -38.65
   },
   "files": [
     {
@@ -99,6 +113,58 @@
         "两下柔和铃（587.33 / 880 Hz，0.55 s / 2.55 s，wrap 叠加）",
         "保留低隆隆/远雨（-33 dB，比 calm 更轻）"
       ]
+    },
+    {
+      "file": "mus-calm.wav",
+      "kind": "music",
+      "purpose": "主桌舒缓环境音乐（13.52 s 无缝循环）",
+      "bytes": 596332,
+      "durationSec": 13.52127,
+      "samplesPerLoop": 298144,
+      "sampleRate": 22050,
+      "channels": 1,
+      "bitDepth": 16,
+      "format": "WAV / PCM 16-bit",
+      "bpm": 70.9992,
+      "key": "D major",
+      "bars": 4,
+      "peakDbfs": -2.4998,
+      "rmsDbfs": -14.5811,
+      "approxLufs": -15.3858,
+      "playbackGainDb": null,
+      "bedLevel": 0.095,
+      "musicBusGain": 0.85,
+      "masterGain": 0.85,
+      "effectiveLufs": -38.65,
+      "effectiveLufsNote": "按现有 manifest 口径（文件 LUFS + music 床 + music 总线 + master）；离线真实链路 RMS 对比见 shots/v9.1-audio/demo-report.json：music 约 -28.6 dBFS vs ambience 约 -27.4 dBFS（低 1.18 dB）",
+      "sha256": "abe14c9591b7cb766c9accb18c66a3f41237115fcc0ee0c762c40259f0e285c7",
+      "license": "self-made (numpy additive synthesis)",
+      "cc0Layers": [],
+      "selfMadeLayers": [
+        "D 大调 4 小节：Dmaj9 | Bm7 | Gmaj9 | A7sus4（71 BPM，16 拍）",
+        "钢琴：加法合成（8 泛音 + 非谐性 + 毡槌低频 + 30 ms 收尾），wrap 叠加让尾音跨循环点",
+        "铺底：4 声部弦乐/管风琴式加法合成，频率量化到 k/T，周期交叉淡化",
+        "低音弦乐：慢颤音（4.6 Hz，相位调制）+ 每小节长音",
+        "混响：2.8 s 暗色卷积 IR（早期反射 23/41/67/101/137 ms），干湿 0.76/0.34",
+        "母带：零相位 26 Hz–9 kHz 频谱整形，峰值归一到 -2.5 dBFS，16-bit TPDF 抖动"
+      ],
+      "loopProof": {
+        "proofMaxErr": 1.9011250906864063e-12,
+        "steadyPeakAbs": [
+          0.706611091204963,
+          0.7066110912049556
+        ],
+        "samplesPerLoop": 298144,
+        "boundaryStep": 0.005283646628472985,
+        "boundaryStepDbfs": -45.541324716063514,
+        "boundarySecondDiff": 0.0037379117115902624,
+        "secondDiffP999": 0.078492014634375,
+        "seamMaxDiffLocal": 0.034517755729110464,
+        "diffP999": 0.13099585152698276,
+        "verdict": "EXACT"
+      },
+      "generatedBy": "numpy 2.3.5 additive synthesis (self-made); 3-period steady-state + wrapped transients + 2.8 s convolution reverb",
+      "sourceScript": "app/assets/audio/gen_music.py"
     },
     {
       "file": "sfx-bear.wav",
