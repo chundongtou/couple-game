@@ -20,7 +20,7 @@
     { id: "off", name: "V7", hint: "始终用原来的 V7 主桌" },
     { id: "on", name: "3D", hint: "强制尝试 3D；开不了会自动回 V7" }
   ];
-  var BOARD3D_DEFAULT = "off";      /* Beta：与 table.js 的 BOARD3D_DEFAULT 保持一致；QA 后改回 "auto" */
+  var BOARD3D_DEFAULT = "auto";      /* V8：与 table.js 一致，默认 auto */
   function board3dOf(s) {
     var v = s && s.board3d;
     return (v === "off" || v === "on" || v === "auto") ? v : BOARD3D_DEFAULT;
