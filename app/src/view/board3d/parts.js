@@ -148,23 +148,47 @@ export function buildTileGeometry(tiles) {
   return geo;
 }
 
-/* ============================ 骰子（单材质图集） ============================ */
+/* ============================ 骰子（白骰 · 圆角 · 单材质图集） ============================
+ * V9.7：BoxGeometry 细分后按「盒内缩 + 法向圆弧」倒角成圆角骰；
+ * 保留 DIE_FACES 面序，按 6 个 group 逐面重映射图集 UV（支持细分网格）。 */
 export function makeDieGeometry(size) {
-  const geo = new THREE.BoxGeometry(size, size, size);
-  const uvAttr = geo.getAttribute('uv');
-  /* BoxGeometry 面顺序：+X -X +Y -Y +Z -Z；每面 4 个顶点，uv = (0,1),(1,1),(0,0),(1,0) */
+  const SEG = 6;
+  const geo = new THREE.BoxGeometry(size, size, size, SEG, SEG, SEG);
+  const h = size / 2, rr = size * 0.13, inner = h - rr;
+  const pos = geo.getAttribute('position');
+  const nrm = geo.getAttribute('normal');
+  const p = new THREE.Vector3(), q = new THREE.Vector3(), d = new THREE.Vector3();
+  const cl = (x, a, b2) => (x < a ? a : x > b2 ? b2 : x);
+  for (let i = 0; i < pos.count; i++) {
+    p.fromBufferAttribute(pos, i);
+    q.set(cl(p.x, -inner, inner), cl(p.y, -inner, inner), cl(p.z, -inner, inner));
+    d.copy(p).sub(q);
+    if (d.lengthSq() > 1e-12) {
+      d.normalize();
+      p.copy(q).addScaledVector(d, rr);
+      pos.setXYZ(i, p.x, p.y, p.z);
+      nrm.setXYZ(i, d.x, d.y, d.z);
+    }
+  }
+  pos.needsUpdate = true;
+  nrm.needsUpdate = true;
+  const uv = geo.getAttribute('uv');
+  const idx = geo.index;
+  const done = new Set();
   for (let f = 0; f < 6; f++) {
     const value = DIE_FACES[f];
     const col = (value - 1) % 3;
     const row = Math.floor((value - 1) / 3);
-    for (let k = 0; k < 4; k++) {
-      const idx = f * 4 + k;
-      const u = uvAttr.getX(idx) === 1 ? 1 : 0;
-      const v = uvAttr.getY(idx) === 1 ? 1 : 0;
-      uvAttr.setXY(idx, (col + u) / 3, (1 - row + v) / 2);
+    const gp = geo.groups[f];
+    for (let k = gp.start; k < gp.start + gp.count; k++) {
+      const vi = idx.getX(k);
+      if (done.has(vi)) continue;
+      done.add(vi);
+      uv.setXY(vi, (col + uv.getX(vi)) / 3, (1 - row + uv.getY(vi)) / 2);
     }
   }
-  uvAttr.needsUpdate = true;
+  uv.needsUpdate = true;
+  geo.computeBoundingSphere();
   return geo;
 }
 
@@ -290,18 +314,18 @@ export function makeHand() {
   const skin = buildSkinTextures(256);
   const lt = buildLeatherTextures(128);
   const palmMat = new THREE.MeshStandardMaterial({
-    vertexColors: true, map: skin.palm.map, color: 0xF6E3D3, roughness: 0.66, metalness: 0.0,
+    vertexColors: true, map: skin.palm.map, color: 0xFFFFFF, roughness: 0.60, metalness: 0.0,
     normalMap: skin.palm.normal, normalScale: new THREE.Vector2(0.85, 0.85),
     roughnessMap: skin.palm.rough, envMapIntensity: 0.45
   });
   const fingerMat = new THREE.MeshStandardMaterial({
-    map: skin.finger.map, color: 0xF6E3D3, roughness: 0.66, metalness: 0.0,
+    map: skin.finger.map, color: 0xFFFFFF, roughness: 0.60, metalness: 0.0,
     normalMap: skin.finger.normal, normalScale: new THREE.Vector2(0.80, 0.80),
     roughnessMap: skin.finger.rough, envMapIntensity: 0.45
   });
   const nailMat = new THREE.MeshStandardMaterial({
-    color: 0xF7E3DA, roughness: 0.28, metalness: 0.0, envMapIntensity: 1.2,
-    transparent: true, opacity: 0.92
+    color: 0xF8E3DE, roughness: 0.22, metalness: 0.0, envMapIntensity: 1.3,
+    transparent: true, opacity: 0.95
   });
   const sleeveMat = new THREE.MeshStandardMaterial({
     color: 0x1D1B19, roughness: 0.88, metalness: 0.02,
@@ -368,10 +392,10 @@ export function makeHand() {
   /* ---- 四指：每指 3 节 + 4 圆关节（近/中/远/指尖），per-finger 独立 curl ---- */
   const segGeo = new THREE.CylinderGeometry(0.36, 0.50, 1, 8, 1, true);
   const FINGERS = [
-    { x: -0.096, l0: 0.075, l1: 0.057, l2: 0.047, w: 0.060, sp: -0.05, ph: 0.00, st: 0.90 },
-    { x: -0.032, l0: 0.080, l1: 0.060, l2: 0.051, w: 0.062, sp: -0.02, ph: 0.035, st: 1.00 },
-    { x: 0.032, l0: 0.077, l1: 0.058, l2: 0.049, w: 0.060, sp: 0.02, ph: 0.07, st: 1.03 },
-    { x: 0.096, l0: 0.067, l1: 0.051, l2: 0.042, w: 0.052, sp: 0.05, ph: 0.105, st: 0.86 }
+    { x: -0.098, l0: 0.077, l1: 0.059, l2: 0.048, w: 0.052, sp: -0.04, ph: 0.00, st: 0.86 },
+    { x: -0.033, l0: 0.082, l1: 0.062, l2: 0.053, w: 0.054, sp: -0.015, ph: 0.035, st: 1.04 },
+    { x: 0.033, l0: 0.079, l1: 0.060, l2: 0.051, w: 0.053, sp: 0.015, ph: 0.07, st: 1.00 },
+    { x: 0.098, l0: 0.069, l1: 0.053, l2: 0.043, w: 0.046, sp: 0.04, ph: 0.105, st: 0.82 }
   ];
   const prox = new THREE.InstancedMesh(segGeo, fingerMat, 4);
   const mid = new THREE.InstancedMesh(segGeo, fingerMat, 4);
@@ -447,7 +471,7 @@ export function makeHand() {
         mz + d2.z * f.l2 * 0.58
       );
       dummy.quaternion.setFromUnitVectors(up, up);
-      dummy.scale.set(f.w * 0.55, f.w * 0.12, f.l2 * 0.72);
+      dummy.scale.set(f.w * 0.64, f.w * 0.13, f.l2 * 0.82);
       dummy.updateMatrix();
       nails.setMatrixAt(i, dummy.matrix);
     }
@@ -533,15 +557,15 @@ export function makeHand() {
     const c = k < 0 ? 0 : k > 1 ? 1 : k;
     setGripMatrices(c);
     /* 拇指从掌内侧翻转压向骰子：yaw 向内、pitch 下压 */
-    thumbBase.rotation.set(-0.15 - 0.55 * c, 2.55 - 0.35 * c, 0.10 + 0.30 * c);
-    thumbMid.rotation.x = -0.25 - 0.80 * c;
+    thumbBase.rotation.set(-0.32 - 0.55 * c, 0.55 + 0.42 * c, 0.10 + 0.18 * c);
+    thumbMid.rotation.x = -0.30 - 0.75 * c;
   }
   setGrip(0);
 
   return {
     group,
     setGrip,
-    gripLocal: new THREE.Vector3(0, -0.203, -0.128),
+    gripLocal: new THREE.Vector3(0.02, -0.215, -0.165),
     textures: [skin.palm.map, skin.palm.normal, skin.palm.rough, skin.finger.map, skin.finger.normal, skin.finger.rough, lt.normal, lt.rough],
     dispose() {
       palmGeo.dispose(); segGeo.dispose(); sphereUnit.dispose(); nailGeo.dispose();
