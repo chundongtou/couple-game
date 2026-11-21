@@ -754,7 +754,8 @@ export function buildBoardFace(tint) {
   return texFromCanvas(c, { aniso: 8 });
 }
 
-/* ------------------------------- 骰子图集（3×2） ------------------------------- */
+/* ------------------------------- 骰子图集（3×2） -------------------------------
+ * V9.7 参考实拍：白/象牙白底，2/3/5/6 蓝点、1/4 红点，圆点带高光；面边微阴影。 */
 export function buildDieAtlas(size = 128) {
   const SZ = size;
   const { c, g } = canvas2d(SZ * 3, SZ * 2);
@@ -766,37 +767,50 @@ export function buildDieAtlas(size = 128) {
     5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
     6: [[0.28, 0.24], [0.72, 0.24], [0.28, 0.5], [0.72, 0.5], [0.28, 0.76], [0.72, 0.76]]
   };
+  const BLUE = ['#4A7BE8', '#1F4FBF'];
+  const RED = ['#D95043', '#A62F26'];
+  const rnd = rng(5150);
   for (let v = 1; v <= 6; v++) {
     const col = (v - 1) % 3, row = Math.floor((v - 1) / 3);
     const x = col * SZ, y = row * SZ;
     g.save();
     g.translate(x, y);
-    /* 象牙骨白 + 轻微色差 */
+    /* 白骰底：暖白渐变 + 细噪点 */
     const gr = g.createLinearGradient(0, 0, SZ, SZ);
-    gr.addColorStop(0, '#F6ECD8');
-    gr.addColorStop(0.5, '#E8D9C0');
-    gr.addColorStop(1, '#D3BEA0');
+    gr.addColorStop(0, '#FFFDF9');
+    gr.addColorStop(0.55, '#F7F3EC');
+    gr.addColorStop(1, '#EDE7DD');
     g.fillStyle = gr;
     g.fillRect(0, 0, SZ, SZ);
-    /* 黄铜细边 */
-    g.strokeStyle = 'rgba(160,120,64,.55)';
-    g.lineWidth = SZ * 0.022;
-    g.strokeRect(SZ * 0.035, SZ * 0.035, SZ * 0.93, SZ * 0.93);
-    g.strokeStyle = 'rgba(255,250,238,.5)';
+    for (let i = 0; i < 90; i++) {
+      const px = rnd() * SZ, py = rnd() * SZ;
+      g.globalAlpha = 0.03 + rnd() * 0.05;
+      g.fillStyle = rnd() > 0.5 ? '#FFFFFF' : '#C9C2B6';
+      g.fillRect(px, py, 1 + rnd() * 1.6, 1 + rnd() * 1.6);
+    }
+    g.globalAlpha = 1;
+    /* 面边微阴影（圆角倒角内缘） */
+    g.strokeStyle = 'rgba(120,115,105,.18)';
+    g.lineWidth = SZ * 0.030;
+    g.strokeRect(SZ * 0.02, SZ * 0.02, SZ * 0.96, SZ * 0.96);
+    g.strokeStyle = 'rgba(255,255,255,.55)';
     g.lineWidth = SZ * 0.012;
-    g.strokeRect(SZ * 0.065, SZ * 0.065, SZ * 0.87, SZ * 0.87);
-    /* 凹陷点数：先暗影再亮点 */
+    g.strokeRect(SZ * 0.055, SZ * 0.055, SZ * 0.89, SZ * 0.89);
+    /* 圆点：1/4 红，2/3/5/6 蓝；高光 + 细描边 */
+    const isRed = (v === 1 || v === 4);
+    const cols = isRed ? RED : BLUE;
     for (const [px, py] of PIPS[v]) {
-      const cx = px * SZ, cy = py * SZ, rr = SZ * 0.071;
-      const dg = g.createRadialGradient(cx - rr * 0.3, cy - rr * 0.3, 0, cx, cy, rr);
-      dg.addColorStop(0, '#14100C');
-      dg.addColorStop(0.7, '#2A2118');
-      dg.addColorStop(1, '#4A3A28');
+      const cx = px * SZ, cy = py * SZ, pr = SZ * 0.082;
+      const dg = g.createRadialGradient(cx - pr * 0.35, cy - pr * 0.35, pr * 0.1, cx, cy, pr);
+      dg.addColorStop(0, cols[0]);
+      dg.addColorStop(1, cols[1]);
       g.fillStyle = dg;
-      g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.fill();
-      g.strokeStyle = 'rgba(255,246,228,.28)';
-      g.lineWidth = SZ * 0.008;
-      g.beginPath(); g.arc(cx, cy, rr * 1.05, 0.4, Math.PI * 1.1); g.stroke();
+      g.beginPath(); g.arc(cx, cy, pr, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.10)';
+      g.lineWidth = SZ * 0.010;
+      g.beginPath(); g.arc(cx, cy, pr, 0, TAU); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.38)';
+      g.beginPath(); g.arc(cx - pr * 0.30, cy - pr * 0.30, pr * 0.26, 0, TAU); g.fill();
     }
     g.restore();
   }
