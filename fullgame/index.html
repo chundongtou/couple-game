@@ -75,13 +75,13 @@ body.large #mini-pad button{font-size:20px;width:72px;height:62px}
         updateBannerVisibility();
       }
 
-      var buildUrl = "https://cdn.jsdelivr.net/gh/chundongtou/couple-game@c10c7b9478b6a2ad071525a49c769edf5d190f00/fullgame/Build";
+      var buildUrl = "Build";
       var loaderUrl = buildUrl + "/FullWebGL.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/FullWebGL.data.unityweb",
-        frameworkUrl: buildUrl + "/FullWebGL.framework.js.unityweb",
-        codeUrl: buildUrl + "/FullWebGL.wasm.unityweb",
+        dataUrl: buildUrl + "/FullWebGL.data",
+        frameworkUrl: buildUrl + "/FullWebGL.framework.js",
+        codeUrl: buildUrl + "/FullWebGL.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Unity Technologies",
         productName: "com.unity.template.urp-blank",
