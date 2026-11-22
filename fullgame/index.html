@@ -162,6 +162,9 @@ body.photo-mode #photo-exit{display:block}
   <button onclick="fullCycleVolume()">音量</button>
   <button onclick="fullAvatarColor(0)">你换色</button>
   <button onclick="fullAvatarColor(1)">TA换色</button>
+  <button onclick="fullChapter(1)">第1章</button>
+  <button onclick="fullChapter(2)">第2章</button>
+  <button onclick="fullChapter(3)">第3章</button>
 </div>
 <button id="photo-exit" onclick="fullTogglePhoto()">退出拍照</button>
 <div id="mini-pad">
@@ -197,6 +200,9 @@ window.fullMiniPad = function(i){
 };
 window.fullAvatarColor = function(i){
   fullSend('WebAvatarColor', i);
+};
+window.fullChapter = function(i){
+  fullSend('WebChapter', i);
 };
 </script>
 
