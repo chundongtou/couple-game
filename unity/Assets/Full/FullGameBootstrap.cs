@@ -462,7 +462,7 @@ public class FullGameBootstrap : MonoBehaviour
             miniReactionAt = Random.Range(1.2f, 3.0f);
             ui.ShowMini("小游戏 · " + mini.title + " · 等绿再按");
         }
-        else
+        else if (miniKind == 3)
         {
             miniSequence = new int[Mathf.Min(4, miniTarget)];
             string seq = "";
@@ -478,6 +478,11 @@ public class FullGameBootstrap : MonoBehaviour
             yield return new WaitForSeconds(2.2f);
             miniShowing = false;
             ui.ShowMini("小游戏 · " + mini.title + " · 按顺序点击");
+        }
+        else
+        {
+            miniChoiceCorrect = Random.Range(0, 2);
+            ui.ShowMini("小游戏 · " + mini.title + " · 选择左或右");
         }
         yield return null;
     }
@@ -513,7 +518,7 @@ public class FullGameBootstrap : MonoBehaviour
             FinishMini(miniArmed);
             return;
         }
-        if (miniKind == 3) return;
+        if (miniKind == 3 || miniKind == 4) return;
 
         var marker = ui.miniMarker.anchoredPosition;
         var green = ui.miniGreen.anchoredPosition;
@@ -593,6 +598,14 @@ public class FullGameBootstrap : MonoBehaviour
         miniInput++;
         ui.miniTitle.text = "顺序 " + miniInput + "/" + miniSequence.Length;
         if (miniInput >= miniSequence.Length) FinishMini(true);
+    }
+
+    public void WebMiniChoice(string value)
+    {
+        if (!miniActive || miniKind != 4) return;
+        int idx;
+        if (!int.TryParse(value, out idx)) return;
+        FinishMini(idx == miniChoiceCorrect);
     }
 
     public void WebPhoto()
