@@ -176,6 +176,8 @@ body.large #mini-pad button{font-size:20px;width:72px;height:62px}
   <button style="background:#b08a57;color:#fff" onclick="fullMiniPad(1)">黄</button>
   <button style="background:#3f607d;color:#fff" onclick="fullMiniPad(2)">蓝</button>
   <button style="background:#3e6b4f;color:#fff" onclick="fullMiniPad(3)">绿</button>
+  <button style="background:#4a4a55;color:#fff" onclick="fullMiniChoice(0)">左</button>
+  <button style="background:#4a4a55;color:#fff" onclick="fullMiniChoice(1)">右</button>
 </div>
 <script>
 window.fullSend = function(method, value){
@@ -201,6 +203,9 @@ window.fullCycleVolume = function(){
 };
 window.fullMiniPad = function(i){
   fullSend('WebMiniPad', i);
+};
+window.fullMiniChoice = function(i){
+  fullSend('WebMiniChoice', i);
 };
 window.fullAvatarColor = function(i){
   fullSend('WebAvatarColor', i);
