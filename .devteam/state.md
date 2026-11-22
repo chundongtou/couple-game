@@ -1,34 +1,33 @@
 # 工作台状态
 
 - 项目：couple-game
-- 当前阶段：5 交付完成（V10 Unity 6 URP Hybrid POC 已上线）
-- 目标：Unity 6 URP Hybrid POC 作为可选 3D 体验上线，保留现有 three.js/V7。
+- 当前阶段：V11 Full Unity · M0（场景/角色/镜头/回合/UI 骨架）
+- 目标：按全量产品范围搭建第三人称电影感双人桌游，过程中完善，不做垂直切片。
 - 交付物：
-  - 线上页面：https://chundongtou.github.io/couple-game/unity-poc/
-  - 源码：`couple-game/unity/`
-  - WebGL 构建：`couple-game/unity-poc/`（未压缩，GitHub Pages 可直接托管）
-  - 桥接：`UnityBridge.cs` + `UnityBridge.jslib`，JS 点 1–6 掷骰并收到 `unity-roll-complete`
+  - 设计蓝图：`docs/v11/full-unity-blueprint.md`
+  - FullGame 工程：`D:\CoupleUnity\FullGame`
+  - 源码：`couple-game/unity/Assets/Full/`
+  - 已构建：`D:\CoupleUnity\FullGame\Build\FullWebGL`（未压缩，约 84.6MB）
 - 不做的事：
-  - 本轮不迁移全部规则/UI/音频到 Unity（Full Unity 后续）
-  - 不替换现有 JS 主游戏；Unity 是独立可选页面
+  - 本轮不宣称 Full Unity 已完成；M0 只是可运行骨架
+  - 不删除现有 JS V9.7 与 Unity POC
 
-## 验收证据
-- 线上 URL 返回 200
-- 线上 ego 浏览器实际加载：`window.__unityInstance` 存在，HUD 显示“Unity 已就绪”
-- 点击点数 4 → `unity-roll-complete` 回 `结果 4`
-- 截图：`shots/unity-live-final.png`
+## M0 已做
+- URP 单场景 `FullGame.unity`，运行时构建房间/桌/棋盘/两角色/骰子
+- 第三人称双机位（A/B 越肩），骰子物理 + 顶面点数 + 蓝/红点
+- 回合/热度/掷骰/移动/事件卡/小游戏/结局运行时状态机
+- uGUI HUD / 骰子按钮 / 卡牌 / 小游戏 / 结局
+- WebGL 构建成功；collider stripping 用 `link.xml` 修复
+- UI/Default shader 已加入 Always Included
 
-## 任务板快照
-- [完成] Unity 6 + WebGL 模块 + license
-- [完成] URP 工程 + CC0 右手 prefab + 骰子/桌板
-- [完成] UnityBridge 端到端
-- [完成] GitHub Pages 部署（无压缩，避免 header 依赖）
-- [后续] Full Unity 迁移（UI/规则/音频）
-- [后续] 真机 iOS 内存/性能验证
-
-## 阻塞
-- 无
+## 已知问题
+- UI 布局在 WebGL 最新构建里仍需校验（此前出现缩放/裁切）
+- 角色/房间仍是 primitive 占位，未接正式美术
+- 卡牌只有 12 条，60 卡/12 小游戏/6 结局未完成
+- 无存档/音频/本地化/照片模式
+- Pages 发布通道仍故障；FullGame 未上线
 
 ## 下一步
-- 把 `/unity-poc/` 入口接到主游戏设置页（可选）
-- Full Unity 分阶段迁移
+- M1：UI 布局/回合闭环稳定、正式第三人称镜头、手部 prefab 接入
+- M2：12 小游戏、60 卡数据、3 章/6 结局
+- M3：美术/音频/灯光/性能
