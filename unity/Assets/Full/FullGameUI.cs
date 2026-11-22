@@ -35,7 +35,8 @@ public class FullGameUI : MonoBehaviour
 
     public void Build()
     {
-        font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        font = Resources.Load<Font>("Fonts/NotoSansSC");
+        if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null) font = Font.CreateDynamicFontFromOSFont("Arial", 20);
         uiMat = new Material(Shader.Find("UI/Default"));
 
