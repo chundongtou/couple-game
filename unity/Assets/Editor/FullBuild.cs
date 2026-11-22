@@ -20,3 +20,4 @@ public static class FullBuild
         if (report.summary.result != BuildResult.Succeeded) EditorApplication.Exit(1);
     }
 }
+

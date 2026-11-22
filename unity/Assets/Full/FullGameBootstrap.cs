@@ -16,6 +16,7 @@ public class FullGameBootstrap : MonoBehaviour
 
     FullDice dice;
     FullGameUI ui;
+    FullAudio audioDirector;
     Camera cam;
     readonly List<FullAvatar> avatars = new List<FullAvatar>();
     readonly List<GameObject> pieces = new List<GameObject>();
@@ -41,6 +42,7 @@ public class FullGameBootstrap : MonoBehaviour
         BuildActors();
         BuildDice();
         BuildCamera();
+        BuildAudio();
         BuildUI();
     }
 
@@ -207,6 +209,15 @@ public class FullGameBootstrap : MonoBehaviour
         ui.OnRestart += OnRestartClicked;
     }
 
+    void BuildAudio()
+    {
+        var go = new GameObject("FullAudio");
+        go.transform.SetParent(transform, false);
+        audioDirector = go.AddComponent<FullAudio>();
+        audioDirector.Build();
+        if (cam != null && cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>();
+    }
+
     // ---------- turn flow ----------
     void PlaceCameraFor(int player, bool instant)
     {
@@ -249,6 +260,7 @@ public class FullGameBootstrap : MonoBehaviour
     void OnRollClicked()
     {
         if (busy || chapterTransition) return;
+        if (audioDirector != null) audioDirector.PlayClick();
         StartCoroutine(RollRoutine());
     }
 
@@ -256,6 +268,7 @@ public class FullGameBootstrap : MonoBehaviour
     {
         busy = true;
         ui.ShowRoll(false);
+        if (audioDirector != null) audioDirector.PlayRoll();
         ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", "骰子滚动中…");
 
         dice.ResetTo(new Vector3(0, 1.35f, 0));
@@ -285,6 +298,7 @@ public class FullGameBootstrap : MonoBehaviour
     void ShowEventCard()
     {
         busy = false;
+        if (audioDirector != null) audioDirector.PlayCard();
         var cards = FullContent.CardsForChapter(chapter);
         var card = cards[Random.Range(0, cards.Length)];
         currentCardHeat = card.heat;
@@ -333,6 +347,11 @@ public class FullGameBootstrap : MonoBehaviour
         float half = ui.miniGreen.sizeDelta.x * 0.5f;
         bool success = Mathf.Abs(marker.x - green.x) < half;
         heat += success ? 4 : 1;
+        if (audioDirector != null)
+        {
+            if (success) audioDirector.PlayWin();
+            else audioDirector.PlayFail();
+        }
         ui.HideMini();
         ui.ShowCard(success ? "默契成功" : "差一点",
             success ? "你们在同一拍按下。热度 +4。" : "节奏错开了，但也很可爱。热度 +1。");
@@ -362,6 +381,7 @@ public class FullGameBootstrap : MonoBehaviour
     void ShowEnding()
     {
         FullContent.Ending(heat, chapter, out string title, out string body);
+        if (audioDirector != null) audioDirector.PlayWin();
         ui.ShowEnding(title, body);
         DeleteSave();
     }
