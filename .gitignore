@@ -23,3 +23,14 @@ app/render/node_modules/
 qa/v6/shots/
 qa/v6/__pycache__/
 qa/v6/_probe*.py
+
+# Unity
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/Obj/
+unity/Build/
+unity/Builds/
+unity/UserSettings/
+*.csproj
+*.sln
