@@ -160,6 +160,8 @@ body.photo-mode #photo-exit{display:block}
   <button onclick="fullTogglePhoto()">拍照</button>
   <button onclick="fullToggleMotion()">减少动态</button>
   <button onclick="fullCycleVolume()">音量</button>
+  <button onclick="fullAvatarColor(0)">你换色</button>
+  <button onclick="fullAvatarColor(1)">TA换色</button>
 </div>
 <button id="photo-exit" onclick="fullTogglePhoto()">退出拍照</button>
 <div id="mini-pad">
@@ -192,6 +194,9 @@ window.fullCycleVolume = function(){
 };
 window.fullMiniPad = function(i){
   fullSend('WebMiniPad', i);
+};
+window.fullAvatarColor = function(i){
+  fullSend('WebAvatarColor', i);
 };
 </script>
 
