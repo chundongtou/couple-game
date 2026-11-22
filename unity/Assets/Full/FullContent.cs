@@ -99,15 +99,15 @@ public static class FullContent
         new Mini("默契一拍", 0, 0.80f, 150f),
         new Mini("心跳同步", 0, 1.00f, 130f),
         new Mini("雨夜节奏", 0, 1.20f, 110f),
-        new Mini("慢半拍", 0, 0.60f, 180f),
         new Mini("一起连点", 1, 0f, 0f, 6),
         new Mini("快速回应", 1, 0f, 0f, 8),
         new Mini("厨房手速", 1, 0f, 0f, 10),
-        new Mini("周年倒数", 1, 0f, 0f, 12),
         new Mini("等绿再按", 2, 0f, 0f),
         new Mini("眼神确认", 2, 0f, 0f),
         new Mini("最后一秒", 2, 0f, 0f),
-        new Mini("周年钟声", 2, 0f, 0f),
+        new Mini("记住顺序", 3, 0f, 0f, 4),
+        new Mini("颜色记忆", 3, 0f, 0f, 4),
+        new Mini("周年序列", 3, 0f, 0f, 4),
     };
 
     public static Card[] CardsForChapter(int chapter)

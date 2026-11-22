@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// V11 Full Unity runtime: one room, two actors, third-person turns, real dice, board, cards, minigames.
-/// Content is data-driven through FullContent; UI is built at runtime and has an IMGUI fallback.
+/// V11 Full Unity runtime. One apartment/table, two actors, third-person turns,
+/// real dice, CC0 hand, cards, minigames, save/load, photo mode and procedural audio.
 /// </summary>
 public class FullGameBootstrap : MonoBehaviour
 {
@@ -19,6 +19,7 @@ public class FullGameBootstrap : MonoBehaviour
     FullAudio audioDirector;
     Camera cam;
     GameObject hand;
+
     readonly List<FullAvatar> avatars = new List<FullAvatar>();
     readonly List<GameObject> pieces = new List<GameObject>();
     readonly int[] positions = new int[2];
@@ -30,10 +31,8 @@ public class FullGameBootstrap : MonoBehaviour
     int currentCardHeat = 2;
     bool chapterTransition;
     bool busy;
+
     bool miniActive;
-    bool photoMode;
-    bool reduceMotion;
-    float photoAngle;
     float miniMarkerT;
     int miniSpeed = 1;
     float miniRate = 0.62f;
@@ -44,6 +43,13 @@ public class FullGameBootstrap : MonoBehaviour
     float miniReactionAt;
     float miniReactionElapsed;
     bool miniArmed;
+    int[] miniSequence;
+    int miniInput;
+    bool miniShowing;
+
+    bool photoMode;
+    bool reduceMotion;
+    float photoAngle;
 
     const string SaveKey = "couple_full_save_v1";
 
@@ -64,7 +70,7 @@ public class FullGameBootstrap : MonoBehaviour
         StartTurn();
     }
 
-    // ---------- persistence ----------
+    // ---------------- save ----------------
     void SaveNow()
     {
         var s = new FullSave
@@ -109,7 +115,7 @@ public class FullGameBootstrap : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    // ---------- scene construction ----------
+    // ---------------- environment ----------------
     void BuildEnvironment()
     {
         MakeBox("Floor", new Vector3(0, -0.06f, 0), new Vector3(6.4f, 0.12f, 6.4f), new Color(0.16f, 0.11f, 0.08f));
@@ -199,24 +205,25 @@ public class FullGameBootstrap : MonoBehaviour
         hand.transform.localRotation = Quaternion.Euler(0, 180, 0);
         hand.transform.localScale = Vector3.one * 1.25f;
 
-        // The imported hand may still use glTF shaders; swap to URP/Unlit for WebGL.
         var urp = Shader.Find("Universal Render Pipeline/Unlit");
-        if (urp == null) return;
-        foreach (var r in hand.GetComponentsInChildren<Renderer>())
+        if (urp != null)
         {
-            var mats = r.materials;
-            for (int i = 0; i < mats.Length; i++)
+            foreach (var r in hand.GetComponentsInChildren<Renderer>())
             {
-                var old = mats[i];
-                var nm = new Material(urp);
-                if (old != null)
+                var mats = r.materials;
+                for (int i = 0; i < mats.Length; i++)
                 {
-                    nm.color = old.color;
-                    if (old.mainTexture != null) nm.SetTexture("_BaseMap", old.mainTexture);
+                    var old = mats[i];
+                    var nm = new Material(urp);
+                    if (old != null)
+                    {
+                        nm.color = old.color;
+                        if (old.mainTexture != null) nm.SetTexture("_BaseMap", old.mainTexture);
+                    }
+                    mats[i] = nm;
                 }
-                mats[i] = nm;
+                r.materials = mats;
             }
-            r.materials = mats;
         }
 
         var renderers = hand.GetComponentsInChildren<Renderer>();
@@ -249,6 +256,15 @@ public class FullGameBootstrap : MonoBehaviour
         PlaceCameraFor(0, true);
     }
 
+    void BuildAudio()
+    {
+        var go = new GameObject("FullAudio");
+        go.transform.SetParent(transform, false);
+        audioDirector = go.AddComponent<FullAudio>();
+        audioDirector.Build();
+        if (cam != null && cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>();
+    }
+
     void BuildUI()
     {
         var uiGo = new GameObject("FullGameUI");
@@ -260,16 +276,7 @@ public class FullGameBootstrap : MonoBehaviour
         ui.OnRestart += OnRestartClicked;
     }
 
-    void BuildAudio()
-    {
-        var go = new GameObject("FullAudio");
-        go.transform.SetParent(transform, false);
-        audioDirector = go.AddComponent<FullAudio>();
-        audioDirector.Build();
-        if (cam != null && cam.GetComponent<AudioListener>() == null) cam.gameObject.AddComponent<AudioListener>();
-    }
-
-    // ---------- turn flow ----------
+    // ---------------- turns ----------------
     void PlaceCameraFor(int player, bool instant)
     {
         Vector3 pos = player == 0 ? new Vector3(0.0f, 1.55f, -3.0f) : new Vector3(0.0f, 1.55f, 3.0f);
@@ -304,8 +311,8 @@ public class FullGameBootstrap : MonoBehaviour
         ui.ShowRoll(true);
         for (int i = 0; i < avatars.Count; i++) avatars[i].SetCurrent(i == currentPlayer);
         PlaceCameraFor(currentPlayer, false);
-        ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合",
-            $"{avatars[currentPlayer].displayName} 的回合 · 热度 {heat}");
+        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合",
+            avatars[currentPlayer].displayName + " 的回合 · 热度 " + heat);
     }
 
     void OnRollClicked()
@@ -320,7 +327,7 @@ public class FullGameBootstrap : MonoBehaviour
         busy = true;
         ui.ShowRoll(false);
         if (audioDirector != null) audioDirector.PlayRoll();
-        ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", "骰子滚动中…");
+        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "骰子滚动中…");
 
         dice.ResetTo(new Vector3(0, 1.35f, 0));
         if (hand != null) StartCoroutine(AnimateHandThrow());
@@ -340,7 +347,7 @@ public class FullGameBootstrap : MonoBehaviour
             yield return null;
         }
         piece.transform.position = to;
-        ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", $"掷出 {value} 点 · 热度 {heat}");
+        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "掷出 " + value + " 点 · 热度 " + heat);
         yield return new WaitForSeconds(0.4f);
 
         if ((turn + 1) % 3 == 0) StartCoroutine(MinigameRoutine());
@@ -407,6 +414,7 @@ public class FullGameBootstrap : MonoBehaviour
         miniTimer = 0;
         miniReactionElapsed = 0;
         miniArmed = false;
+        miniShowing = false;
         miniSpeed = Random.value > 0.5f ? 1 : -1;
         ui.miniTitle.color = new Color(0.94f, 0.90f, 0.82f);
         var mini = FullContent.MiniFor(turn);
@@ -417,12 +425,36 @@ public class FullGameBootstrap : MonoBehaviour
         ui.miniGreen.anchoredPosition = new Vector2(Random.Range(-150f, 150f), 0);
         ui.miniMarker.gameObject.SetActive(miniKind == 0);
         ui.miniGreen.gameObject.SetActive(miniKind == 0);
-        if (miniKind == 0) ui.ShowMini("小游戏 · " + mini.title + " · 在绿区按停");
-        else if (miniKind == 1) ui.ShowMini("小游戏 · " + mini.title + " · 连按 " + miniTarget + " 次");
-        else
+
+        if (miniKind == 0)
+        {
+            ui.ShowMini("小游戏 · " + mini.title + " · 在绿区按停");
+        }
+        else if (miniKind == 1)
+        {
+            ui.ShowMini("小游戏 · " + mini.title + " · 连按 " + miniTarget + " 次");
+        }
+        else if (miniKind == 2)
         {
             miniReactionAt = Random.Range(1.2f, 3.0f);
             ui.ShowMini("小游戏 · " + mini.title + " · 等绿再按");
+        }
+        else
+        {
+            miniSequence = new int[Mathf.Min(4, miniTarget)];
+            string seq = "";
+            string[] names = { "红", "黄", "蓝", "绿" };
+            for (int i = 0; i < miniSequence.Length; i++)
+            {
+                miniSequence[i] = Random.Range(0, 4);
+                seq += names[miniSequence[i]] + " ";
+            }
+            miniInput = 0;
+            miniShowing = true;
+            ui.ShowMini("记住顺序：" + seq);
+            yield return new WaitForSeconds(2.2f);
+            miniShowing = false;
+            ui.ShowMini("小游戏 · " + mini.title + " · 按顺序点击");
         }
         yield return null;
     }
@@ -446,7 +478,6 @@ public class FullGameBootstrap : MonoBehaviour
     void OnMiniStopClicked()
     {
         if (!miniActive) return;
-
         if (miniKind == 1)
         {
             miniTaps++;
@@ -459,6 +490,7 @@ public class FullGameBootstrap : MonoBehaviour
             FinishMini(miniArmed);
             return;
         }
+        if (miniKind == 3) return;
 
         var marker = ui.miniMarker.anchoredPosition;
         var green = ui.miniGreen.anchoredPosition;
@@ -476,7 +508,8 @@ public class FullGameBootstrap : MonoBehaviour
             {
                 busy = false;
                 chapterTransition = true;
-                ui.ShowCard($"第 {chapter} 章 · 完成", $"你们走完了第 {chapter} 章。\n\n热度 {heat}。下一章，继续一起飞。");
+                ui.ShowCard("第 " + chapter + " 章 · 完成",
+                    "你们走完了第 " + chapter + " 章。\n\n热度 " + heat + "。下一章，继续一起飞。");
                 return;
             }
             ShowEnding();
@@ -500,11 +533,28 @@ public class FullGameBootstrap : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
-    // HTML shell entry points
+    // ---------------- HTML bridge ----------------
     public void WebRoll() { OnRollClicked(); }
     public void WebContinue() { OnContinueClicked(); }
     public void WebStop() { OnMiniStopClicked(); }
     public void WebRestart() { OnRestartClicked(); }
+
+    public void WebMiniPad(string value)
+    {
+        if (!miniActive || miniKind != 3 || miniShowing) return;
+        int idx;
+        if (!int.TryParse(value, out idx)) return;
+        if (idx < 0 || idx >= 4) return;
+        if (miniSequence == null || miniInput >= miniSequence.Length) return;
+        if (idx != miniSequence[miniInput])
+        {
+            FinishMini(false);
+            return;
+        }
+        miniInput++;
+        ui.miniTitle.text = "顺序 " + miniInput + "/" + miniSequence.Length;
+        if (miniInput >= miniSequence.Length) FinishMini(true);
+    }
 
     public void WebPhoto()
     {
@@ -535,6 +585,7 @@ public class FullGameBootstrap : MonoBehaviour
             return;
         }
         if (!miniActive || ui == null) return;
+
         if (miniKind == 0 && ui.miniMarker != null)
         {
             miniMarkerT += Time.deltaTime * miniRate * miniSpeed;
@@ -559,7 +610,7 @@ public class FullGameBootstrap : MonoBehaviour
         }
     }
 
-    // IMGUI fallback: keeps the turn loop playable even if uGUI is clipped on a device.
+    // IMGUI fallback for devices where uGUI is clipped.
     void OnGUI()
     {
         if (ui == null) return;
@@ -583,7 +634,7 @@ public class FullGameBootstrap : MonoBehaviour
         }
     }
 
-    // ---------- helpers ----------
+    // ---------------- helpers ----------------
     GameObject MakeBox(string name, Vector3 pos, Vector3 scale, Color color)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
