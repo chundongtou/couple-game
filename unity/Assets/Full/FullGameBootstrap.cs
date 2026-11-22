@@ -18,6 +18,7 @@ public class FullGameBootstrap : MonoBehaviour
     FullGameUI ui;
     FullAudio audioDirector;
     Camera cam;
+    GameObject hand;
     readonly List<FullAvatar> avatars = new List<FullAvatar>();
     readonly List<GameObject> pieces = new List<GameObject>();
     readonly int[] positions = new int[2];
@@ -50,6 +51,7 @@ public class FullGameBootstrap : MonoBehaviour
     {
         BuildEnvironment();
         BuildActors();
+        BuildHand();
         BuildDice();
         BuildCamera();
         BuildAudio();
@@ -188,6 +190,45 @@ public class FullGameBootstrap : MonoBehaviour
         }
     }
 
+    void BuildHand()
+    {
+        if (handPrefab == null) return;
+        hand = Instantiate(handPrefab, transform, false);
+        hand.name = "CC0Hand";
+        hand.transform.localPosition = new Vector3(0.72f, 0.82f, 0.18f);
+        hand.transform.localRotation = Quaternion.Euler(0, 180, 0);
+        hand.transform.localScale = Vector3.one * 1.25f;
+
+        // The imported hand may still use glTF shaders; swap to URP/Unlit for WebGL.
+        var urp = Shader.Find("Universal Render Pipeline/Unlit");
+        if (urp == null) return;
+        foreach (var r in hand.GetComponentsInChildren<Renderer>())
+        {
+            var mats = r.materials;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                var old = mats[i];
+                var nm = new Material(urp);
+                if (old != null)
+                {
+                    nm.color = old.color;
+                    if (old.mainTexture != null) nm.SetTexture("_BaseMap", old.mainTexture);
+                }
+                mats[i] = nm;
+            }
+            r.materials = mats;
+        }
+
+        var renderers = hand.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            var bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            Vector3 target = transform.TransformPoint(new Vector3(0.72f, 0.82f, 0.18f));
+            hand.transform.position += target - bounds.center;
+        }
+    }
+
     void BuildDice()
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -282,6 +323,7 @@ public class FullGameBootstrap : MonoBehaviour
         ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", "骰子滚动中…");
 
         dice.ResetTo(new Vector3(0, 1.35f, 0));
+        if (hand != null) StartCoroutine(AnimateHandThrow());
         dice.StartRoll();
         while (!dice.Settled) yield return null;
 
@@ -303,6 +345,29 @@ public class FullGameBootstrap : MonoBehaviour
 
         if ((turn + 1) % 3 == 0) StartCoroutine(MinigameRoutine());
         else ShowEventCard();
+    }
+
+    IEnumerator AnimateHandThrow()
+    {
+        Vector3 rest = new Vector3(0.72f, 0.82f, 0.18f);
+        Vector3 target = new Vector3(0.12f, 1.06f, 0.15f);
+        float t = 0;
+        while (t < 0.36f)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0, 1, t / 0.36f);
+            hand.transform.localPosition = Vector3.Lerp(rest, target, k);
+            yield return null;
+        }
+        yield return new WaitForSeconds(0.12f);
+        t = 0;
+        while (t < 0.5f)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.SmoothStep(0, 1, t / 0.5f);
+            hand.transform.localPosition = Vector3.Lerp(target, rest, k);
+            yield return null;
+        }
     }
 
     void ShowEventCard()
