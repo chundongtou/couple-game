@@ -462,5 +462,14 @@ body.reduce .mg-panel{animation-duration:80ms!important}
 </script>
 <script src="assets/audio.36e25195.js" defer></script>
 <script src="assets/cards.6e682ef2.js" defer></script>
+
+<script>
+(function(){
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get("unity") === "1") location.replace("unity-poc/");
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
