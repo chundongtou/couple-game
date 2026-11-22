@@ -28,6 +28,7 @@ public class FullGameBootstrap : MonoBehaviour
     int currentPlayer;
     int turn;
     int heat;
+    int unlockedChapter = 1;
     int currentCardHeat = 2;
     bool chapterTransition;
     bool busy;
@@ -80,6 +81,7 @@ public class FullGameBootstrap : MonoBehaviour
             turn = turn,
             heat = heat,
             currentPlayer = currentPlayer,
+            unlockedChapter = unlockedChapter,
             posA = positions[0],
             posB = positions[1],
             valid = true
@@ -96,6 +98,7 @@ public class FullGameBootstrap : MonoBehaviour
             var s = JsonUtility.FromJson<FullSave>(PlayerPrefs.GetString(SaveKey));
             if (s == null || !s.valid) return;
             chapter = Mathf.Clamp(s.chapter, 1, 3);
+            unlockedChapter = Mathf.Clamp(s.unlockedChapter, 1, 3);
             turn = Mathf.Clamp(s.turn, 0, turnsPerChapter - 1);
             heat = Mathf.Max(0, s.heat);
             currentPlayer = s.currentPlayer == 1 ? 1 : 0;
@@ -399,6 +402,7 @@ public class FullGameBootstrap : MonoBehaviour
         {
             ui.HideCard();
             chapter++;
+            unlockedChapter = Mathf.Max(unlockedChapter, chapter);
             turn = 0;
             currentPlayer = 0;
             heat += 2;
@@ -544,6 +548,22 @@ public class FullGameBootstrap : MonoBehaviour
     public void WebContinue() { OnContinueClicked(); }
     public void WebStop() { OnMiniStopClicked(); }
     public void WebRestart() { OnRestartClicked(); }
+
+    public void WebChapter(string value)
+    {
+        int idx;
+        if (!int.TryParse(value, out idx)) return;
+        if (idx < 1 || idx > unlockedChapter) return;
+        chapter = idx;
+        turn = 0;
+        currentPlayer = 0;
+        heat = 0;
+        ui.HideCard();
+        ui.HideMini();
+        ui.HideEnding();
+        SaveNow();
+        StartTurn();
+    }
 
     public void WebMiniPad(string value)
     {

@@ -137,6 +137,7 @@ public static class FullContent
 public class FullSave
 {
     public int chapter = 1;
+    public int unlockedChapter = 1;
     public int turn;
     public int heat;
     public int currentPlayer;
