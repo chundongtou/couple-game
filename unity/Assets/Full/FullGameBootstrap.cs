@@ -177,6 +177,96 @@ public class FullGameBootstrap : MonoBehaviour
 
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
         RenderSettings.ambientLight = new Color(0.10f, 0.09f, 0.12f);
+        BuildDecor();
+    }
+
+    void BuildDecor()
+    {
+        // Bookshelf on the back wall.
+        MakeBox("ShelfFrame", new Vector3(-1.75f, 0.95f, 2.98f), new Vector3(1.25f, 1.55f, 0.22f), new Color(0.16f, 0.10f, 0.07f));
+        for (int row = 0; row < 3; row++)
+        {
+            float y = 0.48f + row * 0.42f;
+            MakeBox("ShelfBoard" + row, new Vector3(-1.75f, y, 2.86f), new Vector3(1.15f, 0.035f, 0.18f), new Color(0.30f, 0.19f, 0.11f));
+            for (int b = 0; b < 5; b++)
+            {
+                var book = MakeBox("Book" + row + "_" + b,
+                    new Vector3(-2.25f + b * 0.22f, y + 0.13f, 2.82f),
+                    new Vector3(0.10f, 0.24f, 0.12f),
+                    new Color(0.35f + b * 0.08f, 0.22f + row * 0.05f, 0.22f + b * 0.04f));
+                book.transform.rotation = Quaternion.Euler(0, 0, Random.Range(-3f, 3f));
+            }
+        }
+
+        // Framed art on the back wall.
+        MakeArt(new Vector3(0.85f, 1.62f, 3.12f), new Color(0.48f, 0.20f, 0.16f), new Color(0.92f, 0.72f, 0.48f));
+        MakeArt(new Vector3(1.65f, 1.48f, 3.12f), new Color(0.16f, 0.25f, 0.30f), new Color(0.62f, 0.78f, 0.74f));
+
+        // Plant in the right corner.
+        var pot = MakeCylinder("PlantPot", new Vector3(2.35f, 0.18f, 1.55f), new Vector3(0.24f, 0.18f, 0.24f), new Color(0.42f, 0.24f, 0.14f));
+        for (int i = 0; i < 7; i++)
+        {
+            float a = i / 7f * Mathf.PI * 2f;
+            var leaf = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            leaf.name = "Leaf" + i;
+            leaf.transform.SetParent(transform, false);
+            leaf.transform.position = new Vector3(2.35f + Mathf.Cos(a) * 0.22f, 0.68f + (i % 3) * 0.12f, 1.55f + Mathf.Sin(a) * 0.22f);
+            leaf.transform.localScale = new Vector3(0.18f, 0.06f, 0.30f);
+            leaf.transform.rotation = Quaternion.Euler(20, -a * Mathf.Rad2Deg, 15);
+            Paint(leaf, new Color(0.22f, 0.42f, 0.24f));
+            Destroy(leaf.GetComponent<Collider>());
+        }
+
+        // Warm candles and a wine bottle on the table.
+        var candle = MakeCylinder("Candle", new Vector3(-0.58f, 0.86f, 0.32f), new Vector3(0.055f, 0.10f, 0.055f), new Color(0.92f, 0.78f, 0.56f));
+        AddPointLight("CandleLight", new Vector3(-0.58f, 1.05f, 0.32f), new Color(1f, 0.55f, 0.25f), 1.8f, 1.4f);
+        MakeCylinder("Bottle", new Vector3(0.68f, 0.90f, -0.34f), new Vector3(0.07f, 0.22f, 0.07f), new Color(0.14f, 0.22f, 0.14f));
+        MakeCylinder("BottleNeck", new Vector3(0.68f, 1.12f, -0.34f), new Vector3(0.035f, 0.12f, 0.035f), new Color(0.14f, 0.22f, 0.14f));
+
+        // String lights above the table.
+        for (int i = 0; i < 9; i++)
+        {
+            float x = -1.0f + i * 0.25f;
+            float y = 1.95f + Mathf.Sin(i * 1.3f) * 0.08f;
+            var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bulb.name = "Bulb" + i;
+            bulb.transform.SetParent(transform, false);
+            bulb.transform.position = new Vector3(x, y, 0.8f);
+            bulb.transform.localScale = Vector3.one * 0.045f;
+            Paint(bulb, new Color(1f, 0.72f, 0.36f));
+            Destroy(bulb.GetComponent<Collider>());
+        }
+        AddPointLight("StringGlow", new Vector3(0, 2.0f, 0.8f), new Color(1f, 0.62f, 0.28f), 1.1f, 2.8f);
+    }
+
+    GameObject MakeCylinder(string name, Vector3 pos, Vector3 scale, Color color)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        go.transform.SetParent(transform, false);
+        go.transform.position = pos;
+        go.transform.localScale = scale;
+        Destroy(go.GetComponent<Collider>());
+        Paint(go, color);
+        return go;
+    }
+
+    void MakeArt(Vector3 pos, Color frame, Color canvas)
+    {
+        MakeBox("ArtFrame", pos, new Vector3(0.62f, 0.78f, 0.06f), frame);
+        MakeBox("ArtCanvas", pos + new Vector3(0, 0, -0.04f), new Vector3(0.50f, 0.64f, 0.015f), canvas);
+    }
+
+    void AddPointLight(string name, Vector3 pos, Color color, float intensity, float range)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(transform, false);
+        go.transform.position = pos;
+        var l = go.AddComponent<Light>();
+        l.type = LightType.Point;
+        l.color = color;
+        l.intensity = intensity;
+        l.range = range;
     }
 
     void BuildActors()

@@ -58,6 +58,27 @@ public class FullAvatar : MonoBehaviour
             Destroy(arm.GetComponent<Collider>());
             arm.GetComponent<MeshRenderer>().material = bodyMat;
         }
+
+        var hair = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        hair.name = "Hair";
+        hair.transform.SetParent(transform, false);
+        hair.transform.localPosition = new Vector3(0, 1.30f, -0.015f);
+        hair.transform.localScale = new Vector3(0.37f, 0.20f, 0.37f);
+        Destroy(hair.GetComponent<Collider>());
+        var hairMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        hairMat.color = new Color(0.12f, 0.08f, 0.06f);
+        hair.GetComponent<MeshRenderer>().material = hairMat;
+
+        for (int i = 0; i < 2; i++)
+        {
+            var leg = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            leg.name = "Leg" + i;
+            leg.transform.SetParent(transform, false);
+            leg.transform.localPosition = new Vector3(i == 0 ? -0.14f : 0.14f, 0.22f, 0);
+            leg.transform.localScale = new Vector3(0.15f, 0.28f, 0.15f);
+            Destroy(leg.GetComponent<Collider>());
+            leg.GetComponent<MeshRenderer>().material = bodyMat;
+        }
     }
 
     public void SetCurrent(bool isCurrent)
