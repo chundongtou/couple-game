@@ -84,4 +84,9 @@ public class FullAudio : MonoBehaviour
     public void PlayCard() => Play(card);
     public void PlayWin() => Play(win);
     public void PlayFail() => Play(fail);
+
+    public void SetVolume(float value)
+    {
+        if (source != null) source.volume = Mathf.Clamp01(value);
+    }
 }

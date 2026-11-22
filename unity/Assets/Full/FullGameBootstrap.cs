@@ -30,6 +30,9 @@ public class FullGameBootstrap : MonoBehaviour
     bool chapterTransition;
     bool busy;
     bool miniActive;
+    bool photoMode;
+    bool reduceMotion;
+    float photoAngle;
     float miniMarkerT;
     int miniSpeed = 1;
     float miniRate = 0.62f;
@@ -230,7 +233,7 @@ public class FullGameBootstrap : MonoBehaviour
     {
         Vector3 pos = player == 0 ? new Vector3(0.0f, 1.55f, -3.0f) : new Vector3(0.0f, 1.55f, 3.0f);
         Vector3 look = new Vector3(0, 0.78f, 0);
-        if (instant) { cam.transform.position = pos; cam.transform.LookAt(look); }
+        if (instant || reduceMotion) { cam.transform.position = pos; cam.transform.LookAt(look); }
         else StartCoroutine(MoveCamera(pos, look));
     }
 
@@ -438,8 +441,34 @@ public class FullGameBootstrap : MonoBehaviour
     public void WebStop() { OnMiniStopClicked(); }
     public void WebRestart() { OnRestartClicked(); }
 
+    public void WebPhoto()
+    {
+        photoMode = !photoMode;
+        if (ui != null) ui.SetVisible(!photoMode);
+        if (!photoMode) PlaceCameraFor(currentPlayer, false);
+    }
+
+    public void WebReduceMotion(string value)
+    {
+        reduceMotion = value == "1" || value == "true";
+    }
+
+    public void WebVolume(string value)
+    {
+        float v;
+        if (float.TryParse(value, out v) && audioDirector != null) audioDirector.SetVolume(v);
+    }
+
     void Update()
     {
+        if (photoMode)
+        {
+            photoAngle += Time.deltaTime * 0.20f;
+            float r = 2.4f;
+            cam.transform.position = new Vector3(Mathf.Sin(photoAngle) * r, 1.45f, Mathf.Cos(photoAngle) * r);
+            cam.transform.LookAt(new Vector3(0, 0.75f, 0));
+            return;
+        }
         if (!miniActive || ui == null) return;
         if (miniKind == 0 && ui.miniMarker != null)
         {

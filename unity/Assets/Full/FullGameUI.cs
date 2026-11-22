@@ -27,6 +27,7 @@ public class FullGameUI : MonoBehaviour
 
     Font font;
     Material uiMat;
+    GameObject rootCanvas;
 
     public event Action OnRoll;
     public event Action OnContinue;
@@ -48,6 +49,7 @@ public class FullGameUI : MonoBehaviour
         }
 
         var cgo = new GameObject("FullUI");
+        rootCanvas = cgo;
         var canvas = cgo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
@@ -165,4 +167,9 @@ public class FullGameUI : MonoBehaviour
     public void ShowEnding(string title, string body) { endPanel.SetActive(true); endTitle.text = title; endBody.text = body; }
     public void HideEnding() => endPanel.SetActive(false);
     public void SetHud(string text, string sub) { hud.text = text; status.text = sub; }
+
+    public void SetVisible(bool visible)
+    {
+        if (rootCanvas != null) rootCanvas.SetActive(visible);
+    }
 }
