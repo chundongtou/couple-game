@@ -1,33 +1,23 @@
-# 工作台状态
+﻿# 宸ヤ綔鍙扮姸鎬?
+- 椤圭洰锛歝ouple-game
+- 褰撳墠闃舵锛歏11 Full Unity 路 M0锛堝満鏅?瑙掕壊/闀滃ご/鍥炲悎/UI 楠ㄦ灦锛?- 鐩爣锛氭寜鍏ㄩ噺浜у搧鑼冨洿鎼缓绗笁浜虹О鐢靛奖鎰熷弻浜烘娓革紝杩囩▼涓畬鍠勶紝涓嶅仛鍨傜洿鍒囩墖銆?- 浜や粯鐗╋細
+  - 璁捐钃濆浘锛歚docs/v11/full-unity-blueprint.md`
+  - FullGame 宸ョ▼锛歚D:\CoupleUnity\FullGame`
+  - 婧愮爜锛歚couple-game/unity/Assets/Full/`
+  - 宸叉瀯寤猴細`D:\CoupleUnity\FullGame\Build\FullWebGL`锛堟湭鍘嬬缉锛岀害 84.6MB锛?- 涓嶅仛鐨勪簨锛?  - 鏈疆涓嶅绉?Full Unity 宸插畬鎴愶紱M0 鍙槸鍙繍琛岄鏋?  - 涓嶅垹闄ょ幇鏈?JS V9.7 涓?Unity POC
 
-- 项目：couple-game
-- 当前阶段：V11 Full Unity · M0（场景/角色/镜头/回合/UI 骨架）
-- 目标：按全量产品范围搭建第三人称电影感双人桌游，过程中完善，不做垂直切片。
-- 交付物：
-  - 设计蓝图：`docs/v11/full-unity-blueprint.md`
-  - FullGame 工程：`D:\CoupleUnity\FullGame`
-  - 源码：`couple-game/unity/Assets/Full/`
-  - 已构建：`D:\CoupleUnity\FullGame\Build\FullWebGL`（未压缩，约 84.6MB）
-- 不做的事：
-  - 本轮不宣称 Full Unity 已完成；M0 只是可运行骨架
-  - 不删除现有 JS V9.7 与 Unity POC
+## M0 宸插仛
+- URP 鍗曞満鏅?`FullGame.unity`锛岃繍琛屾椂鏋勫缓鎴块棿/妗?妫嬬洏/涓よ鑹?楠板瓙
+- 绗笁浜虹О鍙屾満浣嶏紙A/B 瓒婅偐锛夛紝楠板瓙鐗╃悊 + 椤堕潰鐐规暟 + 钃?绾㈢偣
+- 鍥炲悎/鐑害/鎺烽/绉诲姩/浜嬩欢鍗?灏忔父鎴?缁撳眬杩愯鏃剁姸鎬佹満
+- uGUI HUD / 楠板瓙鎸夐挳 / 鍗＄墝 / 灏忔父鎴?/ 缁撳眬
+- WebGL 鏋勫缓鎴愬姛锛沜ollider stripping 鐢?`link.xml` 淇
+- UI/Default shader 宸插姞鍏?Always Included
 
-## M0 已做
-- URP 单场景 `FullGame.unity`，运行时构建房间/桌/棋盘/两角色/骰子
-- 第三人称双机位（A/B 越肩），骰子物理 + 顶面点数 + 蓝/红点
-- 回合/热度/掷骰/移动/事件卡/小游戏/结局运行时状态机
-- uGUI HUD / 骰子按钮 / 卡牌 / 小游戏 / 结局
-- WebGL 构建成功；collider stripping 用 `link.xml` 修复
-- UI/Default shader 已加入 Always Included
+## 宸茬煡闂
+- UI 甯冨眬鍦?WebGL 鏈€鏂版瀯寤洪噷浠嶉渶鏍￠獙锛堟鍓嶅嚭鐜扮缉鏀?瑁佸垏锛?- 瑙掕壊/鎴块棿浠嶆槸 primitive 鍗犱綅锛屾湭鎺ユ寮忕編鏈?- 鍗＄墝鍙湁 12 鏉★紝60 鍗?12 灏忔父鎴?6 缁撳眬鏈畬鎴?- 鏃犲瓨妗?闊抽/鏈湴鍖?鐓х墖妯″紡
+- Pages 鍙戝竷閫氶亾浠嶆晠闅滐紱FullGame 鏈笂绾?
+## 涓嬩竴姝?- M1锛歎I 甯冨眬/鍥炲悎闂幆绋冲畾銆佹寮忕涓変汉绉伴暅澶淬€佹墜閮?prefab 鎺ュ叆
+- M2锛?2 灏忔父鎴忋€?0 鍗℃暟鎹€? 绔?6 缁撳眬
+- M3锛氱編鏈?闊抽/鐏厜/鎬ц兘
 
-## 已知问题
-- UI 布局在 WebGL 最新构建里仍需校验（此前出现缩放/裁切）
-- 角色/房间仍是 primitive 占位，未接正式美术
-- 卡牌只有 12 条，60 卡/12 小游戏/6 结局未完成
-- 无存档/音频/本地化/照片模式
-- Pages 发布通道仍故障；FullGame 未上线
-
-## 下一步
-- M1：UI 布局/回合闭环稳定、正式第三人称镜头、手部 prefab 接入
-- M2：12 小游戏、60 卡数据、3 章/6 结局
-- M3：美术/音频/灯光/性能
