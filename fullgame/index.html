@@ -23,6 +23,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
   border-radius:10px;border:1px solid rgba(224,164,94,.65);background:rgba(8,12,18,.88);color:#f2e8d8;font-size:16px}
 body.photo-mode #web-hud{display:none}
 body.photo-mode #photo-exit{display:block}
+#mini-pad{position:fixed;left:16px;bottom:16px;z-index:9999;display:flex;gap:8px}
+#mini-pad button{width:62px;height:52px;border-radius:10px;border:1px solid rgba(224,164,94,.55);font-weight:700;cursor:pointer}
 </style>
 
 <!-- FULLSCREEN-PATCH -->
@@ -160,6 +162,12 @@ body.photo-mode #photo-exit{display:block}
   <button onclick="fullCycleVolume()">音量</button>
 </div>
 <button id="photo-exit" onclick="fullTogglePhoto()">退出拍照</button>
+<div id="mini-pad">
+  <button style="background:#9b4a52;color:#fff" onclick="fullMiniPad(0)">红</button>
+  <button style="background:#b08a57;color:#fff" onclick="fullMiniPad(1)">黄</button>
+  <button style="background:#3f607d;color:#fff" onclick="fullMiniPad(2)">蓝</button>
+  <button style="background:#3e6b4f;color:#fff" onclick="fullMiniPad(3)">绿</button>
+</div>
 <script>
 window.fullSend = function(method, value){
   try {
@@ -181,6 +189,9 @@ window.__fullVolume = 0.55;
 window.fullCycleVolume = function(){
   window.__fullVolume = window.__fullVolume > 0.2 ? 0 : 0.55;
   fullSend('WebVolume', window.__fullVolume);
+};
+window.fullMiniPad = function(i){
+  fullSend('WebMiniPad', i);
 };
 </script>
 
