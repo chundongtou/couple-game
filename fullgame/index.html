@@ -19,6 +19,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
   background:rgba(8,12,18,.88);color:#f2e8d8;font-size:16px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px)}
 #web-hud button:active{background:rgba(224,164,94,.35)}
 #web-hud .primary{background:linear-gradient(180deg,#ddb273,#b08a57);color:#1a120b;border-color:transparent}
+#photo-exit{display:none;position:fixed;right:18px;bottom:18px;z-index:10000;min-height:52px;padding:0 20px;
+  border-radius:10px;border:1px solid rgba(224,164,94,.65);background:rgba(8,12,18,.88);color:#f2e8d8;font-size:16px}
+body.photo-mode #web-hud{display:none}
+body.photo-mode #photo-exit{display:block}
 </style>
 
 <!-- FULLSCREEN-PATCH -->
@@ -151,13 +155,32 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
   <button onclick="fullSend('WebContinue')">继续</button>
   <button onclick="fullSend('WebStop')">停</button>
   <button onclick="fullSend('WebRestart')">重开</button>
+  <button onclick="fullTogglePhoto()">拍照</button>
+  <button onclick="fullToggleMotion()">减少动态</button>
+  <button onclick="fullCycleVolume()">音量</button>
 </div>
+<button id="photo-exit" onclick="fullTogglePhoto()">退出拍照</button>
 <script>
-window.fullSend = function(method){
+window.fullSend = function(method, value){
   try {
     if(!window.__unityInstance){ return; }
-    window.__unityInstance.SendMessage("FullGame", method);
+    if (value === undefined) window.__unityInstance.SendMessage("FullGame", method);
+    else window.__unityInstance.SendMessage("FullGame", method, String(value));
   } catch(e) { console.log("fullSend error", e); }
+};
+window.__fullMotion = false;
+window.fullTogglePhoto = function(){
+  document.body.classList.toggle('photo-mode');
+  fullSend('WebPhoto');
+};
+window.fullToggleMotion = function(){
+  window.__fullMotion = !window.__fullMotion;
+  fullSend('WebReduceMotion', window.__fullMotion ? '1' : '0');
+};
+window.__fullVolume = 0.55;
+window.fullCycleVolume = function(){
+  window.__fullVolume = window.__fullVolume > 0.2 ? 0 : 0.55;
+  fullSend('WebVolume', window.__fullVolume);
 };
 </script>
 
