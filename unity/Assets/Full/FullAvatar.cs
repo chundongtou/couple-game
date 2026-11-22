@@ -10,6 +10,13 @@ public class FullAvatar : MonoBehaviour
     GameObject body;
     GameObject head;
     Material bodyMat;
+    bool current;
+
+    public void SetTheme(Color c)
+    {
+        theme = c;
+        if (!current && bodyMat != null) bodyMat.color = c;
+    }
 
     public void Build()
     {
@@ -53,9 +60,10 @@ public class FullAvatar : MonoBehaviour
         }
     }
 
-    public void SetCurrent(bool current)
+    public void SetCurrent(bool isCurrent)
     {
-        if (bodyMat != null) bodyMat.color = current ? new Color(0.92f, 0.66f, 0.32f) : theme;
-        if (body != null) body.transform.localRotation = Quaternion.Euler(current ? -8f : 0f, 0, 0);
+        current = isCurrent;
+        if (bodyMat != null) bodyMat.color = isCurrent ? new Color(0.92f, 0.66f, 0.32f) : theme;
+        if (body != null) body.transform.localRotation = Quaternion.Euler(isCurrent ? -8f : 0f, 0, 0);
     }
 }

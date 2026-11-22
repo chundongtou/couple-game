@@ -50,6 +50,7 @@ public class FullGameBootstrap : MonoBehaviour
     bool photoMode;
     bool reduceMotion;
     float photoAngle;
+    readonly int[] avatarColorIndex = new int[2];
 
     const string SaveKey = "couple_full_save_v1";
 
@@ -329,6 +330,10 @@ public class FullGameBootstrap : MonoBehaviour
         if (audioDirector != null) audioDirector.PlayRoll();
         ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "骰子滚动中…");
 
+        // First-person dice close-up; restore the third-person camera after the result.
+        cam.transform.position = new Vector3(0.0f, 1.18f, 0.78f);
+        cam.transform.LookAt(new Vector3(0, 0.88f, 0.15f));
+
         dice.ResetTo(new Vector3(0, 1.35f, 0));
         if (hand != null) StartCoroutine(AnimateHandThrow());
         dice.StartRoll();
@@ -349,6 +354,7 @@ public class FullGameBootstrap : MonoBehaviour
         piece.transform.position = to;
         ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "掷出 " + value + " 点 · 热度 " + heat);
         yield return new WaitForSeconds(0.4f);
+        PlaceCameraFor(currentPlayer, false);
 
         if ((turn + 1) % 3 == 0) StartCoroutine(MinigameRoutine());
         else ShowEventCard();
@@ -572,6 +578,24 @@ public class FullGameBootstrap : MonoBehaviour
     {
         float v;
         if (float.TryParse(value, out v) && audioDirector != null) audioDirector.SetVolume(v);
+    }
+
+    static readonly Color[] AvatarPalette =
+    {
+        new Color(0.86f, 0.52f, 0.30f),
+        new Color(0.38f, 0.58f, 0.78f),
+        new Color(0.48f, 0.68f, 0.48f),
+        new Color(0.68f, 0.42f, 0.62f),
+        new Color(0.82f, 0.72f, 0.46f)
+    };
+
+    public void WebAvatarColor(string value)
+    {
+        int idx;
+        if (!int.TryParse(value, out idx) || idx < 0 || idx > 1 || idx >= avatars.Count) return;
+        avatarColorIndex[idx] = (avatarColorIndex[idx] + 1) % AvatarPalette.Length;
+        avatars[idx].SetTheme(AvatarPalette[avatarColorIndex[idx]]);
+        avatars[idx].SetCurrent(idx == currentPlayer);
     }
 
     void Update()
