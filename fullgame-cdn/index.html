@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -11,12 +11,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
 </style>
 </head>
 <body>
-<div id="status">loading…</div>
+<div id="status">loading鈥?/div>
 <canvas id="unity-canvas" width="1280" height="720"></canvas>
-<script src="https://raw.githubusercontent.com/chundongtou/couple-game/722487f/fullgame/Build/FullWebGL.loader.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/chundongtou/couple-game@722487f/fullgame/Build/FullWebGL.loader.js"></script>
 <script>
 const status = document.getElementById('status');
-const build = 'https://raw.githubusercontent.com/chundongtou/couple-game/722487f/fullgame/Build';
+const build = 'https://cdn.jsdelivr.net/gh/chundongtou/couple-game@722487f/fullgame/Build';
 createUnityInstance(document.getElementById('unity-canvas'), {
   dataUrl: build + '/FullWebGL.data.unityweb',
   frameworkUrl: build + '/FullWebGL.framework.js.unityweb',
@@ -35,3 +35,4 @@ createUnityInstance(document.getElementById('unity-canvas'), {
 </script>
 </body>
 </html>
+
