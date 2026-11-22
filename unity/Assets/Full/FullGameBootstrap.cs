@@ -423,6 +423,7 @@ public class FullGameBootstrap : MonoBehaviour
     {
         if (busy || chapterTransition) return;
         if (audioDirector != null) audioDirector.PlayClick();
+        if (audioDirector != null) audioDirector.PlayAmbient();
         StartCoroutine(RollRoutine());
     }
 
@@ -492,6 +493,8 @@ public class FullGameBootstrap : MonoBehaviour
     {
         busy = false;
         if (audioDirector != null) audioDirector.PlayCard();
+        cam.transform.position = new Vector3(0.0f, 1.22f, 0.92f);
+        cam.transform.LookAt(new Vector3(0, 0.82f, 0));
         var cards = FullContent.CardsForChapter(chapter);
         var card = cards[Random.Range(0, cards.Length)];
         int global = System.Array.IndexOf(FullContent.Cards, card);
