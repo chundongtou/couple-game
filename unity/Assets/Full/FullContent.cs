@@ -17,9 +17,12 @@ public static class FullContent
     public struct Mini
     {
         public string title;
+        public int kind; // 0 = timing, 1 = rapid tap, 2 = reaction
         public float speed;
         public float green;
-        public Mini(string t, float s, float g) { title = t; speed = s; green = g; }
+        public int target;
+        public Mini(string t, int k, float s, float g, int targetCount = 0)
+        { title = t; kind = k; speed = s; green = g; target = targetCount; }
     }
 
     public static readonly Card[] Cards =
@@ -93,18 +96,18 @@ public static class FullContent
 
     public static readonly Mini[] Minigames =
     {
-        new Mini("默契一拍", 0.80f, 150f),
-        new Mini("心跳同步", 1.00f, 130f),
-        new Mini("雨夜节奏", 1.20f, 110f),
-        new Mini("慢半拍", 0.60f, 180f),
-        new Mini("快速反应", 1.50f, 90f),
-        new Mini("稳稳接住", 0.90f, 140f),
-        new Mini("一起呼吸", 0.55f, 200f),
-        new Mini("眼神确认", 1.10f, 100f),
-        new Mini("反向操作", 0.75f, 160f),
-        new Mini("最后一秒", 1.40f, 95f),
-        new Mini("厨房计时", 0.85f, 145f),
-        new Mini("周年钟声", 1.00f, 120f),
+        new Mini("默契一拍", 0, 0.80f, 150f),
+        new Mini("心跳同步", 0, 1.00f, 130f),
+        new Mini("雨夜节奏", 0, 1.20f, 110f),
+        new Mini("慢半拍", 0, 0.60f, 180f),
+        new Mini("一起连点", 1, 0f, 0f, 6),
+        new Mini("快速回应", 1, 0f, 0f, 8),
+        new Mini("厨房手速", 1, 0f, 0f, 10),
+        new Mini("周年倒数", 1, 0f, 0f, 12),
+        new Mini("等绿再按", 2, 0f, 0f),
+        new Mini("眼神确认", 2, 0f, 0f),
+        new Mini("最后一秒", 2, 0f, 0f),
+        new Mini("周年钟声", 2, 0f, 0f),
     };
 
     public static Card[] CardsForChapter(int chapter)

@@ -33,6 +33,13 @@ public class FullGameBootstrap : MonoBehaviour
     float miniMarkerT;
     int miniSpeed = 1;
     float miniRate = 0.62f;
+    int miniKind;
+    int miniTaps;
+    int miniTarget;
+    float miniTimer;
+    float miniReactionAt;
+    float miniReactionElapsed;
+    bool miniArmed;
 
     const string SaveKey = "couple_full_save_v1";
 
@@ -328,24 +335,34 @@ public class FullGameBootstrap : MonoBehaviour
     {
         miniActive = true;
         miniMarkerT = 0;
+        miniTaps = 0;
+        miniTimer = 0;
+        miniReactionElapsed = 0;
+        miniArmed = false;
         miniSpeed = Random.value > 0.5f ? 1 : -1;
+        ui.miniTitle.color = new Color(0.94f, 0.90f, 0.82f);
         var mini = FullContent.MiniFor(turn);
+        miniKind = mini.kind;
+        miniTarget = Mathf.Max(1, mini.target);
         miniRate = mini.speed;
-        ui.miniGreen.sizeDelta = new Vector2(mini.green, 40);
+        ui.miniGreen.sizeDelta = new Vector2(Mathf.Max(80f, mini.green), 40);
         ui.miniGreen.anchoredPosition = new Vector2(Random.Range(-150f, 150f), 0);
-        ui.ShowMini("小游戏 · " + mini.title);
+        ui.miniMarker.gameObject.SetActive(miniKind == 0);
+        ui.miniGreen.gameObject.SetActive(miniKind == 0);
+        if (miniKind == 0) ui.ShowMini("小游戏 · " + mini.title + " · 在绿区按停");
+        else if (miniKind == 1) ui.ShowMini("小游戏 · " + mini.title + " · 连按 " + miniTarget + " 次");
+        else
+        {
+            miniReactionAt = Random.Range(1.2f, 3.0f);
+            ui.ShowMini("小游戏 · " + mini.title + " · 等绿再按");
+        }
         yield return null;
     }
 
-    void OnMiniStopClicked()
+    void FinishMini(bool success)
     {
-        if (!miniActive) return;
         miniActive = false;
         currentCardHeat = 0;
-        var marker = ui.miniMarker.anchoredPosition;
-        var green = ui.miniGreen.anchoredPosition;
-        float half = ui.miniGreen.sizeDelta.x * 0.5f;
-        bool success = Mathf.Abs(marker.x - green.x) < half;
         heat += success ? 4 : 1;
         if (audioDirector != null)
         {
@@ -356,6 +373,29 @@ public class FullGameBootstrap : MonoBehaviour
         ui.ShowCard(success ? "默契成功" : "差一点",
             success ? "你们在同一拍按下。热度 +4。" : "节奏错开了，但也很可爱。热度 +1。");
         busy = false;
+    }
+
+    void OnMiniStopClicked()
+    {
+        if (!miniActive) return;
+
+        if (miniKind == 1)
+        {
+            miniTaps++;
+            ui.miniTitle.text = "连按 " + miniTaps + "/" + miniTarget;
+            if (miniTaps >= miniTarget) FinishMini(true);
+            return;
+        }
+        if (miniKind == 2)
+        {
+            FinishMini(miniArmed);
+            return;
+        }
+
+        var marker = ui.miniMarker.anchoredPosition;
+        var green = ui.miniGreen.anchoredPosition;
+        float half = ui.miniGreen.sizeDelta.x * 0.5f;
+        FinishMini(Mathf.Abs(marker.x - green.x) < half);
     }
 
     void EndTurn()
@@ -400,11 +440,28 @@ public class FullGameBootstrap : MonoBehaviour
 
     void Update()
     {
-        if (miniActive && ui != null && ui.miniMarker != null)
+        if (!miniActive || ui == null) return;
+        if (miniKind == 0 && ui.miniMarker != null)
         {
             miniMarkerT += Time.deltaTime * miniRate * miniSpeed;
             float x = Mathf.Sin(miniMarkerT) * 335f;
             ui.miniMarker.anchoredPosition = new Vector2(x, ui.miniMarker.anchoredPosition.y);
+        }
+        else if (miniKind == 1)
+        {
+            miniTimer += Time.deltaTime;
+            if (miniTimer > 6f) FinishMini(false);
+        }
+        else if (miniKind == 2)
+        {
+            miniReactionElapsed += Time.deltaTime;
+            if (!miniArmed && miniReactionElapsed >= miniReactionAt)
+            {
+                miniArmed = true;
+                ui.miniTitle.text = "现在按！";
+                ui.miniTitle.color = new Color(0.45f, 0.88f, 0.5f);
+            }
+            if (miniReactionElapsed > miniReactionAt + 3f) FinishMini(false);
         }
     }
 
