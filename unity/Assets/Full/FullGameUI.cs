@@ -58,12 +58,13 @@ public class FullGameUI : MonoBehaviour
         cgo.AddComponent<GraphicRaycaster>();
 
         var top = MakePanel(cgo.transform, "Top", new Vector2(0.5f, 1), new Vector2(960, 132), new Vector2(0, -66));
-        hud = MakeText(top.transform, "HUD", 20, TextAnchor.MiddleLeft, new Vector2(0, 20), new Vector2(900, 44));
-        status = MakeText(top.transform, "Status", 15, TextAnchor.MiddleLeft, new Vector2(0, -24), new Vector2(900, 32));
-
-        var bottom = MakePanel(cgo.transform, "Bottom", new Vector2(0.5f, 0), new Vector2(960, 148), new Vector2(0, 74));
-        rollButton = MakeButton(bottom.transform, "Roll", "掷 骰 子", new Vector2(0.5f, 0.5f), new Vector2(460, 72), Vector2.zero);
+        hud = MakeText(top.transform, "HUD", 20, TextAnchor.MiddleLeft, new Vector2(0, 20), new Vector2(620, 44));
+        status = MakeText(top.transform, "Status", 15, TextAnchor.MiddleLeft, new Vector2(0, -24), new Vector2(620, 32));
+        rollButton = MakeButton(top.transform, "RollTop", "掷 骰 子", new Vector2(1, 0.5f), new Vector2(230, 64), new Vector2(-130, 0));
         rollButton.onClick.AddListener(() => OnRoll?.Invoke());
+
+        var bottom = MakePanel(cgo.transform, "Bottom", new Vector2(0.5f, 0), new Vector2(960, 80), new Vector2(0, 40));
+        bottom.gameObject.SetActive(false);
 
         var cardRt = MakePanel(cgo.transform, "Card", new Vector2(0.5f, 0.5f), new Vector2(720, 500), Vector2.zero);
         cardRt.GetComponent<Image>().color = new Color(0.06f, 0.05f, 0.04f, 0.97f);
