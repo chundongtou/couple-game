@@ -105,10 +105,10 @@ public static class FullContent
         new Mini("眼神确认", 2, 0f, 0f),
         new Mini("记住顺序", 3, 0f, 0f, 4),
         new Mini("颜色记忆", 3, 0f, 0f, 4),
-        new Mini("周年序列", 3, 0f, 0f, 4),
         new Mini("左右为难", 4, 0f, 0f),
         new Mini("选择困难", 4, 0f, 0f),
-        new Mini("默契选择", 4, 0f, 0f),
+        new Mini("稳稳接住", 5, 0f, 0f),
+        new Mini("一起呼吸", 5, 0f, 0f),
     };
 
     public static readonly string[] TitlesEn =

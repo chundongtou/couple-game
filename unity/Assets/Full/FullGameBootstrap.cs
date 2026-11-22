@@ -48,6 +48,9 @@ public class FullGameBootstrap : MonoBehaviour
     int miniInput;
     bool miniShowing;
     int miniChoiceCorrect;
+    bool miniHolding;
+    float miniHoldTime;
+    float miniHoldTarget;
 
     bool photoMode;
     bool reduceMotion;
@@ -436,6 +439,8 @@ public class FullGameBootstrap : MonoBehaviour
         miniTaps = 0;
         miniTimer = 0;
         miniReactionElapsed = 0;
+        miniHolding = false;
+        miniHoldTime = 0;
         miniArmed = false;
         miniShowing = false;
         miniSpeed = Random.value > 0.5f ? 1 : -1;
@@ -479,10 +484,15 @@ public class FullGameBootstrap : MonoBehaviour
             miniShowing = false;
             ui.ShowMini("小游戏 · " + mini.title + " · 按顺序点击");
         }
-        else
+        else if (miniKind == 4)
         {
             miniChoiceCorrect = Random.Range(0, 2);
             ui.ShowMini("小游戏 · " + mini.title + " · 选择左或右");
+        }
+        else
+        {
+            miniHoldTarget = Random.Range(1.2f, 2.4f);
+            ui.ShowMini("小游戏 · " + mini.title + " · 按住 " + miniHoldTarget.ToString("0.0") + " 秒");
         }
         yield return null;
     }
@@ -518,7 +528,7 @@ public class FullGameBootstrap : MonoBehaviour
             FinishMini(miniArmed);
             return;
         }
-        if (miniKind == 3 || miniKind == 4) return;
+        if (miniKind == 3 || miniKind == 4 || miniKind == 5) return;
 
         var marker = ui.miniMarker.anchoredPosition;
         var green = ui.miniGreen.anchoredPosition;
@@ -608,6 +618,20 @@ public class FullGameBootstrap : MonoBehaviour
         FinishMini(idx == miniChoiceCorrect);
     }
 
+    public void WebMiniHoldStart(string value)
+    {
+        if (!miniActive || miniKind != 5) return;
+        miniHolding = true;
+        miniHoldTime = 0;
+    }
+
+    public void WebMiniHoldEnd(string value)
+    {
+        if (!miniActive || miniKind != 5) return;
+        miniHolding = false;
+        FinishMini(miniHoldTime >= miniHoldTarget);
+    }
+
     public void WebPhoto()
     {
         photoMode = !photoMode;
@@ -684,6 +708,14 @@ public class FullGameBootstrap : MonoBehaviour
                 ui.miniTitle.color = new Color(0.45f, 0.88f, 0.5f);
             }
             if (miniReactionElapsed > miniReactionAt + 3f) FinishMini(false);
+        }
+        else if (miniKind == 5)
+        {
+            if (miniHolding)
+            {
+                miniHoldTime += Time.deltaTime;
+                if (miniHoldTime > 5f) FinishMini(false);
+            }
         }
     }
 
