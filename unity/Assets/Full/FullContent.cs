@@ -5,6 +5,7 @@ using UnityEngine;
 /// <summary>V11 全量内容表：3 章 60 卡、12 小游戏、6 结局。后续可替换为 ScriptableObject/远程配置。</summary>
 public static class FullContent
 {
+    public static bool English;
     public struct Card
     {
         public string title;
@@ -108,6 +109,86 @@ public static class FullContent
         new Mini("记住顺序", 3, 0f, 0f, 4),
         new Mini("颜色记忆", 3, 0f, 0f, 4),
         new Mini("周年序列", 3, 0f, 0f, 4),
+    };
+
+    public static readonly string[] TitlesEn =
+    {
+        "Dish Duty", "Sudden Hug", "Secret Mission", "Old Photo", "Rainy Takeout",
+        "Sing Together", "Who Falls Asleep First", "Travel Plan", "Camera Roll", "Night Walk",
+        "Little Habit", "Ten Years Later", "Blanket Thief", "Breakfast", "The Cat's Mess",
+        "A Real Thank You", "Lights Out", "Song Swap", "Weekend Plan", "Goodnight",
+        "The Night Before", "Missed Train", "Hidden Key", "Seaside Sunset", "Lost",
+        "Local Snack", "Rainy Day", "A Photo Together", "Blackout", "What to Keep",
+        "Souvenir", "Wrong Return Ticket", "Strange City", "Mountain Wind", "A Postcard",
+        "The Argument", "Shared Earphones", "Last Night", "What We Brought Back", "Next Trip",
+        "Anniversary Dinner", "First Impression", "Argument Review", "How You Changed", "Hardest Moment",
+        "Secret Wish", "Exchange Gifts", "Ten-Second Look", "Propose Again", "Family Photo",
+        "Three Things", "Future List", "Growing Old", "Unsaid", "One-Minute Hug",
+        "Gratitude", "Start Again", "Anniversary Wish", "Last Dance", "After Tonight"
+    };
+
+    public static readonly string[] BodiesEn =
+    {
+        "You argue about the dishes. Wash together (+2) or rock-paper-scissors (+1).",
+        "A hug from behind. No words needed. +3.",
+        "Secret mission: make your partner laugh before your next turn. +3 or -1.",
+        "An old photo. Tell the story behind it. +2.",
+        "The takeout is late. Wait together (+1) or snack first (0).",
+        "Play a song you both love and sing the chorus. +2.",
+        "Bet on who falls asleep first. The winner picks breakfast. +1.",
+        "Each of you names a place you want to go. +2.",
+        "Show the last photo in your camera roll and tell its story. +2.",
+        "Walk downstairs for ten minutes without your phones. +3.",
+        "Name one cute little habit of your partner. +2 if right, -1 if wrong.",
+        "Imagine where you will be ten years from tonight. +3.",
+        "Someone stole the blanket. Who apologizes first? +1.",
+        "Make breakfast for your partner and guess their taste. +2.",
+        "The cat knocked something over. Clean it up together. +2.",
+        "Say a real thank you, no jokes. +2.",
+        "Turn off every light for ten minutes and just talk. +3.",
+        "Swap one song you have had on repeat. +1.",
+        "Plan a weekend that costs nothing. +1.",
+        "Describe your favorite way to say goodnight. +2.",
+        "Packing is not done. Make a list together. +2.",
+        "You ran to the wrong platform. Blame or laugh? +1.",
+        "The key is under the flowerpot. Who finds it? +1.",
+        "Reach the sea before sunset. +3.",
+        "The navigation died. Trust your gut or ask someone? +2.",
+        "Try a food you have never eaten. +2.",
+        "It rains. Museum (+2) or run home wet (+1).",
+        "Ask a stranger to take a photo of you two. +2.",
+        "The whole floor loses power. Light a candle and talk. +3.",
+        "Name the moment from this trip you want to keep. +3.",
+        "Pick a souvenir for your partner under twenty. +2.",
+        "The return ticket has the wrong date. Fix it together. +2.",
+        "An unfamiliar city at midnight, just the two of you. +3.",
+        "It is windy on the summit. Give your coat away. +2.",
+        "Write a postcard to your future selves. +2.",
+        "You argued about the route. Who reaches out first? +2.",
+        "One earbud each, same song. +2.",
+        "On the last night, put the phones away and watch the window. +3.",
+        "Besides photos, what did you bring home? +2.",
+        "Promise the next trip. +3.",
+        "Who prepared dinner? Pour your partner a drink. +2.",
+        "Describe your first impression of each other. +3.",
+        "Revisit an argument without bringing up old scores. +2.",
+        "Name the biggest change in your partner these years. +2.",
+        "Tell the hardest moment you survived together. +3.",
+        "Share one wish you never told your partner. +3.",
+        "Take out the gift you prepared. +2.",
+        "Hold eye contact for ten seconds without laughing. +3.",
+        "If you could propose again, how would you do it? +3.",
+        "Imagine a family photo ten years from now. +2.",
+        "Say three good things about your partner. +2.",
+        "Write down three things you want to do together. +3.",
+        "Imagine one day when you are old. +3.",
+        "Say the thing you never found the right moment to say. +4.",
+        "Hold each other for one minute in silence. +4.",
+        "Thank your partner for one tiny thing. +2.",
+        "If tomorrow started over, would you choose them again? +4.",
+        "Each of you makes one anniversary wish. +3.",
+        "Play one song and dance in the living room. +3.",
+        "Say one thing you hope to remember tomorrow morning. +3."
     };
 
     public static Card[] CardsForChapter(int chapter)

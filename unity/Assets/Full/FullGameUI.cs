@@ -172,4 +172,12 @@ public class FullGameUI : MonoBehaviour
     {
         if (rootCanvas != null) rootCanvas.SetActive(visible);
     }
+
+    public void ApplyLanguage(bool en)
+    {
+        if (rollButton != null) rollButton.GetComponentInChildren<Text>().text = en ? "ROLL" : "掷 骰 子";
+        if (cardContinue != null) cardContinue.GetComponentInChildren<Text>().text = en ? "Continue" : "继续";
+        if (miniStop != null) miniStop.GetComponentInChildren<Text>().text = en ? "STOP" : "停";
+        if (endRestart != null) endRestart.GetComponentInChildren<Text>().text = en ? "Play Again" : "再玩一局";
+    }
 }

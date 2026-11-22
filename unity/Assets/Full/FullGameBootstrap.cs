@@ -47,6 +47,7 @@ public class FullGameBootstrap : MonoBehaviour
     int[] miniSequence;
     int miniInput;
     bool miniShowing;
+    int miniChoiceCorrect;
 
     bool photoMode;
     bool reduceMotion;
@@ -305,6 +306,11 @@ public class FullGameBootstrap : MonoBehaviour
         }
     }
 
+    string L(string zh, string en)
+    {
+        return FullContent.English ? en : zh;
+    }
+
     void StartTurn()
     {
         busy = false;
@@ -315,8 +321,9 @@ public class FullGameBootstrap : MonoBehaviour
         ui.ShowRoll(true);
         for (int i = 0; i < avatars.Count; i++) avatars[i].SetCurrent(i == currentPlayer);
         PlaceCameraFor(currentPlayer, false);
-        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合",
-            avatars[currentPlayer].displayName + " 的回合 · 热度 " + heat);
+        ui.SetHud(L("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "Chapter " + chapter + " · Turn " + (turn + 1)),
+            L(avatars[currentPlayer].displayName + " 的回合 · 热度 " + heat,
+              avatars[currentPlayer].displayName + "'s turn · Heat " + heat));
     }
 
     void OnRollClicked()
@@ -331,7 +338,8 @@ public class FullGameBootstrap : MonoBehaviour
         busy = true;
         ui.ShowRoll(false);
         if (audioDirector != null) audioDirector.PlayRoll();
-        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "骰子滚动中…");
+        ui.SetHud(L("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "Chapter " + chapter + " · Turn " + (turn + 1)),
+            L("骰子滚动中…", "Rolling…"));
 
         // First-person dice close-up; restore the third-person camera after the result.
         cam.transform.position = new Vector3(0.0f, 1.18f, 0.78f);
@@ -355,7 +363,8 @@ public class FullGameBootstrap : MonoBehaviour
             yield return null;
         }
         piece.transform.position = to;
-        ui.SetHud("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "掷出 " + value + " 点 · 热度 " + heat);
+        ui.SetHud(L("第 " + chapter + " 章 · 第 " + (turn + 1) + " 回合", "Chapter " + chapter + " · Turn " + (turn + 1)),
+            L("掷出 " + value + " 点 · 热度 " + heat, "Rolled " + value + " · Heat " + heat));
         yield return new WaitForSeconds(0.4f);
         PlaceCameraFor(currentPlayer, false);
 
@@ -392,8 +401,12 @@ public class FullGameBootstrap : MonoBehaviour
         if (audioDirector != null) audioDirector.PlayCard();
         var cards = FullContent.CardsForChapter(chapter);
         var card = cards[Random.Range(0, cards.Length)];
+        int global = System.Array.IndexOf(FullContent.Cards, card);
+        bool en = FullContent.English;
         currentCardHeat = card.heat;
-        ui.ShowCard(card.title, card.body + "\n\n" + (Random.value > 0.5f ? "（对方可以补充一句）" : "（一起完成）"));
+        string title = en && global >= 0 ? FullContent.TitlesEn[global] : card.title;
+        string body = en && global >= 0 ? FullContent.BodiesEn[global] : card.body;
+        ui.ShowCard(title, body + "\n\n" + (en ? "(Say one more thing.)" : (Random.value > 0.5f ? "（对方可以补充一句）" : "（一起完成）")));
     }
 
     void OnContinueClicked()
@@ -616,6 +629,13 @@ public class FullGameBootstrap : MonoBehaviour
         avatarColorIndex[idx] = (avatarColorIndex[idx] + 1) % AvatarPalette.Length;
         avatars[idx].SetTheme(AvatarPalette[avatarColorIndex[idx]]);
         avatars[idx].SetCurrent(idx == currentPlayer);
+    }
+
+    public void WebLanguage(string value)
+    {
+        FullContent.English = value == "1" || value == "en" || value == "true";
+        if (ui != null) ui.ApplyLanguage(FullContent.English);
+        StartTurn();
     }
 
     void Update()
