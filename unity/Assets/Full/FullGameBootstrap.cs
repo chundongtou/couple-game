@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// V11 Full Unity 核心：一个房间、两个角色、第三人称回合、真实骰子、棋盘、卡牌和小游戏。
-/// 这是完整产品的运行时骨架，内容通过 cards/章节数据扩展。
+/// V11 Full Unity runtime: one room, two actors, third-person turns, real dice, board, cards, minigames.
+/// Content is data-driven through FullContent; UI is built at runtime and has an IMGUI fallback.
 /// </summary>
 public class FullGameBootstrap : MonoBehaviour
 {
@@ -25,31 +25,15 @@ public class FullGameBootstrap : MonoBehaviour
     int currentPlayer;
     int turn;
     int heat;
+    int currentCardHeat = 2;
+    bool chapterTransition;
     bool busy;
     bool miniActive;
     float miniMarkerT;
     int miniSpeed = 1;
+    float miniRate = 0.62f;
 
-    static readonly string[] CardTitles =
-    {
-        "今晚谁洗碗", "突然的拥抱", "秘密任务", "旧照片", "雨夜外卖", "一起唱歌",
-        "谁先睡着", "旅行计划", "手机相册", "深夜散步", "对方的小习惯", "十年后"
-    };
-    static readonly string[] CardBodies =
-    {
-        "你们因为洗碗吵了两句。选择：一起洗（热度 +2），或者猜拳输的人洗（热度 +1）。",
-        "对方突然从背后抱住你。什么都不用说，热度 +3。",
-        "抽到秘密任务：在下一回合结束前，让对方笑一次。成功 +3，失败 -1。",
-        "翻到一张旧照片。讲一个照片背后的故事，热度 +2。",
-        "雨下大了，外卖迟到。选择：一起等（热度 +1），或者先吃零食（热度 0）。",
-        "打开一首你们都喜欢的歌，合唱副歌。热度 +2。",
-        "谁先睡着？赌一局。赢的人指定明天的早餐，热度 +1。",
-        "计划一次说走就走的旅行。每人说一个想去的地方，热度 +2。",
-        "互相翻对方手机相册里最近一张照片，讲当时发生了什么，热度 +2。",
-        "下楼走十分钟，不带手机。回来时热度 +3。",
-        "说出对方一个可爱的小习惯。说对 +2，说错 -1。",
-        "想象十年后的今晚，你们会在哪里。每人说一句，热度 +3。"
-    };
+    const string SaveKey = "couple_full_save_v1";
 
     void Awake()
     {
@@ -62,16 +46,62 @@ public class FullGameBootstrap : MonoBehaviour
 
     void Start()
     {
+        LoadGame();
         StartTurn();
     }
 
+    // ---------- persistence ----------
+    void SaveNow()
+    {
+        var s = new FullSave
+        {
+            chapter = chapter,
+            turn = turn,
+            heat = heat,
+            currentPlayer = currentPlayer,
+            posA = positions[0],
+            posB = positions[1],
+            valid = true
+        };
+        PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(s));
+        PlayerPrefs.Save();
+    }
+
+    void LoadGame()
+    {
+        if (!PlayerPrefs.HasKey(SaveKey)) return;
+        try
+        {
+            var s = JsonUtility.FromJson<FullSave>(PlayerPrefs.GetString(SaveKey));
+            if (s == null || !s.valid) return;
+            chapter = Mathf.Clamp(s.chapter, 1, 3);
+            turn = Mathf.Clamp(s.turn, 0, turnsPerChapter - 1);
+            heat = Mathf.Max(0, s.heat);
+            currentPlayer = s.currentPlayer == 1 ? 1 : 0;
+            positions[0] = s.posA % tilePositions.Length;
+            positions[1] = s.posB % tilePositions.Length;
+            if (pieces.Count > 1)
+            {
+                pieces[0].transform.position = tilePositions[positions[0]];
+                pieces[1].transform.position = tilePositions[positions[1]];
+            }
+        }
+        catch { }
+    }
+
+    void DeleteSave()
+    {
+        PlayerPrefs.DeleteKey(SaveKey);
+        PlayerPrefs.Save();
+    }
+
+    // ---------- scene construction ----------
     void BuildEnvironment()
     {
-        var floor = MakeBox("Floor", new Vector3(0, -0.06f, 0), new Vector3(6.4f, 0.12f, 6.4f), new Color(0.16f, 0.11f, 0.08f));
-        var wallBack = MakeBox("WallBack", new Vector3(0, 1.6f, 3.2f), new Vector3(6.4f, 3.2f, 0.12f), new Color(0.10f, 0.10f, 0.12f));
-        var wallLeft = MakeBox("WallLeft", new Vector3(-3.2f, 1.6f, 0), new Vector3(0.12f, 3.2f, 6.4f), new Color(0.11f, 0.10f, 0.11f));
-        var wallRight = MakeBox("WallRight", new Vector3(3.2f, 1.6f, 0), new Vector3(0.12f, 3.2f, 6.4f), new Color(0.11f, 0.10f, 0.11f));
-
+        MakeBox("Floor", new Vector3(0, -0.06f, 0), new Vector3(6.4f, 0.12f, 6.4f), new Color(0.16f, 0.11f, 0.08f));
+        MakeBox("WallBack", new Vector3(0, 1.6f, 3.2f), new Vector3(6.4f, 3.2f, 0.12f), new Color(0.10f, 0.10f, 0.12f));
+        MakeBox("WallLeft", new Vector3(-3.2f, 1.6f, 0), new Vector3(0.12f, 3.2f, 6.4f), new Color(0.11f, 0.10f, 0.11f));
+        MakeBox("WallRight", new Vector3(3.2f, 1.6f, 0), new Vector3(0.12f, 3.2f, 6.4f), new Color(0.11f, 0.10f, 0.11f));
         MakeBox("Rug", new Vector3(0, -0.01f, 0.2f), new Vector3(3.8f, 0.02f, 3.0f), new Color(0.24f, 0.12f, 0.10f));
 
         var table = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -89,13 +119,14 @@ public class FullGameBootstrap : MonoBehaviour
         for (int i = 0; i < tilePositions.Length; i++)
         {
             float a = i / (float)tilePositions.Length * Mathf.PI * 2f;
-            var tile = MakeBox("Tile" + i, new Vector3(Mathf.Cos(a) * 1.04f, 0.80f, Mathf.Sin(a) * 1.04f), new Vector3(0.18f, 0.018f, 0.18f),
+            var tile = MakeBox("Tile" + i,
+                new Vector3(Mathf.Cos(a) * 1.04f, 0.80f, Mathf.Sin(a) * 1.04f),
+                new Vector3(0.18f, 0.018f, 0.18f),
                 i % 3 == 0 ? new Color(0.92f, 0.70f, 0.34f) : new Color(0.38f, 0.30f, 0.22f));
             tile.transform.rotation = Quaternion.Euler(0, -a * Mathf.Rad2Deg, 0);
             tilePositions[i] = new Vector3(tile.transform.position.x, 0.815f, tile.transform.position.z);
         }
 
-        // 沙发、壁炉、窗（占位，后续替换正式资产）
         MakeBox("Sofa", new Vector3(0, 0.30f, 2.55f), new Vector3(2.7f, 0.55f, 0.75f), new Color(0.14f, 0.16f, 0.18f));
         MakeBox("SofaBack", new Vector3(0, 0.70f, 2.88f), new Vector3(2.7f, 0.55f, 0.16f), new Color(0.12f, 0.14f, 0.16f));
         MakeBox("Fireplace", new Vector3(-2.45f, 0.65f, -1.2f), new Vector3(0.45f, 1.3f, 1.35f), new Color(0.18f, 0.10f, 0.07f));
@@ -141,7 +172,6 @@ public class FullGameBootstrap : MonoBehaviour
             Paint(piece, i == 0 ? new Color(0.86f, 0.52f, 0.30f) : new Color(0.38f, 0.58f, 0.78f));
             Destroy(piece.GetComponent<Collider>());
             pieces.Add(piece);
-
             positions[i] = i * 9;
         }
     }
@@ -174,18 +204,15 @@ public class FullGameBootstrap : MonoBehaviour
         ui.OnRoll += OnRollClicked;
         ui.OnContinue += OnContinueClicked;
         ui.OnMiniStop += OnMiniStopClicked;
-        ui.OnRestart += () => SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        ui.OnRestart += OnRestartClicked;
     }
 
+    // ---------- turn flow ----------
     void PlaceCameraFor(int player, bool instant)
     {
         Vector3 pos = player == 0 ? new Vector3(0.0f, 1.55f, -3.0f) : new Vector3(0.0f, 1.55f, 3.0f);
         Vector3 look = new Vector3(0, 0.78f, 0);
-        if (instant)
-        {
-            cam.transform.position = pos;
-            cam.transform.LookAt(look);
-        }
+        if (instant) { cam.transform.position = pos; cam.transform.LookAt(look); }
         else StartCoroutine(MoveCamera(pos, look));
     }
 
@@ -208,18 +235,20 @@ public class FullGameBootstrap : MonoBehaviour
     void StartTurn()
     {
         busy = false;
+        chapterTransition = false;
         ui.HideCard();
         ui.HideMini();
         ui.HideEnding();
         ui.ShowRoll(true);
         for (int i = 0; i < avatars.Count; i++) avatars[i].SetCurrent(i == currentPlayer);
         PlaceCameraFor(currentPlayer, false);
-        ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", $"{avatars[currentPlayer].displayName} 的回合 · 热度 {heat}");
+        ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合",
+            $"{avatars[currentPlayer].displayName} 的回合 · 热度 {heat}");
     }
 
     void OnRollClicked()
     {
-        if (busy) return;
+        if (busy || chapterTransition) return;
         StartCoroutine(RollRoutine());
     }
 
@@ -249,22 +278,34 @@ public class FullGameBootstrap : MonoBehaviour
         ui.SetHud($"第 {chapter} 章 · 第 {turn + 1} 回合", $"掷出 {value} 点 · 热度 {heat}");
         yield return new WaitForSeconds(0.4f);
 
-        if ((turn + 1) % 3 == 0)
-            StartCoroutine(MinigameRoutine());
-        else
-            ShowEventCard();
+        if ((turn + 1) % 3 == 0) StartCoroutine(MinigameRoutine());
+        else ShowEventCard();
     }
 
     void ShowEventCard()
     {
-        int idx = Random.Range(0, CardTitles.Length);
-        ui.ShowCard(CardTitles[idx], CardBodies[idx] + "\n\n" + (Random.value > 0.5f ? "（对方可以补充一句）" : "（一起完成）"));
+        busy = false;
+        var cards = FullContent.CardsForChapter(chapter);
+        var card = cards[Random.Range(0, cards.Length)];
+        currentCardHeat = card.heat;
+        ui.ShowCard(card.title, card.body + "\n\n" + (Random.value > 0.5f ? "（对方可以补充一句）" : "（一起完成）"));
     }
 
     void OnContinueClicked()
     {
+        if (chapterTransition)
+        {
+            ui.HideCard();
+            chapter++;
+            turn = 0;
+            currentPlayer = 0;
+            heat += 2;
+            SaveNow();
+            StartTurn();
+            return;
+        }
         if (busy) return;
-        heat += 2;
+        heat += currentCardHeat;
         ui.HideCard();
         EndTurn();
     }
@@ -274,7 +315,11 @@ public class FullGameBootstrap : MonoBehaviour
         miniActive = true;
         miniMarkerT = 0;
         miniSpeed = Random.value > 0.5f ? 1 : -1;
-        ui.ShowMini("默契小游戏 · 在绿区按停");
+        var mini = FullContent.MiniFor(turn);
+        miniRate = mini.speed;
+        ui.miniGreen.sizeDelta = new Vector2(mini.green, 40);
+        ui.miniGreen.anchoredPosition = new Vector2(Random.Range(-150f, 150f), 0);
+        ui.ShowMini("小游戏 · " + mini.title);
         yield return null;
     }
 
@@ -282,21 +327,31 @@ public class FullGameBootstrap : MonoBehaviour
     {
         if (!miniActive) return;
         miniActive = false;
+        currentCardHeat = 0;
         var marker = ui.miniMarker.anchoredPosition;
         var green = ui.miniGreen.anchoredPosition;
         float half = ui.miniGreen.sizeDelta.x * 0.5f;
         bool success = Mathf.Abs(marker.x - green.x) < half;
         heat += success ? 4 : 1;
         ui.HideMini();
-        ui.ShowCard(success ? "默契成功" : "差一点", success ? "你们在同一拍按下。热度 +4。" : "节奏错开了，但也很可爱。热度 +1。");
+        ui.ShowCard(success ? "默契成功" : "差一点",
+            success ? "你们在同一拍按下。热度 +4。" : "节奏错开了，但也很可爱。热度 +1。");
         busy = false;
     }
 
     void EndTurn()
     {
         turn++;
+        SaveNow();
         if (turn >= turnsPerChapter)
         {
+            if (chapter < 3)
+            {
+                busy = false;
+                chapterTransition = true;
+                ui.ShowCard($"第 {chapter} 章 · 完成", $"你们走完了第 {chapter} 章。\n\n热度 {heat}。下一章，继续一起飞。");
+                return;
+            }
             ShowEnding();
             return;
         }
@@ -306,25 +361,58 @@ public class FullGameBootstrap : MonoBehaviour
 
     void ShowEnding()
     {
-        string title;
-        string body;
-        if (heat >= 24) { title = "真结局 · 同频"; body = "你们把今晚过成了一个小小的宇宙。下一章，继续一起飞。"; }
-        else if (heat >= 16) { title = "浪漫结局"; body = "有些话没说出口，但你们都听见了。"; }
-        else if (heat >= 8) { title = "温馨结局"; body = "普通的一晚，也值得被记住。"; }
-        else { title = "搞笑结局"; body = "你们把飞行棋玩成了互相拆台，但笑得很开心。"; }
+        FullContent.Ending(heat, chapter, out string title, out string body);
         ui.ShowEnding(title, body);
+        DeleteSave();
     }
+
+    void OnRestartClicked()
+    {
+        DeleteSave();
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    // HTML shell entry points
+    public void WebRoll() { OnRollClicked(); }
+    public void WebContinue() { OnContinueClicked(); }
+    public void WebStop() { OnMiniStopClicked(); }
+    public void WebRestart() { OnRestartClicked(); }
 
     void Update()
     {
         if (miniActive && ui != null && ui.miniMarker != null)
         {
-            miniMarkerT += Time.deltaTime * 0.62f * miniSpeed;
+            miniMarkerT += Time.deltaTime * miniRate * miniSpeed;
             float x = Mathf.Sin(miniMarkerT) * 335f;
             ui.miniMarker.anchoredPosition = new Vector2(x, ui.miniMarker.anchoredPosition.y);
         }
     }
 
+    // IMGUI fallback: keeps the turn loop playable even if uGUI is clipped on a device.
+    void OnGUI()
+    {
+        if (ui == null) return;
+        var style = new GUIStyle(GUI.skin.button) { fontSize = 22 };
+        var rect = new Rect(Screen.width * 0.5f - 140, Screen.height - 96, 280, 60);
+        if (ui.endPanel != null && ui.endPanel.activeSelf)
+        {
+            if (GUI.Button(rect, "RESTART", style)) OnRestartClicked();
+        }
+        else if (ui.cardPanel != null && ui.cardPanel.activeSelf)
+        {
+            if (GUI.Button(rect, "CONTINUE", style)) OnContinueClicked();
+        }
+        else if (ui.miniPanel != null && ui.miniPanel.activeSelf)
+        {
+            if (GUI.Button(rect, "STOP", style)) OnMiniStopClicked();
+        }
+        else if (!busy)
+        {
+            if (GUI.Button(rect, "ROLL", style)) OnRollClicked();
+        }
+    }
+
+    // ---------- helpers ----------
     GameObject MakeBox(string name, Vector3 pos, Vector3 scale, Color color)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
