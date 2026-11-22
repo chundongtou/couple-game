@@ -206,5 +206,31 @@ window.fullChapter = function(i){
 };
 </script>
 
+
+<div id="web-extra">
+  <button onclick="fullToggleLang()">EN</button>
+  <button onclick="fullToggleLarge()">大字</button>
+</div>
+<style>
+#web-extra{position:fixed;left:16px;top:16px;z-index:10000;display:flex;gap:8px}
+#web-extra button{min-height:44px;padding:0 16px;border-radius:9px;border:1px solid rgba(224,164,94,.6);
+  background:rgba(8,12,18,.85);color:#f2e8d8;font-size:15px;cursor:pointer}
+body.large #web-hud button,body.large #web-extra button,body.large #mini-pad button{font-size:20px;min-height:62px}
+</style>
+<script>
+window.__fullEn = false;
+window.fullToggleLang = function(){
+  window.__fullEn = !window.__fullEn;
+  var dict = {"掷骰":"Roll","继续":"Continue","停":"Stop","重开":"Restart","拍照":"Photo","减少动态":"Less motion","音量":"Volume","你换色":"Your color","TA换色":"TA color","第1章":"Ch.1","第2章":"Ch.2","第3章":"Ch.3","红":"Red","黄":"Yellow","蓝":"Blue","绿":"Green"};
+  document.querySelectorAll('#web-hud button, #mini-pad button').forEach(function(b){
+    var t=b.innerText.trim();
+    if(window.__fullEn){ if(dict[t]) b.innerText=dict[t]; }
+    else { for(var k in dict) if(dict[k]===t) b.innerText=k; }
+  });
+  document.documentElement.lang = window.__fullEn ? 'en' : 'zh-CN';
+};
+window.fullToggleLarge = function(){ document.body.classList.toggle('large'); };
+</script>
+
 </body>
 </html>
