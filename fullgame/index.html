@@ -241,5 +241,42 @@ window.fullToggleLarge = function(){
 };
 </script>
 
+
+<button id="settings-btn" onclick="fullOpenSettings()">设置</button>
+<div id="settings-modal">
+  <div class="settings-card">
+    <h3>设置 / Settings</h3>
+    <label>音量 / Volume <input id="set-volume" type="range" min="0" max="1" step="0.05" value="0.55" oninput="fullSend('WebVolume', this.value)"></label>
+    <label><input id="set-motion" type="checkbox" onchange="fullSend('WebReduceMotion', this.checked?'1':'0')"> 减少动态 / Less motion</label>
+    <label><input id="set-large" type="checkbox" onchange="document.body.classList.toggle('large', this.checked)"> 大字 / Large text</label>
+    <label>语言 / Language
+      <select id="set-lang" onchange="fullSetUnityLang(this.value)">
+        <option value="zh">中文</option><option value="en">English</option>
+      </select>
+    </label>
+    <button onclick="fullCloseSettings()">关闭 / Close</button>
+  </div>
+</div>
+<style>
+#settings-btn{position:fixed;left:16px;bottom:78px;z-index:10000;min-height:44px;padding:0 16px;border-radius:9px;
+ border:1px solid rgba(224,164,94,.6);background:rgba(8,12,18,.85);color:#f2e8d8;font-size:15px;cursor:pointer}
+#settings-modal{display:none;position:fixed;inset:0;z-index:10001;background:#000a;align-items:center;justify-content:center}
+#settings-modal.open{display:flex}
+.settings-card{width:min(360px,90vw);border-radius:14px;background:#121820;color:#f2e8d8;padding:22px;
+ border:1px solid #e0a45e88;font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;display:flex;flex-direction:column;gap:14px}
+.settings-card h3{margin:0}
+.settings-card label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px}
+.settings-card input[type=range]{width:150px}
+.settings-card button{min-height:44px;border-radius:9px;border:1px solid #e0a45e88;background:#1d2632;color:#f2e8d8;cursor:pointer}
+</style>
+<script>
+window.fullOpenSettings = function(){ document.getElementById('settings-modal').classList.add('open'); };
+window.fullCloseSettings = function(){ document.getElementById('settings-modal').classList.remove('open'); };
+window.fullSetUnityLang = function(v){
+  var isEn = document.documentElement.lang === 'en';
+  if ((v === 'en') !== isEn) fullToggleLang();
+};
+</script>
+
 </body>
 </html>
