@@ -30,7 +30,24 @@ body.large #mini-pad button{font-size:20px;width:72px;height:62px}
 </style>
 
 <!-- FULLSCREEN-PATCH -->
-<style>#unity-canvas{max-width:100%!important}</style></head>
+<style>#unity-canvas{max-width:100%!important}</style>
+<style id="mobile-layout">
+@media (max-width:1000px){
+  #web-hud{left:8px!important;right:8px!important;bottom:8px!important;max-width:none!important;justify-content:center!important}
+  #web-hud button{min-height:44px!important;font-size:13px!important;padding:0 10px!important}
+  #mini-pad{left:8px!important;bottom:auto!important;top:8px!important}
+  #mini-pad button{width:46px!important;height:42px!important;font-size:13px!important}
+  #web-extra{left:auto!important;right:8px!important;top:8px!important}
+  #photo-exit{right:8px!important;bottom:8px!important}
+  #settings-btn{left:8px!important;bottom:70px!important}
+}
+@media (max-width:520px){
+  #web-hud button{font-size:12px!important;padding:0 8px!important}
+  #mini-pad button{width:40px!important;height:38px!important}
+}
+</style>
+
+</head>
   <body>
     <div id="unity-container" class="unity-desktop">
       <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
