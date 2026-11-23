@@ -303,5 +303,16 @@ window.fullMiniHoldStart = function(){ fullSend('WebMiniHoldStart', '1'); };
 window.fullMiniHoldEnd = function(){ fullSend('WebMiniHoldEnd', '1'); };
 </script>
 
+
+<style id="mobile-layout-late">
+@media (max-width:1000px){
+  body #web-hud{left:8px!important;right:8px!important;bottom:8px!important;max-width:none!important;width:auto!important;justify-content:center!important}
+  body #web-hud button{min-height:44px!important;font-size:13px!important;padding:0 10px!important}
+  body #mini-pad{left:8px!important;bottom:auto!important;top:8px!important}
+  body #mini-pad button{width:46px!important;height:42px!important;font-size:13px!important}
+  body #settings-btn{left:8px!important;bottom:70px!important}
+}
+</style>
+
 </body>
 </html>
