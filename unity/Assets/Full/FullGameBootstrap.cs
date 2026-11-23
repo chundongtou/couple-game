@@ -51,6 +51,9 @@ public class FullGameBootstrap : MonoBehaviour
     bool miniHolding;
     float miniHoldTime;
     float miniHoldTarget;
+    int miniRhythmHits;
+    float miniRhythmLast;
+    int miniColorCorrect;
 
     bool photoMode;
     bool reduceMotion;
@@ -237,6 +240,85 @@ public class FullGameBootstrap : MonoBehaviour
             Destroy(bulb.GetComponent<Collider>());
         }
         AddPointLight("StringGlow", new Vector3(0, 2.0f, 0.8f), new Color(1f, 0.62f, 0.28f), 1.1f, 2.8f);
+
+        // Procedural material pass: wood, fabric and wall grain instead of flat colors.
+        var floor = GameObject.Find("Floor");
+        if (floor != null) PaintTexture(floor, MakeWood(3, new Color(0.20f, 0.12f, 0.07f), new Color(0.34f, 0.20f, 0.11f)));
+        var table = GameObject.Find("Table");
+        if (table != null) PaintTexture(table, MakeWood(7, new Color(0.28f, 0.14f, 0.07f), new Color(0.48f, 0.26f, 0.12f)));
+        var board = GameObject.Find("Board");
+        if (board != null) PaintTexture(board, MakeWood(11, new Color(0.55f, 0.38f, 0.19f), new Color(0.72f, 0.52f, 0.27f)));
+        var rug = GameObject.Find("Rug");
+        if (rug != null) PaintTexture(rug, MakeFabric(19, new Color(0.30f, 0.12f, 0.10f), new Color(0.46f, 0.20f, 0.16f)));
+        var back = GameObject.Find("WallBack");
+        if (back != null) PaintTexture(back, MakeWall(23));
+    }
+
+    Texture2D MakeWood(int seed, Color a, Color b)
+    {
+        int s = 256;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, true);
+        tex.wrapMode = TextureWrapMode.Repeat;
+        var px = new Color[s * s];
+        for (int y = 0; y < s; y++)
+        {
+            for (int x = 0; x < s; x++)
+            {
+                float grain = Mathf.PerlinNoise((x + seed * 31) * 0.045f, (y + seed * 7) * 0.012f);
+                float fine = Mathf.PerlinNoise(x * 0.20f + seed, y * 0.04f);
+                float k = Mathf.Clamp01(grain * 0.65f + fine * 0.35f);
+                k = Mathf.Lerp(k, 1f - k, (y % 64) / 64f * 0.08f);
+                px[y * s + x] = Color.Lerp(a, b, k);
+            }
+        }
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    Texture2D MakeFabric(int seed, Color a, Color b)
+    {
+        int s = 128;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, true);
+        tex.wrapMode = TextureWrapMode.Repeat;
+        var px = new Color[s * s];
+        for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                float weave = (Mathf.Sin(x * 0.55f) + Mathf.Sin(y * 0.55f)) * 0.12f;
+                float n = Mathf.PerlinNoise((x + seed) * 0.08f, (y + seed) * 0.08f) * 0.20f;
+                px[y * s + x] = Color.Lerp(a, b, Mathf.Clamp01(0.42f + weave + n));
+            }
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    Texture2D MakeWall(int seed)
+    {
+        int s = 128;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, true);
+        tex.wrapMode = TextureWrapMode.Repeat;
+        var px = new Color[s * s];
+        for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                float n = Mathf.PerlinNoise((x + seed) * 0.045f, (y + seed) * 0.045f) * 0.10f;
+                float v = 0.11f + n;
+                px[y * s + x] = new Color(v, v * 0.92f, v * 0.98f);
+            }
+        tex.SetPixels(px);
+        tex.Apply();
+        return tex;
+    }
+
+    void PaintTexture(GameObject go, Texture2D tex)
+    {
+        var mr = go.GetComponent<MeshRenderer>();
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        mat.color = Color.white;
+        mat.SetTexture("_BaseMap", tex);
+        mr.material = mat;
     }
 
     GameObject MakeCylinder(string name, Vector3 pos, Vector3 scale, Color color)
@@ -534,6 +616,8 @@ public class FullGameBootstrap : MonoBehaviour
         miniReactionElapsed = 0;
         miniHolding = false;
         miniHoldTime = 0;
+        miniRhythmHits = 0;
+        miniRhythmLast = 0;
         miniArmed = false;
         miniShowing = false;
         miniSpeed = Random.value > 0.5f ? 1 : -1;
@@ -582,10 +666,21 @@ public class FullGameBootstrap : MonoBehaviour
             miniChoiceCorrect = Random.Range(0, 2);
             ui.ShowMini("小游戏 · " + mini.title + " · 选择左或右");
         }
-        else
+        else if (miniKind == 5)
         {
             miniHoldTarget = Random.Range(1.2f, 2.4f);
             ui.ShowMini("小游戏 · " + mini.title + " · 按住 " + miniHoldTarget.ToString("0.0") + " 秒");
+        }
+        else if (miniKind == 6)
+        {
+            miniTaps = 0;
+            ui.ShowMini("小游戏 · " + mini.title + " · 按 4 次稳定节奏");
+        }
+        else
+        {
+            miniColorCorrect = Random.Range(0, 4);
+            string[] colors = { "红", "黄", "蓝", "绿" };
+            ui.ShowMini("小游戏 · " + mini.title + " · 点出 " + colors[miniColorCorrect]);
         }
         yield return null;
     }
@@ -621,7 +716,28 @@ public class FullGameBootstrap : MonoBehaviour
             FinishMini(miniArmed);
             return;
         }
-        if (miniKind == 3 || miniKind == 4 || miniKind == 5) return;
+        if (miniKind == 3 || miniKind == 4 || miniKind == 5 || miniKind == 7) return;
+        if (miniKind == 6)
+        {
+            if (miniTaps == 0)
+            {
+                miniTaps = 1;
+                miniRhythmLast = Time.unscaledTime;
+                ui.miniTitle.text = "节奏 1/4";
+                return;
+            }
+            float delta = Time.unscaledTime - miniRhythmLast;
+            if (delta < 0.28f || delta > 0.95f)
+            {
+                FinishMini(false);
+                return;
+            }
+            miniRhythmLast = Time.unscaledTime;
+            miniTaps++;
+            ui.miniTitle.text = "节奏 " + miniTaps + "/4";
+            if (miniTaps >= 4) FinishMini(true);
+            return;
+        }
 
         var marker = ui.miniMarker.anchoredPosition;
         var green = ui.miniGreen.anchoredPosition;
@@ -723,6 +839,14 @@ public class FullGameBootstrap : MonoBehaviour
         if (!miniActive || miniKind != 5) return;
         miniHolding = false;
         FinishMini(miniHoldTime >= miniHoldTarget);
+    }
+
+    public void WebMiniColor(string value)
+    {
+        if (!miniActive || miniKind != 7) return;
+        int idx;
+        if (!int.TryParse(value, out idx)) return;
+        FinishMini(idx == miniColorCorrect);
     }
 
     public void WebPhoto()
