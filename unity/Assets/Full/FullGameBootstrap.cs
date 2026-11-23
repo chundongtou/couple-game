@@ -54,6 +54,7 @@ public class FullGameBootstrap : MonoBehaviour
     int miniRhythmHits;
     float miniRhythmLast;
     int miniColorCorrect;
+    int miniAvoidColor;
 
     bool photoMode;
     bool reduceMotion;
@@ -676,11 +677,17 @@ public class FullGameBootstrap : MonoBehaviour
             miniTaps = 0;
             ui.ShowMini("小游戏 · " + mini.title + " · 按 4 次稳定节奏");
         }
-        else
+        else if (miniKind == 7)
         {
             miniColorCorrect = Random.Range(0, 4);
             string[] colors = { "红", "黄", "蓝", "绿" };
             ui.ShowMini("小游戏 · " + mini.title + " · 点出 " + colors[miniColorCorrect]);
+        }
+        else
+        {
+            miniAvoidColor = Random.Range(0, 4);
+            string[] colors = { "红", "黄", "蓝", "绿" };
+            ui.ShowMini("小游戏 · " + mini.title + " · 避开 " + colors[miniAvoidColor]);
         }
         yield return null;
     }
@@ -716,7 +723,7 @@ public class FullGameBootstrap : MonoBehaviour
             FinishMini(miniArmed);
             return;
         }
-        if (miniKind == 3 || miniKind == 4 || miniKind == 5 || miniKind == 7) return;
+        if (miniKind == 3 || miniKind == 4 || miniKind == 5 || miniKind == 7 || miniKind == 8) return;
         if (miniKind == 6)
         {
             if (miniTaps == 0)
@@ -843,10 +850,11 @@ public class FullGameBootstrap : MonoBehaviour
 
     public void WebMiniColor(string value)
     {
-        if (!miniActive || miniKind != 7) return;
+        if (!miniActive || (miniKind != 7 && miniKind != 8)) return;
         int idx;
         if (!int.TryParse(value, out idx)) return;
-        FinishMini(idx == miniColorCorrect);
+        if (miniKind == 7) FinishMini(idx == miniColorCorrect);
+        else FinishMini(idx != miniAvoidColor);
     }
 
     public void WebPhoto()

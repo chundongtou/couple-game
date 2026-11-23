@@ -98,7 +98,6 @@ public static class FullContent
     public static readonly Mini[] Minigames =
     {
         new Mini("默契一拍", 0, 0.80f, 150f),
-        new Mini("心跳同步", 0, 1.00f, 130f),
         new Mini("一起连点", 1, 0f, 0f, 6),
         new Mini("快速回应", 1, 0f, 0f, 8),
         new Mini("等绿再按", 2, 0f, 0f),
@@ -109,6 +108,7 @@ public static class FullContent
         new Mini("稳稳接住", 5, 0f, 0f),
         new Mini("节奏心跳", 6, 0f, 0f),
         new Mini("颜色陷阱", 7, 0f, 0f),
+        new Mini("避开红色", 8, 0f, 0f),
     };
 
     public static readonly string[] TitlesEn =
