@@ -75,7 +75,7 @@ body.large #mini-pad button{font-size:20px;width:72px;height:62px}
         updateBannerVisibility();
       }
 
-      var buildUrl = "https://cdn.jsdelivr.net/gh/chundongtou/couple-game@68df819a98daef0a8434a61191b11b258ae98aed/fullgame/Build";
+      var buildUrl = "https://cdn.jsdelivr.net/gh/chundongtou/couple-game@f2f6df58c2f12c0abcbda4f1e30b98d6c6e32610/fullgame/Build";
       var loaderUrl = "https://cdn.jsdelivr.net/gh/chundongtou/couple-game@722487f/fullgame/Build/FullWebGL.loader.js";
       var config = {
         arguments: [],
@@ -204,6 +204,7 @@ window.fullCycleVolume = function(){
 };
 window.fullMiniPad = function(i){
   fullSend('WebMiniPad', i);
+  fullSend('WebMiniColor', i);
 };
 window.fullMiniChoice = function(i){
   fullSend('WebMiniChoice', i);
