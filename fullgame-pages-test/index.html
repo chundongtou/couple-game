@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | com.unity.template.urp-blank</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#05070b}
+#unity-container{position:fixed!important;left:0!important;top:0!important;width:100%!important;height:100%!important;transform:none!important}
+#unity-canvas{width:100%!important;height:100%!important}
+#unity-footer{display:none!important}
+#unity-loading-bar{bottom:22%!important}
+#web-hud{position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;gap:8px;flex-wrap:wrap;max-width:520px;
+  font-family:"Noto Sans SC","Microsoft YaHei",sans-serif}
+#web-hud button{min-height:52px;padding:0 20px;border-radius:10px;border:1px solid rgba(224,164,94,.65);
+  background:rgba(8,12,18,.88);color:#f2e8d8;font-size:16px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px)}
+#web-hud button:active{background:rgba(224,164,94,.35)}
+#web-hud .primary{background:linear-gradient(180deg,#ddb273,#b08a57);color:#1a120b;border-color:transparent}
+#photo-exit{display:none;position:fixed;right:18px;bottom:18px;z-index:10000;min-height:52px;padding:0 20px;
+  border-radius:10px;border:1px solid rgba(224,164,94,.65);background:rgba(8,12,18,.88);color:#f2e8d8;font-size:16px}
+body.photo-mode #web-hud{display:none}
+body.photo-mode #photo-exit{display:block}
+body.large #web-hud button{font-size:20px;min-height:62px;padding:0 24px}
+body.large #mini-pad button{font-size:20px;width:72px;height:62px}
+#mini-pad{position:fixed;left:16px;bottom:16px;z-index:9999;display:flex;gap:8px}
+#mini-pad button{width:62px;height:52px;border-radius:10px;border:1px solid rgba(224,164,94,.55);font-weight:700;cursor:pointer}
+</style>
+
+<!-- FULLSCREEN-PATCH -->
+</head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">com.unity.template.urp-blank</div>
+      </div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "../fullgame/Build";
+      var loaderUrl = "https://cdn.jsdelivr.net/gh/chundongtou/couple-game@722487f/fullgame/Build/FullWebGL.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/FullWebGL.data.unityweb",
+        frameworkUrl: buildUrl + "/FullWebGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/FullWebGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Unity Technologies",
+        productName: "com.unity.template.urp-blank",
+        productVersion: "0.1.0",
+        showBanner: unityShowBanner,
+        // errorHandler: function(err, url, line) {
+        //    alert("error " + err + " occurred at line " + line);
+        //    // Return 'true' if you handled this error and don't want Unity
+        //    // to process it further, 'false' otherwise.
+        //    return true;
+        // },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => { window.__unityInstance = unityInstance;
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  
+<div id="web-hud">
+  <button class="primary" onclick="fullSend('WebRoll')">掷骰</button>
+  <button onclick="fullSend('WebContinue')">继续</button>
+  <button onclick="fullSend('WebStop')">停</button>
+  <button onclick="fullSend('WebRestart')">重开</button>
+  <button onclick="fullTogglePhoto()">拍照</button>
+  <button onclick="fullToggleMotion()">减少动态</button>
+  <button onclick="fullCycleVolume()">音量</button>
+  <button onclick="fullAvatarColor(0)">你换色</button>
+  <button onclick="fullAvatarColor(1)">TA换色</button>
+  <button onclick="fullChapter(1)">第1章</button>
+  <button onclick="fullChapter(2)">第2章</button>
+  <button onclick="fullChapter(3)">第3章</button>
+  <button onclick="fullToggleLang()">EN</button>
+  <button onclick="fullToggleLarge()">大字</button>
+</div>
+<button id="photo-exit" onclick="fullTogglePhoto()">退出拍照</button>
+<div id="mini-pad">
+  <button style="background:#9b4a52;color:#fff" onclick="fullMiniPad(0)">红</button>
+  <button style="background:#b08a57;color:#fff" onclick="fullMiniPad(1)">黄</button>
+  <button style="background:#3f607d;color:#fff" onclick="fullMiniPad(2)">蓝</button>
+  <button style="background:#3e6b4f;color:#fff" onclick="fullMiniPad(3)">绿</button>
+  <button style="background:#4a4a55;color:#fff" onclick="fullMiniChoice(0)">左</button>
+  <button style="background:#4a4a55;color:#fff" onclick="fullMiniChoice(1)">右</button>
+  <button style="background:#6b5a3a;color:#fff" onpointerdown="fullMiniHoldStart()" onpointerup="fullMiniHoldEnd()" onpointerleave="fullMiniHoldEnd()">按住</button>
+</div>
+<script>
+window.fullSend = function(method, value){
+  try {
+    if(!window.__unityInstance){ return; }
+    if (value === undefined) window.__unityInstance.SendMessage("FullGame", method);
+    else window.__unityInstance.SendMessage("FullGame", method, String(value));
+  } catch(e) { console.log("fullSend error", e); }
+};
+window.__fullMotion = false;
+window.fullTogglePhoto = function(){
+  document.body.classList.toggle('photo-mode');
+  fullSend('WebPhoto');
+};
+window.fullToggleMotion = function(){
+  window.__fullMotion = !window.__fullMotion;
+  fullSend('WebReduceMotion', window.__fullMotion ? '1' : '0');
+};
+window.__fullVolume = 0.55;
+window.fullCycleVolume = function(){
+  window.__fullVolume = window.__fullVolume > 0.2 ? 0 : 0.55;
+  fullSend('WebVolume', window.__fullVolume);
+};
+window.fullMiniPad = function(i){
+  fullSend('WebMiniPad', i);
+  fullSend('WebMiniColor', i);
+};
+window.fullMiniChoice = function(i){
+  fullSend('WebMiniChoice', i);
+};
+window.fullAvatarColor = function(i){
+  fullSend('WebAvatarColor', i);
+};
+window.fullChapter = function(i){
+  fullSend('WebChapter', i);
+};
+window.__fullEn = false;
+window.fullToggleLang = function(){
+  window.__fullEn = !window.__fullEn;
+  var dict = {
+    "掷骰":"Roll", "继续":"Continue", "停":"Stop", "重开":"Restart",
+    "拍照":"Photo", "减少动态":"Less motion", "音量":"Volume",
+    "你换色":"Your color", "TA换色":"TA color",
+    "第1章":"Ch.1", "第2章":"Ch.2", "第3章":"Ch.3",
+    "红":"Red", "黄":"Yellow", "蓝":"Blue", "绿":"Green"
+  };
+  document.querySelectorAll('#web-hud button, #mini-pad button').forEach(function(b){
+    var t = b.innerText.trim();
+    if (window.__fullEn) {
+      if (dict[t]) b.innerText = dict[t];
+    } else {
+      for (var k in dict) if (dict[k] === t) b.innerText = k;
+    }
+  });
+  var langBtn = document.querySelector('#web-hud button[onclick="fullToggleLang()"]');
+  if (langBtn) langBtn.innerText = window.__fullEn ? '中文' : 'EN';
+  document.documentElement.lang = window.__fullEn ? 'en' : 'zh-CN';
+  fullSend('WebLanguage', window.__fullEn ? '1' : '0');
+};
+window.fullToggleLarge = function(){
+  document.body.classList.toggle('large');
+};
+</script>
+
+
+<button id="settings-btn" onclick="fullOpenSettings()">设置</button>
+<div id="settings-modal">
+  <div class="settings-card">
+    <h3>设置 / Settings</h3>
+    <label>音量 / Volume <input id="set-volume" type="range" min="0" max="1" step="0.05" value="0.55" oninput="fullSend('WebVolume', this.value)"></label>
+    <label><input id="set-motion" type="checkbox" onchange="fullSend('WebReduceMotion', this.checked?'1':'0')"> 减少动态 / Less motion</label>
+    <label><input id="set-large" type="checkbox" onchange="document.body.classList.toggle('large', this.checked)"> 大字 / Large text</label>
+    <label>语言 / Language
+      <select id="set-lang" onchange="fullSetUnityLang(this.value)">
+        <option value="zh">中文</option><option value="en">English</option>
+      </select>
+    </label>
+    <button onclick="fullCloseSettings()">关闭 / Close</button>
+  </div>
+</div>
+<style>
+#settings-btn{position:fixed;left:16px;bottom:78px;z-index:10000;min-height:44px;padding:0 16px;border-radius:9px;
+ border:1px solid rgba(224,164,94,.6);background:rgba(8,12,18,.85);color:#f2e8d8;font-size:15px;cursor:pointer}
+#settings-modal{display:none;position:fixed;inset:0;z-index:10001;background:#000a;align-items:center;justify-content:center}
+#settings-modal.open{display:flex}
+.settings-card{width:min(360px,90vw);border-radius:14px;background:#121820;color:#f2e8d8;padding:22px;
+ border:1px solid #e0a45e88;font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;display:flex;flex-direction:column;gap:14px}
+.settings-card h3{margin:0}
+.settings-card label{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px}
+.settings-card input[type=range]{width:150px}
+.settings-card button{min-height:44px;border-radius:9px;border:1px solid #e0a45e88;background:#1d2632;color:#f2e8d8;cursor:pointer}
+</style>
+<script>
+window.fullOpenSettings = function(){ document.getElementById('settings-modal').classList.add('open'); };
+window.fullCloseSettings = function(){ document.getElementById('settings-modal').classList.remove('open'); };
+window.fullSetUnityLang = function(v){
+  var isEn = document.documentElement.lang === 'en';
+  if ((v === 'en') !== isEn) fullToggleLang();
+};
+</script>
+
+
+<script>
+window.fullMiniHoldStart = function(){ fullSend('WebMiniHoldStart', '1'); };
+window.fullMiniHoldEnd = function(){ fullSend('WebMiniHoldEnd', '1'); };
+</script>
+
+</body>
+</html>
