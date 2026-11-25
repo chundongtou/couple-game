@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#07090d">
+<meta name="description" content="今晚飞行棋 · 两个人的棋盘">
+<title>今晚飞行棋 · V10</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07090d">
+<meta property="og:title" content="今晚飞行棋">
+<meta property="og:description" content="两个人，一部手机，一盘桌上的棋。">
+<meta property="og:type" content="website">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ 首页 ============ -->
+  <section class="screen home on" id="s-home">
+    <div class="kicker"><span class="spark"></span><span>TONIGHT</span><span class="rule"></span></div>
+    <h1 class="title-xl" style="margin-top:14px">今晚<br>飞行棋</h1>
+    <p class="sub">两个人，一部手机，一盘桌上的棋。<br>灯调暗一点，慢慢来。</p>
+    <div><span class="night" id="homeNight">第 1 夜</span></div>
+    <div class="cta">
+      <button class="btn primary block" id="btnStart">摆上棋盘</button>
+      <button class="btn block" id="btnResume" style="display:none">继续今晚</button>
+      <button class="btn ghost block" id="btnLast" style="display:none">看上一夜</button>
+    </div>
+    <div class="foot" id="homeFoot"></div>
+  </section>
+
+  <!-- ============ 设置 ============ -->
+  <section class="screen scroll" id="s-setup">
+    <div class="kicker"><span class="spark"></span><span>SETUP</span><span class="rule"></span></div>
+    <h2 class="title-lg" style="margin-top:12px">今晚怎么玩</h2>
+
+    <div class="field">
+      <div class="lbl">今晚玩多久</div>
+      <div class="seg" id="segMode">
+        <button data-v="quick" class="on"><b>快局</b><span>2 架飞机 · 4 张卡 · 约 15 分钟</span></button>
+        <button data-v="long"><b>长夜</b><span>4 架飞机 · 8 张卡 · 约 40 分钟</span></button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="lbl">灯拨到哪一档</div>
+      <div class="seg" id="segLevel">
+        <button data-v="soft" class="on"><b>含蓄</b><span>电影感 · 亲密不露</span></button>
+        <button data-v="explicit"><b>露骨</b><span>直白 · 成人向</span></button>
+      </div>
+      <div class="tiny muted mt-6" id="levelHint">含蓄档用实拍感镜头，适合刚开始。</div>
+    </div>
+
+    <div class="field">
+      <div class="lbl">今晚怎么称呼</div>
+      <div class="row2">
+        <input class="input" id="nameA" placeholder="你" maxlength="6" value="他">
+        <input class="input" id="nameB" placeholder="对方" maxlength="6" value="她">
+      </div>
+    </div>
+
+    <div class="mt-24" style="display:flex;gap:10px">
+      <button class="btn" id="btnBack" style="flex:0 0 96px">返回</button>
+      <button class="btn primary grow" id="btnGo">开始</button>
+    </div>
+    <div class="tiny muted mt-10" id="setupFoot"></div>
+    <div class="tiny mt-18" style="color:#6d5f55;line-height:1.8">
+      今晚任何时候都可以点右上角「先停一下」。<br>
+      停不算跳过，也不扣分——先照顾好彼此，再回来。
+    </div>
+  </section>
+
+  <!-- ============ 棋盘 ============ -->
+  <section class="screen" id="s-board">
+    <div class="boardhead">
+      <span class="night" id="bNight">第 1 夜</span>
+      <span class="heat"><i></i><span id="bHeat">0°</span> 灯刚亮</span>
+    </div>
+    <div class="stage"><canvas id="board"></canvas></div>
+    <div class="turnbar">
+      <span class="dot" id="bDot" style="background:#e0a45e"></span>
+      <b id="bTurn">他</b>
+      <span id="bHint">的回合 · 掷骰</span>
+      <span class="die" id="bDie">–</span>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="btnSafe" style="flex:0 0 96px">停一下</button>
+      <button class="btn primary grow" id="btnRoll">掷骰</button>
+    </div>
+  </section>
+
+  <!-- ============ 卡片 ============ -->
+  <section class="screen" id="s-card">
+    <div class="cardhead">
+      <span id="cKind">靠近</span><span>·</span><span id="cStars">★★★</span>
+      <span class="sp"></span>
+      <button class="stop" id="cSafe">先停一下</button>
+    </div>
+    <h2 class="cardtitle" id="cTitle">—</h2>
+    <div class="tags" id="cTags"></div>
+
+    <div class="media">
+      <div class="mhead">
+        <span class="dot"></span><span id="mSrc">当前展示</span>
+        <span class="sp"></span>
+        <span class="tc" id="mTc">00:00</span>
+        <button class="lv" id="mLv">含蓄</button>
+        <button id="mBind">绑定视频</button>
+      </div>
+      <canvas id="media"></canvas>
+      <input type="file" id="mFile" accept="video/*" hidden>
+    </div>
+
+    <div class="beats" id="cBeats"></div>
+    <div class="safeblock" id="cSafeBlock"></div>
+
+    <div class="timer">
+      <div class="ring">
+        <svg width="42" height="42"><circle cx="21" cy="21" r="18" fill="none" stroke="#232830" stroke-width="3"/>
+        <circle id="ringArc" cx="21" cy="21" r="18" fill="none" stroke="#e0a45e" stroke-width="3"
+          stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="113.1"/></svg>
+        <div class="t" id="ringT">90</div>
+      </div>
+      <div class="txt"><b>这一拍别急着结束</b>先看对方的呼吸，再决定要不要加压</div>
+      <button id="btnTimer">开始</button>
+    </div>
+
+    <div class="meters">
+      <div class="meter a"><div class="who"><span id="mA1">他</span><span id="mA2">4/10</span></div><div class="bar"><i id="barA" style="width:40%"></i></div></div>
+      <div class="meter b"><div class="who"><span id="mB1">她</span><span id="mB2">5/10</span></div><div class="bar"><i id="barB" style="width:50%"></i></div></div>
+    </div>
+
+    <div class="cardfoot">
+      <button class="btn" id="cSkip" style="flex:0 0 108px">这张放过</button>
+      <button class="btn primary grow" id="cDone">做完了，打分</button>
+    </div>
+  </section>
+
+  <!-- ============ 记录 ============ -->
+  <section class="screen scroll" id="s-ledger">
+    <div class="kicker"><span class="spark"></span><span>TONIGHT</span><span class="rule"></span></div>
+    <h2 class="title-lg" style="margin-top:12px" id="lTitle">今晚走到这里</h2>
+    <div class="statgrid">
+      <div class="stat"><b id="lCards">0</b><span>卡片</span></div>
+      <div class="stat"><b id="lHeat">0°</b><span>温度</span></div>
+      <div class="stat"><b id="lStreak">0</b><span>最长连击</span></div>
+    </div>
+    <div class="ledger" id="lList"></div>
+    <div class="actions">
+      <button class="btn" id="lBack" style="flex:0 0 110px">回棋盘</button>
+      <button class="btn primary grow" id="lNew">开始新一夜</button>
+    </div>
+  </section>
+
+  <!-- ============ 选飞机 ============ -->
+  <div class="sheet" id="pick">
+    <div class="box">
+      <h3 id="pickTitle">走哪一架</h3>
+      <p>落在不同格子上会翻不同的卡。</p>
+      <div class="planes" id="pickList"></div>
+      <button class="close" id="pickClose">先不走</button>
+    </div>
+  </div>
+
+  <!-- ============ 评分 ============ -->
+  <div class="sheet" id="sheet">
+    <div class="box">
+      <h3 id="sheetTitle">对方刚才是什么反应</h3>
+      <p>这一分给的是对方，不是你自己。分数决定下一拍加压还是降温。</p>
+      <div class="scores" id="scores">
+        <button class="score" data-s="0">0<small>没进去</small></button>
+        <button class="score" data-s="1">1<small>还行</small></button>
+        <button class="score" data-s="2">2<small>很投入</small></button>
+        <button class="score" data-s="3">3<small>快失控</small></button>
+      </div>
+      <button class="close" id="sheetClose">先不打分</button>
+    </div>
+  </div>
+
+  <!-- ============ 暂停 ============ -->
+  <div class="pause" id="pause">
+    <h2>先停一下</h2>
+    <p class="tiny muted mt-6">棋还在，什么都没丢。谁需要停都可以。</p>
+    <div class="breath">
+      <div class="c" id="breathC">吸气</div>
+      <div class="hint" id="breathHint">跟着圈走：吸 4 秒 · 停 7 秒 · 呼 8 秒</div>
+    </div>
+    <div class="acts">
+      <button class="btn primary block" id="btnResumeSafe">继续</button>
+      <button class="btn block" id="btnToLedger">今晚就到这</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="data/cards.js"></script>
+<script src="clips/clips.js"></script>
+<script src="clips-x/clips-x.js"></script>
+<script src="js/media.js"></script>
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+<script src="js/board.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+{
+  "version": 2,
+  "clips": [
+    {
+      "id": "behind-v5",
+      "pose": "behind",
+      "variant": 5,
+      "file": "clips/behind-v5.mp4",
+      "poster": "clips/behind-v5.jpg",
+      "bytes": 230965,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "behind-v6",
+      "pose": "behind",
+      "variant": 6,
+      "file": "clips/behind-v6.mp4",
+      "poster": "clips/behind-v6.jpg",
+      "bytes": 203571,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "face-v5",
+      "pose": "face",
+      "variant": 5,
+      "file": "clips/face-v5.mp4",
+      "poster": "clips/face-v5.jpg",
+      "bytes": 229629,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "face-v6",
+      "pose": "face",
+      "variant": 6,
+      "file": "clips/face-v6.mp4",
+      "poster": "clips/face-v6.jpg",
+      "bytes": 204864,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "kneel-v5",
+      "pose": "kneel",
+      "variant": 5,
+      "file": "clips/kneel-v5.mp4",
+      "poster": "clips/kneel-v5.jpg",
+      "bytes": 227369,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "kneel-v6",
+      "pose": "kneel",
+      "variant": 6,
+      "file": "clips/kneel-v6.mp4",
+      "poster": "clips/kneel-v6.jpg",
+      "bytes": 222291,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "ontop-v5",
+      "pose": "ontop",
+      "variant": 5,
+      "file": "clips/ontop-v5.mp4",
+      "poster": "clips/ontop-v5.jpg",
+      "bytes": 228876,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "ontop-v6",
+      "pose": "ontop",
+      "variant": 6,
+      "file": "clips/ontop-v6.mp4",
+      "poster": "clips/ontop-v6.jpg",
+      "bytes": 195549,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "rest-v5",
+      "pose": "rest",
+      "variant": 5,
+      "file": "clips/rest-v5.mp4",
+      "poster": "clips/rest-v5.jpg",
+      "bytes": 192987,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "rest-v6",
+      "pose": "rest",
+      "variant": 6,
+      "file": "clips/rest-v6.mp4",
+      "poster": "clips/rest-v6.jpg",
+      "bytes": 222057,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "spoon-v5",
+      "pose": "spoon",
+      "variant": 5,
+      "file": "clips/spoon-v5.mp4",
+      "poster": "clips/spoon-v5.jpg",
+      "bytes": 243515,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "spoon-v6",
+      "pose": "spoon",
+      "variant": 6,
+      "file": "clips/spoon-v6.mp4",
+      "poster": "clips/spoon-v6.jpg",
+      "bytes": 192993,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "stand-v5",
+      "pose": "stand",
+      "variant": 5,
+      "file": "clips/stand-v5.mp4",
+      "poster": "clips/stand-v5.jpg",
+      "bytes": 225489,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "stand-v6",
+      "pose": "stand",
+      "variant": 6,
+      "file": "clips/stand-v6.mp4",
+      "poster": "clips/stand-v6.jpg",
+      "bytes": 198673,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "straddle-v5",
+      "pose": "straddle",
+      "variant": 5,
+      "file": "clips/straddle-v5.mp4",
+      "poster": "clips/straddle-v5.jpg",
+      "bytes": 200258,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "straddle-v6",
+      "pose": "straddle",
+      "variant": 6,
+      "file": "clips/straddle-v6.mp4",
+      "poster": "clips/straddle-v6.jpg",
+      "bytes": 205335,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "wall-v5",
+      "pose": "wall",
+      "variant": 5,
+      "file": "clips/wall-v5.mp4",
+      "poster": "clips/wall-v5.jpg",
+      "bytes": 211203,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    },
+    {
+      "id": "wall-v6",
+      "pose": "wall",
+      "variant": 6,
+      "file": "clips/wall-v6.mp4",
+      "poster": "clips/wall-v6.jpg",
+      "bytes": 222945,
+      "width": 960,
+      "height": 540,
+      "dur": 5
+    }
+  ]
+}
