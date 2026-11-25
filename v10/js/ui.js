@@ -11,6 +11,8 @@
   var night = 1;
   var screen = "home";
   var lastLedger = null;
+  var ledgerView = null;
+  var historyIndex = 0;
 
   /* ---------------- 小工具 ---------------- */
   function toast(msg, ms) {
@@ -64,7 +66,9 @@
       if (st.phase === "card" && st.card) openCard();
     };
     $("btnLast").onclick = function () {
-      try { lastLedger = JSON.parse(last); } catch (e) { lastLedger = null; }
+      var h = readHistory();
+      if (h.length) { historyIndex = 0; renderLedger(h[0], true); return; }
+      try { lastLedger = JSON.parse(localStorage.getItem("v10.last")); } catch (e) { lastLedger = null; }
       renderLedger(lastLedger, true);
     };
   }
@@ -399,6 +403,7 @@
     try {
       localStorage.setItem("v10.last", JSON.stringify(payload));
       localStorage.setItem("v10.night", String(night + 1));
+      pushHistory(payload);
     } catch (e) { }
     Game.clear();
     st = null;
@@ -409,12 +414,120 @@
     $("btnLast").style.display = "";
   }
 
+  /* ---------------- 夜晚历史 ---------------- */
+  function readHistory() {
+    try { return JSON.parse(localStorage.getItem("v10.history") || "[]"); } catch (e) { return []; }
+  }
+  function pushHistory(payload) {
+    var h = readHistory();
+    h.unshift(payload);
+    if (h.length > 20) h.length = 20;
+    localStorage.setItem("v10.history", JSON.stringify(h));
+  }
+
+  /* ---------------- 存成图片 ---------------- */
+  function exportPng(payload) {
+    var W = 1080, H = 1500;
+    var c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    var g = c.getContext("2d");
+
+    var bg = g.createLinearGradient(0, 0, W * 0.4, H);
+    bg.addColorStop(0, "#0d1720");
+    bg.addColorStop(0.6, "#080b10");
+    bg.addColorStop(1, "#05070a");
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+
+    var glow = g.createRadialGradient(W * 0.8, -H * 0.05, 0, W * 0.8, -H * 0.05, H * 0.8);
+    glow.addColorStop(0, "rgba(224,164,94,0.22)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = glow;
+    g.fillRect(0, 0, W, H);
+
+    g.fillStyle = "#e0a45e";
+    g.font = "600 30px Georgia, serif";
+    g.fillText("TONIGHT", 80, 120);
+
+    g.fillStyle = "#f3e6d6";
+    g.font = "700 68px Georgia, 'Songti SC', serif";
+    g.fillText("第 " + payload.night + " 夜", 80, 210);
+
+    g.fillStyle = "#9d8a7a";
+    g.font = "400 30px system-ui, sans-serif";
+    g.fillText((payload.names.a || "他") + " 与 " + (payload.names.b || "她") + " · " +
+      (payload.mode === "long" ? "长夜" : "快局") + " · " + (payload.level === "explicit" ? "露骨" : "含蓄"), 80, 262);
+
+    var stats = [
+      [String(payload.cardsDone), "卡片"],
+      [payload.heat + "°", "温度"],
+      [String(payload.bestStreak), "最长连击"]
+    ];
+    stats.forEach(function (s, i) {
+      var x = 80 + i * 320;
+      g.fillStyle = "#e0a45e";
+      g.font = "700 54px Georgia, serif";
+      g.fillText(s[0], x, 372);
+      g.fillStyle = "#6d5f55";
+      g.font = "400 24px system-ui, sans-serif";
+      g.fillText(s[1], x, 408);
+    });
+
+    g.strokeStyle = "#1d2631";
+    g.beginPath(); g.moveTo(80, 450); g.lineTo(W - 80, 450); g.stroke();
+
+    var list = (payload.ledger || []).slice(-8).reverse();
+    var y = 520;
+    list.forEach(function (e) {
+      g.fillStyle = e.done ? "#f3e6d6" : "#5c5057";
+      g.font = "600 26px system-ui, sans-serif";
+      var who = payload.names[e.player] || "他";
+      var head = who + " · " + (e.done ? "完成" : "放过");
+      g.fillText(head, 80, y);
+      g.fillStyle = e.done ? "#cbbbaa" : "#4b4448";
+      g.font = "400 27px system-ui, sans-serif";
+      var txt = String(e.card.text || "");
+      if (txt.length > 22) txt = txt.slice(0, 22) + "…";
+      g.fillText(txt, 80, y + 40);
+      y += 108;
+    });
+
+    g.fillStyle = "#3a3a42";
+    g.font = "400 22px system-ui, sans-serif";
+    g.fillText("今晚飞行棋 · V10", 80, H - 70);
+
+    try {
+      var a = document.createElement("a");
+      a.download = "今晚飞行棋-第" + payload.night + "夜.png";
+      a.href = c.toDataURL("image/png");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast("已存成图片");
+    } catch (e) {
+      toast("这张没存下来，再点一次");
+    }
+  }
+
   function renderLedger(payload, isPast) {
     if (!payload) { toast("还没有记录"); return; }
+    ledgerView = payload;
     $("lTitle").textContent = isPast ? "第 " + payload.night + " 夜 · 回顾" : "今晚走到这里";
     $("lCards").textContent = payload.cardsDone;
     $("lHeat").textContent = payload.heat + "°";
     $("lStreak").textContent = payload.bestStreak;
+
+    /* 历史翻页 */
+    var h = readHistory();
+    var showNav = h.length > 1 && isPast;
+    $("lNav").style.display = showNav ? "" : "none";
+    if (showNav) {
+      $("lOlder").disabled = historyIndex + 1 >= h.length;
+      $("lNewer").disabled = historyIndex <= 0;
+      $("lOlder").style.opacity = $("lOlder").disabled ? .4 : 1;
+      $("lNewer").style.opacity = $("lNewer").disabled ? .4 : 1;
+    }
+
     var list = $("lList");
     list.innerHTML = "";
     (payload.ledger || []).slice().reverse().forEach(function (e) {
@@ -436,6 +549,26 @@
       else { show("s-home"); }
     };
     $("lNew").onclick = function () { show("s-home"); };
+    $("lShot").onclick = function () {
+      if (ledgerView) exportPng(ledgerView);
+      else toast("还没有记录");
+    };
+    $("lOlder").onclick = function () {
+      var h = readHistory();
+      if (historyIndex + 1 < h.length) {
+        historyIndex++;
+        ledgerView = h[historyIndex];
+        renderLedger(ledgerView, true, true);
+      }
+    };
+    $("lNewer").onclick = function () {
+      var h = readHistory();
+      if (historyIndex > 0) {
+        historyIndex--;
+        ledgerView = h[historyIndex];
+        renderLedger(ledgerView, true, true);
+      }
+    };
   }
 
   /* ---------------- 启动 ---------------- */
@@ -482,6 +615,7 @@
         refreshBoard(); openPicker(Game.movablePlanes(st, 'a'));
       },
       save: function () { if (st) Game.save(st); return true; },
+      exportPng: function () { return document.querySelector('#lShot') ? 1 : 0; },
       pause: function () { openPause(); },
       level: function (v) { st.level = v; if (st.card) mountMedia(st.card); },
       state: function () { return st; }

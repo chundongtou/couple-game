@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -149,10 +149,15 @@
       <div class="stat"><b id="lHeat">0°</b><span>温度</span></div>
       <div class="stat"><b id="lStreak">0</b><span>最长连击</span></div>
     </div>
+    <div class="row gap-8 mt-10" id="lNav">
+      <button class="btn ghost tiny" id="lOlder" style="min-height:34px;padding:0 12px">更早一夜</button>
+      <button class="btn ghost tiny" id="lNewer" style="min-height:34px;padding:0 12px">更近一夜</button>
+    </div>
     <div class="ledger" id="lList"></div>
     <div class="actions">
-      <button class="btn" id="lBack" style="flex:0 0 110px">回棋盘</button>
-      <button class="btn primary grow" id="lNew">开始新一夜</button>
+      <button class="btn small-btn" id="lShot" style="flex:0 0 108px">存成图片</button>
+      <button class="btn small-btn" id="lBack" style="flex:0 0 96px">回棋盘</button>
+      <button class="btn primary grow small-btn" id="lNew">新一夜</button>
     </div>
   </section>
 

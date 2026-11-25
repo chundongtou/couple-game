@@ -1,4 +1,4 @@
-/*  v10 · 今晚飞行棋 —— 手机优先样式
+﻿/*  v10 · 今晚飞行棋 —— 手机优先样式
  *  品牌：深墨蓝 #07090d / 琥珀 #e0a45e / 玫瑰 #b05c62
  */
 :root {
@@ -229,6 +229,7 @@ body {
 .meter.b .bar i { background: linear-gradient(90deg, #b05c62, #e08f95); }
 
 .cardfoot { display: flex; gap: 10px; padding: 10px 0 calc(6px + var(--safe-b)); }
+.small-btn { font-size: 13px; letter-spacing: .04em; }
 
 /* ---------- 评分 sheet ---------- */
 .sheet {
