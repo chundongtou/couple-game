@@ -1,0 +1,1508 @@
+{
+ "390x844": {
+  "overview": {
+   "viewport": [
+    366,
+    552
+   ],
+   "phase": "idle",
+   "board": {
+    "x0": 20.2,
+    "x1": 345.8,
+    "y0": 140.1,
+    "y1": 414.6
+   },
+   "boardFracW": 0.8896,
+   "ring323Box": {
+    "x0": 23.1,
+    "x1": 342.9,
+    "y0": 140.5,
+    "y1": 409.6
+   },
+   "ringFracW": 0.8738,
+   "gapTop": 140.1,
+   "gapBot": 137.4,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 552
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 44,
+   "triangles": 3516,
+   "fps": 15.8,
+   "quality": "high",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      12.3191,
+      8.0382
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 0,
+     "tx": 0,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 0,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0.7299,
+      0.165,
+      -1.7399
+     ],
+     "ndc": [
+      0.18515,
+      0.31142
+     ]
+    }
+   },
+   "perf": {
+    "frames": 40,
+    "avgMs": 85.76,
+    "maxMs": 1121.21,
+    "long25": 38,
+    "long50": 36,
+    "long25Ratio": 0.95,
+    "fps": 15.8,
+    "updateMs": 0.13,
+    "renderMs": 4.5,
+    "ms": 2533
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    }
+   }
+  },
+  "bench": {
+   "window": {
+    "frames": 123,
+    "avgMs": 21.58,
+    "maxMs": 121.2,
+    "long25": 6,
+    "long50": 1,
+    "ms": 2622,
+    "calls": 45,
+    "tris": 3518,
+    "updateMs": 0.1,
+    "renderMs": 0.95
+   },
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+   "drawCalls": 45,
+   "triangles": 3518,
+   "dpr": 1,
+   "viewport": {
+    "w": 366,
+    "h": 552
+   }
+  },
+  "afterTakeoff": {
+   "viewport": [
+    366,
+    552
+   ],
+   "phase": "idle",
+   "board": {
+    "x0": 20.2,
+    "x1": 345.8,
+    "y0": 140.1,
+    "y1": 414.6
+   },
+   "boardFracW": 0.8896,
+   "ring323Box": {
+    "x0": 23.1,
+    "x1": 342.9,
+    "y0": 140.5,
+    "y1": 409.6
+   },
+   "ringFracW": 0.8738,
+   "gapTop": 140.1,
+   "gapBot": 137.4,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 552
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 43,
+   "triangles": 3514,
+   "fps": 45.4,
+   "quality": "low",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      12.3191,
+      8.0382
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 0,
+     "tx": 0,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 36,
+     "maxAbsX": 0,
+     "maxAbsY": 0.01799
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0,
+      0.19,
+      -3.06
+     ],
+     "ndc": [
+      0,
+      0.48088
+     ]
+    }
+   },
+   "perf": {
+    "frames": 35,
+    "avgMs": 21.47,
+    "maxMs": 30.4,
+    "long25": 1,
+    "long50": 0,
+    "long25Ratio": 0.029,
+    "fps": 45.4,
+    "updateMs": 0.04,
+    "renderMs": 1.36,
+    "ms": 770
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    },
+    "idle": {
+     "frames": 1,
+     "avgMs": 54.6,
+     "maxMs": 54.6,
+     "long25": 1,
+     "long50": 1,
+     "ms": 60,
+     "calls": 44,
+     "tris": 3516,
+     "updateMs": 0,
+     "renderMs": 0.6
+    },
+    "bench0": {
+     "frames": 123,
+     "avgMs": 21.58,
+     "maxMs": 121.2,
+     "long25": 6,
+     "long50": 1,
+     "ms": 2622,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0.1,
+     "renderMs": 0.95
+    },
+    "bench1": {
+     "frames": 1,
+     "avgMs": 24.2,
+     "maxMs": 24.2,
+     "long25": 0,
+     "long50": 0,
+     "ms": 27,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0,
+     "renderMs": 0.8
+    },
+    "roll": {
+     "frames": 75,
+     "avgMs": 23.03,
+     "maxMs": 66.7,
+     "long25": 9,
+     "long50": 1,
+     "ms": 1711,
+     "calls": 30,
+     "tris": 2952,
+     "updateMs": 0.1,
+     "renderMs": 1.46
+    },
+    "return": {
+     "frames": 32,
+     "avgMs": 21.97,
+     "maxMs": 36.3,
+     "long25": 5,
+     "long50": 0,
+     "ms": 700,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.08,
+     "renderMs": 0.83
+    },
+    "focus": {
+     "frames": 40,
+     "avgMs": 23.79,
+     "maxMs": 72.7,
+     "long25": 3,
+     "long50": 1,
+     "ms": 948,
+     "calls": 24,
+     "tris": 3450,
+     "updateMs": 0.1,
+     "renderMs": 2.03
+    },
+    "fly": {
+     "frames": 36,
+     "avgMs": 25.08,
+     "maxMs": 30.4,
+     "long25": 7,
+     "long50": 0,
+     "ms": 904,
+     "calls": 34,
+     "tris": 2706,
+     "updateMs": 0.15,
+     "renderMs": 0.77
+    },
+    "land": {
+     "frames": 21,
+     "avgMs": 23.09,
+     "maxMs": 30.4,
+     "long25": 3,
+     "long50": 0,
+     "ms": 484,
+     "calls": 22,
+     "tris": 2682,
+     "updateMs": 0.06,
+     "renderMs": 0.83
+    }
+   }
+  },
+  "fly": {
+   "viewport": [
+    366,
+    552
+   ],
+   "phase": "fly",
+   "board": {
+    "x0": 126.3,
+    "x1": 6548.6,
+    "y0": 73.1,
+    "y1": 4005.5
+   },
+   "boardFracW": 17.5473,
+   "ring323Box": {
+    "x0": 142.8,
+    "x1": 6165.2,
+    "y0": 68.4,
+    "y1": 3601.7
+   },
+   "ringFracW": 16.4546,
+   "gapTop": 73.1,
+   "gapBot": -3453.5,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 552
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 33,
+   "triangles": 2704,
+   "fps": 45.3,
+   "quality": "low",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      1.8511,
+      2.5579
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 1.75696,
+     "tx": 3.06,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 13,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": true,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0,
+      0.19,
+      0
+     ],
+     "ndc": [
+      0,
+      0
+     ]
+    }
+   },
+   "perf": {
+    "frames": 13,
+    "avgMs": 20.51,
+    "maxMs": 30.4,
+    "long25": 2,
+    "long50": 0,
+    "long25Ratio": 0.154,
+    "fps": 45.3,
+    "updateMs": 0.14,
+    "renderMs": 0.68,
+    "ms": 287
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    },
+    "idle": {
+     "frames": 36,
+     "avgMs": 21.55,
+     "maxMs": 30.4,
+     "long25": 1,
+     "long50": 0,
+     "ms": 789,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.04,
+     "renderMs": 1.35
+    },
+    "bench0": {
+     "frames": 123,
+     "avgMs": 21.58,
+     "maxMs": 121.2,
+     "long25": 6,
+     "long50": 1,
+     "ms": 2622,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0.1,
+     "renderMs": 0.95
+    },
+    "bench1": {
+     "frames": 1,
+     "avgMs": 24.2,
+     "maxMs": 24.2,
+     "long25": 0,
+     "long50": 0,
+     "ms": 27,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0,
+     "renderMs": 0.8
+    },
+    "roll": {
+     "frames": 76,
+     "avgMs": 22.73,
+     "maxMs": 30.4,
+     "long25": 6,
+     "long50": 0,
+     "ms": 1717,
+     "calls": 29,
+     "tris": 2950,
+     "updateMs": 0.08,
+     "renderMs": 0.81
+    },
+    "return": {
+     "frames": 32,
+     "avgMs": 21.97,
+     "maxMs": 36.3,
+     "long25": 5,
+     "long50": 0,
+     "ms": 700,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.08,
+     "renderMs": 0.83
+    },
+    "focus": {
+     "frames": 47,
+     "avgMs": 20.76,
+     "maxMs": 30.4,
+     "long25": 9,
+     "long50": 0,
+     "ms": 974,
+     "calls": 21,
+     "tris": 2680,
+     "updateMs": 0.1,
+     "renderMs": 0.58
+    },
+    "fly": {
+     "frames": 36,
+     "avgMs": 25.08,
+     "maxMs": 30.4,
+     "long25": 7,
+     "long50": 0,
+     "ms": 904,
+     "calls": 34,
+     "tris": 2706,
+     "updateMs": 0.15,
+     "renderMs": 0.77
+    },
+    "land": {
+     "frames": 21,
+     "avgMs": 23.09,
+     "maxMs": 30.4,
+     "long25": 3,
+     "long50": 0,
+     "ms": 484,
+     "calls": 22,
+     "tris": 2682,
+     "updateMs": 0.06,
+     "renderMs": 0.83
+    }
+   }
+  },
+  "cell45": {
+   "viewport": [
+    366,
+    552
+   ],
+   "phase": "cell45",
+   "board": {
+    "x0": 27.1,
+    "x1": 2065.6,
+    "y0": 170.7,
+    "y1": 2388.4
+   },
+   "boardFracW": 5.5697,
+   "ring323Box": {
+    "x0": 41.2,
+    "x1": 2049.2,
+    "y0": 169.9,
+    "y1": 2327.1
+   },
+   "ringFracW": 5.4863,
+   "gapTop": 170.7,
+   "gapBot": -1836.4,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 552
+   },
+   "flyMode": false,
+   "plate": {
+    "x0": 58.9,
+    "x1": 151.9,
+    "y0": 246.6,
+    "y1": 320.9
+   },
+   "plateVerts": 30,
+   "glyph": {
+    "x0": 97.5,
+    "x1": 131,
+    "y0": 275.6,
+    "y1": 302.6
+   },
+   "bear": {
+    "x0": 106.2,
+    "x1": 106.2,
+    "y0": 276.9,
+    "y1": 277
+   },
+   "overlapGlyph": {
+    "px": 0,
+    "py": 0.1
+   },
+   "margins": {
+    "plateLeft": 58.9,
+    "plateToCard": -5.5,
+    "bearLeft": 106.2,
+    "bearToCard": 40.2
+   },
+   "pieces": 4,
+   "drawCalls": 21,
+   "triangles": 2675,
+   "fps": 38.4,
+   "quality": "low",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      1.0784,
+      3.638,
+      2.1968
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 1.81246,
+     "tx": 3.06,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 18,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": true,
+     "rise": 1.094,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0,
+      0.19,
+      0
+     ],
+     "ndc": [
+      -0.34786,
+      -0.44402
+     ]
+    }
+   },
+   "perf": {
+    "frames": 21,
+    "avgMs": 25.4,
+    "maxMs": 103,
+    "long25": 3,
+    "long50": 1,
+    "long25Ratio": 0.143,
+    "fps": 38.4,
+    "updateMs": 0.14,
+    "renderMs": 5.72,
+    "ms": 547
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    },
+    "idle": {
+     "frames": 36,
+     "avgMs": 21.55,
+     "maxMs": 30.4,
+     "long25": 1,
+     "long50": 0,
+     "ms": 789,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.04,
+     "renderMs": 1.35
+    },
+    "bench0": {
+     "frames": 123,
+     "avgMs": 21.58,
+     "maxMs": 121.2,
+     "long25": 6,
+     "long50": 1,
+     "ms": 2622,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0.1,
+     "renderMs": 0.95
+    },
+    "bench1": {
+     "frames": 1,
+     "avgMs": 24.2,
+     "maxMs": 24.2,
+     "long25": 0,
+     "long50": 0,
+     "ms": 27,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0,
+     "renderMs": 0.8
+    },
+    "roll": {
+     "frames": 76,
+     "avgMs": 22.73,
+     "maxMs": 30.4,
+     "long25": 6,
+     "long50": 0,
+     "ms": 1717,
+     "calls": 29,
+     "tris": 2950,
+     "updateMs": 0.08,
+     "renderMs": 0.81
+    },
+    "return": {
+     "frames": 32,
+     "avgMs": 21.97,
+     "maxMs": 36.3,
+     "long25": 5,
+     "long50": 0,
+     "ms": 700,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.08,
+     "renderMs": 0.83
+    },
+    "focus": {
+     "frames": 47,
+     "avgMs": 20.76,
+     "maxMs": 30.4,
+     "long25": 9,
+     "long50": 0,
+     "ms": 974,
+     "calls": 21,
+     "tris": 2680,
+     "updateMs": 0.1,
+     "renderMs": 0.58
+    },
+    "fly": {
+     "frames": 18,
+     "avgMs": 26.59,
+     "maxMs": 145.5,
+     "long25": 3,
+     "long50": 1,
+     "ms": 478,
+     "calls": 33,
+     "tris": 2704,
+     "updateMs": 0.12,
+     "renderMs": 0.68
+    },
+    "land": {
+     "frames": 18,
+     "avgMs": 25.59,
+     "maxMs": 84.9,
+     "long25": 4,
+     "long50": 2,
+     "ms": 461,
+     "calls": 22,
+     "tris": 2682,
+     "updateMs": 0.04,
+     "renderMs": 0.81
+    }
+   }
+  },
+  "bearHeld": {
+   "viewport": [
+    366,
+    600
+   ],
+   "phase": "bear",
+   "board": {
+    "x0": -44.2,
+    "x1": 2416.5,
+    "y0": 256.2,
+    "y1": 3377.9
+   },
+   "boardFracW": 6.7232,
+   "ring323Box": {
+    "x0": -28.3,
+    "x1": 2395.5,
+    "y0": 256.5,
+    "y1": 3293.7
+   },
+   "ringFracW": 6.6224,
+   "gapTop": 256.2,
+   "gapBot": -2777.9,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 600
+   },
+   "flyMode": false,
+   "plate": {
+    "x0": 21.9,
+    "x1": 135.9,
+    "y0": 269,
+    "y1": 359.6
+   },
+   "plateVerts": 30,
+   "glyph": {
+    "x0": 65.2,
+    "x1": 106,
+    "y0": 306.6,
+    "y1": 335.4
+   },
+   "bear": {
+    "x0": 27.3,
+    "x1": 118.2,
+    "y0": 192.5,
+    "y1": 313.8
+   },
+   "overlapGlyph": {
+    "px": 40.8,
+    "py": 7.2
+   },
+   "margins": {
+    "plateLeft": 21.9,
+    "plateToCard": 10.5,
+    "bearLeft": 27.3,
+    "bearToCard": 28.2
+   },
+   "pieces": 4,
+   "drawCalls": 38,
+   "triangles": 4677,
+   "fps": 33.6,
+   "quality": "low",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      1.3039,
+      3.8822,
+      1.8845
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 1.81246,
+     "tx": 3.06,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 18,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": true,
+     "rise": 1.5,
+     "bear": 1
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0,
+      0.19,
+      0
+     ],
+     "ndc": [
+      -0.43143,
+      -0.63123
+     ]
+    }
+   },
+   "perf": {
+    "frames": 35,
+    "avgMs": 29.61,
+    "maxMs": 145.4,
+    "long25": 7,
+    "long50": 2,
+    "long25Ratio": 0.2,
+    "fps": 33.6,
+    "updateMs": 0.06,
+    "renderMs": 0.86,
+    "ms": 1041
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    },
+    "idle": {
+     "frames": 36,
+     "avgMs": 21.55,
+     "maxMs": 30.4,
+     "long25": 1,
+     "long50": 0,
+     "ms": 789,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.04,
+     "renderMs": 1.35
+    },
+    "bench0": {
+     "frames": 123,
+     "avgMs": 21.58,
+     "maxMs": 121.2,
+     "long25": 6,
+     "long50": 1,
+     "ms": 2622,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0.1,
+     "renderMs": 0.95
+    },
+    "bench1": {
+     "frames": 1,
+     "avgMs": 24.2,
+     "maxMs": 24.2,
+     "long25": 0,
+     "long50": 0,
+     "ms": 27,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0,
+     "renderMs": 0.8
+    },
+    "roll": {
+     "frames": 76,
+     "avgMs": 22.73,
+     "maxMs": 30.4,
+     "long25": 6,
+     "long50": 0,
+     "ms": 1717,
+     "calls": 29,
+     "tris": 2950,
+     "updateMs": 0.08,
+     "renderMs": 0.81
+    },
+    "return": {
+     "frames": 32,
+     "avgMs": 21.97,
+     "maxMs": 36.3,
+     "long25": 5,
+     "long50": 0,
+     "ms": 700,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.08,
+     "renderMs": 0.83
+    },
+    "focus": {
+     "frames": 47,
+     "avgMs": 20.76,
+     "maxMs": 30.4,
+     "long25": 9,
+     "long50": 0,
+     "ms": 974,
+     "calls": 21,
+     "tris": 2680,
+     "updateMs": 0.1,
+     "renderMs": 0.58
+    },
+    "fly": {
+     "frames": 18,
+     "avgMs": 26.59,
+     "maxMs": 145.5,
+     "long25": 3,
+     "long50": 1,
+     "ms": 478,
+     "calls": 33,
+     "tris": 2704,
+     "updateMs": 0.12,
+     "renderMs": 0.68
+    },
+    "land": {
+     "frames": 18,
+     "avgMs": 25.59,
+     "maxMs": 84.9,
+     "long25": 4,
+     "long50": 2,
+     "ms": 461,
+     "calls": 22,
+     "tris": 2682,
+     "updateMs": 0.04,
+     "renderMs": 0.81
+    },
+    "cell45": {
+     "frames": 35,
+     "avgMs": 27.88,
+     "maxMs": 127.3,
+     "long25": 8,
+     "long50": 3,
+     "ms": 978,
+     "calls": 21,
+     "tris": 2675,
+     "updateMs": 0.13,
+     "renderMs": 3.7
+    },
+    "bear": {
+     "frames": 26,
+     "avgMs": 22.14,
+     "maxMs": 48.4,
+     "long25": 2,
+     "long50": 0,
+     "ms": 576,
+     "calls": 39,
+     "tris": 4679,
+     "updateMs": 0.11,
+     "renderMs": 2.75
+    }
+   }
+  },
+  "prompt": {
+   "kicker": "真心话 · 这张给 他",
+   "actor": "他",
+   "text": "篝火边你最想和对方聊什么秘密？"
+  },
+  "afterDone": {
+   "viewport": [
+    366,
+    533
+   ],
+   "phase": "idle",
+   "board": {
+    "x0": 20.2,
+    "x1": 345.8,
+    "y0": 131.3,
+    "y1": 405.9
+   },
+   "boardFracW": 0.8896,
+   "ring323Box": {
+    "x0": 23.1,
+    "x1": 342.9,
+    "y0": 131.7,
+    "y1": 400.9
+   },
+   "ringFracW": 0.8738,
+   "gapTop": 131.3,
+   "gapBot": 127.1,
+   "cardLeftPx": 146.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 366,
+    "h": 532.6
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 44,
+   "triangles": 3516,
+   "fps": 45.1,
+   "quality": "low",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      11.8968,
+      7.7698
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 0,
+     "tx": 0,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 18,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0.7323,
+      0.19,
+      -2.9711
+     ],
+     "ndc": [
+      0.17786,
+      0.48452
+     ]
+    }
+   },
+   "perf": {
+    "frames": 69,
+    "avgMs": 22.05,
+    "maxMs": 24.4,
+    "long25": 0,
+    "long50": 0,
+    "long25Ratio": 0,
+    "fps": 45.1,
+    "updateMs": 0.06,
+    "renderMs": 0.91,
+    "ms": 1532
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 4039,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.6,
+     "renderMs": 732.1
+    },
+    "idle": {
+     "frames": 28,
+     "avgMs": 26.19,
+     "maxMs": 133.3,
+     "long25": 1,
+     "long50": 1,
+     "ms": 703,
+     "calls": 44,
+     "tris": 3516,
+     "updateMs": 0.1,
+     "renderMs": 0.86
+    },
+    "bench0": {
+     "frames": 123,
+     "avgMs": 21.58,
+     "maxMs": 121.2,
+     "long25": 6,
+     "long50": 1,
+     "ms": 2622,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0.1,
+     "renderMs": 0.95
+    },
+    "bench1": {
+     "frames": 1,
+     "avgMs": 24.2,
+     "maxMs": 24.2,
+     "long25": 0,
+     "long50": 0,
+     "ms": 27,
+     "calls": 45,
+     "tris": 3518,
+     "updateMs": 0,
+     "renderMs": 0.8
+    },
+    "roll": {
+     "frames": 76,
+     "avgMs": 22.73,
+     "maxMs": 30.4,
+     "long25": 6,
+     "long50": 0,
+     "ms": 1717,
+     "calls": 29,
+     "tris": 2950,
+     "updateMs": 0.08,
+     "renderMs": 0.81
+    },
+    "return": {
+     "frames": 32,
+     "avgMs": 21.97,
+     "maxMs": 36.3,
+     "long25": 5,
+     "long50": 0,
+     "ms": 700,
+     "calls": 43,
+     "tris": 3514,
+     "updateMs": 0.08,
+     "renderMs": 0.83
+    },
+    "focus": {
+     "frames": 47,
+     "avgMs": 20.76,
+     "maxMs": 30.4,
+     "long25": 9,
+     "long50": 0,
+     "ms": 974,
+     "calls": 21,
+     "tris": 2680,
+     "updateMs": 0.1,
+     "renderMs": 0.58
+    },
+    "fly": {
+     "frames": 18,
+     "avgMs": 26.59,
+     "maxMs": 145.5,
+     "long25": 3,
+     "long50": 1,
+     "ms": 478,
+     "calls": 33,
+     "tris": 2704,
+     "updateMs": 0.12,
+     "renderMs": 0.68
+    },
+    "land": {
+     "frames": 18,
+     "avgMs": 25.59,
+     "maxMs": 84.9,
+     "long25": 4,
+     "long50": 2,
+     "ms": 461,
+     "calls": 22,
+     "tris": 2682,
+     "updateMs": 0.04,
+     "renderMs": 0.81
+    },
+    "cell45": {
+     "frames": 35,
+     "avgMs": 27.88,
+     "maxMs": 127.3,
+     "long25": 8,
+     "long50": 3,
+     "ms": 978,
+     "calls": 21,
+     "tris": 2675,
+     "updateMs": 0.13,
+     "renderMs": 3.7
+    },
+    "bear": {
+     "frames": 60,
+     "avgMs": 35.45,
+     "maxMs": 315.1,
+     "long25": 15,
+     "long50": 5,
+     "ms": 2151,
+     "calls": 38,
+     "tris": 4677,
+     "updateMs": 0.07,
+     "renderMs": 0.82
+    }
+   }
+  },
+  "errors": [],
+  "320x568": {
+   "viewport": [
+    296,
+    303
+   ],
+   "phase": "idle",
+   "board": {
+    "x0": 15.9,
+    "x1": 280.1,
+    "y0": 48.4,
+    "y1": 272.3
+   },
+   "boardFracW": 0.8926,
+   "ring323Box": {
+    "x0": 18.1,
+    "x1": 277.9,
+    "y0": 48.6,
+    "y1": 268.1
+   },
+   "ringFracW": 0.8777,
+   "gapTop": 48.4,
+   "gapBot": 30.7,
+   "cardLeftPx": 118.4,
+   "hostRect": {
+    "x": 12,
+    "y": 203.4,
+    "w": 296,
+    "h": 302.6
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 44,
+   "triangles": 3516,
+   "fps": 25.2,
+   "quality": "high",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      8.3774,
+      5.5328
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 0,
+     "tx": 0,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 0,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0.7299,
+      0.165,
+      -1.7399
+     ],
+     "ndc": [
+      0.17991,
+      0.43723
+     ]
+    }
+   },
+   "perf": {
+    "frames": 63,
+    "avgMs": 47,
+    "maxMs": 494.6,
+    "long25": 63,
+    "long50": 4,
+    "long25Ratio": 1,
+    "fps": 25.2,
+    "updateMs": 0.08,
+    "renderMs": 2.71,
+    "ms": 2501
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 5041,
+     "calls": 23,
+     "tris": 3422,
+     "updateMs": 0.3,
+     "renderMs": 447.7
+    }
+   },
+   "errors": []
+  },
+  "430x932": {
+   "viewport": [
+    406,
+    640
+   ],
+   "phase": "idle",
+   "board": {
+    "x0": 22.4,
+    "x1": 383.6,
+    "y0": 168.2,
+    "y1": 472.6
+   },
+   "boardFracW": 0.8897,
+   "ring323Box": {
+    "x0": 25.7,
+    "x1": 380.3,
+    "y0": 168.8,
+    "y1": 467.1
+   },
+   "ringFracW": 0.8734,
+   "gapTop": 168.2,
+   "gapBot": 167.4,
+   "cardLeftPx": 162.4,
+   "hostRect": {
+    "x": 12,
+    "y": 228,
+    "w": 406,
+    "h": 640
+   },
+   "flyMode": false,
+   "pieces": 4,
+   "drawCalls": 45,
+   "triangles": 3518,
+   "fps": 11.7,
+   "quality": "high",
+   "status": {
+    "mode": "on",
+    "wanted": true,
+    "pending": false,
+    "ready": true,
+    "failed": false,
+    "reason": "",
+    "url": "assets/board3d.9dc51f0f.js",
+    "mounts": 1
+   },
+   "probe": {
+    "camera": {
+     "pos": [
+      0,
+      12.8736,
+      8.3906
+     ],
+     "fov": 42,
+     "locked": false
+    },
+    "board": {
+     "theta": 0,
+     "tx": 0,
+     "tz": 0
+    },
+    "lock": {
+     "samples": 0,
+     "maxAbsX": 0,
+     "maxAbsY": 0
+    },
+    "stage": {
+     "visible": false,
+     "rise": 0,
+     "bear": 0.001
+    },
+    "streaks": false,
+    "plane": {
+     "id": "a:0",
+     "world": [
+      0.7299,
+      0.165,
+      -1.7399
+     ],
+     "ndc": [
+      0.18564,
+      0.29956
+     ]
+    }
+   },
+   "perf": {
+    "frames": 30,
+    "avgMs": 106.72,
+    "maxMs": 892.49,
+    "long25": 28,
+    "long50": 28,
+    "long25Ratio": 0.933,
+    "fps": 11.7,
+    "updateMs": 0.1,
+    "renderMs": 6.11,
+    "ms": 2555
+   },
+   "perfAll": {
+    "boot": {
+     "frames": 1,
+     "avgMs": 0,
+     "maxMs": 0,
+     "long25": 0,
+     "long50": 0,
+     "ms": 5114,
+     "calls": 20,
+     "tris": 3416,
+     "updateMs": 0.1,
+     "renderMs": 500.8
+    }
+   },
+   "errors": []
+  }
+ }
+}

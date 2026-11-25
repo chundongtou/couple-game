@@ -1,0 +1,268 @@
+{
+ "size": "390x844",
+ "viewport": [
+  366,
+  552
+ ],
+ "mounted": true,
+ "overview": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "idle",
+  "board": {
+   "x0": 20.2,
+   "x1": 345.8,
+   "y0": 138.9,
+   "y1": 413.1
+  },
+  "boardFracW": 0.8896,
+  "gapTop": 138.9,
+  "gapBot": 138.9,
+  "cardLeftPx": 146.4,
+  "perf": {
+   "fps": 2,
+   "drawCalls": 56,
+   "triangles": 9262,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "bench": {
+  "window": {
+   "frames": 8,
+   "avgMs": 514.41,
+   "maxMs": 1987.7,
+   "long25": 8,
+   "long50": 8,
+   "ms": 2781,
+   "calls": 56,
+   "tris": 9262,
+   "updateMs": 0.18,
+   "renderMs": 1.84
+  },
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "drawCalls": 56,
+  "triangles": 9262,
+  "dpr": 2,
+  "quality": "high",
+  "shadows": true,
+  "viewport": {
+   "w": 366,
+   "h": 552
+  }
+ },
+ "overview_star": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "idle",
+  "board": {
+   "x0": 20.1,
+   "x1": 345.9,
+   "y0": 152.2,
+   "y1": 399.7
+  },
+  "boardFracW": 0.8902,
+  "gapTop": 152.2,
+  "gapBot": 152.3,
+  "cardLeftPx": 146.4,
+  "perf": {
+   "fps": 3.7,
+   "drawCalls": 56,
+   "triangles": 9262,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "overview_paper": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "idle",
+  "board": {
+   "x0": 20.1,
+   "x1": 345.9,
+   "y0": 152.2,
+   "y1": 399.7
+  },
+  "boardFracW": 0.8902,
+  "gapTop": 152.2,
+  "gapBot": 152.3,
+  "cardLeftPx": 146.4,
+  "perf": {
+   "fps": 3.9,
+   "drawCalls": 56,
+   "triangles": 9262,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "flyPhase": "fly",
+ "fly": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "fly",
+  "board": {
+   "x0": 127.5,
+   "x1": 4021.1,
+   "y0": 63.5,
+   "y1": 2423.1
+  },
+  "boardFracW": 10.6383,
+  "gapTop": 63.5,
+  "gapBot": -1871.1,
+  "cardLeftPx": 146.4,
+  "perf": {
+   "fps": 3,
+   "drawCalls": 40,
+   "triangles": 5469,
+   "quality": "high"
+  },
+  "flyMode": true
+ },
+ "cellPhase": "cell45",
+ "cell45": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "cell45",
+  "board": {
+   "x0": 38.4,
+   "x1": 1831.2,
+   "y0": 138.8,
+   "y1": 1920
+  },
+  "boardFracW": 4.8984,
+  "gapTop": 138.8,
+  "gapBot": -1368,
+  "cardLeftPx": 146.4,
+  "plate": {
+   "x0": 63.3,
+   "x1": 156.9,
+   "y0": 239.5,
+   "y1": 309.2
+  },
+  "glyph": {
+   "x0": 100.2,
+   "x1": 134.5,
+   "y0": 270.8,
+   "y1": 297.9
+  },
+  "bear": {
+   "x0": 101.4,
+   "x1": 101.5,
+   "y0": 256.9,
+   "y1": 257
+  },
+  "bearVerts": 3972,
+  "overlapGlyphPx": 0,
+  "overlapGlyph": {
+   "px": 0.1,
+   "py": 0
+  },
+  "margins": {
+   "plateLeft": 63.3,
+   "plateToCard": -10.5,
+   "bearLeft": 101.4,
+   "bearToCard": 44.9,
+   "plateTop": 239.5,
+   "bearTop": 256.9
+  },
+  "perf": {
+   "fps": 2.7,
+   "drawCalls": 28,
+   "triangles": 5326,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "bearPhase": "bear",
+ "bear": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "bear",
+  "board": {
+   "x0": -46.6,
+   "x1": 1972.2,
+   "y0": 230.9,
+   "y1": 2671.2
+  },
+  "boardFracW": 5.5158,
+  "gapTop": 230.9,
+  "gapBot": -2119.2,
+  "cardLeftPx": 146.4,
+  "plate": {
+   "x0": 12.6,
+   "x1": 117.1,
+   "y0": 245.2,
+   "y1": 312.4
+  },
+  "glyph": {
+   "x0": 53.5,
+   "x1": 91.4,
+   "y0": 277.9,
+   "y1": 304.3
+  },
+  "bear": {
+   "x0": 26.9,
+   "x1": 95.2,
+   "y0": 175.3,
+   "y1": 266.8
+  },
+  "bearVerts": 3972,
+  "overlapGlyphPx": 0,
+  "overlapGlyph": {
+   "px": 37.9,
+   "py": 0
+  },
+  "margins": {
+   "plateLeft": 12.6,
+   "plateToCard": 29.3,
+   "bearLeft": 26.9,
+   "bearToCard": 51.2,
+   "plateTop": 245.2,
+   "bearTop": 175.3
+  },
+  "perf": {
+   "fps": 2.9,
+   "drawCalls": 35,
+   "triangles": 7974,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "afterReturn": {
+  "viewport": [
+   366,
+   552
+  ],
+  "phase": "idle",
+  "board": {
+   "x0": 20,
+   "x1": 345.8,
+   "y0": 150.7,
+   "y1": 397.6
+  },
+  "boardFracW": 0.8902,
+  "gapTop": 150.7,
+  "gapBot": 154.4,
+  "cardLeftPx": 146.4,
+  "perf": {
+   "fps": 2.8,
+   "drawCalls": 55,
+   "triangles": 9260,
+   "quality": "high"
+  },
+  "flyMode": false
+ },
+ "errors": []
+}

@@ -1,0 +1,1185 @@
+{
+ "dist": "E:\\DSH研发\\.agents\\worktrees\\dsh-bf954628-7cd3\\couple-game\\dist\\v97",
+ "sizes": {
+  "390x844": {
+   "frames": {
+    "hold": {
+     "ok": true,
+     "t": 730,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.9978,
+      "pos": [
+       0.7611,
+       0.4822,
+       0.7815
+      ],
+      "atHome": 0.3396,
+      "hand": true,
+      "tossing": true,
+      "t": 730,
+      "wall": 2446,
+      "phase": "carry"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1080447
+    },
+    "throw": {
+     "ok": true,
+     "t": 961,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.9573,
+      "pos": [
+       0.7885,
+       0.7561,
+       0.8158
+      ],
+      "atHome": 0.6001,
+      "hand": true,
+      "tossing": true,
+      "t": 961,
+      "wall": 6786,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1083829
+    },
+    "bounce": {
+     "ok": true,
+     "t": 1450,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 0.8249,
+      "pos": [
+       0.6237,
+       0.4075,
+       0.644
+      ],
+      "atHome": 0.2001,
+      "hand": false,
+      "tossing": true,
+      "t": 1450,
+      "wall": 9706,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 59,
+     "tris": 11366,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1074315
+    },
+    "settled": {
+     "ok": true,
+     "t": 2400,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": true,
+      "t": 2400,
+      "wall": 14631,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 59,
+     "tris": 11366,
+     "phase": "roll",
+     "remaining": 0,
+     "bytes": 1075281
+    }
+   },
+   "base": {
+    "calls": 84,
+    "tris": 13724,
+    "quality": "high",
+    "fps": 0.5,
+    "host": {
+     "x": 12,
+     "y": 223.2,
+     "w": 366,
+     "h": 556.8
+    },
+    "viewport": [
+     366,
+     557
+    ],
+    "aspect": 0.657
+   },
+   "hand": {
+    "draws": 11,
+    "tris": 7672,
+    "scale": 0.82,
+    "grip": [
+     0.02,
+     -0.215,
+     -0.165
+    ]
+   },
+   "settledOverview": {
+    "die": {
+     "value": 4,
+     "top": 4,
+     "up": 1,
+     "pos": [
+      0.63,
+      0.208,
+      0.63
+     ],
+     "atHome": 0,
+     "hand": false,
+     "tossing": false,
+     "t": null,
+     "wall": null,
+     "phase": ""
+    },
+    "calls": 84,
+    "tris": 13724,
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.1827,
+      "hubDrum": 0.3027,
+      "homeTiles": 0.0963,
+      "hangar": 0.3406,
+      "boardEdge": 2.3075
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0963,
+     "value": 4,
+     "top": 4,
+     "up": 1
+    },
+    "bytes": 1131231
+   },
+   "table": {
+    "roll": {
+     "ok": true,
+     "t": 900,
+     "die": {
+      "value": 6,
+      "top": 4,
+      "up": 0.8317,
+      "pos": [
+       0.8112,
+       0.7135,
+       0.8393
+      ],
+      "atHome": 0.5764,
+      "hand": true,
+      "tossing": true,
+      "t": 900,
+      "wall": 482,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1
+    },
+    "end": {
+     "stateDie": 6,
+     "logDie": 6,
+     "awaiting": "choose-piece",
+     "phase": "idle",
+     "probeDie": {
+      "value": 6,
+      "top": 6,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": false,
+      "t": null,
+      "wall": null,
+      "phase": ""
+     },
+     "calls": 84,
+     "tris": 13724
+    },
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.0284,
+      "hubDrum": 0.1484,
+      "homeTiles": 0.0963,
+      "hangar": 0.2113,
+      "boardEdge": 2.1732
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0284,
+     "value": 6,
+     "top": 6,
+     "up": 1
+    },
+    "bytes": 1060654
+   }
+  },
+  "320x568": {
+   "frames": {
+    "hold": {
+     "ok": true,
+     "t": 730,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.9978,
+      "pos": [
+       0.761,
+       0.4822,
+       0.7815
+      ],
+      "atHome": 0.3395,
+      "hand": true,
+      "tossing": true,
+      "t": 730,
+      "wall": 1852,
+      "phase": "carry"
+     },
+     "hand": true,
+     "calls": 66,
+     "tris": 18168,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 557308
+    },
+    "throw": {
+     "ok": true,
+     "t": 960,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.958,
+      "pos": [
+       0.7886,
+       0.756,
+       0.8159
+      ],
+      "atHome": 0.6,
+      "hand": true,
+      "tossing": true,
+      "t": 960,
+      "wall": 9155,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 66,
+     "tris": 18168,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 556306
+    },
+    "bounce": {
+     "ok": true,
+     "t": 1450,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 0.8249,
+      "pos": [
+       0.6237,
+       0.4075,
+       0.644
+      ],
+      "atHome": 0.2001,
+      "hand": false,
+      "tossing": true,
+      "t": 1450,
+      "wall": 11645,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 55,
+     "tris": 10496,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 555148
+    },
+    "settled": {
+     "ok": true,
+     "t": 2400,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": true,
+      "t": 2400,
+      "wall": 14521,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 55,
+     "tris": 10496,
+     "phase": "roll",
+     "remaining": 0,
+     "bytes": 555107
+    }
+   },
+   "base": {
+    "calls": 82,
+    "tris": 13564,
+    "quality": "high",
+    "fps": 0.3,
+    "host": {
+     "x": 12,
+     "y": 208.2,
+     "w": 296,
+     "h": 297.8
+    },
+    "viewport": [
+     296,
+     298
+    ],
+    "aspect": 0.993
+   },
+   "hand": {
+    "draws": 11,
+    "tris": 7672,
+    "scale": 0.82,
+    "grip": [
+     0.02,
+     -0.215,
+     -0.165
+    ]
+   },
+   "settledOverview": {
+    "die": {
+     "value": 4,
+     "top": 4,
+     "up": 1,
+     "pos": [
+      0.63,
+      0.208,
+      0.63
+     ],
+     "atHome": 0,
+     "hand": false,
+     "tossing": false,
+     "t": null,
+     "wall": null,
+     "phase": ""
+    },
+    "calls": 82,
+    "tris": 13564,
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.1827,
+      "hubDrum": 0.3027,
+      "homeTiles": 0.0963,
+      "hangar": 0.3406,
+      "boardEdge": 2.3075
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0963,
+     "value": 4,
+     "top": 4,
+     "up": 1
+    },
+    "bytes": 601072
+   },
+   "table": {
+    "roll": {
+     "ok": true,
+     "t": 900,
+     "die": {
+      "value": 6,
+      "top": 4,
+      "up": 0.8317,
+      "pos": [
+       0.8112,
+       0.7135,
+       0.8393
+      ],
+      "atHome": 0.5764,
+      "hand": true,
+      "tossing": true,
+      "t": 900,
+      "wall": 2692,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 67,
+     "tris": 18170,
+     "phase": "roll",
+     "remaining": 1
+    },
+    "end": {
+     "stateDie": 6,
+     "logDie": 6,
+     "awaiting": "choose-piece",
+     "phase": "idle",
+     "probeDie": {
+      "value": 6,
+      "top": 6,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": false,
+      "t": null,
+      "wall": null,
+      "phase": ""
+     },
+     "calls": 71,
+     "tris": 11764
+    },
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.0284,
+      "hubDrum": 0.1484,
+      "homeTiles": 0.0963,
+      "hangar": 0.2113,
+      "boardEdge": 2.1732
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0284,
+     "value": 6,
+     "top": 6,
+     "up": 1
+    },
+    "bytes": 492419
+   },
+   "hold_low": {
+    "ok": true,
+    "t": 700,
+    "die": {
+     "value": 4,
+     "top": 6,
+     "up": 0.9975,
+     "pos": [
+      0.76,
+      0.4799,
+      0.78
+     ],
+     "atHome": 0.3367,
+     "hand": true,
+     "tossing": true,
+     "t": 700,
+     "wall": 1404,
+     "phase": "carry"
+    },
+    "hand": true,
+    "calls": 70,
+    "tris": 19248,
+    "phase": "roll",
+    "remaining": 1,
+    "bytes": 414166
+   },
+   "hold_medium": {
+    "ok": true,
+    "t": 730,
+    "die": {
+     "value": 4,
+     "top": 4,
+     "up": 0.9978,
+     "pos": [
+      0.761,
+      0.4822,
+      0.7815
+     ],
+     "atHome": 0.3395,
+     "hand": true,
+     "tossing": true,
+     "t": 730,
+     "wall": 294,
+     "phase": "carry"
+    },
+    "hand": true,
+    "calls": 65,
+    "tris": 18168,
+    "phase": "roll",
+    "remaining": 1,
+    "bytes": 418191
+   }
+  },
+  "430x932": {
+   "frames": {
+    "hold": {
+     "ok": true,
+     "t": 730,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.9978,
+      "pos": [
+       0.761,
+       0.4822,
+       0.7815
+      ],
+      "atHome": 0.3395,
+      "hand": true,
+      "tossing": true,
+      "t": 730,
+      "wall": 10703,
+      "phase": "carry"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1331667
+    },
+    "throw": {
+     "ok": true,
+     "t": 960,
+     "die": {
+      "value": 4,
+      "top": 1,
+      "up": 0.9582,
+      "pos": [
+       0.7886,
+       0.756,
+       0.816
+      ],
+      "atHome": 0.6,
+      "hand": true,
+      "tossing": true,
+      "t": 960,
+      "wall": 16748,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1336563
+    },
+    "bounce": {
+     "ok": true,
+     "t": 1450,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 0.8249,
+      "pos": [
+       0.6237,
+       0.4074,
+       0.644
+      ],
+      "atHome": 0.2,
+      "hand": false,
+      "tossing": true,
+      "t": 1450,
+      "wall": 22968,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 62,
+     "tris": 11516,
+     "phase": "roll",
+     "remaining": 1,
+     "bytes": 1326431
+    },
+    "settled": {
+     "ok": true,
+     "t": 2400,
+     "die": {
+      "value": 4,
+      "top": 4,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": true,
+      "t": 2400,
+      "wall": 28619,
+      "phase": "throw"
+     },
+     "hand": false,
+     "calls": 59,
+     "tris": 11366,
+     "phase": "roll",
+     "remaining": 0,
+     "bytes": 1326660
+    }
+   },
+   "base": {
+    "calls": 84,
+    "tris": 13724,
+    "quality": "high",
+    "fps": 0.3,
+    "host": {
+     "x": 12,
+     "y": 223.2,
+     "w": 406,
+     "h": 644.8
+    },
+    "viewport": [
+     406,
+     645
+    ],
+    "aspect": 0.629
+   },
+   "hand": {
+    "draws": 11,
+    "tris": 7672,
+    "scale": 0.82,
+    "grip": [
+     0.02,
+     -0.215,
+     -0.165
+    ]
+   },
+   "settledOverview": {
+    "die": {
+     "value": 4,
+     "top": 4,
+     "up": 1,
+     "pos": [
+      0.63,
+      0.208,
+      0.63
+     ],
+     "atHome": 0,
+     "hand": false,
+     "tossing": false,
+     "t": null,
+     "wall": null,
+     "phase": ""
+    },
+    "calls": 84,
+    "tris": 13724,
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.1827,
+      "hubDrum": 0.3027,
+      "homeTiles": 0.0963,
+      "hangar": 0.3406,
+      "boardEdge": 2.3075
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0963,
+     "value": 4,
+     "top": 4,
+     "up": 1
+    },
+    "bytes": 1380742
+   },
+   "table": {
+    "roll": {
+     "ok": true,
+     "t": 900,
+     "die": {
+      "value": 6,
+      "top": 4,
+      "up": 0.8319,
+      "pos": [
+       0.8112,
+       0.7134,
+       0.8394
+      ],
+      "atHome": 0.5763,
+      "hand": true,
+      "tossing": true,
+      "t": 900,
+      "wall": 1022,
+      "phase": "throw"
+     },
+     "hand": true,
+     "calls": 73,
+     "tris": 19188,
+     "phase": "roll",
+     "remaining": 1
+    },
+    "end": {
+     "stateDie": 6,
+     "logDie": 6,
+     "awaiting": "choose-piece",
+     "phase": "idle",
+     "probeDie": {
+      "value": 6,
+      "top": 6,
+      "up": 1,
+      "pos": [
+       0.63,
+       0.208,
+       0.63
+      ],
+      "atHome": 0,
+      "hand": false,
+      "tossing": false,
+      "t": null,
+      "wall": null,
+      "phase": ""
+     },
+     "calls": 84,
+     "tris": 13724
+    },
+    "clear": {
+     "center": [
+      0.63,
+      0.63
+     ],
+     "r": 0.891,
+     "phi": 135,
+     "footprint": {
+      "hubRing": 0.0284,
+      "hubDrum": 0.1484,
+      "homeTiles": 0.0963,
+      "hangar": 0.2113,
+      "boardEdge": 2.1732
+     },
+     "conservative": {
+      "hubRing": 0.0205,
+      "hubDrum": 0.1405,
+      "boardEdge": 2.1686
+     },
+     "min": 0.0284,
+     "value": 6,
+     "top": 6,
+     "up": 1
+    },
+    "bytes": 1307530
+   }
+  }
+ },
+ "frames": {
+  "390x844-hold": {
+   "ok": true,
+   "t": 730,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.9978,
+    "pos": [
+     0.7611,
+     0.4822,
+     0.7815
+    ],
+    "atHome": 0.3396,
+    "hand": true,
+    "tossing": true,
+    "t": 730,
+    "wall": 2446,
+    "phase": "carry"
+   },
+   "hand": true,
+   "calls": 73,
+   "tris": 19188,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "390x844-throw": {
+   "ok": true,
+   "t": 961,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.9573,
+    "pos": [
+     0.7885,
+     0.7561,
+     0.8158
+    ],
+    "atHome": 0.6001,
+    "hand": true,
+    "tossing": true,
+    "t": 961,
+    "wall": 6786,
+    "phase": "throw"
+   },
+   "hand": true,
+   "calls": 73,
+   "tris": 19188,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "390x844-bounce": {
+   "ok": true,
+   "t": 1450,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 0.8249,
+    "pos": [
+     0.6237,
+     0.4075,
+     0.644
+    ],
+    "atHome": 0.2001,
+    "hand": false,
+    "tossing": true,
+    "t": 1450,
+    "wall": 9706,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 59,
+   "tris": 11366,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "390x844-settled": {
+   "ok": true,
+   "t": 2400,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": true,
+    "t": 2400,
+    "wall": 14631,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 59,
+   "tris": 11366,
+   "phase": "roll",
+   "remaining": 0
+  },
+  "320x568-hold": {
+   "ok": true,
+   "t": 730,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.9978,
+    "pos": [
+     0.761,
+     0.4822,
+     0.7815
+    ],
+    "atHome": 0.3395,
+    "hand": true,
+    "tossing": true,
+    "t": 730,
+    "wall": 1852,
+    "phase": "carry"
+   },
+   "hand": true,
+   "calls": 66,
+   "tris": 18168,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "320x568-throw": {
+   "ok": true,
+   "t": 960,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.958,
+    "pos": [
+     0.7886,
+     0.756,
+     0.8159
+    ],
+    "atHome": 0.6,
+    "hand": true,
+    "tossing": true,
+    "t": 960,
+    "wall": 9155,
+    "phase": "throw"
+   },
+   "hand": true,
+   "calls": 66,
+   "tris": 18168,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "320x568-bounce": {
+   "ok": true,
+   "t": 1450,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 0.8249,
+    "pos": [
+     0.6237,
+     0.4075,
+     0.644
+    ],
+    "atHome": 0.2001,
+    "hand": false,
+    "tossing": true,
+    "t": 1450,
+    "wall": 11645,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 55,
+   "tris": 10496,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "320x568-settled": {
+   "ok": true,
+   "t": 2400,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": true,
+    "t": 2400,
+    "wall": 14521,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 55,
+   "tris": 10496,
+   "phase": "roll",
+   "remaining": 0
+  },
+  "430x932-hold": {
+   "ok": true,
+   "t": 730,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.9978,
+    "pos": [
+     0.761,
+     0.4822,
+     0.7815
+    ],
+    "atHome": 0.3395,
+    "hand": true,
+    "tossing": true,
+    "t": 730,
+    "wall": 10703,
+    "phase": "carry"
+   },
+   "hand": true,
+   "calls": 73,
+   "tris": 19188,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "430x932-throw": {
+   "ok": true,
+   "t": 960,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.9582,
+    "pos": [
+     0.7886,
+     0.756,
+     0.816
+    ],
+    "atHome": 0.6,
+    "hand": true,
+    "tossing": true,
+    "t": 960,
+    "wall": 16748,
+    "phase": "throw"
+   },
+   "hand": true,
+   "calls": 73,
+   "tris": 19188,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "430x932-bounce": {
+   "ok": true,
+   "t": 1450,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 0.8249,
+    "pos": [
+     0.6237,
+     0.4074,
+     0.644
+    ],
+    "atHome": 0.2,
+    "hand": false,
+    "tossing": true,
+    "t": 1450,
+    "wall": 22968,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 62,
+   "tris": 11516,
+   "phase": "roll",
+   "remaining": 1
+  },
+  "430x932-settled": {
+   "ok": true,
+   "t": 2400,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": true,
+    "t": 2400,
+    "wall": 28619,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 59,
+   "tris": 11366,
+   "phase": "roll",
+   "remaining": 0
+  }
+ },
+ "errors": [
+  [
+   "warning",
+   "[table] 3D play 超时，先纠偏"
+  ],
+  [
+   "warning",
+   "[table] 3D play 超时，先纠偏"
+  ]
+ ],
+ "reduced": {
+  "before": {
+   "die": {
+    "value": 1,
+    "top": 1,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": false,
+    "t": null,
+    "wall": null,
+    "phase": ""
+   },
+   "reduced": true,
+   "raf": 0
+  },
+  "a": {
+   "die": {
+    "value": 5,
+    "top": 5,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": false,
+    "t": null,
+    "wall": null,
+    "phase": ""
+   },
+   "hand": false,
+   "tossing": false,
+   "raf": 0,
+   "reduced": true,
+   "clear": null
+  },
+  "sameBytes": true,
+  "bytes1": 1055233,
+  "bytes2": 1055233
+ }
+}

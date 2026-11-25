@@ -1,0 +1,101 @@
+{
+ "hand": {
+  "draws": 8,
+  "tris": 1884,
+  "visible": false,
+  "meshes": 7,
+  "grip": [
+   0,
+   -0.198,
+   -0.075
+  ]
+ },
+ "phys": {
+  "total": 2400,
+  "releaseAt": 840,
+  "settleStartAbs": 2060,
+  "settleEndAbs": 2380,
+  "impacts": [
+   {
+    "t": 0.296,
+    "at": 1136,
+    "speed": 2.93
+   },
+   {
+    "t": 0.617,
+    "at": 1457,
+    "speed": 1.36
+   },
+   {
+    "t": 0.771,
+    "at": 1611,
+    "speed": 0.74
+   },
+   {
+    "t": 0.992,
+    "at": 1832,
+    "speed": 0.72
+   },
+   {
+    "t": 1.254,
+    "at": 2094,
+    "speed": 0.72
+   }
+  ],
+  "restAt": 0,
+  "settleAngle": 70.1,
+  "settleYaw": 1.7907963267948965,
+  "die": {
+   "value": 4,
+   "top": 1,
+   "up": 0.9962,
+   "pos": [
+    1.1588,
+    0.8789,
+    1.1584
+   ],
+   "atHome": 1.0045,
+   "hand": true,
+   "tossing": true,
+   "t": 726,
+   "wall": 9687,
+   "phase": "carry"
+  },
+  "dieValue": 4,
+  "dieAtFreeze": {
+   "value": 4,
+   "top": 1,
+   "up": 0.9962,
+   "pos": [
+    1.1588,
+    0.8789,
+    1.1584
+   ],
+   "atHome": 1.0045,
+   "hand": true,
+   "tossing": true,
+   "t": 726,
+   "wall": 9687,
+   "phase": "carry"
+  }
+ },
+ "after": {
+  "die": {
+   "value": 4,
+   "top": 4,
+   "up": 1,
+   "pos": [
+    0.63,
+    0.208,
+    0.63
+   ],
+   "atHome": 0,
+   "hand": false,
+   "tossing": false,
+   "t": null,
+   "wall": null,
+   "phase": ""
+  },
+  "busy": true
+ }
+}

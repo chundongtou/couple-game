@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+let s = fs.readFileSync('shots/v9.4-dice/final.mjs', 'utf8');
+s = s.split('dist/v96').join('dist/v97').split('shots/v9.6-dice').join('shots/v9.7-dice');
+s = s.replace("[['hold',730],['throw',960],['bounce',1210],['settled',2400]]", "[['hold',730],['throw',960],['bounce',1450],['settled',2400]]");
+s = s.replace("[['hold', 730], ['throw', 960], ['bounce', 1210], ['settled', 2400]]", "[['hold', 730], ['throw', 960], ['bounce', 1450], ['settled', 2400]]");
+s = s.replace("'dist/v94'", "'dist/v97'");
+s = s.replace("'dist/v96'", "'dist/v97'");
+s = s.replace("'shots/v9.4-dice'", "'shots/v9.7-dice'");
+s = s.replace("'shots/v9.6-dice'", "'shots/v9.7-dice'");
+fs.writeFileSync('shots/v9.7-dice/final.mjs', s, 'utf8');
+console.log('bounce1450?', s.includes('1450'), 'dist97?', s.includes('dist/v97'), 'out97?', s.includes('shots/v9.7-dice'));

@@ -1,0 +1,497 @@
+{
+ "tool": "node-cdp",
+ "edge": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+ "viewport": [
+  "390x844",
+  "320x568",
+  "430x932"
+ ],
+ "pass": 42,
+ "fail": 0,
+ "total": 42,
+ "results": [
+  {
+   "id": "M-390x844-01",
+   "name": "1× 基准可用（棋盘占宽 0.86–0.88）",
+   "ok": true,
+   "expected": "value=1, boardFracW≈0.86–0.88",
+   "actual": {
+    "v": 1,
+    "w": 0.888
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-02",
+   "name": "setZoom(1.5)：target/value=1.5，距离倍率 0.7",
+   "ok": true,
+   "expected": "target=1.5 value≈1.5 ratio≈0.7",
+   "actual": {
+    "target": 1.5,
+    "value": 1.5,
+    "ratio": 0.7
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-03",
+   "name": "放大后画面更大（boardFracW 变大约 1/0.7）",
+   "ok": true,
+   "expected": ">1.110",
+   "actual": 1.2709,
+   "extra": null
+  },
+  {
+   "id": "M-390x844-04",
+   "name": "host 属性可断言 data-3d-zoom / data-3d-zoom-lock",
+   "ok": true,
+   "expected": "1.50 / 0",
+   "actual": {
+    "z": "1.50",
+    "l": "0"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-05",
+   "name": "setZoom(0.8)：距离倍率 1.25，棋盘完整不裁切",
+   "ok": true,
+   "expected": "target=0.8 ratio≈1.25 boardFracW≤0.92",
+   "actual": {
+    "target": 0.8,
+    "ratio": 1.25,
+    "w": 0.7098
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-06",
+   "name": "范围夹取 [0.8,1.5]：setZoom(9)=1.5，setZoom(0.01)=0.8，zoomBy 同口径",
+   "ok": true,
+   "expected": "1.5 / 0.8 / 1.5 / 0.8",
+   "actual": [
+    1.5,
+    0.8,
+    1.5,
+    0.8
+   ],
+   "extra": null
+  },
+  {
+   "id": "M-390x844-07",
+   "name": "resetZoom 回 1×（构图回到基准）",
+   "ok": true,
+   "expected": "1 / boardFracW≈0.888",
+   "actual": {
+    "reset": 1,
+    "w": 0.888
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-08",
+   "name": "镜头链中锁定：canZoom=false，setZoom 被拒（false）",
+   "ok": true,
+   "expected": "{can:false, reject:false}",
+   "actual": {
+    "phase": "focus",
+    "can": false,
+    "reject": false
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-09",
+   "name": "镜头链中视觉先回 1×（260ms 后 value<1.12，active=false，can=false）",
+   "ok": true,
+   "expected": "active=false, value<1.12",
+   "actual": {
+    "active": false,
+    "value": 1,
+    "phase": "focus"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-10",
+   "name": "回到 idle 后恢复用户缩放 1.35（±0.03）",
+   "ok": true,
+   "expected": "idle / can=true / value≈1.35",
+   "actual": {
+    "phase": "idle",
+    "can": true,
+    "value": 1.35,
+    "target": 1.35
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-11",
+   "name": "reduced：缩放即时到位（instant=true，value=target=1.5，无阻尼）",
+   "ok": true,
+   "expected": "instant=true value=1.5 target=1.5",
+   "actual": {
+    "value": 1.5,
+    "target": 1.5,
+    "min": 0.8,
+    "max": 1.5,
+    "active": true,
+    "instant": true,
+    "radiusFactor": 0.7,
+    "can": true
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-12",
+   "name": "reduced 下画面确实放大（camDist 倍率 0.7）",
+   "ok": true,
+   "expected": "0.7",
+   "actual": 0.7,
+   "extra": null
+  },
+  {
+   "id": "M-390x844-13",
+   "name": "缩放下 resize：按新 host refit（新基准距离倍率 0.7，上下留白差≤18px）",
+   "ok": true,
+   "expected": "ratio≈0.7, |gapTop-gapBot|≤18",
+   "actual": {
+    "ratio": 0.7,
+    "gapTop": 157.5,
+    "gapBot": 148.6,
+    "newBaseDist": 17.8939
+   },
+   "extra": null
+  },
+  {
+   "id": "M-390x844-14",
+   "name": "0 console error / pageerror",
+   "ok": true,
+   "expected": "0",
+   "actual": 0,
+   "extra": null
+  },
+  {
+   "id": "M-320x568-01",
+   "name": "1× 基准可用（棋盘占宽 0.86–0.88）",
+   "ok": true,
+   "expected": "value=1, boardFracW≈0.86–0.88",
+   "actual": {
+    "v": 1,
+    "w": 0.8889
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-02",
+   "name": "setZoom(1.5)：target/value=1.5，距离倍率 0.7",
+   "ok": true,
+   "expected": "target=1.5 value≈1.5 ratio≈0.7",
+   "actual": {
+    "target": 1.5,
+    "value": 1.5,
+    "ratio": 0.7
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-03",
+   "name": "放大后画面更大（boardFracW 变大约 1/0.7）",
+   "ok": true,
+   "expected": ">1.111",
+   "actual": 1.2726,
+   "extra": null
+  },
+  {
+   "id": "M-320x568-04",
+   "name": "host 属性可断言 data-3d-zoom / data-3d-zoom-lock",
+   "ok": true,
+   "expected": "1.50 / 0",
+   "actual": {
+    "z": "1.50",
+    "l": "0"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-05",
+   "name": "setZoom(0.8)：距离倍率 1.25，棋盘完整不裁切",
+   "ok": true,
+   "expected": "target=0.8 ratio≈1.25 boardFracW≤0.92",
+   "actual": {
+    "target": 0.8,
+    "ratio": 1.25,
+    "w": 0.7103
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-06",
+   "name": "范围夹取 [0.8,1.5]：setZoom(9)=1.5，setZoom(0.01)=0.8，zoomBy 同口径",
+   "ok": true,
+   "expected": "1.5 / 0.8 / 1.5 / 0.8",
+   "actual": [
+    1.5,
+    0.8,
+    1.5,
+    0.8
+   ],
+   "extra": null
+  },
+  {
+   "id": "M-320x568-07",
+   "name": "resetZoom 回 1×（构图回到基准）",
+   "ok": true,
+   "expected": "1 / boardFracW≈0.8889",
+   "actual": {
+    "reset": 1,
+    "w": 0.8889
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-08",
+   "name": "镜头链中锁定：canZoom=false，setZoom 被拒（false）",
+   "ok": true,
+   "expected": "{can:false, reject:false}",
+   "actual": {
+    "phase": "focus",
+    "can": false,
+    "reject": false
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-09",
+   "name": "镜头链中视觉先回 1×（260ms 后 value<1.12，active=false，can=false）",
+   "ok": true,
+   "expected": "active=false, value<1.12",
+   "actual": {
+    "active": false,
+    "value": 1,
+    "phase": "focus"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-10",
+   "name": "回到 idle 后恢复用户缩放 1.35（±0.03）",
+   "ok": true,
+   "expected": "idle / can=true / value≈1.35",
+   "actual": {
+    "phase": "idle",
+    "can": true,
+    "value": 1.35,
+    "target": 1.35
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-11",
+   "name": "reduced：缩放即时到位（instant=true，value=target=1.5，无阻尼）",
+   "ok": true,
+   "expected": "instant=true value=1.5 target=1.5",
+   "actual": {
+    "value": 1.5,
+    "target": 1.5,
+    "min": 0.8,
+    "max": 1.5,
+    "active": true,
+    "instant": true,
+    "radiusFactor": 0.7,
+    "can": true
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-12",
+   "name": "reduced 下画面确实放大（camDist 倍率 0.7）",
+   "ok": true,
+   "expected": "0.7",
+   "actual": 0.7,
+   "extra": null
+  },
+  {
+   "id": "M-320x568-13",
+   "name": "缩放下 resize：按新 host refit（新基准距离倍率 0.7，上下留白差≤14px）",
+   "ok": true,
+   "expected": "ratio≈0.7, |gapTop-gapBot|≤14",
+   "actual": {
+    "ratio": 0.7,
+    "gapTop": 57.1,
+    "gapBot": 48.7,
+    "newBaseDist": 13.4957
+   },
+   "extra": null
+  },
+  {
+   "id": "M-320x568-14",
+   "name": "0 console error / pageerror",
+   "ok": true,
+   "expected": "0",
+   "actual": 0,
+   "extra": null
+  },
+  {
+   "id": "M-430x932-01",
+   "name": "1× 基准可用（棋盘占宽 0.86–0.88）",
+   "ok": true,
+   "expected": "value=1, boardFracW≈0.86–0.88",
+   "actual": {
+    "v": 1,
+    "w": 0.888
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-02",
+   "name": "setZoom(1.5)：target/value=1.5，距离倍率 0.7",
+   "ok": true,
+   "expected": "target=1.5 value≈1.5 ratio≈0.7",
+   "actual": {
+    "target": 1.5,
+    "value": 1.5,
+    "ratio": 0.7
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-03",
+   "name": "放大后画面更大（boardFracW 变大约 1/0.7）",
+   "ok": true,
+   "expected": ">1.110",
+   "actual": 1.2709,
+   "extra": null
+  },
+  {
+   "id": "M-430x932-04",
+   "name": "host 属性可断言 data-3d-zoom / data-3d-zoom-lock",
+   "ok": true,
+   "expected": "1.50 / 0",
+   "actual": {
+    "z": "1.50",
+    "l": "0"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-05",
+   "name": "setZoom(0.8)：距离倍率 1.25，棋盘完整不裁切",
+   "ok": true,
+   "expected": "target=0.8 ratio≈1.25 boardFracW≤0.92",
+   "actual": {
+    "target": 0.8,
+    "ratio": 1.25,
+    "w": 0.7098
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-06",
+   "name": "范围夹取 [0.8,1.5]：setZoom(9)=1.5，setZoom(0.01)=0.8，zoomBy 同口径",
+   "ok": true,
+   "expected": "1.5 / 0.8 / 1.5 / 0.8",
+   "actual": [
+    1.5,
+    0.8,
+    1.5,
+    0.8
+   ],
+   "extra": null
+  },
+  {
+   "id": "M-430x932-07",
+   "name": "resetZoom 回 1×（构图回到基准）",
+   "ok": true,
+   "expected": "1 / boardFracW≈0.888",
+   "actual": {
+    "reset": 1,
+    "w": 0.888
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-08",
+   "name": "镜头链中锁定：canZoom=false，setZoom 被拒（false）",
+   "ok": true,
+   "expected": "{can:false, reject:false}",
+   "actual": {
+    "phase": "focus",
+    "can": false,
+    "reject": false
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-09",
+   "name": "镜头链中视觉先回 1×（260ms 后 value<1.12，active=false，can=false）",
+   "ok": true,
+   "expected": "active=false, value<1.12",
+   "actual": {
+    "active": false,
+    "value": 1,
+    "phase": "focus"
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-10",
+   "name": "回到 idle 后恢复用户缩放 1.35（±0.03）",
+   "ok": true,
+   "expected": "idle / can=true / value≈1.35",
+   "actual": {
+    "phase": "idle",
+    "can": true,
+    "value": 1.35,
+    "target": 1.35
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-11",
+   "name": "reduced：缩放即时到位（instant=true，value=target=1.5，无阻尼）",
+   "ok": true,
+   "expected": "instant=true value=1.5 target=1.5",
+   "actual": {
+    "value": 1.5,
+    "target": 1.5,
+    "min": 0.8,
+    "max": 1.5,
+    "active": true,
+    "instant": true,
+    "radiusFactor": 0.7,
+    "can": true
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-12",
+   "name": "reduced 下画面确实放大（camDist 倍率 0.7）",
+   "ok": true,
+   "expected": "0.7",
+   "actual": 0.7,
+   "extra": null
+  },
+  {
+   "id": "M-430x932-13",
+   "name": "缩放下 resize：按新 host refit（新基准距离倍率 0.7，上下留白差≤20px）",
+   "ok": true,
+   "expected": "ratio≈0.7, |gapTop-gapBot|≤20",
+   "actual": {
+    "ratio": 0.7,
+    "gapTop": 179.6,
+    "gapBot": 171.8,
+    "newBaseDist": 18.202
+   },
+   "extra": null
+  },
+  {
+   "id": "M-430x932-14",
+   "name": "0 console error / pageerror",
+   "ok": true,
+   "expected": "0",
+   "actual": 0,
+   "extra": null
+  }
+ ]
+}

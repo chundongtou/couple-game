@@ -1,0 +1,4843 @@
+{
+  "generatedAt": "2026-11-18T23:01:05+0800",
+  "baseUrl": "http://127.0.0.1:8777/app/dev/board3d-prod-demo.html",
+  "cases": {
+    "main430": {
+      "overview": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": null,
+        "fps": 4,
+        "drawCalls": 45,
+        "triangles": 3518,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3504,
+              12.0201
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 0,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7299,
+              0.165,
+              -1.7399
+            ],
+            "ndc": [
+              0.18144,
+              0.2331
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": {
+            "frames": 48,
+            "avgMs": 260.24,
+            "maxMs": 1012.1,
+            "long25": 41,
+            "long50": 41,
+            "long25Ratio": 0.854,
+            "fps": 4,
+            "updateMs": 0.12,
+            "renderMs": 11.17,
+            "ms": 11896
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1230,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 0.4,
+              "renderMs": 834.8
+            }
+          },
+          "render": {
+            "calls": 45,
+            "triangles": 3518,
+            "cssPx": 400760,
+            "pixels": 1603040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 430,
+            "h": 932
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 0,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7299,
+                0.165,
+                -1.7399
+              ],
+              "ndc": [
+                0.18144,
+                0.2331
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterTakeoff": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:0",
+        "fps": 0,
+        "drawCalls": 44,
+        "triangles": 3516,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3504,
+              12.0201
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 13,
+            "maxAbsX": 0,
+            "maxAbsY": 0.01799
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0,
+              0.19,
+              -3.06
+            ],
+            "ndc": [
+              0,
+              0.35249
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": null,
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1230,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 0.4,
+              "renderMs": 834.8
+            },
+            "idle": {
+              "frames": 45,
+              "avgMs": 349.62,
+              "maxMs": 1024.1,
+              "long25": 36,
+              "long50": 36,
+              "ms": 16080,
+              "calls": 45,
+              "tris": 3518,
+              "updateMs": 0.08,
+              "renderMs": 3.14
+            },
+            "roll": {
+              "frames": 18,
+              "avgMs": 366.35,
+              "maxMs": 806.1,
+              "long25": 15,
+              "long50": 15,
+              "ms": 6275,
+              "calls": 30,
+              "tris": 2952,
+              "updateMs": 0.14,
+              "renderMs": 13.39
+            },
+            "return": {
+              "frames": 8,
+              "avgMs": 258.31,
+              "maxMs": 387.9,
+              "long25": 6,
+              "long50": 6,
+              "ms": 2066,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.09,
+              "renderMs": 14.29
+            },
+            "focus": {
+              "frames": 9,
+              "avgMs": 365.71,
+              "maxMs": 715.1,
+              "long25": 8,
+              "long50": 8,
+              "ms": 2947,
+              "calls": 24,
+              "tris": 3450,
+              "updateMs": 0.1,
+              "renderMs": 27.88
+            },
+            "fly": {
+              "frames": 13,
+              "avgMs": 506.76,
+              "maxMs": 1006,
+              "long25": 8,
+              "long50": 8,
+              "ms": 7310,
+              "calls": 29,
+              "tris": 1975,
+              "updateMs": 0.08,
+              "renderMs": 12.97
+            },
+            "land": {
+              "frames": 7,
+              "avgMs": 519.46,
+              "maxMs": 1006,
+              "long25": 4,
+              "long50": 4,
+              "ms": 2909,
+              "calls": 17,
+              "tris": 2149,
+              "updateMs": 0.06,
+              "renderMs": 0.31
+            }
+          },
+          "render": {
+            "calls": 44,
+            "triangles": 3516,
+            "cssPx": 400760,
+            "pixels": 1603040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 430,
+            "h": 932
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 13,
+              "maxAbsX": 0,
+              "maxAbsY": 0.01799
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0,
+                0.19,
+                -3.06
+              ],
+              "ndc": [
+                0,
+                0.35249
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "bearPrompt": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "bear",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 2.5,
+        "drawCalls": 39,
+        "triangles": 4679,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": true,
+        "cell": {
+          "pieceId": "a:0",
+          "square": "ring:2"
+        },
+        "probe": {
+          "camera": {
+            "pos": [
+              1.3067,
+              4.7898,
+              2.9349
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 1.81246,
+            "tx": 3.06,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": true,
+            "rise": 1.5,
+            "bear": 1
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              -0.0,
+              0.19,
+              0
+            ],
+            "ndc": [
+              0,
+              -0.46252
+            ]
+          }
+        },
+        "perf": {
+          "phase": "bear",
+          "current": {
+            "frames": 23,
+            "avgMs": 387.34,
+            "maxMs": 1084.8,
+            "long25": 16,
+            "long50": 16,
+            "long25Ratio": 0.696,
+            "fps": 2.5,
+            "updateMs": 0.04,
+            "renderMs": 0.4,
+            "ms": 9230
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1230,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 0.4,
+              "renderMs": 834.8
+            },
+            "idle": {
+              "frames": 45,
+              "avgMs": 349.62,
+              "maxMs": 1024.1,
+              "long25": 36,
+              "long50": 36,
+              "ms": 16080,
+              "calls": 45,
+              "tris": 3518,
+              "updateMs": 0.08,
+              "renderMs": 3.14
+            },
+            "roll": {
+              "frames": 16,
+              "avgMs": 370.84,
+              "maxMs": 921.1,
+              "long25": 14,
+              "long50": 14,
+              "ms": 5513,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.05,
+              "renderMs": 0.42
+            },
+            "return": {
+              "frames": 8,
+              "avgMs": 258.31,
+              "maxMs": 387.9,
+              "long25": 6,
+              "long50": 6,
+              "ms": 2066,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.09,
+              "renderMs": 14.29
+            },
+            "focus": {
+              "frames": 8,
+              "avgMs": 395.41,
+              "maxMs": 418.1,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3164,
+              "calls": 16,
+              "tris": 1949,
+              "updateMs": 0.07,
+              "renderMs": 0.31
+            },
+            "fly": {
+              "frames": 4,
+              "avgMs": 413.6,
+              "maxMs": 418.2,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1655,
+              "calls": 28,
+              "tris": 1973,
+              "updateMs": 0.08,
+              "renderMs": 0.43
+            },
+            "land": {
+              "frames": 5,
+              "avgMs": 545.54,
+              "maxMs": 884.7,
+              "long25": 4,
+              "long50": 4,
+              "ms": 2728,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0.06,
+              "renderMs": 0.36
+            },
+            "cell45": {
+              "frames": 10,
+              "avgMs": 386.06,
+              "maxMs": 1084.8,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3860,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.1,
+              "renderMs": 0.38
+            },
+            "bear": {
+              "frames": 8,
+              "avgMs": 275.76,
+              "maxMs": 1006,
+              "long25": 5,
+              "long50": 5,
+              "ms": 2219,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.06,
+              "renderMs": 0.49
+            }
+          },
+          "render": {
+            "calls": 39,
+            "triangles": 4679,
+            "cssPx": 400760,
+            "pixels": 1603040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 430,
+            "h": 932
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                1.3067,
+                4.7898,
+                2.9349
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 1.81246,
+              "tx": 3.06,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 4,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": true,
+              "rise": 1.5,
+              "bear": 1
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                -0.0,
+                0.19,
+                0
+              ],
+              "ndc": [
+                0,
+                -0.46252
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "prompt": {
+        "kicker": "真心话 · 归属 小满",
+        "text": "圣诞夜你最想收到对方送的什么礼物？",
+        "actor": "归属：小满 · 池 truth · 真实题库"
+      },
+      "phases": [
+        "idle",
+        "roll",
+        "return",
+        "idle",
+        "focus",
+        "fly",
+        "land",
+        "return",
+        "idle",
+        "roll",
+        "focus",
+        "fly",
+        "land",
+        "cell45",
+        "bear"
+      ],
+      "afterDone": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 0,
+        "drawCalls": 40,
+        "triangles": 3495,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 8,
+        "turn": "b",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3504,
+              12.0201
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7323,
+              0.19,
+              -2.9711
+            ],
+            "ndc": [
+              0.17712,
+              0.34478
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": null,
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1230,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 0.4,
+              "renderMs": 834.8
+            },
+            "idle": {
+              "frames": 45,
+              "avgMs": 349.62,
+              "maxMs": 1024.1,
+              "long25": 36,
+              "long50": 36,
+              "ms": 16080,
+              "calls": 45,
+              "tris": 3518,
+              "updateMs": 0.08,
+              "renderMs": 3.14
+            },
+            "roll": {
+              "frames": 16,
+              "avgMs": 370.84,
+              "maxMs": 921.1,
+              "long25": 14,
+              "long50": 14,
+              "ms": 5513,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.05,
+              "renderMs": 0.42
+            },
+            "return": {
+              "frames": 6,
+              "avgMs": 349.47,
+              "maxMs": 363.6,
+              "long25": 6,
+              "long50": 6,
+              "ms": 1749,
+              "calls": 40,
+              "tris": 3495,
+              "updateMs": 0.03,
+              "renderMs": 0.93
+            },
+            "focus": {
+              "frames": 8,
+              "avgMs": 395.41,
+              "maxMs": 418.1,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3164,
+              "calls": 16,
+              "tris": 1949,
+              "updateMs": 0.07,
+              "renderMs": 0.31
+            },
+            "fly": {
+              "frames": 4,
+              "avgMs": 413.6,
+              "maxMs": 418.2,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1655,
+              "calls": 28,
+              "tris": 1973,
+              "updateMs": 0.08,
+              "renderMs": 0.43
+            },
+            "land": {
+              "frames": 5,
+              "avgMs": 545.54,
+              "maxMs": 884.7,
+              "long25": 4,
+              "long50": 4,
+              "ms": 2728,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0.06,
+              "renderMs": 0.36
+            },
+            "cell45": {
+              "frames": 10,
+              "avgMs": 386.06,
+              "maxMs": 1084.8,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3860,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.1,
+              "renderMs": 0.38
+            },
+            "bear": {
+              "frames": 28,
+              "avgMs": 368.38,
+              "maxMs": 1084.8,
+              "long25": 20,
+              "long50": 20,
+              "ms": 10647,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.04,
+              "renderMs": 0.41
+            }
+          },
+          "render": {
+            "calls": 40,
+            "triangles": 3495,
+            "cssPx": 400760,
+            "pixels": 1603040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 430,
+            "h": 932
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 4,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7323,
+                0.19,
+                -2.9711
+              ],
+              "ndc": [
+                0.17712,
+                0.34478
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterDoneInfo": {
+        "phase": "idle",
+        "awaiting": "roll",
+        "turn": "b",
+        "dice": 2,
+        "cards": 1,
+        "heat": 8,
+        "ended": false,
+        "reduced": false,
+        "theme": "cloud",
+        "mounted": true
+      },
+      "elapsedSec": 90.3
+    },
+    "skipDuringAnim": {
+      "ok": true,
+      "idleAfterSec": 0.0,
+      "info": {
+        "phase": "idle",
+        "awaiting": "roll",
+        "turn": "a",
+        "dice": 3,
+        "cards": 1,
+        "heat": 8,
+        "ended": false,
+        "reduced": false,
+        "theme": "cloud",
+        "mounted": true
+      }
+    },
+    "reducedToggle": {
+      "on": {
+        "attr": "1",
+        "phase": "idle",
+        "debug": true
+      },
+      "off": {
+        "attr": "0",
+        "phase": "idle",
+        "debug": false
+      }
+    },
+    "safeLedgerEvents": {
+      "play": "resolved",
+      "phase": "idle"
+    },
+    "contract": {
+      "apiKeys": [
+        "_current",
+        "_debug",
+        "mount",
+        "mounted",
+        "play",
+        "setReduced",
+        "setSound",
+        "setState",
+        "setTheme",
+        "skip",
+        "threeRevision",
+        "unmount",
+        "version"
+      ],
+      "instMethods": [
+        "function",
+        "function",
+        "function",
+        "function",
+        "function",
+        "function",
+        "function",
+        "function"
+      ],
+      "version": "v8-prod-3d-1",
+      "three": "180",
+      "mounted": true,
+      "canvas": {
+        "w": 860,
+        "h": 1864,
+        "pointerEvents": "none",
+        "position": "absolute"
+      },
+      "layer": {
+        "pointerEvents": "none",
+        "position": "absolute",
+        "zIndex": "0"
+      },
+      "stageRect": {
+        "x": 0,
+        "y": 0,
+        "width": 430,
+        "height": 932,
+        "top": 0,
+        "right": 430,
+        "bottom": 932,
+        "left": 0
+      },
+      "hitTag": "BUTTON",
+      "hitTest": "roll-button",
+      "attrs": {
+        "ready": "1",
+        "phase": "idle",
+        "theme": "cloud",
+        "reduced": "0",
+        "mode": "quick"
+      },
+      "playBogus": "resolved",
+      "playEmpty": "resolved"
+    },
+    "main390": {
+      "overview": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": null,
+        "fps": 3.5,
+        "drawCalls": 45,
+        "triangles": 3518,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3222,
+              12.002
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 0,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7299,
+              0.165,
+              -1.7399
+            ],
+            "ndc": [
+              0.18143,
+              0.23339
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": {
+            "frames": 25,
+            "avgMs": 281.32,
+            "maxMs": 1012,
+            "long25": 14,
+            "long50": 14,
+            "long25Ratio": 0.56,
+            "fps": 3.5,
+            "updateMs": 0.16,
+            "renderMs": 18.19,
+            "ms": 7069
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 680,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 1.1,
+              "renderMs": 141
+            }
+          },
+          "render": {
+            "calls": 45,
+            "triangles": 3518,
+            "cssPx": 329160,
+            "pixels": 1316640
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 390,
+            "h": 844
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3222,
+                12.002
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 0,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7299,
+                0.165,
+                -1.7399
+              ],
+              "ndc": [
+                0.18143,
+                0.23339
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterTakeoff": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:0",
+        "fps": 3.4,
+        "drawCalls": 44,
+        "triangles": 3516,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3222,
+              12.002
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 12,
+            "maxAbsX": 0,
+            "maxAbsY": 0.01799
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0,
+              0.19,
+              -3.06
+            ],
+            "ndc": [
+              0,
+              0.35294
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": {
+            "frames": 15,
+            "avgMs": 280.43,
+            "maxMs": 297.3,
+            "long25": 15,
+            "long50": 15,
+            "long25Ratio": 1,
+            "fps": 3.4,
+            "updateMs": 0.05,
+            "renderMs": 0.56,
+            "ms": 4471
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 680,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 1.1,
+              "renderMs": 141
+            },
+            "idle": {
+              "frames": 28,
+              "avgMs": 281.81,
+              "maxMs": 854.6,
+              "long25": 20,
+              "long50": 20,
+              "ms": 8125,
+              "calls": 45,
+              "tris": 3518,
+              "updateMs": 0.04,
+              "renderMs": 4.84
+            },
+            "roll": {
+              "frames": 19,
+              "avgMs": 323.12,
+              "maxMs": 1006,
+              "long25": 15,
+              "long50": 15,
+              "ms": 5891,
+              "calls": 30,
+              "tris": 2952,
+              "updateMs": 0.12,
+              "renderMs": 0.44
+            },
+            "return": {
+              "frames": 7,
+              "avgMs": 323.77,
+              "maxMs": 684.8,
+              "long25": 6,
+              "long50": 6,
+              "ms": 2101,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.1,
+              "renderMs": 0.34
+            },
+            "focus": {
+              "frames": 10,
+              "avgMs": 266.69,
+              "maxMs": 551.4,
+              "long25": 8,
+              "long50": 8,
+              "ms": 2436,
+              "calls": 24,
+              "tris": 3450,
+              "updateMs": 0.11,
+              "renderMs": 0.86
+            },
+            "fly": {
+              "frames": 12,
+              "avgMs": 474.23,
+              "maxMs": 1199.9,
+              "long25": 8,
+              "long50": 7,
+              "ms": 5688,
+              "calls": 29,
+              "tris": 1975,
+              "updateMs": 0.09,
+              "renderMs": 21.94
+            },
+            "land": {
+              "frames": 6,
+              "avgMs": 318.17,
+              "maxMs": 1005.9,
+              "long25": 4,
+              "long50": 4,
+              "ms": 2074,
+              "calls": 17,
+              "tris": 2149,
+              "updateMs": 0.08,
+              "renderMs": 27.7
+            }
+          },
+          "render": {
+            "calls": 44,
+            "triangles": 3516,
+            "cssPx": 329160,
+            "pixels": 1316640
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 390,
+            "h": 844
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3222,
+                12.002
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 12,
+              "maxAbsX": 0,
+              "maxAbsY": 0.01799
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0,
+                0.19,
+                -3.06
+              ],
+              "ndc": [
+                0,
+                0.35294
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "bearPrompt": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "bear",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 3.3,
+        "drawCalls": 39,
+        "triangles": 4679,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": true,
+        "cell": {
+          "pieceId": "a:0",
+          "square": "ring:2"
+        },
+        "probe": {
+          "camera": {
+            "pos": [
+              1.3047,
+              4.7852,
+              2.9304
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 1.81246,
+            "tx": 3.06,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": true,
+            "rise": 1.5,
+            "bear": 1
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              -0.0,
+              0.19,
+              0
+            ],
+            "ndc": [
+              0,
+              -0.46323
+            ]
+          }
+        },
+        "perf": {
+          "phase": "bear",
+          "current": {
+            "frames": 20,
+            "avgMs": 296.05,
+            "maxMs": 1006,
+            "long25": 14,
+            "long50": 14,
+            "long25Ratio": 0.7,
+            "fps": 3.3,
+            "updateMs": 0.04,
+            "renderMs": 14.99,
+            "ms": 6082
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 680,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 1.1,
+              "renderMs": 141
+            },
+            "idle": {
+              "frames": 16,
+              "avgMs": 280.71,
+              "maxMs": 297.3,
+              "long25": 16,
+              "long50": 16,
+              "ms": 4680,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.05,
+              "renderMs": 0.56
+            },
+            "roll": {
+              "frames": 15,
+              "avgMs": 318.37,
+              "maxMs": 351.8,
+              "long25": 15,
+              "long50": 15,
+              "ms": 4586,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.18,
+              "renderMs": 13.13
+            },
+            "return": {
+              "frames": 7,
+              "avgMs": 323.77,
+              "maxMs": 684.8,
+              "long25": 6,
+              "long50": 6,
+              "ms": 2101,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.1,
+              "renderMs": 0.34
+            },
+            "focus": {
+              "frames": 10,
+              "avgMs": 324.21,
+              "maxMs": 927.2,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3243,
+              "calls": 16,
+              "tris": 1949,
+              "updateMs": 0.07,
+              "renderMs": 18.08
+            },
+            "fly": {
+              "frames": 4,
+              "avgMs": 356,
+              "maxMs": 387.8,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1425,
+              "calls": 27,
+              "tris": 1971,
+              "updateMs": 0.1,
+              "renderMs": 0.52
+            },
+            "land": {
+              "frames": 5,
+              "avgMs": 301.92,
+              "maxMs": 406,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1510,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0,
+              "renderMs": 0.66
+            },
+            "cell45": {
+              "frames": 10,
+              "avgMs": 354.54,
+              "maxMs": 951.5,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3549,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.12,
+              "renderMs": 0.4
+            },
+            "bear": {
+              "frames": 9,
+              "avgMs": 299.66,
+              "maxMs": 1006,
+              "long25": 5,
+              "long50": 5,
+              "ms": 2695,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.06,
+              "renderMs": 22.63
+            }
+          },
+          "render": {
+            "calls": 39,
+            "triangles": 4679,
+            "cssPx": 329160,
+            "pixels": 1316640
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 390,
+            "h": 844
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                1.3047,
+                4.7852,
+                2.9304
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 1.81246,
+              "tx": 3.06,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 4,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": true,
+              "rise": 1.5,
+              "bear": 1
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                -0.0,
+                0.19,
+                0
+              ],
+              "ndc": [
+                0,
+                -0.46323
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "prompt": {
+        "kicker": "真心话 · 归属 小满",
+        "text": "圣诞夜你最想收到对方送的什么礼物？",
+        "actor": "归属：小满 · 池 truth · 真实题库"
+      },
+      "phases": [
+        "idle",
+        "roll",
+        "return",
+        "idle",
+        "focus",
+        "fly",
+        "land",
+        "return",
+        "idle",
+        "roll",
+        "focus",
+        "fly",
+        "land",
+        "cell45",
+        "bear"
+      ],
+      "afterDone": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 0,
+        "drawCalls": 40,
+        "triangles": 3495,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 8,
+        "turn": "b",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3222,
+              12.002
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7323,
+              0.19,
+              -2.9711
+            ],
+            "ndc": [
+              0.1771,
+              0.34523
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": null,
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 680,
+              "calls": 20,
+              "tris": 3416,
+              "updateMs": 1.1,
+              "renderMs": 141
+            },
+            "idle": {
+              "frames": 16,
+              "avgMs": 280.71,
+              "maxMs": 297.3,
+              "long25": 16,
+              "long50": 16,
+              "ms": 4680,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.05,
+              "renderMs": 0.56
+            },
+            "roll": {
+              "frames": 15,
+              "avgMs": 318.37,
+              "maxMs": 351.8,
+              "long25": 15,
+              "long50": 15,
+              "ms": 4586,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.18,
+              "renderMs": 13.13
+            },
+            "return": {
+              "frames": 7,
+              "avgMs": 334.17,
+              "maxMs": 600,
+              "long25": 6,
+              "long50": 6,
+              "ms": 1831,
+              "calls": 40,
+              "tris": 3495,
+              "updateMs": 0.03,
+              "renderMs": 0.39
+            },
+            "focus": {
+              "frames": 10,
+              "avgMs": 324.21,
+              "maxMs": 927.2,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3243,
+              "calls": 16,
+              "tris": 1949,
+              "updateMs": 0.07,
+              "renderMs": 18.08
+            },
+            "fly": {
+              "frames": 4,
+              "avgMs": 356,
+              "maxMs": 387.8,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1425,
+              "calls": 27,
+              "tris": 1971,
+              "updateMs": 0.1,
+              "renderMs": 0.52
+            },
+            "land": {
+              "frames": 5,
+              "avgMs": 301.92,
+              "maxMs": 406,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1510,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0,
+              "renderMs": 0.66
+            },
+            "cell45": {
+              "frames": 10,
+              "avgMs": 354.54,
+              "maxMs": 951.5,
+              "long25": 8,
+              "long50": 8,
+              "ms": 3549,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.12,
+              "renderMs": 0.4
+            },
+            "bear": {
+              "frames": 29,
+              "avgMs": 294.03,
+              "maxMs": 1006,
+              "long25": 22,
+              "long50": 22,
+              "ms": 9032,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.04,
+              "renderMs": 21.96
+            }
+          },
+          "render": {
+            "calls": 40,
+            "triangles": 3495,
+            "cssPx": 329160,
+            "pixels": 1316640
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 390,
+            "h": 844
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3222,
+                12.002
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 4,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7323,
+                0.19,
+                -2.9711
+              ],
+              "ndc": [
+                0.1771,
+                0.34523
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterDoneInfo": {
+        "phase": "idle",
+        "awaiting": "roll",
+        "turn": "b",
+        "dice": 2,
+        "cards": 1,
+        "heat": 8,
+        "ended": false,
+        "reduced": false,
+        "theme": "cloud",
+        "mounted": true
+      },
+      "elapsedSec": 72.0
+    },
+    "main320": {
+      "overview": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": null,
+        "fps": 5.9,
+        "drawCalls": 44,
+        "triangles": 3516,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              15.0369,
+              9.8872
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 0,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7299,
+              0.165,
+              -1.7399
+            ],
+            "ndc": [
+              0.17978,
+              0.27468
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": {
+            "frames": 41,
+            "avgMs": 178.86,
+            "maxMs": 490.8,
+            "long25": 32,
+            "long50": 32,
+            "long25Ratio": 0.78,
+            "fps": 5.9,
+            "updateMs": 0.11,
+            "renderMs": 4.46,
+            "ms": 6988
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1204,
+              "calls": 22,
+              "tris": 3420,
+              "updateMs": 0.6,
+              "renderMs": 416.3
+            }
+          },
+          "render": {
+            "calls": 44,
+            "triangles": 3516,
+            "cssPx": 181760,
+            "pixels": 727040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 320,
+            "h": 568
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                15.0369,
+                9.8872
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 0,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7299,
+                0.165,
+                -1.7399
+              ],
+              "ndc": [
+                0.17978,
+                0.27468
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterTakeoff": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:0",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:0",
+        "fps": 5.7,
+        "drawCalls": 43,
+        "triangles": 3514,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              15.0369,
+              9.8872
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 12,
+            "maxAbsX": 0,
+            "maxAbsY": 0.01799
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0,
+              0.19,
+              -3.06
+            ],
+            "ndc": [
+              0,
+              0.4168
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": {
+            "frames": 1,
+            "avgMs": 6.1,
+            "maxMs": 6.1,
+            "long25": 0,
+            "long50": 0,
+            "long25Ratio": 0,
+            "fps": 5.7,
+            "updateMs": 0,
+            "renderMs": 0.4,
+            "ms": 174
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1204,
+              "calls": 22,
+              "tris": 3420,
+              "updateMs": 0.6,
+              "renderMs": 416.3
+            },
+            "idle": {
+              "frames": 17,
+              "avgMs": 185.05,
+              "maxMs": 424.3,
+              "long25": 12,
+              "long50": 12,
+              "ms": 3652,
+              "calls": 44,
+              "tris": 3516,
+              "updateMs": 0.09,
+              "renderMs": 9.14
+            },
+            "roll": {
+              "frames": 22,
+              "avgMs": 190.63,
+              "maxMs": 987.8,
+              "long25": 15,
+              "long50": 15,
+              "ms": 4055,
+              "calls": 30,
+              "tris": 2952,
+              "updateMs": 0.22,
+              "renderMs": 22.5
+            },
+            "return": {
+              "frames": 8,
+              "avgMs": 241.65,
+              "maxMs": 533.3,
+              "long25": 6,
+              "long50": 6,
+              "ms": 1934,
+              "calls": 43,
+              "tris": 3514,
+              "updateMs": 0.1,
+              "renderMs": 0.49
+            },
+            "focus": {
+              "frames": 13,
+              "avgMs": 177.62,
+              "maxMs": 593.9,
+              "long25": 9,
+              "long50": 9,
+              "ms": 1804,
+              "calls": 24,
+              "tris": 3450,
+              "updateMs": 0.22,
+              "renderMs": 27.23
+            },
+            "fly": {
+              "frames": 12,
+              "avgMs": 245.92,
+              "maxMs": 1006,
+              "long25": 8,
+              "long50": 8,
+              "ms": 2954,
+              "calls": 30,
+              "tris": 2175,
+              "updateMs": 0.13,
+              "renderMs": 0.41
+            },
+            "land": {
+              "frames": 5,
+              "avgMs": 180.66,
+              "maxMs": 454.5,
+              "long25": 4,
+              "long50": 4,
+              "ms": 900,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0.04,
+              "renderMs": 0.36
+            }
+          },
+          "render": {
+            "calls": 43,
+            "triangles": 3514,
+            "cssPx": 181760,
+            "pixels": 727040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 320,
+            "h": 568
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                15.0369,
+                9.8872
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 12,
+              "maxAbsX": 0,
+              "maxAbsY": 0.01799
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0,
+                0.19,
+                -3.06
+              ],
+              "ndc": [
+                0,
+                0.4168
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "bearPrompt": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "bear",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 5.8,
+        "drawCalls": 39,
+        "triangles": 4679,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 0,
+        "turn": "a",
+        "mode": "quick",
+        "busy": false,
+        "holding": true,
+        "cell": {
+          "pieceId": "a:0",
+          "square": "ring:2"
+        },
+        "probe": {
+          "camera": {
+            "pos": [
+              1.0701,
+              4.2593,
+              2.4035
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 1.81246,
+            "tx": 3.06,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 5,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": true,
+            "rise": 1.5,
+            "bear": 1
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              -0.0,
+              0.19,
+              0
+            ],
+            "ndc": [
+              0,
+              -0.55921
+            ]
+          }
+        },
+        "perf": {
+          "phase": "bear",
+          "current": {
+            "frames": 20,
+            "avgMs": 173.64,
+            "maxMs": 563.9,
+            "long25": 13,
+            "long50": 12,
+            "long25Ratio": 0.65,
+            "fps": 5.8,
+            "updateMs": 0.05,
+            "renderMs": 0.47,
+            "ms": 3478
+          },
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1204,
+              "calls": 22,
+              "tris": 3420,
+              "updateMs": 0.6,
+              "renderMs": 416.3
+            },
+            "idle": {
+              "frames": 2,
+              "avgMs": 84.85,
+              "maxMs": 163.6,
+              "long25": 1,
+              "long50": 1,
+              "ms": 331,
+              "calls": 43,
+              "tris": 3514,
+              "updateMs": 0,
+              "renderMs": 76.25
+            },
+            "roll": {
+              "frames": 18,
+              "avgMs": 184.49,
+              "maxMs": 569.6,
+              "long25": 15,
+              "long50": 15,
+              "ms": 3161,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.04,
+              "renderMs": 6.94
+            },
+            "return": {
+              "frames": 8,
+              "avgMs": 241.65,
+              "maxMs": 533.3,
+              "long25": 6,
+              "long50": 6,
+              "ms": 1934,
+              "calls": 43,
+              "tris": 3514,
+              "updateMs": 0.1,
+              "renderMs": 0.49
+            },
+            "focus": {
+              "frames": 10,
+              "avgMs": 184.28,
+              "maxMs": 363.7,
+              "long25": 8,
+              "long50": 8,
+              "ms": 1844,
+              "calls": 17,
+              "tris": 2149,
+              "updateMs": 0.07,
+              "renderMs": 0.37
+            },
+            "fly": {
+              "frames": 5,
+              "avgMs": 242.4,
+              "maxMs": 418.1,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1212,
+              "calls": 33,
+              "tris": 2704,
+              "updateMs": 0.06,
+              "renderMs": 0.62
+            },
+            "land": {
+              "frames": 7,
+              "avgMs": 144.57,
+              "maxMs": 339.4,
+              "long25": 5,
+              "long50": 5,
+              "ms": 1009,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0.04,
+              "renderMs": 0.36
+            },
+            "cell45": {
+              "frames": 12,
+              "avgMs": 229.31,
+              "maxMs": 866.6,
+              "long25": 8,
+              "long50": 8,
+              "ms": 2751,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.07,
+              "renderMs": 0.38
+            },
+            "bear": {
+              "frames": 7,
+              "avgMs": 120.31,
+              "maxMs": 169.7,
+              "long25": 5,
+              "long50": 5,
+              "ms": 841,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.04,
+              "renderMs": 0.47
+            }
+          },
+          "render": {
+            "calls": 39,
+            "triangles": 4679,
+            "cssPx": 181760,
+            "pixels": 727040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 320,
+            "h": 568
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                1.0701,
+                4.2593,
+                2.4035
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 1.81246,
+              "tx": 3.06,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 5,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": true,
+              "rise": 1.5,
+              "bear": 1
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                -0.0,
+                0.19,
+                0
+              ],
+              "ndc": [
+                0,
+                -0.55921
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "prompt": {
+        "kicker": "真心话 · 归属 小满",
+        "text": "圣诞夜你最想收到对方送的什么礼物？",
+        "actor": "归属：小满 · 池 truth · 真实题库"
+      },
+      "phases": [
+        "idle",
+        "roll",
+        "return",
+        "idle",
+        "focus",
+        "fly",
+        "land",
+        "return",
+        "idle",
+        "roll",
+        "focus",
+        "fly",
+        "land",
+        "cell45",
+        "bear"
+      ],
+      "afterDone": {
+        "version": "v8-prod-3d-1",
+        "ready": true,
+        "mounted": true,
+        "phase": "idle",
+        "pieces": [
+          {
+            "id": "a:0",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "ring:2",
+            "arrived": false
+          },
+          {
+            "id": "a:1",
+            "color": "red",
+            "playerId": "a",
+            "squareId": "hangar:red:1",
+            "arrived": false
+          },
+          {
+            "id": "b:0",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:0",
+            "arrived": false
+          },
+          {
+            "id": "b:1",
+            "color": "yellow",
+            "playerId": "b",
+            "squareId": "hangar:yellow:1",
+            "arrived": false
+          }
+        ],
+        "target": "ring:2",
+        "fps": 0,
+        "drawCalls": 39,
+        "triangles": 3493,
+        "dpr": 2,
+        "quality": "high",
+        "reduced": false,
+        "theme": "cloud",
+        "heat": 8,
+        "turn": "b",
+        "mode": "quick",
+        "busy": false,
+        "holding": false,
+        "cell": null,
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              15.0369,
+              9.8872
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 5,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7323,
+              0.19,
+              -2.9711
+            ],
+            "ndc": [
+              0.1745,
+              0.40769
+            ]
+          }
+        },
+        "perf": {
+          "phase": "idle",
+          "current": null,
+          "phases": {
+            "boot": {
+              "frames": 1,
+              "avgMs": 0,
+              "maxMs": 0,
+              "long25": 0,
+              "long50": 0,
+              "ms": 1204,
+              "calls": 22,
+              "tris": 3420,
+              "updateMs": 0.6,
+              "renderMs": 416.3
+            },
+            "idle": {
+              "frames": 2,
+              "avgMs": 84.85,
+              "maxMs": 163.6,
+              "long25": 1,
+              "long50": 1,
+              "ms": 331,
+              "calls": 43,
+              "tris": 3514,
+              "updateMs": 0,
+              "renderMs": 76.25
+            },
+            "roll": {
+              "frames": 18,
+              "avgMs": 184.49,
+              "maxMs": 569.6,
+              "long25": 15,
+              "long50": 15,
+              "ms": 3161,
+              "calls": 29,
+              "tris": 2950,
+              "updateMs": 0.04,
+              "renderMs": 6.94
+            },
+            "return": {
+              "frames": 9,
+              "avgMs": 188.54,
+              "maxMs": 345.5,
+              "long25": 6,
+              "long50": 6,
+              "ms": 1513,
+              "calls": 39,
+              "tris": 3493,
+              "updateMs": 0.07,
+              "renderMs": 15.54
+            },
+            "focus": {
+              "frames": 10,
+              "avgMs": 184.28,
+              "maxMs": 363.7,
+              "long25": 8,
+              "long50": 8,
+              "ms": 1844,
+              "calls": 17,
+              "tris": 2149,
+              "updateMs": 0.07,
+              "renderMs": 0.37
+            },
+            "fly": {
+              "frames": 5,
+              "avgMs": 242.4,
+              "maxMs": 418.1,
+              "long25": 4,
+              "long50": 4,
+              "ms": 1212,
+              "calls": 33,
+              "tris": 2704,
+              "updateMs": 0.06,
+              "renderMs": 0.62
+            },
+            "land": {
+              "frames": 7,
+              "avgMs": 144.57,
+              "maxMs": 339.4,
+              "long25": 5,
+              "long50": 5,
+              "ms": 1009,
+              "calls": 21,
+              "tris": 2680,
+              "updateMs": 0.04,
+              "renderMs": 0.36
+            },
+            "cell45": {
+              "frames": 12,
+              "avgMs": 229.31,
+              "maxMs": 866.6,
+              "long25": 8,
+              "long50": 8,
+              "ms": 2751,
+              "calls": 21,
+              "tris": 2675,
+              "updateMs": 0.07,
+              "renderMs": 0.38
+            },
+            "bear": {
+              "frames": 36,
+              "avgMs": 172.23,
+              "maxMs": 563.9,
+              "long25": 29,
+              "long50": 28,
+              "ms": 6533,
+              "calls": 39,
+              "tris": 4679,
+              "updateMs": 0.04,
+              "renderMs": 5.47
+            }
+          },
+          "render": {
+            "calls": 39,
+            "triangles": 3493,
+            "cssPx": 181760,
+            "pixels": 727040
+          },
+          "quality": "high",
+          "dpr": 2,
+          "shadows": true,
+          "antialias": false,
+          "viewport": {
+            "w": 320,
+            "h": 568
+          },
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                15.0369,
+                9.8872
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 5,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7323,
+                0.19,
+                -2.9711
+              ],
+              "ndc": [
+                0.1745,
+                0.40769
+              ]
+            }
+          }
+        },
+        "three": "180"
+      },
+      "afterDoneInfo": {
+        "phase": "idle",
+        "awaiting": "roll",
+        "turn": "b",
+        "dice": 2,
+        "cards": 1,
+        "heat": 8,
+        "ended": false,
+        "reduced": false,
+        "theme": "cloud",
+        "mounted": true
+      },
+      "elapsedSec": 45.3
+    },
+    "modeLong": {
+      "planeCount": 4,
+      "pieces": 8,
+      "mode": "long",
+      "debug": {
+        "phase": "idle",
+        "drawCalls": 65,
+        "triangles": 3610
+      }
+    },
+    "reduced": {
+      "info": {
+        "phase": "idle",
+        "awaiting": "roll",
+        "turn": "a",
+        "dice": null,
+        "cards": 0,
+        "heat": 0,
+        "ended": false,
+        "reduced": true,
+        "theme": "cloud",
+        "mounted": true
+      },
+      "phases": [
+        "idle"
+      ],
+      "debug": {
+        "phase": "idle",
+        "reduced": true,
+        "drawCalls": 45,
+        "triangles": 3518,
+        "dpr": 1,
+        "quality": "high"
+      },
+      "attrs": {
+        "reduced": "1",
+        "phase": "idle"
+      },
+      "elapsedSec": 0.7,
+      "forbiddenPhases": []
+    },
+    "eventMapping": {
+      "jump": {
+        "phases": [
+          "idle",
+          "focus",
+          "fly",
+          "land",
+          "return",
+          "idle"
+        ],
+        "debug": {
+          "version": "v8-prod-3d-1",
+          "ready": true,
+          "mounted": true,
+          "phase": "idle",
+          "pieces": [
+            {
+              "id": "a:0",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:4",
+              "arrived": false
+            },
+            {
+              "id": "a:1",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "hangar:red:1",
+              "arrived": false
+            },
+            {
+              "id": "b:0",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:0",
+              "arrived": false
+            },
+            {
+              "id": "b:1",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:1",
+              "arrived": false
+            }
+          ],
+          "target": "ring:8",
+          "fps": 0,
+          "drawCalls": 44,
+          "triangles": 3516,
+          "dpr": 2,
+          "quality": "high",
+          "reduced": false,
+          "theme": "cloud",
+          "heat": 0,
+          "turn": "a",
+          "mode": "quick",
+          "busy": false,
+          "holding": false,
+          "cell": null,
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 5,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                2.5183,
+                0.19,
+                -1.7383
+              ],
+              "ndc": [
+                0.62664,
+                0.23469
+              ]
+            }
+          },
+          "perf": {
+            "phase": "idle",
+            "current": null,
+            "phases": {
+              "boot": {
+                "frames": 1,
+                "avgMs": 0,
+                "maxMs": 0,
+                "long25": 0,
+                "long50": 0,
+                "ms": 759,
+                "calls": 20,
+                "tris": 3416,
+                "updateMs": 0.8,
+                "renderMs": 587.4
+              },
+              "idle": {
+                "frames": 9,
+                "avgMs": 240.4,
+                "maxMs": 654.5,
+                "long25": 7,
+                "long50": 7,
+                "ms": 1572,
+                "calls": 45,
+                "tris": 3518,
+                "updateMs": 0.14,
+                "renderMs": 2.14
+              },
+              "focus": {
+                "frames": 9,
+                "avgMs": 240.38,
+                "maxMs": 460.6,
+                "long25": 8,
+                "long50": 8,
+                "ms": 2119,
+                "calls": 17,
+                "tris": 1951,
+                "updateMs": 0.21,
+                "renderMs": 1.21
+              },
+              "fly": {
+                "frames": 5,
+                "avgMs": 307.84,
+                "maxMs": 345.4,
+                "long25": 5,
+                "long50": 5,
+                "ms": 1539,
+                "calls": 27,
+                "tris": 1971,
+                "updateMs": 0.2,
+                "renderMs": 0.66
+              },
+              "land": {
+                "frames": 4,
+                "avgMs": 318.15,
+                "maxMs": 339.3,
+                "long25": 4,
+                "long50": 4,
+                "ms": 1269,
+                "calls": 15,
+                "tris": 2145,
+                "updateMs": 0.08,
+                "renderMs": 0.43
+              },
+              "return": {
+                "frames": 6,
+                "avgMs": 269.67,
+                "maxMs": 309.1,
+                "long25": 6,
+                "long50": 6,
+                "ms": 1619,
+                "calls": 44,
+                "tris": 3516,
+                "updateMs": 0.2,
+                "renderMs": 0.47
+              }
+            },
+            "render": {
+              "calls": 44,
+              "triangles": 3516,
+              "cssPx": 400760,
+              "pixels": 1603040
+            },
+            "quality": "high",
+            "dpr": 2,
+            "shadows": true,
+            "antialias": false,
+            "viewport": {
+              "w": 430,
+              "h": 932
+            },
+            "probe": {
+              "camera": {
+                "pos": [
+                  0,
+                  18.3504,
+                  12.0201
+                ],
+                "fov": 42,
+                "locked": false
+              },
+              "board": {
+                "theta": 0,
+                "tx": 0,
+                "tz": 0
+              },
+              "lock": {
+                "samples": 5,
+                "maxAbsX": 0,
+                "maxAbsY": 0
+              },
+              "stage": {
+                "visible": false,
+                "rise": 0,
+                "bear": 0.001
+              },
+              "streaks": false,
+              "plane": {
+                "id": "a:0",
+                "world": [
+                  2.5183,
+                  0.19,
+                  -1.7383
+                ],
+                "ndc": [
+                  0.62664,
+                  0.23469
+                ]
+              }
+            }
+          },
+          "three": "180"
+        }
+      },
+      "capture": {
+        "phases": [
+          "idle",
+          "focus",
+          "fly",
+          "land",
+          "capture",
+          "return",
+          "idle"
+        ],
+        "debug": {
+          "version": "v8-prod-3d-1",
+          "ready": true,
+          "mounted": true,
+          "phase": "idle",
+          "pieces": [
+            {
+              "id": "a:0",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:20",
+              "arrived": false
+            },
+            {
+              "id": "a:1",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "hangar:red:1",
+              "arrived": false
+            },
+            {
+              "id": "b:0",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:0",
+              "arrived": false
+            },
+            {
+              "id": "b:1",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:1",
+              "arrived": false
+            }
+          ],
+          "target": "ring:24",
+          "fps": 0,
+          "drawCalls": 40,
+          "triangles": 3495,
+          "dpr": 2,
+          "quality": "high",
+          "reduced": false,
+          "theme": "cloud",
+          "heat": 0,
+          "turn": "a",
+          "mode": "quick",
+          "busy": false,
+          "holding": false,
+          "cell": null,
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 8,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0.7323,
+                0.19,
+                2.9711
+              ],
+              "ndc": [
+                0.20474,
+                -0.25147
+              ]
+            }
+          },
+          "perf": {
+            "phase": "idle",
+            "current": null,
+            "phases": {
+              "boot": {
+                "frames": 1,
+                "avgMs": 0,
+                "maxMs": 0,
+                "long25": 0,
+                "long50": 0,
+                "ms": 759,
+                "calls": 20,
+                "tris": 3416,
+                "updateMs": 0.8,
+                "renderMs": 587.4
+              },
+              "idle": {
+                "frames": 1,
+                "avgMs": 242.4,
+                "maxMs": 242.4,
+                "long25": 1,
+                "long50": 1,
+                "ms": 466,
+                "calls": 44,
+                "tris": 3516,
+                "updateMs": 0.1,
+                "renderMs": 0.4
+              },
+              "focus": {
+                "frames": 8,
+                "avgMs": 240.9,
+                "maxMs": 248.5,
+                "long25": 8,
+                "long50": 8,
+                "ms": 1705,
+                "calls": 14,
+                "tris": 1945,
+                "updateMs": 0.09,
+                "renderMs": 0.59
+              },
+              "fly": {
+                "frames": 8,
+                "avgMs": 303.76,
+                "maxMs": 333.4,
+                "long25": 8,
+                "long50": 8,
+                "ms": 2427,
+                "calls": 26,
+                "tris": 1969,
+                "updateMs": 0.18,
+                "renderMs": 0.33
+              },
+              "land": {
+                "frames": 4,
+                "avgMs": 299.95,
+                "maxMs": 315.1,
+                "long25": 4,
+                "long50": 4,
+                "ms": 1201,
+                "calls": 15,
+                "tris": 2145,
+                "updateMs": 0.03,
+                "renderMs": 0.37
+              },
+              "return": {
+                "frames": 6,
+                "avgMs": 386.12,
+                "maxMs": 400.1,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2316,
+                "calls": 40,
+                "tris": 3495,
+                "updateMs": 0.17,
+                "renderMs": 0.38
+              },
+              "capture": {
+                "frames": 6,
+                "avgMs": 474.7,
+                "maxMs": 787.8,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2849,
+                "calls": 15,
+                "tris": 2145,
+                "updateMs": 0.12,
+                "renderMs": 0.37
+              }
+            },
+            "render": {
+              "calls": 40,
+              "triangles": 3495,
+              "cssPx": 400760,
+              "pixels": 1603040
+            },
+            "quality": "high",
+            "dpr": 2,
+            "shadows": true,
+            "antialias": false,
+            "viewport": {
+              "w": 430,
+              "h": 932
+            },
+            "probe": {
+              "camera": {
+                "pos": [
+                  0,
+                  18.3504,
+                  12.0201
+                ],
+                "fov": 42,
+                "locked": false
+              },
+              "board": {
+                "theta": 0,
+                "tx": 0,
+                "tz": 0
+              },
+              "lock": {
+                "samples": 8,
+                "maxAbsX": 0,
+                "maxAbsY": 0
+              },
+              "stage": {
+                "visible": false,
+                "rise": 0,
+                "bear": 0.001
+              },
+              "streaks": false,
+              "plane": {
+                "id": "a:0",
+                "world": [
+                  0.7323,
+                  0.19,
+                  2.9711
+                ],
+                "ndc": [
+                  0.20474,
+                  -0.25147
+                ]
+              }
+            }
+          },
+          "three": "180"
+        }
+      },
+      "stack": {
+        "phases": [
+          "idle",
+          "focus",
+          "fly",
+          "land",
+          "stack",
+          "cell45",
+          "bear"
+        ],
+        "debug": {
+          "version": "v8-prod-3d-1",
+          "ready": true,
+          "mounted": true,
+          "phase": "bear",
+          "pieces": [
+            {
+              "id": "a:0",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:12",
+              "arrived": false
+            },
+            {
+              "id": "a:1",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:13",
+              "arrived": false
+            },
+            {
+              "id": "b:0",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:0",
+              "arrived": false
+            },
+            {
+              "id": "b:1",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:1",
+              "arrived": false
+            }
+          ],
+          "target": "ring:13",
+          "fps": 2.2,
+          "drawCalls": 38,
+          "triangles": 4167,
+          "dpr": 2,
+          "quality": "high",
+          "reduced": false,
+          "theme": "cloud",
+          "heat": 0,
+          "turn": "a",
+          "mode": "quick",
+          "busy": true,
+          "holding": false,
+          "cell": null,
+          "probe": {
+            "camera": {
+              "pos": [
+                1.3067,
+                4.7898,
+                2.9349
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": -3.14159,
+              "tx": 3.06,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 2,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": true,
+              "rise": 1.5,
+              "bear": 1.139
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                0,
+                0.19,
+                0
+              ],
+              "ndc": [
+                0,
+                -0.46252
+              ]
+            }
+          },
+          "perf": {
+            "phase": "bear",
+            "current": {
+              "frames": 5,
+              "avgMs": 236.32,
+              "maxMs": 696.8,
+              "long25": 3,
+              "long50": 3,
+              "long25Ratio": 0.6,
+              "fps": 2.2,
+              "updateMs": 0.08,
+              "renderMs": 3.94,
+              "ms": 2244
+            },
+            "phases": {
+              "boot": {
+                "frames": 1,
+                "avgMs": 0,
+                "maxMs": 0,
+                "long25": 0,
+                "long50": 0,
+                "ms": 759,
+                "calls": 20,
+                "tris": 3416,
+                "updateMs": 0.8,
+                "renderMs": 587.4
+              },
+              "idle": {
+                "frames": 1,
+                "avgMs": 242.4,
+                "maxMs": 242.4,
+                "long25": 1,
+                "long50": 1,
+                "ms": 466,
+                "calls": 44,
+                "tris": 3516,
+                "updateMs": 0.1,
+                "renderMs": 0.4
+              },
+              "focus": {
+                "frames": 8,
+                "avgMs": 369.65,
+                "maxMs": 406,
+                "long25": 8,
+                "long50": 8,
+                "ms": 2628,
+                "calls": 19,
+                "tris": 1968,
+                "updateMs": 0.12,
+                "renderMs": 0.4
+              },
+              "fly": {
+                "frames": 2,
+                "avgMs": 445.4,
+                "maxMs": 448.4,
+                "long25": 2,
+                "long50": 2,
+                "ms": 892,
+                "calls": 30,
+                "tris": 1990,
+                "updateMs": 0.1,
+                "renderMs": 0.4
+              },
+              "land": {
+                "frames": 4,
+                "avgMs": 465.18,
+                "maxMs": 484.7,
+                "long25": 4,
+                "long50": 4,
+                "ms": 1864,
+                "calls": 20,
+                "tris": 2168,
+                "updateMs": 0.07,
+                "renderMs": 0.4
+              },
+              "return": {
+                "frames": 6,
+                "avgMs": 386.12,
+                "maxMs": 400.1,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2316,
+                "calls": 40,
+                "tris": 3495,
+                "updateMs": 0.17,
+                "renderMs": 0.38
+              },
+              "capture": {
+                "frames": 6,
+                "avgMs": 474.7,
+                "maxMs": 787.8,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2849,
+                "calls": 15,
+                "tris": 2145,
+                "updateMs": 0.12,
+                "renderMs": 0.37
+              },
+              "stack": {
+                "frames": 4,
+                "avgMs": 362.15,
+                "maxMs": 630.2,
+                "long25": 3,
+                "long50": 3,
+                "ms": 1595,
+                "calls": 20,
+                "tris": 2168,
+                "updateMs": 0.07,
+                "renderMs": 38.07
+              },
+              "cell45": {
+                "frames": 11,
+                "avgMs": 414.86,
+                "maxMs": 1018.1,
+                "long25": 8,
+                "long50": 8,
+                "ms": 4413,
+                "calls": 20,
+                "tris": 2163,
+                "updateMs": 0.18,
+                "renderMs": 20.83
+              }
+            },
+            "render": {
+              "calls": 38,
+              "triangles": 4167,
+              "cssPx": 400760,
+              "pixels": 1603040
+            },
+            "quality": "high",
+            "dpr": 2,
+            "shadows": true,
+            "antialias": false,
+            "viewport": {
+              "w": 430,
+              "h": 932
+            },
+            "probe": {
+              "camera": {
+                "pos": [
+                  1.3067,
+                  4.7898,
+                  2.9349
+                ],
+                "fov": 42,
+                "locked": false
+              },
+              "board": {
+                "theta": -3.14159,
+                "tx": 3.06,
+                "tz": 0
+              },
+              "lock": {
+                "samples": 2,
+                "maxAbsX": 0,
+                "maxAbsY": 0
+              },
+              "stage": {
+                "visible": true,
+                "rise": 1.5,
+                "bear": 1.139
+              },
+              "streaks": false,
+              "plane": {
+                "id": "a:0",
+                "world": [
+                  0,
+                  0.19,
+                  0
+                ],
+                "ndc": [
+                  0,
+                  -0.46252
+                ]
+              }
+            }
+          },
+          "three": "180"
+        }
+      },
+      "skipAfterHold": {
+        "phase": "idle",
+        "debug": {
+          "version": "v8-prod-3d-1",
+          "ready": true,
+          "mounted": true,
+          "phase": "idle",
+          "pieces": [
+            {
+              "id": "a:0",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:12",
+              "arrived": false
+            },
+            {
+              "id": "a:1",
+              "color": "red",
+              "playerId": "a",
+              "squareId": "ring:13",
+              "arrived": false
+            },
+            {
+              "id": "b:0",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:0",
+              "arrived": false
+            },
+            {
+              "id": "b:1",
+              "color": "yellow",
+              "playerId": "b",
+              "squareId": "hangar:yellow:1",
+              "arrived": false
+            }
+          ],
+          "target": "ring:13",
+          "fps": 1.6,
+          "drawCalls": 44,
+          "triangles": 3516,
+          "dpr": 2,
+          "quality": "high",
+          "reduced": false,
+          "theme": "cloud",
+          "heat": 0,
+          "turn": "a",
+          "mode": "quick",
+          "busy": false,
+          "holding": false,
+          "cell": null,
+          "probe": {
+            "camera": {
+              "pos": [
+                0,
+                18.3504,
+                12.0201
+              ],
+              "fov": 42,
+              "locked": false
+            },
+            "board": {
+              "theta": 0,
+              "tx": 0,
+              "tz": 0
+            },
+            "lock": {
+              "samples": 2,
+              "maxAbsX": 0,
+              "maxAbsY": 0
+            },
+            "stage": {
+              "visible": false,
+              "rise": 0,
+              "bear": 0.001
+            },
+            "streaks": false,
+            "plane": {
+              "id": "a:0",
+              "world": [
+                3.06,
+                0.19,
+                0
+              ],
+              "ndc": [
+                0.79364,
+                0.06822
+              ]
+            }
+          },
+          "perf": {
+            "phase": "idle",
+            "current": {
+              "frames": 1,
+              "avgMs": 369.6,
+              "maxMs": 369.6,
+              "long25": 1,
+              "long50": 1,
+              "long25Ratio": 1,
+              "fps": 1.6,
+              "updateMs": 0.1,
+              "renderMs": 0.5,
+              "ms": 608
+            },
+            "phases": {
+              "boot": {
+                "frames": 1,
+                "avgMs": 0,
+                "maxMs": 0,
+                "long25": 0,
+                "long50": 0,
+                "ms": 759,
+                "calls": 20,
+                "tris": 3416,
+                "updateMs": 0.8,
+                "renderMs": 587.4
+              },
+              "idle": {
+                "frames": 1,
+                "avgMs": 242.4,
+                "maxMs": 242.4,
+                "long25": 1,
+                "long50": 1,
+                "ms": 466,
+                "calls": 44,
+                "tris": 3516,
+                "updateMs": 0.1,
+                "renderMs": 0.4
+              },
+              "focus": {
+                "frames": 8,
+                "avgMs": 369.65,
+                "maxMs": 406,
+                "long25": 8,
+                "long50": 8,
+                "ms": 2628,
+                "calls": 19,
+                "tris": 1968,
+                "updateMs": 0.12,
+                "renderMs": 0.4
+              },
+              "fly": {
+                "frames": 2,
+                "avgMs": 445.4,
+                "maxMs": 448.4,
+                "long25": 2,
+                "long50": 2,
+                "ms": 892,
+                "calls": 30,
+                "tris": 1990,
+                "updateMs": 0.1,
+                "renderMs": 0.4
+              },
+              "land": {
+                "frames": 4,
+                "avgMs": 465.18,
+                "maxMs": 484.7,
+                "long25": 4,
+                "long50": 4,
+                "ms": 1864,
+                "calls": 20,
+                "tris": 2168,
+                "updateMs": 0.07,
+                "renderMs": 0.4
+              },
+              "return": {
+                "frames": 6,
+                "avgMs": 386.12,
+                "maxMs": 400.1,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2316,
+                "calls": 40,
+                "tris": 3495,
+                "updateMs": 0.17,
+                "renderMs": 0.38
+              },
+              "capture": {
+                "frames": 6,
+                "avgMs": 474.7,
+                "maxMs": 787.8,
+                "long25": 6,
+                "long50": 6,
+                "ms": 2849,
+                "calls": 15,
+                "tris": 2145,
+                "updateMs": 0.12,
+                "renderMs": 0.37
+              },
+              "stack": {
+                "frames": 4,
+                "avgMs": 362.15,
+                "maxMs": 630.2,
+                "long25": 3,
+                "long50": 3,
+                "ms": 1595,
+                "calls": 20,
+                "tris": 2168,
+                "updateMs": 0.07,
+                "renderMs": 38.07
+              },
+              "cell45": {
+                "frames": 11,
+                "avgMs": 414.86,
+                "maxMs": 1018.1,
+                "long25": 8,
+                "long50": 8,
+                "ms": 4413,
+                "calls": 20,
+                "tris": 2163,
+                "updateMs": 0.18,
+                "renderMs": 20.83
+              },
+              "bear": {
+                "frames": 6,
+                "avgMs": 380.77,
+                "maxMs": 1103,
+                "long25": 4,
+                "long50": 4,
+                "ms": 2404,
+                "calls": 38,
+                "tris": 4167,
+                "updateMs": 0.08,
+                "renderMs": 3.37
+              }
+            },
+            "render": {
+              "calls": 44,
+              "triangles": 3516,
+              "cssPx": 400760,
+              "pixels": 1603040
+            },
+            "quality": "high",
+            "dpr": 2,
+            "shadows": true,
+            "antialias": false,
+            "viewport": {
+              "w": 430,
+              "h": 932
+            },
+            "probe": {
+              "camera": {
+                "pos": [
+                  0,
+                  18.3504,
+                  12.0201
+                ],
+                "fov": 42,
+                "locked": false
+              },
+              "board": {
+                "theta": 0,
+                "tx": 0,
+                "tz": 0
+              },
+              "lock": {
+                "samples": 2,
+                "maxAbsX": 0,
+                "maxAbsY": 0
+              },
+              "stage": {
+                "visible": false,
+                "rise": 0,
+                "bear": 0.001
+              },
+              "streaks": false,
+              "plane": {
+                "id": "a:0",
+                "world": [
+                  3.06,
+                  0.19,
+                  0
+                ],
+                "ndc": [
+                  0.79364,
+                  0.06822
+                ]
+              }
+            }
+          },
+          "three": "180"
+        }
+      }
+    },
+    "perf": {
+      "env": {
+        "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "vendor": "Google Inc. (Google)",
+        "dpr": 1,
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+        "cores": 22
+      },
+      "auto": {
+        "ok": true,
+        "steps": 10,
+        "phase": "playing"
+      },
+      "autoSec": 51.7,
+      "raf": {
+        "frames": 340,
+        "avgMs": 153.24,
+        "p50Ms": 133.3,
+        "p95Ms": 351.5,
+        "maxMs": 945.6,
+        "long25": 279,
+        "long25Ratio": 0.821,
+        "fps": 6.5
+      },
+      "phaseStats": {
+        "boot": {
+          "frames": 1,
+          "avgMs": 0,
+          "maxMs": 0,
+          "long25": 0,
+          "long50": 0,
+          "ms": 770,
+          "calls": 20,
+          "tris": 3416,
+          "updateMs": 0.5,
+          "renderMs": 410.2
+        },
+        "idle": {
+          "frames": 2,
+          "avgMs": 121.2,
+          "maxMs": 139.3,
+          "long25": 2,
+          "long50": 2,
+          "ms": 247,
+          "calls": 44,
+          "tris": 3516,
+          "updateMs": 0.05,
+          "renderMs": 3.3
+        },
+        "roll": {
+          "frames": 23,
+          "avgMs": 250.59,
+          "maxMs": 787.9,
+          "long25": 16,
+          "long50": 15,
+          "ms": 5588,
+          "calls": 30,
+          "tris": 2952,
+          "updateMs": 0.04,
+          "renderMs": 38.66
+        },
+        "return": {
+          "frames": 9,
+          "avgMs": 252.52,
+          "maxMs": 569.7,
+          "long25": 6,
+          "long50": 6,
+          "ms": 2269,
+          "calls": 44,
+          "tris": 3516,
+          "updateMs": 0.02,
+          "renderMs": 14.33
+        },
+        "focus": {
+          "frames": 8,
+          "avgMs": 306.82,
+          "maxMs": 363.6,
+          "long25": 8,
+          "long50": 8,
+          "ms": 2207,
+          "calls": 14,
+          "tris": 1945,
+          "updateMs": 0.09,
+          "renderMs": 0.24
+        },
+        "fly": {
+          "frames": 2,
+          "avgMs": 278.75,
+          "maxMs": 303,
+          "long25": 2,
+          "long50": 2,
+          "ms": 557,
+          "calls": 40,
+          "tris": 3495,
+          "updateMs": 0.05,
+          "renderMs": 0.35
+        },
+        "land": {
+          "frames": 4,
+          "avgMs": 496.98,
+          "maxMs": 945.6,
+          "long25": 4,
+          "long50": 4,
+          "ms": 1992,
+          "calls": 24,
+          "tris": 3440,
+          "updateMs": 0.05,
+          "renderMs": 0.32
+        },
+        "cell45": {
+          "frames": 9,
+          "avgMs": 157.58,
+          "maxMs": 254.6,
+          "long25": 8,
+          "long50": 8,
+          "ms": 1421,
+          "calls": 14,
+          "tris": 2138,
+          "updateMs": 0.06,
+          "renderMs": 0.86
+        },
+        "bear": {
+          "frames": 2,
+          "avgMs": 57.6,
+          "maxMs": 109.1,
+          "long25": 1,
+          "long50": 1,
+          "ms": 201,
+          "calls": 32,
+          "tris": 4142,
+          "updateMs": 0.05,
+          "renderMs": 0.3
+        }
+      },
+      "render": {
+        "calls": 44,
+        "triangles": 3516,
+        "cssPx": 400760,
+        "pixels": 400760
+      },
+      "quality": "low",
+      "dpr": 1,
+      "caveat": "headless Edge + SwiftShader 软件渲染（非真机 GPU）；render/update ms 与 drawCalls/triangles 可参考，fps/长帧只作相对参考。",
+      "gpuProbeNoFlags": {
+        "webgl2": true,
+        "renderer": "ANGLE (Intel, Intel(R) Arc(TM) Graphics (0x00007D55) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "vendor": "Google Inc. (Intel)"
+      }
+    },
+    "remount": {
+      "mounted": true,
+      "phase": "idle",
+      "debug": {
+        "ready": true,
+        "phase": "idle",
+        "drawCalls": 45
+      }
+    }
+  },
+  "screenshots": [
+    "shots/v8/prod3d\\01-overview-430.png",
+    "shots/v8/prod3d\\02-roll-430.png",
+    "shots/v8/prod3d\\03-choose-430.png",
+    "shots/v8/prod3d\\04-focus-430.png",
+    "shots/v8/prod3d\\05-fly-430.png",
+    "shots/v8/prod3d\\06-cell45-430.png",
+    "shots/v8/prod3d\\07-bear-prompt-430.png",
+    "shots/v8/prod3d\\08-after-done-430.png",
+    "shots/v8/prod3d\\10b-reduced-toggle-430.png",
+    "shots/v8/prod3d\\09-theme-star-430.png",
+    "shots/v8/prod3d\\09-theme-paper-430.png",
+    "shots/v8/prod3d\\01-overview-390.png",
+    "shots/v8/prod3d\\02-roll-390.png",
+    "shots/v8/prod3d\\03-choose-390.png",
+    "shots/v8/prod3d\\04-focus-390.png",
+    "shots/v8/prod3d\\05-fly-390.png",
+    "shots/v8/prod3d\\06-cell45-390.png",
+    "shots/v8/prod3d\\07-bear-prompt-390.png",
+    "shots/v8/prod3d\\08-after-done-390.png",
+    "shots/v8/prod3d\\01-overview-320.png",
+    "shots/v8/prod3d\\02-roll-320.png",
+    "shots/v8/prod3d\\03-choose-320.png",
+    "shots/v8/prod3d\\04-focus-320.png",
+    "shots/v8/prod3d\\05-fly-320.png",
+    "shots/v8/prod3d\\06-cell45-320.png",
+    "shots/v8/prod3d\\07-bear-prompt-320.png",
+    "shots/v8/prod3d\\08-after-done-320.png",
+    "shots/v8/prod3d\\14-long-overview-430.png",
+    "shots/v8/prod3d\\10-reduced-430.png",
+    "shots/v8/prod3d\\11-reduced-prompt-430.png",
+    "shots/v8/prod3d\\12-stack-430.png",
+    "shots/v8/prod3d\\13-perf-end-430.png"
+  ],
+  "errors": [],
+  "themes": {
+    "star": {
+      "version": "v8-prod-3d-1",
+      "ready": true,
+      "mounted": true,
+      "phase": "idle",
+      "pieces": [
+        {
+          "id": "a:0",
+          "color": "red",
+          "playerId": "a",
+          "squareId": "ring:2",
+          "arrived": false
+        },
+        {
+          "id": "a:1",
+          "color": "red",
+          "playerId": "a",
+          "squareId": "hangar:red:1",
+          "arrived": false
+        },
+        {
+          "id": "b:0",
+          "color": "yellow",
+          "playerId": "b",
+          "squareId": "hangar:yellow:0",
+          "arrived": false
+        },
+        {
+          "id": "b:1",
+          "color": "yellow",
+          "playerId": "b",
+          "squareId": "hangar:yellow:1",
+          "arrived": false
+        }
+      ],
+      "target": "ring:2",
+      "fps": 2.7,
+      "drawCalls": 41,
+      "triangles": 3508,
+      "dpr": 2,
+      "quality": "high",
+      "reduced": false,
+      "theme": "star",
+      "heat": 8,
+      "turn": "a",
+      "mode": "quick",
+      "busy": false,
+      "holding": false,
+      "cell": null,
+      "probe": {
+        "camera": {
+          "pos": [
+            0,
+            18.3504,
+            12.0201
+          ],
+          "fov": 42,
+          "locked": false
+        },
+        "board": {
+          "theta": 0,
+          "tx": 0,
+          "tz": 0
+        },
+        "lock": {
+          "samples": 4,
+          "maxAbsX": 0,
+          "maxAbsY": 0
+        },
+        "stage": {
+          "visible": false,
+          "rise": 0,
+          "bear": 0.001
+        },
+        "streaks": false,
+        "plane": {
+          "id": "a:0",
+          "world": [
+            0.7323,
+            0.19,
+            -2.9711
+          ],
+          "ndc": [
+            0.17712,
+            0.34478
+          ]
+        }
+      },
+      "perf": {
+        "phase": "idle",
+        "current": {
+          "frames": 18,
+          "avgMs": 356.57,
+          "maxMs": 1006,
+          "long25": 11,
+          "long50": 11,
+          "long25Ratio": 0.611,
+          "fps": 2.7,
+          "updateMs": 0.01,
+          "renderMs": 43.45,
+          "ms": 6622
+        },
+        "phases": {
+          "boot": {
+            "frames": 1,
+            "avgMs": 0,
+            "maxMs": 0,
+            "long25": 0,
+            "long50": 0,
+            "ms": 1230,
+            "calls": 20,
+            "tris": 3416,
+            "updateMs": 0.4,
+            "renderMs": 834.8
+          },
+          "idle": {
+            "frames": 7,
+            "avgMs": 158.23,
+            "maxMs": 333.3,
+            "long25": 4,
+            "long50": 4,
+            "ms": 3233,
+            "calls": 44,
+            "tris": 3516,
+            "updateMs": 0.04,
+            "renderMs": 0.57
+          },
+          "roll": {
+            "frames": 16,
+            "avgMs": 370.84,
+            "maxMs": 921.1,
+            "long25": 14,
+            "long50": 14,
+            "ms": 5513,
+            "calls": 29,
+            "tris": 2950,
+            "updateMs": 0.05,
+            "renderMs": 0.42
+          },
+          "return": {
+            "frames": 6,
+            "avgMs": 338.35,
+            "maxMs": 345.5,
+            "long25": 6,
+            "long50": 6,
+            "ms": 1768,
+            "calls": 44,
+            "tris": 3516,
+            "updateMs": 0.07,
+            "renderMs": 0.43
+          },
+          "focus": {
+            "frames": 8,
+            "avgMs": 395.41,
+            "maxMs": 418.1,
+            "long25": 8,
+            "long50": 8,
+            "ms": 3164,
+            "calls": 16,
+            "tris": 1949,
+            "updateMs": 0.07,
+            "renderMs": 0.31
+          },
+          "fly": {
+            "frames": 4,
+            "avgMs": 413.6,
+            "maxMs": 418.2,
+            "long25": 4,
+            "long50": 4,
+            "ms": 1655,
+            "calls": 28,
+            "tris": 1973,
+            "updateMs": 0.08,
+            "renderMs": 0.43
+          },
+          "land": {
+            "frames": 5,
+            "avgMs": 545.54,
+            "maxMs": 884.7,
+            "long25": 4,
+            "long50": 4,
+            "ms": 2728,
+            "calls": 21,
+            "tris": 2680,
+            "updateMs": 0.06,
+            "renderMs": 0.36
+          },
+          "cell45": {
+            "frames": 10,
+            "avgMs": 386.06,
+            "maxMs": 1084.8,
+            "long25": 8,
+            "long50": 8,
+            "ms": 3860,
+            "calls": 21,
+            "tris": 2675,
+            "updateMs": 0.1,
+            "renderMs": 0.38
+          },
+          "bear": {
+            "frames": 28,
+            "avgMs": 368.38,
+            "maxMs": 1084.8,
+            "long25": 20,
+            "long50": 20,
+            "ms": 10647,
+            "calls": 39,
+            "tris": 4679,
+            "updateMs": 0.04,
+            "renderMs": 0.41
+          }
+        },
+        "render": {
+          "calls": 41,
+          "triangles": 3508,
+          "cssPx": 400760,
+          "pixels": 1603040
+        },
+        "quality": "high",
+        "dpr": 2,
+        "shadows": true,
+        "antialias": false,
+        "viewport": {
+          "w": 430,
+          "h": 932
+        },
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3504,
+              12.0201
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7323,
+              0.19,
+              -2.9711
+            ],
+            "ndc": [
+              0.17712,
+              0.34478
+            ]
+          }
+        }
+      },
+      "three": "180"
+    },
+    "paper": {
+      "version": "v8-prod-3d-1",
+      "ready": true,
+      "mounted": true,
+      "phase": "idle",
+      "pieces": [
+        {
+          "id": "a:0",
+          "color": "red",
+          "playerId": "a",
+          "squareId": "ring:2",
+          "arrived": false
+        },
+        {
+          "id": "a:1",
+          "color": "red",
+          "playerId": "a",
+          "squareId": "hangar:red:1",
+          "arrived": false
+        },
+        {
+          "id": "b:0",
+          "color": "yellow",
+          "playerId": "b",
+          "squareId": "hangar:yellow:0",
+          "arrived": false
+        },
+        {
+          "id": "b:1",
+          "color": "yellow",
+          "playerId": "b",
+          "squareId": "hangar:yellow:1",
+          "arrived": false
+        }
+      ],
+      "target": "ring:2",
+      "fps": 2.8,
+      "drawCalls": 44,
+      "triangles": 3516,
+      "dpr": 2,
+      "quality": "high",
+      "reduced": false,
+      "theme": "paper",
+      "heat": 8,
+      "turn": "a",
+      "mode": "quick",
+      "busy": false,
+      "holding": false,
+      "cell": null,
+      "probe": {
+        "camera": {
+          "pos": [
+            0,
+            18.3504,
+            12.0201
+          ],
+          "fov": 42,
+          "locked": false
+        },
+        "board": {
+          "theta": 0,
+          "tx": 0,
+          "tz": 0
+        },
+        "lock": {
+          "samples": 4,
+          "maxAbsX": 0,
+          "maxAbsY": 0
+        },
+        "stage": {
+          "visible": false,
+          "rise": 0,
+          "bear": 0.001
+        },
+        "streaks": false,
+        "plane": {
+          "id": "a:0",
+          "world": [
+            0.7323,
+            0.19,
+            -2.9711
+          ],
+          "ndc": [
+            0.17712,
+            0.34478
+          ]
+        }
+      },
+      "perf": {
+        "phase": "idle",
+        "current": {
+          "frames": 54,
+          "avgMs": 357.02,
+          "maxMs": 1006,
+          "long25": 38,
+          "long50": 37,
+          "long25Ratio": 0.704,
+          "fps": 2.8,
+          "updateMs": 0.18,
+          "renderMs": 23.02,
+          "ms": 19629
+        },
+        "phases": {
+          "boot": {
+            "frames": 1,
+            "avgMs": 0,
+            "maxMs": 0,
+            "long25": 0,
+            "long50": 0,
+            "ms": 1230,
+            "calls": 20,
+            "tris": 3416,
+            "updateMs": 0.4,
+            "renderMs": 834.8
+          },
+          "idle": {
+            "frames": 7,
+            "avgMs": 158.23,
+            "maxMs": 333.3,
+            "long25": 4,
+            "long50": 4,
+            "ms": 3233,
+            "calls": 44,
+            "tris": 3516,
+            "updateMs": 0.04,
+            "renderMs": 0.57
+          },
+          "roll": {
+            "frames": 16,
+            "avgMs": 370.84,
+            "maxMs": 921.1,
+            "long25": 14,
+            "long50": 14,
+            "ms": 5513,
+            "calls": 29,
+            "tris": 2950,
+            "updateMs": 0.05,
+            "renderMs": 0.42
+          },
+          "return": {
+            "frames": 6,
+            "avgMs": 338.35,
+            "maxMs": 345.5,
+            "long25": 6,
+            "long50": 6,
+            "ms": 1768,
+            "calls": 44,
+            "tris": 3516,
+            "updateMs": 0.07,
+            "renderMs": 0.43
+          },
+          "focus": {
+            "frames": 8,
+            "avgMs": 395.41,
+            "maxMs": 418.1,
+            "long25": 8,
+            "long50": 8,
+            "ms": 3164,
+            "calls": 16,
+            "tris": 1949,
+            "updateMs": 0.07,
+            "renderMs": 0.31
+          },
+          "fly": {
+            "frames": 4,
+            "avgMs": 413.6,
+            "maxMs": 418.2,
+            "long25": 4,
+            "long50": 4,
+            "ms": 1655,
+            "calls": 28,
+            "tris": 1973,
+            "updateMs": 0.08,
+            "renderMs": 0.43
+          },
+          "land": {
+            "frames": 5,
+            "avgMs": 545.54,
+            "maxMs": 884.7,
+            "long25": 4,
+            "long50": 4,
+            "ms": 2728,
+            "calls": 21,
+            "tris": 2680,
+            "updateMs": 0.06,
+            "renderMs": 0.36
+          },
+          "cell45": {
+            "frames": 10,
+            "avgMs": 386.06,
+            "maxMs": 1084.8,
+            "long25": 8,
+            "long50": 8,
+            "ms": 3860,
+            "calls": 21,
+            "tris": 2675,
+            "updateMs": 0.1,
+            "renderMs": 0.38
+          },
+          "bear": {
+            "frames": 28,
+            "avgMs": 368.38,
+            "maxMs": 1084.8,
+            "long25": 20,
+            "long50": 20,
+            "ms": 10647,
+            "calls": 39,
+            "tris": 4679,
+            "updateMs": 0.04,
+            "renderMs": 0.41
+          }
+        },
+        "render": {
+          "calls": 44,
+          "triangles": 3516,
+          "cssPx": 400760,
+          "pixels": 1603040
+        },
+        "quality": "high",
+        "dpr": 2,
+        "shadows": true,
+        "antialias": false,
+        "viewport": {
+          "w": 430,
+          "h": 932
+        },
+        "probe": {
+          "camera": {
+            "pos": [
+              0,
+              18.3504,
+              12.0201
+            ],
+            "fov": 42,
+            "locked": false
+          },
+          "board": {
+            "theta": 0,
+            "tx": 0,
+            "tz": 0
+          },
+          "lock": {
+            "samples": 4,
+            "maxAbsX": 0,
+            "maxAbsY": 0
+          },
+          "stage": {
+            "visible": false,
+            "rise": 0,
+            "bear": 0.001
+          },
+          "streaks": false,
+          "plane": {
+            "id": "a:0",
+            "world": [
+              0.7323,
+              0.19,
+              -2.9711
+            ],
+            "ndc": [
+              0.17712,
+              0.34478
+            ]
+          }
+        }
+      },
+      "three": "180"
+    }
+  }
+}

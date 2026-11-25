@@ -1,0 +1,50 @@
+{
+  "file": "mus-calm.wav",
+  "kind": "music",
+  "purpose": "主桌舒缓环境音乐（无缝循环）",
+  "bytes": 596332,
+  "durationSec": 13.52127,
+  "samplesPerLoop": 298144,
+  "sampleRate": 22050,
+  "channels": 1,
+  "bitDepth": 16,
+  "format": "WAV / PCM 16-bit",
+  "bpm": 70.9992,
+  "key": "D major",
+  "bars": 4,
+  "beats": 16,
+  "progression": [
+    "Dmaj9",
+    "Bm7",
+    "Gmaj9",
+    "A7sus4"
+  ],
+  "peakDbfs": -2.4998,
+  "rmsDbfs": -14.5811,
+  "approxLufs": -15.3858,
+  "dc": 2.7055901868688403e-09,
+  "sha256": "abe14c9591b7cb766c9accb18c66a3f41237115fcc0ee0c762c40259f0e285c7",
+  "generatedBy": "numpy 2.3.5 additive synthesis (self-made); 3-period steady-state + wrapped transients + 2.8 s convolution reverb",
+  "license": "self-made (numpy additive synthesis), no third-party samples, no external links",
+  "loopProof": {
+    "proofMaxErr": 1.9011250906864063e-12,
+    "steadyPeakAbs": [
+      0.706611091204963,
+      0.7066110912049556
+    ],
+    "samplesPerLoop": 298144,
+    "boundaryStep": 0.005283646628472985,
+    "boundaryStepDbfs": -45.541324716063514,
+    "boundarySecondDiff": 0.0037379117115902624,
+    "secondDiffP999": 0.078492014634375,
+    "seamMaxDiffLocal": 0.034517755729110464,
+    "diffP999": 0.13099585152698276,
+    "verdict": "EXACT"
+  },
+  "mix": {
+    "dry": 0.76,
+    "reverb": 0.34,
+    "reverbIrSec": 2.8,
+    "targetPeakDbfs": -2.5
+  }
+}

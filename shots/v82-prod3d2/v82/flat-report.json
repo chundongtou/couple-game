@@ -1,0 +1,61 @@
+[
+ {
+  "label": "before-flat-blue",
+  "file": "shots\\v8\\prod3d\\table-real\\R0-overview-390x844.png",
+  "crop": [
+   24,
+   456,
+   756,
+   1560
+  ],
+  "size": [
+   732,
+   1104
+  ],
+  "topBand": {
+   "uniqueColors": 6,
+   "mean": 48.35,
+   "rowStd": 0.214,
+   "maxRowStep": 0.04
+  },
+  "bottomBand": {
+   "uniqueColors": 26,
+   "mean": 49.14,
+   "rowStd": 0.64,
+   "maxRowStep": 0.31
+  },
+  "leftBand": {
+   "uniqueColors": 28,
+   "mean": 52.75,
+   "rowStd": 2.323,
+   "maxRowStep": 1.94
+  }
+ },
+ {
+  "label": "after-textured-mat",
+  "file": "shots\\v82-prod3d2\\v82\\after-390x844-overview.png",
+  "crop": null,
+  "size": [
+   732,
+   1104
+  ],
+  "topBand": {
+   "uniqueColors": 798,
+   "mean": 30.37,
+   "rowStd": 5.331,
+   "maxRowStep": 4.99
+  },
+  "bottomBand": {
+   "uniqueColors": 983,
+   "mean": 48.56,
+   "rowStd": 2.662,
+   "maxRowStep": 8.32
+  },
+  "leftBand": {
+   "uniqueColors": 1437,
+   "mean": 61.24,
+   "rowStd": 4.419,
+   "maxRowStep": 11.09
+  }
+ }
+]

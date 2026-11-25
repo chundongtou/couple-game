@@ -1,0 +1,142 @@
+{
+ "hand": {
+  "draws": 11,
+  "tris": 7672,
+  "scale": 0.82,
+  "grip": [
+   0,
+   -0.203,
+   -0.128
+  ]
+ },
+ "frames": {
+  "hold": {
+   "ok": true,
+   "t": 730,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.996,
+    "pos": [
+     1.158,
+     0.8782,
+     1.1574
+    ],
+    "atHome": 1.0031,
+    "hand": true,
+    "tossing": true,
+    "t": 730,
+    "wall": 7845,
+    "phase": "carry"
+   },
+   "hand": true,
+   "calls": 66,
+   "tris": 17748,
+   "phase": "roll",
+   "remaining": 1,
+   "bytes": 1078563
+  },
+  "throw": {
+   "ok": true,
+   "t": 960,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.8842,
+    "pos": [
+     0.9563,
+     0.6935,
+     0.9563
+    ],
+    "atHome": 0.6699,
+    "hand": true,
+    "tossing": true,
+    "t": 960,
+    "wall": 16511,
+    "phase": "throw"
+   },
+   "hand": true,
+   "calls": 66,
+   "tris": 17748,
+   "phase": "roll",
+   "remaining": 1,
+   "bytes": 1088018
+  },
+  "bounce": {
+   "ok": true,
+   "t": 1210,
+   "die": {
+    "value": 4,
+    "top": 1,
+    "up": 0.6689,
+    "pos": [
+     0.8133,
+     0.3831,
+     0.816
+    ],
+    "atHome": 0.3144,
+    "hand": false,
+    "tossing": true,
+    "t": 1210,
+    "wall": 22831,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 55,
+   "tris": 10076,
+   "phase": "roll",
+   "remaining": 1,
+   "bytes": 1063572
+  },
+  "settled": {
+   "ok": true,
+   "t": 2400,
+   "die": {
+    "value": 4,
+    "top": 4,
+    "up": 1,
+    "pos": [
+     0.63,
+     0.208,
+     0.63
+    ],
+    "atHome": 0,
+    "hand": false,
+    "tossing": true,
+    "t": 2400,
+    "wall": 27384,
+    "phase": "throw"
+   },
+   "hand": false,
+   "calls": 55,
+   "tris": 10076,
+   "phase": "roll",
+   "remaining": 0,
+   "bytes": 1063529
+  }
+ },
+ "overview": {
+  "t": null,
+  "die": {
+   "value": 4,
+   "top": 4,
+   "up": 1,
+   "pos": [
+    0.63,
+    0.208,
+    0.63
+   ],
+   "atHome": 0,
+   "hand": false,
+   "tossing": false,
+   "t": null,
+   "wall": null,
+   "phase": ""
+  },
+  "hand": false,
+  "calls": 84,
+  "tris": 13304,
+  "bytes": 1134041
+ },
+ "logs": []
+}

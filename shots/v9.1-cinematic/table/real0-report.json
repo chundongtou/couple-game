@@ -1,0 +1,787 @@
+{
+ "dist": "E:\\DSH研发\\.agents\\worktrees\\dsh-bf954628-7cd3\\couple-game\\dist\\rebuild-v91-cine",
+ "tag": "real0",
+ "sizes": {
+  "320x568": {
+   "measure": {
+    "size": [
+     320,
+     568
+    ],
+    "dpr": 2,
+    "hostRect": {
+     "x": 12,
+     "y": 208.2,
+     "w": 296,
+     "h": 297.8,
+     "bottom": 506,
+     "right": 308
+    },
+    "sceneViewport": [
+     296,
+     298
+    ],
+    "viewportScale": [
+     1,
+     0.999
+    ],
+    "quality": "medium",
+    "board": {
+     "x0": 26.3,
+     "x1": 291.2,
+     "y0": 255.7,
+     "y1": 453.8
+    },
+    "dom": {
+     "host": {
+      "x": 12,
+      "y": 208.2,
+      "w": 296,
+      "h": 297.8,
+      "bottom": 506,
+      "right": 308
+     },
+     "wrap": {
+      "x": 12,
+      "y": 208.2,
+      "w": 296,
+      "h": 297.8,
+      "bottom": 506,
+      "right": 308
+     },
+     "hud": {
+      "x": 12,
+      "y": 6,
+      "w": 296,
+      "h": 56,
+      "bottom": 62,
+      "right": 308
+     },
+     "status": {
+      "x": 12,
+      "y": 62,
+      "w": 296,
+      "h": 42.6,
+      "bottom": 104.6,
+      "right": 308
+     },
+     "turns": {
+      "x": 12,
+      "y": 108.6,
+      "w": 296,
+      "h": 43.6,
+      "bottom": 152.2,
+      "right": 308
+     },
+     "rollstrip": {
+      "x": 12,
+      "y": 156.2,
+      "w": 296,
+      "h": 48,
+      "bottom": 204.2,
+      "right": 308
+     },
+     "action": {
+      "x": 12,
+      "y": 510,
+      "w": 296,
+      "h": 52,
+      "bottom": 562,
+      "right": 308
+     },
+     "rollBtn": {
+      "x": 12,
+      "y": 512,
+      "w": 296,
+      "h": 44,
+      "bottom": 556,
+      "right": 308
+     },
+     "safe": {
+      "x": 214,
+      "y": 8,
+      "w": 96,
+      "h": 48,
+      "bottom": 56,
+      "right": 310
+     },
+     "zoomIn": {
+      "x": 262,
+      "y": 362,
+      "w": 44,
+      "h": 44,
+      "bottom": 406,
+      "right": 306
+     },
+     "zoomOut": {
+      "x": 262,
+      "y": 411,
+      "w": 44,
+      "h": 44,
+      "bottom": 455,
+      "right": 306
+     },
+     "zoomReset": {
+      "x": 262,
+      "y": 460,
+      "w": 44,
+      "h": 44,
+      "bottom": 504,
+      "right": 306
+     },
+     "cardhost": {
+      "x": 0,
+      "y": 0,
+      "w": 320,
+      "h": 568,
+      "bottom": 568,
+      "right": 320
+     }
+    },
+    "props": {
+     "plant": {
+      "x": 252.2,
+      "y": 253.6,
+      "clearancePx": 25.9,
+      "inHost": true
+     },
+     "lamp": {
+      "x": 72.4,
+      "y": 247.1,
+      "clearancePx": 28.5,
+      "inHost": true
+     },
+     "candle": {
+      "x": 116.4,
+      "y": 235.9,
+      "clearancePx": 24.5,
+      "inHost": true
+     },
+     "photo": {
+      "x": 47.3,
+      "y": 273,
+      "clearancePx": 20.4,
+      "inHost": true
+     },
+     "speaker": {
+      "x": 31.7,
+      "y": 421.9,
+      "clearancePx": 20.7,
+      "inHost": true
+     },
+     "glasses": {
+      "x": 144.1,
+      "y": 517.8,
+      "clearancePx": 64.6,
+      "inHost": false
+     },
+     "notebook": {
+      "x": 154.9,
+      "y": 516.1,
+      "clearancePx": 62.4,
+      "inHost": false
+     },
+     "keys": {
+      "x": 213.1,
+      "y": 516.1,
+      "clearancePx": 68.7,
+      "inHost": false
+     },
+     "tray": {
+      "x": 304.7,
+      "y": 469,
+      "clearancePx": 67.7,
+      "inHost": true
+     },
+     "blanket": {
+      "x": 292.7,
+      "y": 518.8,
+      "clearancePx": 100.9,
+      "inHost": false
+     }
+    },
+    "boardHit": [],
+    "zoomHits": [
+     "tray",
+     "blanket"
+    ],
+    "underUi": [
+     "glasses",
+     "notebook",
+     "keys",
+     "blanket"
+    ],
+    "outside": [
+     "glasses",
+     "notebook",
+     "keys",
+     "blanket"
+    ],
+    "propsVisible": [
+     "plant",
+     "lamp",
+     "candle",
+     "photo",
+     "speaker",
+     "tray"
+    ]
+   },
+   "stage": {
+    "phase": "bear",
+    "plate": {
+     "x0": 13.2,
+     "x1": 100.4,
+     "y0": 343.4,
+     "y1": 397.7
+    },
+    "bear": {
+     "x0": 26.2,
+     "x1": 80.6,
+     "y0": 284.6,
+     "y1": 357.9
+    },
+    "props": {
+     "plant": {
+      "x": 462.2,
+      "y": 338.4,
+      "onPlate": false,
+      "onBear": false
+     },
+     "lamp": {
+      "x": 46.3,
+      "y": 221.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "candle": {
+      "x": 146.8,
+      "y": 222.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "photo": {
+      "x": -29.4,
+      "y": 257.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "speaker": {
+      "x": -520,
+      "y": 689.9,
+      "onPlate": false,
+      "onBear": false
+     },
+     "glasses": {
+      "x": -1724.6,
+      "y": 3208.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "notebook": {
+      "x": -1668.9,
+      "y": 3374.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "keys": {
+      "x": -2178.3,
+      "y": 7242.3,
+      "onPlate": false,
+      "onBear": false
+     },
+     "tray": {
+      "x": 955.5,
+      "y": 5926,
+      "onPlate": false,
+      "onBear": false
+     },
+     "blanket": {
+      "x": 527,
+      "y": -7888.8,
+      "onPlate": false,
+      "onBear": false
+     }
+    },
+    "hits": [],
+    "hostRect": {
+     "x": 12,
+     "y": 208.2,
+     "w": 296,
+     "h": 297.8
+    }
+   },
+   "bear": {
+    "phase": "bear",
+    "plate": {
+     "x0": 13.2,
+     "x1": 100.4,
+     "y0": 343.4,
+     "y1": 397.7
+    },
+    "bear": {
+     "x0": 26.4,
+     "x1": 80.8,
+     "y0": 284.6,
+     "y1": 357.9
+    },
+    "props": {
+     "plant": {
+      "x": 462.2,
+      "y": 338.4,
+      "onPlate": false,
+      "onBear": false
+     },
+     "lamp": {
+      "x": 46.3,
+      "y": 221.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "candle": {
+      "x": 146.8,
+      "y": 222.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "photo": {
+      "x": -29.4,
+      "y": 257.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "speaker": {
+      "x": -520,
+      "y": 689.9,
+      "onPlate": false,
+      "onBear": false
+     },
+     "glasses": {
+      "x": -1724.6,
+      "y": 3208.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "notebook": {
+      "x": -1668.9,
+      "y": 3374.5,
+      "onPlate": false,
+      "onBear": false
+     },
+     "keys": {
+      "x": -2178.3,
+      "y": 7242.3,
+      "onPlate": false,
+      "onBear": false
+     },
+     "tray": {
+      "x": 955.5,
+      "y": 5926,
+      "onPlate": false,
+      "onBear": false
+     },
+     "blanket": {
+      "x": 527,
+      "y": -7888.8,
+      "onPlate": false,
+      "onBear": false
+     }
+    },
+    "hits": [],
+    "hostRect": {
+     "x": 12,
+     "y": 208.2,
+     "w": 296,
+     "h": 297.8
+    }
+   }
+  },
+  "430x932": {
+   "measure": {
+    "size": [
+     430,
+     932
+    ],
+    "dpr": 2,
+    "hostRect": {
+     "x": 12,
+     "y": 223.2,
+     "w": 406,
+     "h": 644.8,
+     "bottom": 868,
+     "right": 418
+    },
+    "sceneViewport": [
+     406,
+     645
+    ],
+    "viewportScale": [
+     1,
+     1
+    ],
+    "quality": "medium",
+    "board": {
+     "x0": 34.4,
+     "x1": 395.6,
+     "y0": 393.5,
+     "y1": 697.7
+    },
+    "dom": {
+     "host": {
+      "x": 12,
+      "y": 223.2,
+      "w": 406,
+      "h": 644.8,
+      "bottom": 868,
+      "right": 418
+     },
+     "wrap": {
+      "x": 12,
+      "y": 223.2,
+      "w": 406,
+      "h": 644.8,
+      "bottom": 868,
+      "right": 418
+     },
+     "hud": {
+      "x": 12,
+      "y": 8,
+      "w": 406,
+      "h": 56,
+      "bottom": 64,
+      "right": 418
+     },
+     "status": {
+      "x": 12,
+      "y": 64,
+      "w": 406,
+      "h": 45.6,
+      "bottom": 109.6,
+      "right": 418
+     },
+     "turns": {
+      "x": 12,
+      "y": 115.6,
+      "w": 406,
+      "h": 43.6,
+      "bottom": 159.2,
+      "right": 418
+     },
+     "rollstrip": {
+      "x": 12,
+      "y": 165.2,
+      "w": 406,
+      "h": 54,
+      "bottom": 219.2,
+      "right": 418
+     },
+     "action": {
+      "x": 12,
+      "y": 868,
+      "w": 406,
+      "h": 56,
+      "bottom": 924,
+      "right": 418
+     },
+     "rollBtn": {
+      "x": 12,
+      "y": 870,
+      "w": 406,
+      "h": 48,
+      "bottom": 918,
+      "right": 418
+     },
+     "safe": {
+      "x": 324,
+      "y": 8,
+      "w": 96,
+      "h": 48,
+      "bottom": 56,
+      "right": 420
+     },
+     "zoomIn": {
+      "x": 372,
+      "y": 724,
+      "w": 44,
+      "h": 44,
+      "bottom": 768,
+      "right": 416
+     },
+     "zoomOut": {
+      "x": 372,
+      "y": 773,
+      "w": 44,
+      "h": 44,
+      "bottom": 817,
+      "right": 416
+     },
+     "zoomReset": {
+      "x": 372,
+      "y": 822,
+      "w": 44,
+      "h": 44,
+      "bottom": 866,
+      "right": 416
+     },
+     "cardhost": {
+      "x": 0,
+      "y": 0,
+      "w": 430,
+      "h": 932,
+      "bottom": 932,
+      "right": 430
+     }
+    },
+    "props": {
+     "plant": {
+      "x": 352.4,
+      "y": 392.3,
+      "clearancePx": 42.4,
+      "inHost": true
+     },
+     "lamp": {
+      "x": 87.6,
+      "y": 384.1,
+      "clearancePx": 43.8,
+      "inHost": true
+     },
+     "candle": {
+      "x": 151.6,
+      "y": 362.4,
+      "clearancePx": 39.3,
+      "inHost": true
+     },
+     "photo": {
+      "x": 53.3,
+      "y": 426.7,
+      "clearancePx": 31.5,
+      "inHost": true
+     },
+     "speaker": {
+      "x": 52.1,
+      "y": 655.5,
+      "clearancePx": 26.4,
+      "inHost": true
+     },
+     "glasses": {
+      "x": 198.2,
+      "y": 777.3,
+      "clearancePx": 80.3,
+      "inHost": true
+     },
+     "notebook": {
+      "x": 211.1,
+      "y": 775.3,
+      "clearancePx": 77.7,
+      "inHost": true
+     },
+     "keys": {
+      "x": 280.9,
+      "y": 775.3,
+      "clearancePx": 85.2,
+      "inHost": true
+     },
+     "tray": {
+      "x": 396.6,
+      "y": 717.3,
+      "clearancePx": 83.9,
+      "inHost": true
+     },
+     "blanket": {
+      "x": 375.3,
+      "y": 778.7,
+      "clearancePx": 122.5,
+      "inHost": true
+     }
+    },
+    "boardHit": [],
+    "zoomHits": [
+     "tray",
+     "blanket"
+    ],
+    "underUi": [],
+    "outside": [],
+    "propsVisible": [
+     "plant",
+     "lamp",
+     "candle",
+     "photo",
+     "speaker",
+     "glasses",
+     "notebook",
+     "keys",
+     "tray",
+     "blanket"
+    ]
+   },
+   "stage": {
+    "phase": "bear",
+    "plate": {
+     "x0": 25.9,
+     "x1": 141.6,
+     "y0": 509,
+     "y1": 583.5
+    },
+    "bear": {
+     "x0": 39.7,
+     "x1": 115.7,
+     "y0": 428.3,
+     "y1": 530.2
+    },
+    "props": {
+     "plant": {
+      "x": 735,
+      "y": 503.1,
+      "onPlate": false,
+      "onBear": false
+     },
+     "lamp": {
+      "x": 18.9,
+      "y": 294.9,
+      "onPlate": false,
+      "onBear": false
+     },
+     "candle": {
+      "x": 197.9,
+      "y": 296.1,
+      "onPlate": false,
+      "onBear": false
+     },
+     "photo": {
+      "x": -113.3,
+      "y": 360.7,
+      "onPlate": false,
+      "onBear": false
+     },
+     "speaker": {
+      "x": -755,
+      "y": 1009.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "glasses": {
+      "x": -1070.6,
+      "y": 2495.2,
+      "onPlate": false,
+      "onBear": false
+     },
+     "notebook": {
+      "x": -991.8,
+      "y": 2544.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "keys": {
+      "x": -643.5,
+      "y": 3123,
+      "onPlate": false,
+      "onBear": false
+     },
+     "tray": {
+      "x": 599.6,
+      "y": 2992.6,
+      "onPlate": false,
+      "onBear": false
+     },
+     "blanket": {
+      "x": 69.6,
+      "y": 4785.2,
+      "onPlate": false,
+      "onBear": false
+     }
+    },
+    "hits": [],
+    "hostRect": {
+     "x": 12,
+     "y": 223.2,
+     "w": 406,
+     "h": 644.8
+    }
+   },
+   "bear": {
+    "phase": "bear",
+    "plate": {
+     "x0": 25.9,
+     "x1": 141.6,
+     "y0": 509,
+     "y1": 583.5
+    },
+    "bear": {
+     "x0": 39.8,
+     "x1": 115.4,
+     "y0": 431.2,
+     "y1": 532.8
+    },
+    "props": {
+     "plant": {
+      "x": 735,
+      "y": 503.1,
+      "onPlate": false,
+      "onBear": false
+     },
+     "lamp": {
+      "x": 18.9,
+      "y": 294.9,
+      "onPlate": false,
+      "onBear": false
+     },
+     "candle": {
+      "x": 197.9,
+      "y": 296.1,
+      "onPlate": false,
+      "onBear": false
+     },
+     "photo": {
+      "x": -113.3,
+      "y": 360.7,
+      "onPlate": false,
+      "onBear": false
+     },
+     "speaker": {
+      "x": -755,
+      "y": 1009.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "glasses": {
+      "x": -1070.6,
+      "y": 2495.2,
+      "onPlate": false,
+      "onBear": false
+     },
+     "notebook": {
+      "x": -991.8,
+      "y": 2544.8,
+      "onPlate": false,
+      "onBear": false
+     },
+     "keys": {
+      "x": -643.5,
+      "y": 3123,
+      "onPlate": false,
+      "onBear": false
+     },
+     "tray": {
+      "x": 599.6,
+      "y": 2992.6,
+      "onPlate": false,
+      "onBear": false
+     },
+     "blanket": {
+      "x": 69.6,
+      "y": 4785.2,
+      "onPlate": false,
+      "onBear": false
+     }
+    },
+    "hits": [],
+    "hostRect": {
+     "x": 12,
+     "y": 223.2,
+     "w": 406,
+     "h": 644.8
+    }
+   }
+  }
+ },
+ "errors": []
+}

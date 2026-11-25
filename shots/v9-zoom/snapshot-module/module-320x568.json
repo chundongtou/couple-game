@@ -1,0 +1,260 @@
+{
+ "size": "320x568",
+ "viewport": [
+  320,
+  568
+ ],
+ "base": {
+  "viewport": [
+   320,
+   568
+  ],
+  "boardFracW": 0.8889,
+  "boardFracH": 0.4227,
+  "gapTop": 163.9,
+  "gapBot": 164,
+  "camDist": 17.1092,
+  "radiusState": 17.1089,
+  "zoom": {
+   "value": 1,
+   "target": 1,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": false,
+   "radiusFactor": 1,
+   "can": true
+  },
+  "canZoom": true,
+  "phase": "idle",
+  "hostZoom": "1.00",
+  "hostLock": "0",
+  "drawCalls": 51,
+  "tris": 4086,
+  "fps": 10.7
+ },
+ "zoom15": {
+  "viewport": [
+   320,
+   568
+  ],
+  "boardFracW": 1.2726,
+  "boardFracH": 0.6017,
+  "gapTop": 113,
+  "gapBot": 113.2,
+  "camDist": 11.9781,
+  "radiusState": 17.1089,
+  "zoom": {
+   "value": 1.5,
+   "target": 1.5,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": false,
+   "radiusFactor": 0.7,
+   "can": true
+  },
+  "canZoom": true,
+  "phase": "idle",
+  "hostZoom": "1.50",
+  "hostLock": "0",
+  "drawCalls": 49,
+  "tris": 4082,
+  "fps": 11.1
+ },
+ "zoom08": {
+  "viewport": [
+   320,
+   568
+  ],
+  "boardFracW": 0.7103,
+  "boardFracH": 0.3375,
+  "gapTop": 183.9,
+  "gapBot": 192.4,
+  "camDist": 21.3867,
+  "radiusState": 17.1089,
+  "zoom": {
+   "value": 0.8,
+   "target": 0.8,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": false,
+   "radiusFactor": 1.25,
+   "can": true
+  },
+  "canZoom": true,
+  "phase": "idle",
+  "hostZoom": "0.80",
+  "hostLock": "0",
+  "drawCalls": 49,
+  "tris": 4082,
+  "fps": 9.3
+ },
+ "chain": {
+  "before": {
+   "viewport": [
+    320,
+    568
+   ],
+   "boardFracW": 1.1267,
+   "boardFracH": 0.5345,
+   "gapTop": 133.6,
+   "gapBot": 130.8,
+   "camDist": 13.5167,
+   "radiusState": 17.1089,
+   "zoom": {
+    "value": 1.35,
+    "target": 1.35,
+    "min": 0.8,
+    "max": 1.5,
+    "active": true,
+    "instant": false,
+    "radiusFactor": 0.79,
+    "can": true
+   },
+   "canZoom": true,
+   "phase": "idle",
+   "hostZoom": "1.35",
+   "hostLock": "0",
+   "drawCalls": 49,
+   "tris": 4082,
+   "fps": 9.7
+  },
+  "early": {
+   "phase": "focus",
+   "can": false,
+   "reject": false
+  },
+  "phase": "focus",
+  "during": {
+   "viewport": [
+    320,
+    568
+   ],
+   "boardFracW": 0.8207,
+   "boardFracH": 0.3597,
+   "gapTop": 91.5,
+   "gapBot": 272.2,
+   "camDist": 17.0095,
+   "radiusState": 17.0086,
+   "zoom": {
+    "value": 1,
+    "target": 1.35,
+    "min": 0.8,
+    "max": 1.5,
+    "active": false,
+    "instant": false,
+    "radiusFactor": 1,
+    "can": false
+   },
+   "canZoom": false,
+   "phase": "focus",
+   "hostZoom": "1.35",
+   "hostLock": "1",
+   "drawCalls": 54,
+   "tris": 4092,
+   "fps": 6.6
+  }
+ },
+ "restored": {
+  "viewport": [
+   320,
+   568
+  ],
+  "boardFracW": 1.1267,
+  "boardFracH": 0.5362,
+  "gapTop": 136.8,
+  "gapBot": 126.6,
+  "camDist": 13.5162,
+  "radiusState": 17.1089,
+  "zoom": {
+   "value": 1.35,
+   "target": 1.35,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": false,
+   "radiusFactor": 0.79,
+   "can": true
+  },
+  "canZoom": true,
+  "phase": "idle",
+  "hostZoom": "1.35",
+  "hostLock": "0",
+  "drawCalls": 50,
+  "tris": 4084,
+  "fps": 0
+ },
+ "reduced": {
+  "info": {
+   "value": 1.5,
+   "target": 1.5,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": true,
+   "radiusFactor": 0.7,
+   "can": true
+  },
+  "geom": {
+   "viewport": [
+    320,
+    568
+   ],
+   "boardFracW": 1.2726,
+   "boardFracH": 0.6037,
+   "gapTop": 116.5,
+   "gapBot": 108.6,
+   "camDist": 11.9771,
+   "radiusState": 17.1089,
+   "zoom": {
+    "value": 1.5,
+    "target": 1.5,
+    "min": 0.8,
+    "max": 1.5,
+    "active": true,
+    "instant": true,
+    "radiusFactor": 0.7,
+    "can": true
+   },
+   "canZoom": true,
+   "phase": "idle",
+   "hostZoom": "1.50",
+   "hostLock": "0",
+   "drawCalls": 48,
+   "tris": 4080,
+   "fps": 4.6
+  }
+ },
+ "afterResize": {
+  "viewport": [
+   320,
+   448
+  ],
+  "boardFracW": 1.2752,
+  "boardFracH": 0.7602,
+  "gapTop": 53.3,
+  "gapBot": 54.1,
+  "camDist": 9.4515,
+  "radiusState": 13.4944,
+  "zoom": {
+   "value": 1.5,
+   "target": 1.5,
+   "min": 0.8,
+   "max": 1.5,
+   "active": true,
+   "instant": false,
+   "radiusFactor": 0.7,
+   "can": true
+  },
+  "canZoom": true,
+  "phase": "idle",
+  "hostZoom": "1.50",
+  "hostLock": "0",
+  "drawCalls": 48,
+  "tris": 4080,
+  "fps": 8.5
+ },
+ "errors": []
+}

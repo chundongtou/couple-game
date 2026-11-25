@@ -1,0 +1,392 @@
+{
+  "overview": {
+    "host": {
+      "w": 366,
+      "h": 552.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1104,
+      "cssW": 366,
+      "cssH": 552.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 552
+    },
+    "aspect": 0.663,
+    "radius": 14.54,
+    "boardPxW": 315.8,
+    "boardFracW": 0.863,
+    "boardPxH": 268.2,
+    "phase": "idle",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 552,
+      "fitNeeded": false,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": false,
+      "busy": false,
+      "holding": false
+    },
+    "b3": {
+      "phase": "idle",
+      "ready": true,
+      "holding": false,
+      "mounted": true,
+      "drawCalls": 45
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "afterTakeoff": {
+    "host": {
+      "w": 366,
+      "h": 552.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1104,
+      "cssW": 366,
+      "cssH": 552.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 552
+    },
+    "aspect": 0.663,
+    "radius": 14.54,
+    "boardPxW": 315.8,
+    "boardFracW": 0.863,
+    "boardPxH": 268.2,
+    "phase": "idle",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 552,
+      "fitNeeded": false,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": false,
+      "busy": false,
+      "holding": false
+    },
+    "b3": {
+      "phase": "idle",
+      "ready": true,
+      "holding": false,
+      "mounted": true,
+      "drawCalls": 45
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "fly": {
+    "host": {
+      "w": 366,
+      "h": 552.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1104,
+      "cssW": 366,
+      "cssH": 552.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 552
+    },
+    "aspect": 0.663,
+    "radius": 3.05,
+    "boardPxW": 5012.6,
+    "boardFracW": 13.696,
+    "boardPxH": 105.4,
+    "phase": "fly",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 552,
+      "fitNeeded": false,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": false,
+      "busy": true,
+      "holding": false
+    },
+    "b3": {
+      "phase": "fly",
+      "ready": true,
+      "holding": false,
+      "mounted": true,
+      "drawCalls": 35
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "cell45": {
+    "host": {
+      "w": 366,
+      "h": 552.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1104,
+      "cssW": 366,
+      "cssH": 552.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 552
+    },
+    "aspect": 0.663,
+    "radius": 4.03,
+    "boardPxW": 1143.9,
+    "boardFracW": 3.125,
+    "boardPxH": 193.4,
+    "phase": "cell45",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 552,
+      "fitNeeded": false,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": false,
+      "busy": true,
+      "holding": false
+    },
+    "b3": {
+      "phase": "cell45",
+      "ready": true,
+      "holding": false,
+      "mounted": true,
+      "drawCalls": 21
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "bearHeld": {
+    "host": {
+      "w": 366,
+      "h": 600.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1200,
+      "cssW": 366,
+      "cssH": 600.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 600
+    },
+    "aspect": 0.61,
+    "radius": 3.02,
+    "boardPxW": 761.5,
+    "boardFracW": 2.081,
+    "boardPxH": 293,
+    "phase": "bear",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 600,
+      "fitNeeded": true,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": true,
+      "busy": false,
+      "holding": true
+    },
+    "b3": {
+      "phase": "bear",
+      "ready": true,
+      "holding": true,
+      "mounted": true,
+      "drawCalls": 40
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "prompt": {
+    "kicker": "真心话 · 这张给 他",
+    "actor": "他",
+    "text": "你幻想过的深夜冒险地点是哪里？",
+    "cellStage": true
+  },
+  "bearStillHeld": {
+    "host": {
+      "w": 366,
+      "h": 600.015625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1200,
+      "cssW": 366,
+      "cssH": 600.015625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 600
+    },
+    "aspect": 0.61,
+    "radius": 3.02,
+    "boardPxW": 761.5,
+    "boardFracW": 2.081,
+    "boardPxH": 293,
+    "phase": "bear",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 600,
+      "fitNeeded": true,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": true,
+      "busy": false,
+      "holding": true
+    },
+    "b3": {
+      "phase": "bear",
+      "ready": true,
+      "holding": true,
+      "mounted": true,
+      "drawCalls": 41
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "afterDone": {
+    "host": {
+      "w": 366,
+      "h": 532.625,
+      "x": 12,
+      "y": 227.984375
+    },
+    "canvas": {
+      "w": 732,
+      "h": 1066,
+      "cssW": 366,
+      "cssH": 532.625
+    },
+    "viewport": {
+      "w": 366,
+      "h": 533
+    },
+    "aspect": 0.687,
+    "radius": 14.04,
+    "boardPxW": 315.7,
+    "boardFracW": 0.863,
+    "boardPxH": 268.3,
+    "phase": "idle",
+    "fit": {
+      "sizeW": 366,
+      "sizeH": 533,
+      "fitNeeded": false,
+      "hasTimer": true,
+      "fitTimer": false,
+      "fitPending": false,
+      "busy": false,
+      "holding": false
+    },
+    "b3": {
+      "phase": "idle",
+      "ready": true,
+      "holding": false,
+      "mounted": true,
+      "drawCalls": 46
+    },
+    "board3dStatus": {
+      "mode": "on",
+      "wanted": true,
+      "pending": false,
+      "ready": true,
+      "failed": false,
+      "reason": "",
+      "url": "assets/board3d.9dc51f0f.js",
+      "mounts": 1
+    }
+  },
+  "afterDoneInfo": {
+    "phase": "playing",
+    "turn": "b",
+    "cards": 1,
+    "heat": 8
+  },
+  "overview320": {
+    "host": {
+      "w": 296,
+      "h": 303
+    },
+    "boardPxW": 254,
+    "boardFracW": 0.858,
+    "radius": 9.87,
+    "aspect": 0.977
+  },
+  "overview430": {
+    "host": {
+      "w": 406,
+      "h": 640
+    },
+    "boardPxW": 350.5,
+    "boardFracW": 0.863,
+    "radius": 15.19,
+    "aspect": 0.634
+  },
+  "errors": []
+}
