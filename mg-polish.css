@@ -1,0 +1,161 @@
+/* mg-polish.css — 三个小游戏的界面打磨
+ * 只作用于 .mg-panel 内部，不动其他页面。
+ */
+
+/* ---------- 面板整体 ---------- */
+.mg-panel {
+  --mg-amber: var(--amber, #f3c077);
+  --mg-rose: var(--rose, #e9887a);
+  --mg-line: rgba(255, 226, 196, .14);
+}
+.mg-panel .mg-head { align-items: center; }
+.mg-panel .mg-title {
+  font-size: 21px;
+  letter-spacing: .02em;
+  background: linear-gradient(180deg, #fff6e8, #e8cfa9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.mg-panel .mg-sub { color: rgba(255, 236, 214, .52); }
+
+/* ---------- 转盘 ---------- */
+.mg-panel .mg-wheel-wrap {
+  width: min(268px, 70vw);
+  height: min(268px, 70vw);
+  margin: 18px auto 10px;
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, .55));
+}
+.mg-panel .mg-wheel-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+      rgba(243, 192, 119, .55), rgba(233, 136, 122, .35),
+      rgba(142, 123, 216, .35), rgba(243, 192, 119, .55));
+  -webkit-mask: radial-gradient(circle, transparent 61%, #000 62%);
+  mask: radial-gradient(circle, transparent 61%, #000 62%);
+  opacity: .55;
+}
+.mg-panel .mg-rotor {
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 6px rgba(8, 6, 15, .55),
+    inset 0 0 42px rgba(0, 0, 0, .55);
+}
+.mg-panel .mg-hub {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .45);
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+.mg-panel .mg-pointer {
+  border-top-width: 20px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .5));
+}
+
+/* ---------- 六张牌：两列小卡 ---------- */
+.mg-panel .mg-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mg-panel .mg-slot {
+  min-height: 46px;
+  padding: 7px 9px;
+  border-radius: 11px;
+  background: rgba(255, 236, 214, .045);
+  border: 1px solid rgba(255, 226, 196, .07);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.mg-panel .mg-num {
+  width: 14px;
+  font-size: 10px;
+  opacity: .7;
+}
+.mg-panel .mg-slot.is-hit {
+  border-color: rgba(243, 192, 119, .55);
+  background: rgba(243, 192, 119, .12);
+  color: #fff3e0;
+}
+
+/* ---------- 结果 ---------- */
+.mg-panel .mg-result-title {
+  margin-top: 16px;
+  color: rgba(243, 192, 119, .8);
+}
+.mg-panel .mg-card-text {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 13px;
+  border-left: 3px solid var(--mg-amber);
+  background: linear-gradient(90deg, rgba(243, 192, 119, .1), rgba(243, 192, 119, 0) 70%);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+/* ---------- 按钮：两列，主按钮更宽 ---------- */
+.mg-panel .mg-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.mg-panel .mg-acts .mg-btn.main { grid-column: 1 / -1; }
+.mg-panel .mg-acts .mg-btn + .mg-btn { grid-column: auto; }
+.mg-panel .mg-btn {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+  letter-spacing: .08em;
+}
+.mg-panel .mg-btn.main {
+  background: linear-gradient(180deg, #f7d19a, #d8a468);
+  color: #241708;
+  box-shadow: 0 10px 22px rgba(243, 192, 119, .22);
+}
+.mg-panel .mg-btn.soft {
+  background: rgba(255, 236, 214, .06);
+  border: 1px solid var(--mg-line);
+  color: #e8d6c0;
+}
+.mg-panel .mg-btn.ghost {
+  background: transparent;
+  border: 1px dashed rgba(255, 226, 196, .18);
+  color: rgba(255, 236, 214, .62);
+}
+.mg-panel .mg-btn[disabled] { opacity: .38; }
+
+/* ---------- 温度计 ---------- */
+.mg-panel .mg-slider {
+  background: linear-gradient(180deg, rgba(243, 192, 119, .07), rgba(38, 27, 58, .42));
+  border-color: rgba(255, 226, 196, .12);
+}
+.mg-panel .mg-range { height: 38px; }
+.mg-panel .mg-slider-val {
+  font-size: 22px;
+  font-weight: 700;
+}
+.mg-panel .mg-result {
+  border-radius: 16px;
+  background: radial-gradient(120% 100% at 30% 0%, rgba(243, 192, 119, .16), rgba(38, 27, 58, .42));
+  border-color: rgba(243, 192, 119, .3);
+}
+.mg-panel .mg-result-num { font-size: 40px; }
+
+/* ---------- 小屏 ---------- */
+@media (max-height: 700px) {
+  .mg-panel .mg-wheel-wrap { width: min(210px, 58vw); height: min(210px, 58vw); margin: 10px auto 6px; }
+  .mg-panel .mg-list { gap: 5px; }
+  .mg-panel .mg-slot { min-height: 40px; font-size: 11px; }
+}
+
+/* 有「再转一次」时，把原生的「回棋盘」降级成次要按钮 */
+.mg-panel .mg-acts:has(.mg-btn.again) .mg-btn[data-act="done"] {
+  background: rgba(255, 236, 214, .06);
+  border: 1px solid var(--mg-line);
+  color: #e8d6c0;
+  box-shadow: none;
+}
+.mg-panel .mg-acts .mg-btn.again { letter-spacing: .1em; }
