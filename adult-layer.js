@@ -21,7 +21,7 @@
   /* ================= 1. 向量化（优先读 vectors.json） ================= */
   var VEC = null;
   try {
-    fetch("vectors.json", { cache: "force-cache" })
+    fetch("vectors.json?v=3", { cache: "no-cache" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) { if (j) { VEC = j; console.log("[adult] vectors loaded:", Object.keys(j).length); } })
       .catch(function () { });
@@ -149,6 +149,10 @@
   /* ================= 4. 抽卡引擎接管 ================= */
   var STATE_KEY = "v97.adult";
 
+  /* 违规类型 → 惩罚组 */
+  var VIOLATION_GROUP = { quiet: "sound", hands: "hands", eyes: "eyes", thermo: "body" };
+  var VIOLATION_LABEL = { quiet: "不许出声", hands: "不许自己碰", eyes: "不许躲开眼睛", thermo: "温差太大" };
+
   function loadS() {
     try {
       var s = JSON.parse(localStorage.getItem(STATE_KEY) || "{}");
@@ -229,10 +233,12 @@
   var CAP = { gentle: 2, warm: 3, hot: 4, open: 4 };
   var BLOCK_AT_GENTLE = ["道具", "露出", "束缚", "蒙眼"];
 
-  function allowed(card, state) {
+  function allowed(card, state, relax) {
     var v = vecOf(card);
     var scale = scaleOf(state);
     var cap = CAP[scale] == null ? 3 : CAP[scale];
+
+    if (relax) return true;
 
     /* 阶梯：不许一上来就最狠 */
     if (S.lastIntensity >= 0) cap = Math.min(cap, S.lastIntensity + 1);
@@ -314,7 +320,7 @@
     var forcePool = null;
     if (S.debt > 0) { forcePool = "punish"; S.debt--; saveS(); }
     if (S.aftercareNext && kind !== "ending") { forcePool = "sync"; }
-
+    var relaxPunish = forcePool === "punish";
     var pools = forcePool ? [forcePool] : poolsFor(kind, cap);
     var cands = [];
 
@@ -322,7 +328,7 @@
       (CARDS[p] || []).forEach(function (c) {
         if (st.usedCards[p][c.id]) return;
         var card = { id: c.id, text: c.text, star: c.star, tags: c.tags || [], pool: p, type: p, src: c.src || "" };
-        if (!allowed(card, st)) return;
+        if (!allowed(card, st, relaxPunish)) return;
         cands.push(card);
       });
     });
@@ -333,13 +339,28 @@
       pools.forEach(function (p) {
         (CARDS[p] || []).forEach(function (c) {
           var card = { id: c.id, text: c.text, star: c.star, tags: c.tags || [], pool: p, type: p };
-          if (allowed(card, st)) cands.push(card);
+          if (allowed(card, st, relaxPunish)) cands.push(card);
         });
       });
     }
     if (!cands.length) {
       var fb = FALLBACK[Math.floor(rng.next() * FALLBACK.length)];
       return { state: st, card: Object.assign({}, fb) };
+    }
+
+    /* 罚要罚在点上：按违规类型挑惩罚 */
+    if (forcePool === "punish" && S.lastViolation) {
+      var want = VIOLATION_GROUP[S.lastViolation] || null;
+      if (want) {
+        var matched = cands.filter(function (c) {
+          return VEC && VEC[c.id] && VEC[c.id].g === want;
+        });
+        if (matched.length) cands = matched;
+        else {
+          var light = cands.filter(function (c) { return VEC && VEC[c.id] && VEC[c.id].g === "soft"; });
+          if (light.length) cands = light;
+        }
+      }
     }
 
     var total = cands.reduce(function (a, c) { return a + weightOf(c); }, 0);
@@ -421,6 +442,7 @@
         /* 已定规矩：点一下就记一次违令 */
         S.violations = S.violations || {};
         S.violations[id] = (S.violations[id] || 0) + 1;
+        S.lastViolation = id;
         S.debt = (S.debt || 0) + 1;
         saveS();
         var r0 = RULES.filter(function (x) { return x.id === id; })[0];
@@ -436,9 +458,13 @@
     var p = PACE[v.comp] || PACE.build;
     var wrap = el("div", inline ? "al-inline" : "al-layer");
 
+    var why = (card.pool === "punish" && S.lastViolation && VIOLATION_LABEL[S.lastViolation])
+      ? '<span class="al-why">因 ' + esc(VIOLATION_LABEL[S.lastViolation]) + "</span>" : "";
+
     var head =
       '<div class="al-head">' +
         (inline ? "" : '<span class="al-kind">' + kindLabel(card.pool) + '</span><span class="al-stars">' + stars(v.star) + '</span>') +
+        why +
         '<span class="al-pace">' + p.label + ' · ' + Math.round(p.seconds) + 's</span>' +
         '<span class="al-sp"></span>' +
         '<button class="al-x" aria-label="收起">收起</button>' +
@@ -805,6 +831,7 @@
         S.charm = (S.charm || 0) + 1;
       } else if (d >= 4) {
         S.debt = (S.debt || 0) + 1;
+        S.lastViolation = "thermo";
         S.violations = S.violations || {};
         S.violations.thermo = (S.violations.thermo || 0) + 1;
       }
@@ -923,6 +950,8 @@
 
   window.__adult = { state: S, take: FD.take, mount: mount, after: showAftercare, reload: function () { S = loadS(); },
     miny: { thermo: openThermo, wheel: openWheel },
+    group: function (id) { return VEC && VEC[id] ? VEC[id].g : null; },
+    hasVec: function () { return !!VEC; },
     api: { allowed: allowed, vecOf: vecOf, poolsFor: poolsFor, cards: CARDS, get S() { return S; } } };
   console.log("[adult] layer ready · pools=" + POOLS.length + " · punish unlocked");
 })();

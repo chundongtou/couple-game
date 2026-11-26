@@ -279,3 +279,4 @@
 .al-rules > button small { margin-left: 6px; color: #d98a8a; font-size: 9.5px; }
 .al-rules > button.hit { border-color: #6b333a; background: #1d1214; }
 .al-note-debt { color: #d98a8a; margin-top: 3px; font-size: 10.5px; }
+.al-why { color: #d98a8a; border: 1px solid #6b333a; background: #1d1214; border-radius: 5px; padding: 2px 6px; font-size: 9.5px; letter-spacing: .06em; }
