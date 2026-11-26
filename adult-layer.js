@@ -159,6 +159,9 @@
       s.arousal = s.arousal || { a: 4, b: 5 };
       s.rules = s.rules || [];
       s.series = s.series || [];
+      s.recent = s.recent || [];
+      s.charm = s.charm || 0;
+      s.violations = s.violations || {};
       return s;
     } catch (e) {
       return { used: {}, debt: 0, count: 0, lastIntensity: 0, arousal: { a: 4, b: 5 }, rules: [], series: [] };
@@ -289,6 +292,10 @@
     if (S.count > 0 && S.count % 3 === 2) {
       w += (v.comp === "slow" || v.verb === "talk" || v.verbal >= 2) ? 18 : 0;
     }
+    /* 同频奖励：温度计刚对上，下一拍往深里走 */
+    if (S.charm > 0 && v.intensity >= 2) w += 10;
+    /* 部位轮换：最近三拍碰过的地方先冷一冷 */
+    if (S.recent && S.recent.indexOf(v.zone) >= 0) w *= 0.25;
     return w;
   }
 
@@ -346,6 +353,8 @@
     var v = vecOf(pickd);
     S.lastIntensity = v.intensity;
     S.count++;
+    S.recent = [v.zone].concat(S.recent || []).slice(0, 3);
+    if (S.charm > 0) S.charm--;
     lastCard = pickd;
     saveS();
 
@@ -371,11 +380,13 @@
 
   function rulesBar() {
     if (S.rules && S.rules.length) {
-      var names = S.rules.map(function (id) {
+      var chips = S.rules.map(function (id) {
         var r = RULES.filter(function (x) { return x.id === id; })[0];
-        return r ? r.t : id;
-      }).join(" · ");
-      return '<div class="al-rules"><b>今晚的规矩</b><span>' + esc(names) + "</span></div>";
+        var n = (S.violations || {})[id] || 0;
+        return '<button data-rule="' + id + '"' + (n ? ' class="hit"' : "") + ">" + (r ? r.t : id) +
+          (n ? "<small>违 " + n + " 次</small>" : "") + "</button>";
+      }).join("");
+      return '<div class="al-rules" id="al-rules"><b>今晚的规矩</b>' + chips + "</div>";
     }
     var btns = RULES.map(function (r) {
       return '<button data-rule="' + r.id + '"><b>' + r.t + "</b><small>" + r.d + "</small></button>";
@@ -386,22 +397,36 @@
   function bindRules(node) {
     var box = node.querySelector("#al-rules");
     if (!box) return;
+    var picking = box.classList.contains("pick");
     var picked = [];
+
     Array.prototype.forEach.call(box.querySelectorAll("button[data-rule]"), function (b) {
       b.onclick = function () {
         var id = b.getAttribute("data-rule");
-        var i = picked.indexOf(id);
-        if (i >= 0) { picked.splice(i, 1); b.classList.remove("on"); }
-        else if (picked.length < 3) { picked.push(id); b.classList.add("on"); }
-        if (picked.length) {
-          S.rules = picked.slice();
-          saveS();
-          var names = picked.map(function (x) {
-            var r = RULES.filter(function (y) { return y.id === x; })[0];
-            return r ? r.t : x;
-          }).join(" · ");
-          box.querySelector("i").textContent = "今晚：" + names;
+        if (picking) {
+          var i = picked.indexOf(id);
+          if (i >= 0) { picked.splice(i, 1); b.classList.remove("on"); }
+          else if (picked.length < 3) { picked.push(id); b.classList.add("on"); }
+          if (picked.length) {
+            S.rules = picked.slice();
+            saveS();
+            var names = picked.map(function (x) {
+              var r = RULES.filter(function (y) { return y.id === x; })[0];
+              return r ? r.t : x;
+            }).join(" · ");
+            box.querySelector("i").textContent = "今晚：" + names;
+          }
+          return;
         }
+        /* 已定规矩：点一下就记一次违令 */
+        S.violations = S.violations || {};
+        S.violations[id] = (S.violations[id] || 0) + 1;
+        S.debt = (S.debt || 0) + 1;
+        saveS();
+        var r0 = RULES.filter(function (x) { return x.id === id; })[0];
+        b.classList.add("hit");
+        b.innerHTML = (r0 ? r0.t : id) + "<small>违 " + S.violations[id] + " 次</small>";
+        ruleFlash(node, "「" + (r0 ? r0.t : id) + "」记一次 · 下一张抽惩罚");
       };
     });
   }
@@ -764,19 +789,30 @@
 
     function reveal() {
       var d = Math.abs(vals.a - vals.b);
+      var sync = Math.max(0, 100 - d * 10);
       var verdict, advice;
-      if (d <= 1) { verdict = "同频"; advice = "现在正好，别停。给她一张三颗星的卡。"; }
-      else if (d <= 3) { verdict = "有温差"; advice = (vals.a > vals.b ? "他更急" : "她更急") + "——急的那个说了算，慢的那个撑 60 秒。" ; }
-      else { verdict = "差得有点多"; advice = (vals.a > vals.b ? "他" : "她") + "先说一句实话：差在哪。然后抽一张惩罚。"; }
+      if (d <= 1) { verdict = "同频 " + sync + "%"; advice = "现在正好，别停。两个人的兴奋度各 +1，下一拍给你一张更深的。"; }
+      else if (d <= 3) { verdict = "有温差 · 同步 " + sync + "%"; advice = (vals.a > vals.b ? "他更急" : "她更急") + "——急的那个说了算，慢的那个撑 60 秒。"; }
+      else { verdict = "差得有点多 · 同步 " + sync + "%"; advice = (vals.a > vals.b ? "他" : "她") + "先说一句实话：差在哪。然后抽一张惩罚。"; }
       body.innerHTML =
         '<div class="al-miny-two"><div><b>' + vals.a + '</b><span>他</span></div><div><b>' + vals.b + '</b><span>她</span></div></div>' +
         '<div class="al-miny-verdict"><b>' + verdict + '</b><p>' + advice + '</p></div>';
+
+      /* 判决立即生效，不等点按钮 */
+      if (d <= 1) {
+        S.arousal.a = Math.min(10, (S.arousal.a || 4) + 1);
+        S.arousal.b = Math.min(10, (S.arousal.b || 5) + 1);
+        S.charm = (S.charm || 0) + 1;
+      } else if (d >= 4) {
+        S.debt = (S.debt || 0) + 1;
+        S.violations = S.violations || {};
+        S.violations.thermo = (S.violations.thermo || 0) + 1;
+      }
+      saveS();
+
       foot.innerHTML = '<button class="al-btn ghost" id="al-miny-again">再设一次</button><button class="al-btn primary" id="al-miny-done">记下了</button>';
       foot.querySelector("#al-miny-again").onclick = function () { step("a"); };
-      foot.querySelector("#al-miny-done").onclick = function () {
-        if (d >= 4) { S.debt = (S.debt || 0) + 1; saveS(); }
-        minyDone(wrap);
-      };
+      foot.querySelector("#al-miny-done").onclick = function () { minyDone(wrap); };
       breath("out");
     }
 
@@ -870,8 +906,10 @@
     if (!home || document.querySelector(".al-home-note")) return;
     var note = el("div", "al-home-note");
     var last = S.series[0];
+    var debtLine = S.debt > 0 ? '<div class="al-note-debt">上次还欠 ' + S.debt + " 次惩罚</div>" : "";
     note.innerHTML =
       '<div class="al-note-line">台词 · 计时 · 反应分 · 惩罚债 已开启</div>' +
+      debtLine +
       (last ? '<div class="al-note-sub">上一夜记了一句：' + esc(last.note) + '</div>' : "");
     home.insertBefore(note, home.firstChild);
   }

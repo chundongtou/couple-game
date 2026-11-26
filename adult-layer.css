@@ -271,3 +271,11 @@
 .al-miny-out { margin-top: 12px; text-align: center; min-height: 56px; }
 .al-miny-out b { display: block; font: 700 22px/1.3 "Songti SC", Georgia, serif; color: #ffd9b0; }
 .al-miny-out p { margin: 6px 0 0; font-size: 13px; color: #cdbcac; }
+/* ---- 已定规矩：可点记违规 ---- */
+.al-rules > button {
+  min-height: 32px; margin: 4px 6px 0 0; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid #2a3542; background: #121a24; color: #e6d6c4; font-size: 11.5px;
+}
+.al-rules > button small { margin-left: 6px; color: #d98a8a; font-size: 9.5px; }
+.al-rules > button.hit { border-color: #6b333a; background: #1d1214; }
+.al-note-debt { color: #d98a8a; margin-top: 3px; font-size: 10.5px; }
