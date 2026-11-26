@@ -200,3 +200,26 @@
 .al-inline .al-stop { background: #150f11; border-color: #3d2a2e; }
 .al-body[hidden] { display: none !important; }
 .al-sheet { display: flex; flex-direction: column; gap: 0; }
+
+/* ---- 今晚的规矩 ---- */
+.al-rules {
+  margin-top: 9px; padding: 9px 11px; border-radius: 11px;
+  border: 1px solid #232e3a; background: #0f1620;
+  font-size: 11px; color: #9d8a7a;
+}
+.al-rules b { color: #e0a45e; font-weight: 600; letter-spacing: .1em; margin-right: 8px; }
+.al-rules span { color: #e6d6c4; }
+.al-rules.pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.al-rules.pick i { width: 100%; font-style: normal; font-size: 10px; color: #6d5f55; letter-spacing: .06em; }
+.al-rules.pick button {
+  flex: 1 1 30%; min-height: 46px; border-radius: 9px; cursor: pointer;
+  border: 1px solid #2a3542; background: #121a24; color: #e6d6c4;
+  font-size: 12px; text-align: left; padding: 6px 9px;
+}
+.al-rules.pick button small { display: block; font-size: 9px; color: #6d5f55; margin-top: 2px; }
+.al-rules.pick button.on { border-color: #7a5227; background: #2a1e12; color: #ffd9b0; }
+.al-more {
+  width: 100%; margin-top: 9px; min-height: 38px; border-radius: 10px;
+  border: 1px dashed #2a3542; background: transparent; color: #8d7663;
+  font-size: 11px; letter-spacing: .06em;
+}

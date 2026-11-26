@@ -288,6 +288,50 @@
     return e;
   }
 
+  /* ================= 5.5 今晚的规矩 ================= */
+  var RULES = [
+    { id: "quiet", t: "不许出声", d: "出声一次，加一件衣服" },
+    { id: "hands", t: "不许自己碰", d: "只能等对方给" },
+    { id: "eyes", t: "不许躲开眼睛", d: "看不住就重来一遍" }
+  ];
+
+  function rulesBar() {
+    if (S.rules && S.rules.length) {
+      var names = S.rules.map(function (id) {
+        var r = RULES.filter(function (x) { return x.id === id; })[0];
+        return r ? r.t : id;
+      }).join(" · ");
+      return '<div class="al-rules"><b>今晚的规矩</b><span>' + esc(names) + "</span></div>";
+    }
+    var btns = RULES.map(function (r) {
+      return '<button data-rule="' + r.id + '"><b>' + r.t + "</b><small>" + r.d + "</small></button>";
+    }).join("");
+    return '<div class="al-rules pick" id="al-rules"><i>定 1–3 条规矩，违令就抽惩罚</i>' + btns + "</div>";
+  }
+
+  function bindRules(node) {
+    var box = node.querySelector("#al-rules");
+    if (!box) return;
+    var picked = [];
+    Array.prototype.forEach.call(box.querySelectorAll("button[data-rule]"), function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute("data-rule");
+        var i = picked.indexOf(id);
+        if (i >= 0) { picked.splice(i, 1); b.classList.remove("on"); }
+        else if (picked.length < 3) { picked.push(id); b.classList.add("on"); }
+        if (picked.length) {
+          S.rules = picked.slice();
+          saveS();
+          var names = picked.map(function (x) {
+            var r = RULES.filter(function (y) { return y.id === x; })[0];
+            return r ? r.t : x;
+          }).join(" · ");
+          box.querySelector("i").textContent = "今晚：" + names;
+        }
+      };
+    });
+  }
+
   function buildPanel(card, inline) {
     var v = vecOf(card);
     var p = PACE[v.comp] || PACE.build;
@@ -337,10 +381,11 @@
       '</div>';
 
     wrap.innerHTML =
-      '<div class="al-sheet">' + head + say +
+      '<div class="al-sheet">' + head + say + rulesBar() +
         '<div class="al-quick">' + timer + react + '</div>' +
         detail + foot +
       '</div>';
+    bindRules(wrap);
     return wrap;
   }
 
