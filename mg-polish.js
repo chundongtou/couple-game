@@ -48,9 +48,50 @@
     }
   }
 
-  var mo = new MutationObserver(function () { enhance(); });
-  mo.observe(document.documentElement, { childList: true, subtree: true });
+  /* ---------- 「换一组」不限次数 ---------- */
+  function patchReroll() {
+    var M = window.App && window.App.Minigames;
+    if (M && !M.__rerollFree && typeof M.rerollWheel === "function") {
+      var orig = M.rerollWheel;
+      M.rerollWheel = function () {
+        var r = orig.apply(this, arguments);
+        try {
+          var st = r && r.state;
+          if (st && st.rerolls) {
+            for (var k in st.rerolls) st.rerolls[k] = Math.max(1, Number(st.rerolls[k]) || 1);
+          }
+        } catch (e) { }
+        return r;
+      };
+      M.__rerollFree = true;
+    }
+    var U = window.App && window.App.UI;
+    if (U && !U.__rerollToast && typeof U.toast === "function") {
+      var t0 = U.toast;
+      U.toast = function (m) {
+        var msg = typeof m === "string" ? m.replace(/^换好了 · 还有 \d+ 次$/, "换好了") : m;
+        return t0.call(this, msg);
+      };
+      U.__rerollToast = true;
+    }
+  }
 
+  function freeRerollButton() {
+    var p = panel();
+    if (!p) return;
+    var rb = p.querySelector('[data-test="wheel-reroll"]');
+    if (!rb) return;
+    if (rb.hasAttribute("disabled")) rb.removeAttribute("disabled");
+    if (rb.textContent.indexOf("换一组") === 0 && rb.textContent !== "换一组") rb.textContent = "换一组";
+  }
+
+  function tick() { patchReroll(); enhance(); freeRerollButton(); }
+
+  var mo = new MutationObserver(function () { tick(); });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener("DOMContentLoaded", tick);
+  setTimeout(tick, 300);
+  setTimeout(tick, 1500);
   /* 点完之后面板会重绘，下一帧再补一次 */
   document.addEventListener("click", function (e) {
     var t = e.target;
