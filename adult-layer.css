@@ -223,3 +223,51 @@
   border: 1px dashed #2a3542; background: transparent; color: #8d7663;
   font-size: 11px; letter-spacing: .06em;
 }
+/* ---- 小游戏 ---- */
+.al-miny-sub { margin: 8px 0 0; font-size: 12px; color: #9d8a7a; }
+.al-miny-body { margin-top: 12px; }
+.al-miny-step b { display: block; font-size: 13px; color: #e6d6c4; margin-bottom: 10px; }
+.al-miny-step small { display: block; margin-top: 8px; font-size: 10.5px; color: #6d5f55; }
+.al-dial { display: flex; align-items: center; gap: 12px; }
+.al-dial input {
+  flex: 1; -webkit-appearance: none; height: 34px; background: transparent;
+}
+.al-dial input::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg,#3a2a18,#e0a45e); }
+.al-dial input::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%;
+  background: linear-gradient(180deg,#f0c489,#b0803f); border: 0; box-shadow: 0 4px 12px #00000080;
+}
+.al-dial span { width: 34px; text-align: center; font: 700 20px/1 ui-monospace, monospace; color: #ffd9b0; }
+.al-miny-two { display: flex; gap: 10px; }
+.al-miny-two div {
+  flex: 1; text-align: center; padding: 14px 0; border-radius: 12px;
+  border: 1px solid #232e3a; background: #0f1620;
+}
+.al-miny-two b { display: block; font: 700 30px/1 "Songti SC", Georgia, serif; color: #e0a45e; }
+.al-miny-two span { font-size: 11px; color: #6d5f55; }
+.al-miny-verdict { margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #3a2a18; background: #1a120b66; }
+.al-miny-verdict b { color: #e0a45e; font-size: 14px; }
+.al-miny-verdict p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #cdbcac; }
+
+.al-wheel-wrap { position: relative; display: flex; justify-content: center; padding: 6px 0 2px; }
+.al-wheel {
+  width: 210px; height: 210px; border-radius: 50%;
+  border: 2px solid #3a2a18; box-shadow: inset 0 0 40px #00000099, 0 10px 30px #00000080;
+  display: flex; align-items: center; justify-content: center;
+  transform: rotate(0deg);
+}
+.al-wheel-face {
+  width: 62px; height: 62px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #f0c489, #b0803f);
+  color: #1a120b; font: 700 18px/1 "Songti SC", Georgia, serif;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px #000000a0;
+}
+.al-wheel-pin {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 14px solid #e0a45e;
+}
+.al-miny-out { margin-top: 12px; text-align: center; min-height: 56px; }
+.al-miny-out b { display: block; font: 700 22px/1.3 "Songti SC", Georgia, serif; color: #ffd9b0; }
+.al-miny-out p { margin: 6px 0 0; font-size: 13px; color: #cdbcac; }

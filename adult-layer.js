@@ -18,14 +18,23 @@
   var CARDS = window.CARDS || {};
   var POOLS = ["truth", "dare", "touch", "sync", "spark", "punish"];
 
-  /* ================= 1. 向量化 ================= */
+  /* ================= 1. 向量化（优先读 vectors.json） ================= */
+  var VEC = null;
+  try {
+    fetch("vectors.json", { cache: "force-cache" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j) { VEC = j; console.log("[adult] vectors loaded:", Object.keys(j).length); } })
+      .catch(function () { });
+  } catch (e) { }
+
   var ZONES = [
-    [/口|含|舔|吞|深喉|嘴|唇|舌|吮/, "mouth"],
+    [/下面|私处|里面|进入|插入|顶|骑|坐上去|后入|磨蹭|夹住/, "genital"],
+    [/口|含|舔|吞|深喉|嘴|唇|舌|吮|吻|亲/, "mouth"],
     [/胸|乳|奶/, "chest"],
-    [/臀|腰|大腿|内侧|胯/, "waist"],
-    [/手|指尖|手腕|手心|掌/, "hands"],
+    [/臀|腰|大腿|内侧|胯|腿/, "waist"],
     [/颈|脖|锁骨|耳|后颈/, "neck"],
-    [/下面|私处|里面|进入|插入|顶|骑|坐上去|后入|磨蹭/, "genital"]
+    [/指尖|手背|手腕|手心|手指|掌/, "hands"],
+    [/抱|搂|靠|贴|枕|依偎/, "contact"]
   ];
   var VERBS = [
     [/舔|吻|亲|含|吮|吞/, "oral"],
@@ -64,20 +73,34 @@
     var t = String(card.text || "");
     var star = Number(card.star) || 1;
     var tags = card.tags || [];
-    var v = {
-      intensity: Math.max(0, Math.min(4, star - 1)),
-      zone: pick(t, ZONES, "hands"),
-      verb: pick(t, VERBS, "touch"),
-      comp: pick(t, PACE_HINTS, "build"),
-      prop: null,
-      verbal: /说|问|答|叫|求|告诉我/.test(t) ? 2 : 0,
-      exposure: tags.indexOf("露出") >= 0 ? 2 : 0,
-      restraint: tags.indexOf("束缚") >= 0 ? 2 : 0,
-      star: star,
-      tags: tags,
-      pool: card.pool || card.type || "truth"
-    };
-    for (var i = 0; i < PROPS.length; i++) if (PROPS[i][0].test(t)) { v.prop = PROPS[i][1]; break; }
+    var v;
+
+    /* 优先用卡库里的向量 */
+    var pre = VEC && VEC[card.id];
+    if (pre) {
+      v = {
+        intensity: pre.i, zone: pre.z, verb: pre.v, comp: pre.c, prop: pre.p,
+        verbal: pre.w, exposure: pre.e, restraint: pre.r,
+        star: pre.s || star, tags: tags,
+        pool: card.pool || pre.k || "truth", src: "lib"
+      };
+    } else {
+      var verb = pick(t, VERBS, "touch");
+      v = {
+        intensity: Math.max(0, Math.min(4, star - 1)),
+        zone: pick(t, ZONES, null) || (verb === "talk" ? "voice" : verb === "watch" ? "gaze" : verb === "restrain" ? "wrists" : "body"),
+        verb: verb,
+        comp: pick(t, PACE_HINTS, "build"),
+        prop: null,
+        verbal: /说|问|答|叫|求|告诉我/.test(t) ? 2 : 0,
+        exposure: tags.indexOf("露出") >= 0 ? 2 : 0,
+        restraint: tags.indexOf("束缚") >= 0 ? 2 : 0,
+        star: star,
+        tags: tags,
+        pool: card.pool || card.type || "truth", src: "rt"
+      };
+      for (var i = 0; i < PROPS.length; i++) if (PROPS[i][0].test(t)) { v.prop = PROPS[i][1]; break; }
+    }
     card.__v = v;
     return v;
   }
@@ -143,6 +166,57 @@
   }
   var S = loadS();
   function saveS() { try { localStorage.setItem(STATE_KEY, JSON.stringify(S)); } catch (e) { } }
+
+  /* ================= 3.5 人声与呼吸 ================= */
+  var voice = { on: S.voiceOn !== false, ctx: null };
+
+  function speak(text) {
+    if (!voice.on || !window.speechSynthesis || !text) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(String(text).replace(/[「」]/g, ""));
+      u.lang = "zh-CN";
+      u.rate = 0.84;
+      u.pitch = 1.06;
+      u.volume = 0.9;
+      var vs = window.speechSynthesis.getVoices() || [];
+      for (var i = 0; i < vs.length; i++) {
+        if (/^zh|Chinese|Yue/i.test(vs[i].lang + " " + vs[i].name)) { u.voice = vs[i]; break; }
+      }
+      window.speechSynthesis.speak(u);
+    } catch (e) { }
+  }
+
+  function breath(kind) {
+    if (!voice.on) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!voice.ctx) voice.ctx = new AC();
+      var ctx = voice.ctx;
+      if (ctx.state === "suspended") ctx.resume();
+      var dur = kind === "in" ? 1.1 : 1.5;
+      var buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      var bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = kind === "in" ? 640 : 360;
+      bp.Q.value = 0.8;
+      var g = ctx.createGain();
+      var t = ctx.currentTime;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.16, t + dur * 0.35);
+      g.gain.linearRampToValueAtTime(0.001, t + dur);
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      src.start(t);
+      src.stop(t + dur);
+    } catch (e) { }
+  }
 
   function scaleOf(state) {
     return (state && state.scale) || "warm";
@@ -353,6 +427,7 @@
         '<div class="al-time-txt"><b>这一拍别急着结束</b><span>先看呼吸，再决定加压</span></div>' +
         '<button class="al-btn small" id="al-start">开始</button>' +
         '<button class="al-btn small ghost" id="al-vib">震动</button>' +
+        '<button class="al-btn small ghost" id="al-voice">人声</button>' +
       '</div>';
 
     var react =
@@ -433,6 +508,8 @@
     node.classList.add("on");
     bind(node, card, false);
     startTimer(node, vecOf(card).comp);
+    breath("in");
+    speak(lineFor(card));
   }
   function unmount() {
     clearInterval(stage.timer);
@@ -470,7 +547,8 @@
       left.textContent = String(stage.left);
       arc.style.strokeDashoffset = String(C * (1 - stage.left / total));
       if (stage.vibrate && navigator.vibrate && stage.left % 4 === 0) navigator.vibrate(18);
-      if (stage.left === 0) { clearInterval(stage.timer); stage.timer = null; btn.textContent = "重来"; }
+      if (stage.left === Math.round(total / 2)) breath("in");
+      if (stage.left === 0) { clearInterval(stage.timer); stage.timer = null; btn.textContent = "重来"; breath("out"); }
     }, 1000);
 
     btn.onclick = function () {
@@ -494,6 +572,18 @@
       vib.classList.toggle("on", stage.vibrate);
       if (navigator.vibrate) navigator.vibrate(stage.vibrate ? 40 : 0);
     };
+    var vc = node.querySelector("#al-voice");
+    if (vc) {
+      vc.classList.toggle("on", voice.on);
+      vc.onclick = function () {
+        voice.on = !voice.on;
+        S.voiceOn = voice.on;
+        saveS();
+        vc.classList.toggle("on", voice.on);
+        if (voice.on) speak(lineFor(card));
+        else if (window.speechSynthesis) window.speechSynthesis.cancel();
+      };
+    }
     var done = node.querySelector("#al-done");
     if (done) done.onclick = function () { closeAndAdvance(false); };
     var skip = node.querySelector("#al-skip");
@@ -600,9 +690,174 @@
     return r;
   };
 
+  /* ================= 5.8 两个小游戏 ================= */
+  var MINY_SUPPRESS = { kind: null, until: 0 };
+
+  function detectMiny(host) {
+    if (!host) return null;
+    var t = host.textContent || "";
+    if (t.length < 40) return null;
+    if (/温度计/.test(t)) return "thermo";
+    if (/今晚的六张|转盘/.test(t)) return "wheel";
+    return null;
+  }
+
+  function minyShell(title, sub) {
+    var wrap = el("div", "al-layer al-miny");
+    wrap.innerHTML =
+      '<div class="al-scrim"></div>' +
+      '<div class="al-sheet">' +
+        '<div class="al-head"><span class="al-kind">小游戏</span><span class="al-pace">' + esc(title) + '</span><span class="al-sp"></span><button class="al-x">收起</button></div>' +
+        '<p class="al-miny-sub">' + sub + '</p>' +
+        '<div class="al-miny-body"></div>' +
+        '<div class="al-foot"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    void wrap.offsetWidth;
+    wrap.classList.add("on");
+    wrap.querySelector(".al-x").onclick = function () { closeMiny(wrap); };
+    return wrap;
+  }
+
+  function closeMiny(wrap) {
+    if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    stage.minyOpen = null;
+  }
+
+  function minyDone(wrap) {
+    var host = document.querySelector('[data-test="prompt-host"]');
+    var btns = host ? Array.prototype.slice.call(host.querySelectorAll("button")) : [];
+    var target = null;
+    for (var i = 0; i < btns.length; i++) {
+      if (/完成|做了|收下/.test(btns[i].textContent || "")) { target = btns[i]; break; }
+    }
+    closeMiny(wrap);
+    if (target) setTimeout(function () { target.click(); }, 120);
+  }
+
+  /* ---------- 温度计：双方各设一次，再看温差 ---------- */
+  function openThermo() {
+    if (stage.minyOpen === "thermo") return;
+    stage.minyOpen = "thermo";
+    var wrap = minyShell("温度计 · 你现在到哪", "两个人各设一次，谁也别偷看。");
+    var body = wrap.querySelector(".al-miny-body");
+    var foot = wrap.querySelector(".al-foot");
+    var vals = { a: null, b: null };
+
+    function step(who) {
+      body.innerHTML =
+        '<div class="al-miny-step">' +
+          '<b>' + (who === "a" ? "他" : "她") + ' 先设 · 让另一个转身</b>' +
+          '<div class="al-dial"><input type="range" min="0" max="10" step="1" value="' + (who === "a" ? 4 : 5) + '" id="al-dial"><span id="al-dial-v">5</span></div>' +
+          '<small>0 = 完全没在状态 · 10 = 现在就要</small>' +
+        '</div>';
+      var input = body.querySelector("#al-dial");
+      var out = body.querySelector("#al-dial-v");
+      input.oninput = function () { out.textContent = input.value; };
+      foot.innerHTML = '<button class="al-btn primary" id="al-miny-ok">设好了</button>';
+      foot.querySelector("#al-miny-ok").onclick = function () {
+        vals[who] = Number(input.value);
+        if (who === "a") step("b");
+        else reveal();
+      };
+    }
+
+    function reveal() {
+      var d = Math.abs(vals.a - vals.b);
+      var verdict, advice;
+      if (d <= 1) { verdict = "同频"; advice = "现在正好，别停。给她一张三颗星的卡。"; }
+      else if (d <= 3) { verdict = "有温差"; advice = (vals.a > vals.b ? "他更急" : "她更急") + "——急的那个说了算，慢的那个撑 60 秒。" ; }
+      else { verdict = "差得有点多"; advice = (vals.a > vals.b ? "他" : "她") + "先说一句实话：差在哪。然后抽一张惩罚。"; }
+      body.innerHTML =
+        '<div class="al-miny-two"><div><b>' + vals.a + '</b><span>他</span></div><div><b>' + vals.b + '</b><span>她</span></div></div>' +
+        '<div class="al-miny-verdict"><b>' + verdict + '</b><p>' + advice + '</p></div>';
+      foot.innerHTML = '<button class="al-btn ghost" id="al-miny-again">再设一次</button><button class="al-btn primary" id="al-miny-done">记下了</button>';
+      foot.querySelector("#al-miny-again").onclick = function () { step("a"); };
+      foot.querySelector("#al-miny-done").onclick = function () {
+        if (d >= 4) { S.debt = (S.debt || 0) + 1; saveS(); }
+        minyDone(wrap);
+      };
+      breath("out");
+    }
+
+    step("a");
+  }
+
+  /* ---------- 转盘：六个动作，按当前档位给力度 ---------- */
+  var WHEEL = [
+    { k: "亲", t: "亲一个不是嘴的地方，十秒" },
+    { k: "舔", t: "用舌尖写一个字，让对方猜" },
+    { k: "咬", t: "轻轻咬一下，留不留印你决定" },
+    { k: "耳语", t: "贴着她耳朵说一句最脏的话" },
+    { k: "按住", t: "按住她手腕，三十秒不许动" },
+    { k: "选", t: "你自己定一个动作，说出口再做" }
+  ];
+
+  function openWheel() {
+    if (stage.minyOpen === "wheel") return;
+    stage.minyOpen = "wheel";
+    var wrap = minyShell("转盘 · 六个动作", "转一次算数，不许挑。");
+    var body = wrap.querySelector(".al-miny-body");
+    var foot = wrap.querySelector(".al-foot");
+    var seg = 360 / WHEEL.length;
+    var grad = WHEEL.map(function (w, i) {
+      var c = i % 2 ? "#3a2a18" : "#1b2430";
+      return c + " " + (i * seg) + "deg " + ((i + 1) * seg) + "deg";
+    }).join(",");
+
+    body.innerHTML =
+      '<div class="al-wheel-wrap">' +
+        '<div class="al-wheel" id="al-wheel" style="background:conic-gradient(' + grad + ')">' +
+          '<div class="al-wheel-face">转</div>' +
+        '</div>' +
+        '<div class="al-wheel-pin"></div>' +
+      '</div>' +
+      '<div class="al-miny-out" id="al-miny-out">按一下中间</div>';
+    foot.innerHTML = '<button class="al-btn primary" id="al-spin">转</button>';
+
+    var wheel = body.querySelector("#al-wheel");
+    var out = body.querySelector("#al-miny-out");
+    var spinning = false;
+    foot.querySelector("#al-spin").onclick = function () {
+      if (spinning) return;
+      spinning = true;
+      var idx = Math.floor(Math.random() * WHEEL.length);
+      var turns = 4 + Math.floor(Math.random() * 2);
+      var deg = turns * 360 + (360 - (idx * seg + seg / 2));
+      wheel.style.transition = "transform 2.4s cubic-bezier(.17,.67,.16,1)";
+      wheel.style.transform = "rotate(" + deg + "deg)";
+      if (navigator.vibrate) navigator.vibrate([12, 60, 12]);
+      setTimeout(function () {
+        spinning = false;
+        var w = WHEEL[idx];
+        out.innerHTML = '<b>' + w.k + '</b><p>' + w.t + '</p>';
+        speak(w.t);
+        foot.innerHTML = '<button class="al-btn ghost" id="al-again">再来一次</button><button class="al-btn primary" id="al-miny-done">照做</button>';
+        foot.querySelector("#al-again").onclick = function () {
+          foot.innerHTML = '<button class="al-btn primary" id="al-spin2">转</button>';
+          out.textContent = "按一下中间";
+          foot.querySelector("#al-spin2").onclick = function () { openWheelAgain(); };
+        };
+        foot.querySelector("#al-miny-done").onclick = function () { minyDone(wrap); };
+      }, 2500);
+    };
+  }
+
+  function openWheelAgain() {
+    stage.minyOpen = null;
+    openWheel();
+  }
+
   /* 原生卡片一出现就盖上去；选牌 / 转盘这类不插 */
   var observer = new MutationObserver(function () {
     if (window.__adultNoMount) return;
+    var host = document.querySelector('[data-test="prompt-host"]');
+    var kind = detectMiny(host);
+    if (kind && !stage.minyOpen && Date.now() > MINY_SUPPRESS.until) {
+      MINY_SUPPRESS = { kind: kind, until: Date.now() + 4000 };
+      if (kind === "thermo") openThermo(); else openWheel();
+      return;
+    }
     if (document.querySelector(".al-layer")) return;
     if (!lastCard || !cardVisible(lastCard)) return;
     if (stage.suppress && stage.suppress.id === lastCard.id && Date.now() < stage.suppress.until) return;
@@ -629,6 +884,7 @@
   }, 600);
 
   window.__adult = { state: S, take: FD.take, mount: mount, after: showAftercare, reload: function () { S = loadS(); },
+    miny: { thermo: openThermo, wheel: openWheel },
     api: { allowed: allowed, vecOf: vecOf, poolsFor: poolsFor, cards: CARDS, get S() { return S; } } };
   console.log("[adult] layer ready · pools=" + POOLS.length + " · punish unlocked");
 })();
