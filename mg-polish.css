@@ -144,31 +144,30 @@
 }
 .mg-panel .mg-result-num { font-size: 40px; }
 
-/* ---------- 转盘 12 格：格子里直接写内容摘要 + 落点高亮（V9.12，小游戏 polish 层） ---------- */
-.mg-wheel-wrap { --seg-r: calc(min(240px, 64vw) * .385); }
+/* ---------- 转盘 12 格：文字沿半径从圆心向外排（V9.13，小游戏 polish 层） ---------- */
+/* 半径由 JS 按像素计算，见 layoutSegs() */
 .mg-seg {
-  position: absolute; left: 50%; top: 50%; max-width: 52px; padding: 2px 4px; border-radius: 6px;
-  font: 600 8px/1.2 var(--font-body, sans-serif); letter-spacing: .01em;
-  color: rgba(251, 235, 210, .88); background: rgba(8, 6, 16, .62);
-  border: 1px solid rgba(255, 226, 196, .18); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; pointer-events: none;
-  transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(-1 * var(--seg-r))) rotate(calc(-1 * var(--a)));
+  position: absolute; left: 50%; top: 50%; max-width: 78px; padding: 0 2px;
+  font: 600 8px/1.15 var(--font-body, sans-serif); letter-spacing: .01em;
+  color: rgba(251, 235, 210, .9); text-align: center; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; pointer-events: none; background: transparent; border: 0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
 }
 .mg-seg.on {
-  color: #2A140E; background: linear-gradient(180deg, #FFE6BE, #E2965E);
-  border-color: rgba(255, 226, 196, .85); font-weight: 800;
-  box-shadow: 0 0 0 2px rgba(243, 192, 119, .35), 0 6px 14px rgba(0, 0, 0, .45);
+  color: #2A140E; font-weight: 800; background: linear-gradient(180deg, #FFE6BE, #E2965E);
+  border-radius: 5px; padding: 1px 3px; text-shadow: none;
+  box-shadow: 0 0 0 2px rgba(243, 192, 119, .35), 0 4px 10px rgba(0, 0, 0, .45);
 }
 /* 指针更显眼：加一点发光，命中时有一圈脉冲 */
 .mg-pointer { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .55)) drop-shadow(0 0 6px rgba(243, 192, 119, .45)); }
-.mg-seg.on { animation: mgSegPop .38s cubic-bezier(.16, 1, .3, 1) both; }
-@keyframes mgSegPop { from { transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(-1 * var(--seg-r))) rotate(calc(-1 * var(--a))) scale(.72); } to { transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(-1 * var(--seg-r))) rotate(calc(-1 * var(--a))) scale(1); } }
+.mg-seg.on { animation: mgSegPop .38s ease-out both; }
+@keyframes mgSegPop { from { opacity: .15; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mg-seg.on { animation: none; } }
 .mg-hint-line { margin: 6px 0 0; text-align: center; font-size: 10.5px; letter-spacing: .04em; color: var(--dim2, #8E7C9E); }
 
 @media (max-height: 700px) {
-  .mg-wheel-wrap { width: min(200px, 56vw); height: min(200px, 56vw); margin: 8px auto 2px; --seg-r: calc(min(200px, 56vw) * .40); }
-  .mg-seg { max-width: 44px; font-size: 6.8px; padding: 1px 3px; border-radius: 5px; }
+  .mg-wheel-wrap { width: min(200px, 56vw); height: min(200px, 56vw); margin: 8px auto 2px; }
+  .mg-seg { max-width: 70px; font-size: 6.8px; }
   .mg-hub { width: 52px; height: 52px; margin: -26px 0 0 -26px; font-size: 13px; }
   .mg-card-text { font-size: 16px; line-height: 1.5; }
   .mg-result-title { margin-top: 9px; font-size: 10.5px; }
@@ -176,8 +175,8 @@
 }
 /* 窄屏（320）再收一档：轮盘略大、格子只留 3–4 字 */
 @media (max-width: 340px) {
-  .mg-wheel-wrap { width: 196px; height: 196px; --seg-r: 82px; }
-  .mg-seg { max-width: 38px; font-size: 6.4px; }
+  .mg-wheel-wrap { width: 196px; height: 196px; }
+  .mg-seg { max-width: 62px; font-size: 6.2px; }
 }
 
 /* ---------- 宽屏：主桌套一个居中机身（桌面/平板分享链接时不再被拉满） ---------- */

@@ -322,13 +322,16 @@ body.reduce .mg-panel{animation-duration:80ms!important}
       }
 
       function segsHtml(slots, picked) {
-        var n = slots.length || 1;
         var out = "";
         for (var i = 0; i < slots.length; i++) {
-          out += '<span class="mg-seg' + (picked === i ? " on" : "") + '" data-test="wheel-seg"' +
-            ' style="--a:' + segAngle(i, n) + 'deg">' + esc(teaser(slots[i] && slots[i].text)) + "</span>";
+          out += '<span class="mg-seg' + (picked === i ? " on" : "") + '" data-test="wheel-seg">' +
+            esc(teaser(slots[i] && slots[i].text)) + "</span>";
         }
         return out;
+      }
+
+      function layoutSegs() {
+        try { if (window.__mgLayout) window.__mgLayout(root); } catch (e) {}
       }
 
       function rotorHtml(slots) {
@@ -351,11 +354,11 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var result = "";
         if (spun) {
           var card = wheel.slots[selected];
-          result = '<div class="mg-result-title">转盘停在这一张</div>' +
+          result = '<div class="mg-result-title">这一张</div>' +
             '<p class="mg-card-text" data-test="wheel-result" aria-live="polite">' + esc(card && card.text ? card.text : "") + "</p>" +
             (handNote
               ? '<p class="mg-note">这张交给对方说。</p>'
-              : '<p class="mg-note">回棋盘会记一笔 · 心动值 +5</p>');
+              : '<p class="mg-note">心动值 +5 · 回棋盘记一笔</p>');
         }
         var acts = spun
           ? '<div class="mg-acts">' +
@@ -381,12 +384,14 @@ body.reduce .mg-panel{animation-duration:80ms!important}
 
       function render() {
         root.innerHTML = panelHtml();
+        layoutSegs();
         var rotor = root.querySelector("[data-rotor]");
         if (rotor && selected >= 0) {
           var n = (wheelState && wheelState.wheel && wheelState.wheel.slots ? wheelState.wheel.slots.length : 12);
           rotor.style.transform = "rotate(" + spinDeg(selected, n) + "deg)";
           rotor.style.transition = "none";
           rotor.innerHTML = segsHtml(wheelState.wheel.slots, selected);
+          layoutSegs();
         }
       }
 
@@ -422,6 +427,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
           /* 先按新的一套重绘扇区，再起转 */
           rotor.style.background = wheelBg(slots.length);
           rotor.innerHTML = segsHtml(slots, -1);
+          layoutSegs();
           rotor.style.transition = "none";
           rotor.style.transform = "rotate(0deg)";
           void rotor.offsetWidth;

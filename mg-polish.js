@@ -101,5 +101,21 @@
     }
   }, true);
 
+
+  /* V9.13：转盘 12 格的径向排布（文字沿半径、左半边翻 180°）。
+     放在 polish 层，首屏只留一个 window.__mgLayout 钩子。 */
+  window.__mgLayout = function (root) {
+    if (!root) return;
+    var wrap = root.querySelector(".mg-wheel-wrap");
+    var rotor = root.querySelector("[data-rotor]");
+    if (!wrap || !rotor) return;
+    var R = wrap.clientWidth * 0.32;
+    var segs = rotor.querySelectorAll(".mg-seg");
+    for (var i = 0; i < segs.length; i++) {
+      var a = i * (360 / segs.length) + (180 / segs.length);
+      var flip = a > 90 && a < 270;
+      segs[i].style.transform = "translate(-50%,-50%) rotate(" + a + "deg) translateY(" + (-R) + "px) rotate(" + (flip ? 90 : -90) + "deg)";
+    }
+  };
   window.__mgPolish = { enhance: enhance };
 })();
