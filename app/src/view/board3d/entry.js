@@ -486,6 +486,13 @@ class Board3DInstance {
   }
 }
 
+function fillLegendPanel() {
+  if (typeof document === 'undefined') return;
+  const panel = document.querySelector('[data-test="board3d-legend-panel"]');
+  if (!panel || panel.querySelector('[data-test="board3d-legend-row"]')) return;
+  panel.insertAdjacentHTML('beforeend', Board3D.legendRows());
+}
+
 async function mount(host, opts) {
   if (!host || typeof document === 'undefined') return null;
   if (current) {
@@ -501,6 +508,7 @@ async function mount(host, opts) {
     inst = new Board3DInstance(host, opts || {});
     await inst.init();
     current = inst;
+    fillLegendPanel();
     return inst;
   } catch (err) {
     console.warn('[board3d] mount failed:', err && err.message ? err.message : err);
@@ -512,6 +520,25 @@ async function mount(host, opts) {
 
 const Board3D = {
   version: VERSION,
+  /* V9.8：3D 图例数据搬到 chunk 里（首屏省 ~0.2 KB gzip），表头按「内容格 / 走法格 / 其它」分组。 */
+  legendRows() {
+    const rows = [
+      ['真', '真心话', '抽一张真心话'],
+      ['敢', '大冒险', '抽一张大冒险'],
+      ['触', '靠近', '抽一张靠近的题'],
+      ['缘', '命运', '两张挑一张'],
+      ['温', '温度计', '小游戏·温度计'],
+      ['轮', '转盘', '小游戏·转盘'],
+      ['起', '起飞', '掷6起飞，两次保底'],
+      ['飞', '飞点', '向前 12 格'],
+      ['停', '禁跳', '这一格不跳'],
+      ['归', '进航', '进自己的航线'],
+      ['·', '普通格', '不抽题，走过去']
+    ];
+    const head = { 0: '<div class="v6-l3h2" style="margin:4px 0 1px;font-size:9.5px;color:#F3C077">内容格</div>', 6: '<div class="v6-l3h2" style="margin:4px 0 1px;font-size:9.5px;color:#F3C077">走法格</div>', 10: '<div class="v6-l3h2" style="margin:4px 0 1px;font-size:9.5px;color:#F3C077">其它</div>' };
+    const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    return rows.map((r, i) => (head[i] || '') + '<div class="v6-l3r" data-test="board3d-legend-row"><b>' + esc(r[0]) + '</b><span>' + esc(r[1]) + ' · ' + esc(r[2]) + '</span></div>').join('');
+  },
   get mounted() { return !!current; },
   get threeRevision() { return THREE.REVISION; },
   mount,

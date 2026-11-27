@@ -44,28 +44,14 @@
 
   /* V8.2：3D 棋盘的格面短字图例（顺序 / 短字与 board3d/constants.js 的 GLYPH 对齐；
    * 转盘格在 3D 格面写「轮」，这里名字用「转盘」，两种叫法都对得上）。描述控制在 ≤10 字。 */
-  var LEGEND3D = [
-    ["真", "真心话", "抽一张真心话"],
-    ["敢", "大冒险", "抽一张大冒险"],
-    ["触", "靠近", "抽一张靠近的题"],
-    ["缘", "命运", "两张挑一张"],
-    ["温", "温度计", "小游戏·温度计"],
-    ["轮", "转盘", "小游戏·转盘"],
-    ["起", "起飞", "掷6起飞，两次保底"],
-    ["飞", "飞点", "向前 12 格"],
-    ["停", "禁跳", "这一格不跳"],
-    ["归", "进航", "进自己的航线"],
-    ["·", "普通格", "不抽题，走过去"]
-  ];
+
 
   /* 单屏实例共享的对局状态（mount 时赋值；同一时刻只有一个主桌） */
   var state = null;
-  /* V8.2：3D 图例的行（短字徽标 + 名字 · 一句说明） */
+  /* V8.2：3D 图例的行（短字徽标 + 名字 · 一句说明）。
+   * V9.8：按「内容格 / 走法格 / 其它」分三组，先教玩家哪些格会改变走法。 */
   function legend3dRows() {
-    return LEGEND3D.map(function (row) {
-      return '<div class="v6-l3r" data-test="board3d-legend-row"><b>' + U.escape(row[0]) + "</b>" +
-        "<span>" + U.escape(row[1]) + " · " + U.escape(row[2]) + "</span></div>";
-    }).join("");
+    try { var b = App.Board3D; return b && typeof b.legendRows === "function" ? b.legendRows() : ""; } catch (e) { return ""; }
   }
   /* 当前主桌的 owner：BoardView 是单例，快速连开两局时上一屏的延迟 cleanup
    * 不能把新主桌刚挂好的棋盘拆掉（否则棋盘空白）。 */
@@ -93,24 +79,25 @@
     "display:inline-flex;align-items:center;justify-content:center}",
     ".v6-icon-btn:active{transform:scale(.97)}",
     /* 状态条 */
-    ".v6-status{position:relative;z-index:2;flex:none;padding:6px 2px 0;display:flex;flex-direction:column;gap:2px;min-width:0}",
-    ".v6-status-line{font-size:11px;letter-spacing:.06em;color:var(--dim2,#8E7C9E);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}",
-    ".v6-status-main{font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--ink,#FBF3E7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}",
+    ".v6-status{position:relative;z-index:2;flex:none;padding:4px 2px 0;display:flex;flex-direction:column;gap:2px;min-width:0}",
+    ".v6-status-main{display:flex;align-items:baseline;font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--ink,#FBF3E7);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}",
+    ".v6-micro{display:inline-flex;align-items:baseline;gap:4px;margin-left:auto;padding-left:8px;font-size:9.5px;font-weight:400;letter-spacing:.04em;color:var(--dim2,#8E7C9E);overflow:hidden}",
+    ".v6-micro-sep{opacity:.45}",
     ".v6-stage{margin-left:6px;font-size:11px;font-weight:700;color:var(--amber,#F3C077)}",
     /* 回合条 */
-    ".v6-turns{position:relative;z-index:2;flex:none;display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px;border-radius:20px;",
+    ".v6-turns{position:relative;z-index:2;flex:none;display:flex;align-items:center;gap:6px;margin-top:3px;padding:3px;border-radius:18px;min-height:0;",
     "background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13))}",
-    ".v6-turn{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:15px}",
-    ".v6-turn .v6-tdot{width:10px;height:10px;border-radius:50%;flex:none}",
-    ".v6-turn .v6-tnm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".v6-turn .v6-tclr{font-size:10px;letter-spacing:.08em;color:var(--dim2,#8E7C9E);flex:none}",
-    ".v6-turn .v6-tstate{margin-left:auto;font-size:10px;letter-spacing:.1em;color:var(--dim2,#8E7C9E);flex:none}",
+    ".v6-turn{flex:1;min-width:0;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:14px}",
+    ".v6-turn .v6-tdot{width:8px;height:8px;border-radius:50%;flex:none}",
+    ".v6-turn .v6-tnm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".v6-turn .v6-tclr{font-size:9.5px;letter-spacing:.08em;color:var(--dim2,#8E7C9E);flex:none}",
+    ".v6-turn .v6-tstate{margin-left:auto;font-size:9.5px;letter-spacing:.1em;color:var(--dim2,#8E7C9E);flex:none}",
     ".v6-turn.on .v6-tstate{color:var(--amber,#F3C077)}",
-    ".v6-turn-sep{width:1px;height:22px;background:var(--line,rgba(255,226,196,.16));flex:none}",
+    ".v6-turn-sep{width:1px;height:18px;background:var(--line,rgba(255,226,196,.16));flex:none}",
     /* 掷骰条（点数 / 落点 / 提示 / 收尾横幅）：题卡是 fixed 底部 dock，这一条不会被遮住 */
-    ".v6-rollstrip{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:9px;margin-top:6px;padding:7px 9px;border-radius:16px;",
+    ".v6-rollstrip{position:relative;z-index:2;flex:none;display:flex;align-items:flex-start;gap:9px;margin-top:4px;padding:5px 8px;border-radius:15px;",
     "background:var(--glass,rgba(38,27,58,.42));border:1px solid var(--line,rgba(255,226,196,.13))}",
-    ".v6-die{position:relative;width:38px;height:38px;flex:none;border-radius:10px;display:grid;padding:6px;gap:2px;",
+    ".v6-die{position:relative;width:34px;height:34px;flex:none;border-radius:9px;display:grid;padding:5px;gap:2px;",
     "grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);",
     "background:linear-gradient(160deg,#3A2418,#24150E);box-shadow:0 1px 0 rgba(255,226,196,.25) inset}",
     ".v6-die[data-value=\"0\"] i{opacity:0}",
@@ -125,9 +112,16 @@
     ".v6-lsep{color:var(--dim2,#8E7C9E);font-size:11px}",
     ".v6-llabel{font-size:10.5px;letter-spacing:.1em;color:var(--dim2,#8E7C9E);flex:none}",
     ".v6-roll-line.v6-empty .v6-lsep,.v6-roll-line.v6-empty .v6-llabel,.v6-roll-line.v6-empty .v6-landing-btn{display:none}",
-    ".v6-landing-btn{min-height:26px;padding:1px 0;border:0;background:transparent;cursor:pointer;font-family:inherit;",
+    ".v6-landing-btn{position:relative;min-height:26px;padding:2px 9px 2px 20px;border:1px solid rgba(224,164,94,.30);background:rgba(224,164,94,.10);border-radius:8px;cursor:pointer;font-family:inherit;",
     "font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--amber,#F3C077);text-align:left;",
     "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}",
+    ".v6-landing-btn::before{content:\"\";position:absolute;left:8px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:currentColor;opacity:.9}",
+    ".v6-landing-btn[data-kind=truth]{color:#D98D8D}",
+    ".v6-landing-btn[data-kind=dare]{color:#E3A963}",
+    ".v6-landing-btn[data-kind=touch]{color:#D08AB0}",
+    ".v6-landing-btn[data-kind=mini]{color:#7FB0BC}",
+    ".v6-landing-btn[data-kind=fate]{color:#B49BD8}",
+    ".v6-landing-btn[data-kind=move]{color:#F0C889;border-color:rgba(240,200,137,.44);background:rgba(240,200,137,.15)}",
     ".v6-hint{font-size:12px;line-height:1.35;color:var(--rose,#E9887A)}",
     ".v6-hint .v6-reason{display:block;color:var(--dim2,#8E7C9E);font-size:11px}",
     /* V6.1：胜者行（「{姓名} 先到家」）与起飞保底提示（掷骰前，不覆盖「掷出 N」） */
@@ -174,13 +168,16 @@
     ".v6-zbtn:active{transform:scale(.94)}",
     ".v6-zbtn[disabled]{opacity:.36;cursor:default}",
     ".v6-zbtn[data-act=zoom-reset]{font-size:11px;letter-spacing:.02em}",
-    /* V8：3D 模式下题卡只出右侧内容卡（cell45/bear 已由 3D 画，避免 2D/3D 双舞台）。
-     * 左列留空给 3D 画面透出，卡片固定在第 2 列；V7（无 .v8-3d-card）保持 CellStage 原样。 */
-    ".v6-table.v8-3d-card .cs-stage{grid-template-columns:36% minmax(0,1fr)}",
+    /* V9.8：3D 模式下题卡改「底部抽屉」——手机竖屏上给正文 100% 宽度（原来只占 64%，
+     * 390 宽下卡面只有 224px），格子和熊由 3D 画面在上方承担（见 board3dStageAim）。
+     * 左列不再预留（.cs-left 已是 display:none）。 */
+    ".v6-table.v8-3d-card .cs-root{align-items:flex-end;padding:calc(52px + var(--safe-t,0px)) 8px calc(8px + var(--safe-b,0px))}",
+    ".v6-table.v8-3d-card .cs-stage{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0;height:auto;max-height:100%;align-items:end}",
     ".v6-table.v8-3d-card .cs-left{display:none}",
-    ".v6-table.v8-3d-card .cs-card{grid-column:2}",
-    ".v6-table.v8-3d-card .cs-scrim{background:radial-gradient(120% 86% at 30% 42%,rgba(6,4,14,.16),rgba(6,4,14,.6) 74%),linear-gradient(180deg,rgba(6,4,14,.26),rgba(6,4,14,.58))}",
-    "@media (max-width:359px){.v6-table.v8-3d-card .cs-stage{grid-template-columns:30% minmax(0,1fr)}}",
+    ".v6-table.v8-3d-card .cs-card{grid-column:1;height:auto;max-height:min(54vh,440px);border-radius:18px 18px 12px 12px;padding:16px 16px 12px;transform-origin:50% 100%}",
+    ".v6-table.v8-3d-card .cs-scrim{background:linear-gradient(180deg,rgba(4,6,10,.06) 0%,rgba(4,6,10,.24) 34%,rgba(4,6,10,.62) 72%,rgba(4,6,10,.8) 100%)}",
+    "@media (max-height:720px){.v6-table.v8-3d-card .cs-card{max-height:62vh;padding:13px 14px 10px}}",
+    "@media (max-width:359px){.v6-table.v8-3d-card .cs-card{max-height:60vh;border-radius:16px 16px 10px 10px}}",
     ".v6-fb{position:absolute;inset:0;overflow:auto;border-radius:18px;padding:10px 12px;",
     "background:rgba(18,12,32,.62);border:1px solid var(--line,rgba(255,226,196,.13))}",
     ".v6-fb h3{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--dim,#C9B6CE)}",
@@ -245,16 +242,18 @@
     ".v6-l3o .v6-action{display:none}",
     "@media (max-height:720px){",
     ".v6-table{padding-top:calc(6px + var(--safe-t,0px));padding-bottom:calc(6px + var(--safe-b,0px))}",
-    ".v6-status-line{font-size:10px}",
     ".v6-status-main{font-size:11.5px}",
-    ".v6-turns{margin-top:4px;padding:4px}",
-    ".v6-turn{padding:5px 8px}",
-    ".v6-turn .v6-tnm{font-size:13px}",
-    ".v6-rollstrip{margin-top:4px;padding:6px 8px}",
-    ".v6-boardwrap{margin:4px 0}",
-    ".v6-die{width:32px;height:32px;padding:5px}",
+    ".v6-micro{font-size:9px;padding-left:6px}",
+    ".v6-micro-extra{display:none}",
+    ".v6-turns{margin-top:3px;padding:3px}",
+    ".v6-turn{padding:4px 8px}",
+    ".v6-turn .v6-tnm{font-size:12.5px}",
+    ".v6-rollstrip{margin-top:3px;padding:4px 8px}",
+    ".v6-boardwrap{margin:3px 0}",
+    ".v6-die{width:30px;height:30px;padding:4px}",
     ".v6-btn{min-height:44px}",
-    "}"
+    "}",
+    "@media (max-width:359px){.v6-micro-extra{display:none}}"
   ].join("");
 
   /* ---------- 小工具 ---------- */
@@ -323,14 +322,11 @@
     try { return String(window.__BOARD3D_URL || ""); } catch (e) { return ""; }
   }
 
-  /* 3D 题卡只出右侧内容卡时，把 cell45/bear 小舞台瞄准左侧空出来的区域（NDC 目标）。
-   * 卡在 .cs-stage 第 2 列：≥360 宽从 36%+4% gap 开始（≈40% 屏宽），≤359 从 30%+4%（≈34%）。
-   * nx = 左侧可见中心 * 2 - 1（与 P0 的 stageAimNdc 同一口径），ny 略上。 */
+  /* V9.8：3D 题卡改底部抽屉后，cell45/bear 小舞台从「左侧空列」移到「上方空白」。
+   * 卡片占下方 ~54vh（390×844 时顶边约 388px），HUD 到 219px，中间约 170px 是给格子的窗口。
+   * nx=0 居中；ny 由 NDC 换算（屏幕 y 越小 ny 越大），取 0.44 让格子略靠下、熊头顶不顶到 HUD。 */
   function board3dStageAim() {
-    var w = 390;
-    try { w = Number(window.innerWidth) || 390; } catch (e) { w = 390; }
-    var cardStart = w <= 359 ? 0.34 : 0.40;
-    return { nx: Math.round((cardStart - 1) * 100) / 100, ny: 0.14 };
+    return { nx: 0, ny: 0.44 };
   }
 
   function board3dApi() {
@@ -578,14 +574,25 @@
     if (moverColor && color === moverColor) return "跳格";
     return "普通格";
   }
+  function landingKind(text) {
+    if (!text) return "plain";
+    if (/起飞格|飞格|停格|进航格|跳格/.test(text)) return "move";
+    if (text.indexOf("真心话") >= 0) return "truth";
+    if (text.indexOf("大冒险") >= 0) return "dare";
+    if (text.indexOf("靠近") >= 0) return "touch";
+    if (/温度计|转盘/.test(text)) return "mini";
+    if (text.indexOf("命运") >= 0) return "fate";
+    return "plain";
+  }
   function landingText(squareId, moverColor) {
     var B = boardApi(), loc = null;
     var grid = gridName(squareId, moverColor);
-    if (!B || !squareId) return { text: grid, square: "" };
+    var kind = landingKind(grid);
+    if (!B || !squareId) return { text: grid, square: "", kind: kind };
     try { loc = B.parseSquare(squareId); } catch (e) { loc = null; }
-    if (loc && loc.type === "ring") return { text: grid + " · 第 " + loc.n + " 格", square: squareId };
-    if (loc && loc.type === "hangar") return { text: "机坪", square: squareId };
-    return { text: grid, square: squareId };
+    if (loc && loc.type === "ring") return { text: grid + " · 第 " + loc.n + " 格", square: squareId, kind: kind };
+    if (loc && loc.type === "hangar") return { text: "机坪", square: squareId, kind: "plain" };
+    return { text: grid, square: squareId, kind: kind };
   }
 
   /* ---------- 屏幕 ---------- */
@@ -645,12 +652,6 @@
             '<div class="v6-safe-slot" data-test="safe-slot" aria-hidden="true"></div>' +
           '</div>' +
           '<div class="v6-status" data-test="status">' +
-            '<div class="v6-status-line">' +
-              '<span data-test="round">第 1 回合</span> · ' +
-              '<span data-test="duration">今晚 0:00</span> · ' +
-              '<span data-test="flying">在飞 0 架</span> · ' +
-              '<span data-test="status-cards">第 0 张</span>' +
-            '</div>' +
             '<div class="v6-status-main">' +
               '<span data-test="status-home">' +
                 '<span data-test="status-home-a">红 0/2</span><span> · </span>' +
@@ -659,6 +660,14 @@
               '<span data-test="status-heat">心动值 0</span><span> · </span>' +
               '<span data-test="status-streak">连击 0</span>' +
               '<i class="v6-stage" data-test="heat-stage">灯刚亮</i>' +
+              /* V9.8：回合/时长/在飞/张数收进同一行尾部（原来独立一行 20px），给棋盘让出高度 */
+              '<span class="v6-micro" data-test="status-micro">' +
+                '<span class="v6-micro-sep">·</span>' +
+                '<span data-test="round">第 1 回合</span><span class="v6-micro-sep">·</span>' +
+                '<span data-test="duration">今晚 0:00</span>' +
+                '<span class="v6-micro-extra"><span class="v6-micro-sep">·</span><span data-test="flying">在飞 0 架</span>' +
+                '<span class="v6-micro-sep">·</span><span data-test="status-cards">第 0 张</span></span>' +
+              '</span>' +
             '</div>' +
           '</div>' +
           '<div class="v6-turns" data-test="turns">' +
@@ -1465,6 +1474,7 @@
         if (lineEl) lineEl.classList.toggle("v6-empty", !landing.square);
         if (landingEl) {
           landingEl.textContent = landing.text || "—";
+          landingEl.setAttribute("data-kind", landing.kind || "plain");
           if (landing.square) landingEl.setAttribute("data-landing-square", landing.square);
           else landingEl.removeAttribute("data-landing-square");
         }

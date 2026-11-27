@@ -152,7 +152,8 @@ ul,ol{margin:0;padding:0;list-style:none}
 .fx-dot{position:absolute;z-index:910;width:4px;height:4px;border-radius:50%;pointer-events:none;transition:transform .8s var(--ease-out),opacity .8s}
 
 /* 门厅 */
-.boot{padding-top:calc(54px + var(--safe-t));padding-bottom:calc(8px + var(--safe-b))}
+.boot{padding-top:calc(54px + var(--safe-t));padding-bottom:calc(8px + var(--safe-b));position:relative}
+.boot::before{content:"";position:absolute;left:-25%;right:-25%;top:-4%;height:46%;pointer-events:none;z-index:-1;background:radial-gradient(50% 50% at 50% 42%,rgba(224,164,94,.14),transparent 72%)}
 .boot-h1{font-family:var(--font-display);font-weight:700;font-size:clamp(38px,11.4vw,52px);line-height:1.04;letter-spacing:.04em;margin-top:16px}
 .boot-h1 .l1{color:var(--ink)}
 .boot-h1 .l2{display:block;color:var(--amber);margin-top:2px}

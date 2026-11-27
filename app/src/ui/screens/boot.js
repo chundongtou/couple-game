@@ -155,7 +155,7 @@
           '<div class="sect">' +
             '<div class="sect-label">今晚玩多久</div>' +
             '<div class="mode-grid" data-test="modes">' + MODES.map(modeCard).join("") + "</div>" +
-            '<div class="sect-note" data-test="mode-summary">' + mode.line + "</div>" +
+            '<div class="sect-note" data-test="mode-summary">先到家就收尾 · 随时可先停</div>' +
           "</div>" +
           '<div class="sect">' +
             '<div class="sect-label">今晚怎么称呼</div>' +

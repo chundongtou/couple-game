@@ -407,9 +407,27 @@ export function buildAtlas(opts = {}) {
     COLORS.forEach((color) => {
       const [x, y] = at(slotOf(kind, color));
       enamelBase(x, y, kind, color);
-      const tint = mixCss(HEX[color], 0xEFE2CC, 0.52);
-      const solid = kind === 'takeoff' || kind === 'fly' || kind === 'fate' || kind === 'dare';
-      drawIcon(g, kind, x + PX / 2, y + PX * 0.505, PX * 0.56, tint, { engrave: true, lw: 5.4, fill: solid });
+      /* V9.8：4 类"会改变走法"的格（起 / 飞 / 停 / 归）加一层黄铜暖光 + 加粗包边，
+       * 让它们在 14px 的格面上先以"暖色"被认出来，再读图标；内容格保持冷珐琅。 */
+      const moveKind = kind === 'takeoff' || kind === 'fly' || kind === 'forbid' || kind === 'entry';
+      if (moveKind) {
+        g.save();
+        g.translate(x, y);
+        const wash = g.createRadialGradient(PX * 0.5, PX * 0.45, 1.5, PX * 0.5, PX * 0.5, PX * 0.62);
+        wash.addColorStop(0, 'rgba(238,198,132,.26)');
+        wash.addColorStop(1, 'rgba(238,198,132,0)');
+        g.fillStyle = wash;
+        roundRect(g, 2, 2, PX - 4, PX - 4, PX * 0.16);
+        g.fill();
+        g.lineWidth = 2.3;
+        g.strokeStyle = 'rgba(238,198,132,.58)';
+        roundRect(g, 3.4, 3.4, PX - 6.8, PX - 6.8, PX * 0.14);
+        g.stroke();
+        g.restore();
+      }
+      const tint = mixCss(HEX[color], 0xEFE2CC, moveKind ? 0.68 : 0.52);
+      const solid = moveKind || kind === 'fate' || kind === 'dare';
+      drawIcon(g, kind, x + PX / 2, y + PX * 0.505, PX * (moveKind ? 0.62 : 0.60), tint, { engrave: true, lw: 5.4, fill: solid });
     });
   });
 

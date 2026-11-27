@@ -353,6 +353,14 @@ export class Director {
     const safeEv = events.find((e) => e.type === 'safe');
 
     if (diceEv) {
+      /* 空转（无子可动、无题卡）：不跑摇骰全集与镜头推拉，落骰 + 短停留即回可操作。
+       * 现场实测：原来一次空转要 3.2–4.2s（HAND.total 2380 + 推镜 + 回俯瞰），
+       * 而一局约 20% 的掷骰是空转 —— 这里把它压到 ~0.4s。 */
+      const barren = !motionEvs.length && !promptEv && !minigameEv && !winEv && !ledgerEv && !safeEv;
+      if (barren && !this.reduced) {
+        await this._phaseRollQuick(diceEv);
+        return;
+      }
       await this._phaseRoll(diceEv);
       if (!motionEvs.length && !promptEv && !minigameEv && !winEv) {
         await this.returnToOverview();
@@ -440,6 +448,20 @@ export class Director {
       onSettle: () => this.sfx.tick()
     });
     await Promise.all([camTask, tossTask]);
+  }
+
+  /* 空转快通道：骰子直接落定（不抛、不推镜），留 260ms 让点数被看见，然后回 idle。
+   * 一局约 20% 的掷骰会走到这里；规范见 director 头部与 docs/v10 之前的镜头链接口。 */
+  async _phaseRollQuick(diceEv) {
+    this._setPhase('roll');
+    const die = clamp(Number(diceEv.die) || 1, 1, 6);
+    this.scene.setDieVisible(true);
+    this.scene.placeDie(die);
+    if (this.sfx && this.sfx.diceLand) this.sfx.diceLand(0.12);
+    if (!this._instantNext && !this._skipUntilIdle) {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    }
+    this._setPhase('idle');
   }
 
   async _phaseFocus(pieceId, origin) {

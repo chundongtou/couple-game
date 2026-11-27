@@ -365,14 +365,14 @@ export class BoardScene {
     g.add(lampMesh);
     this.lampMesh = lampMesh;
     /* 灯泡（自发光，不参与 tone mapping 压缩，像真正的暖光点） */
-    this.bulbMat = new THREE.MeshBasicMaterial({ color: 0xFFE3B4, toneMapped: false, fog: false });
+    this.bulbMat = new THREE.MeshBasicMaterial({ color: 0xE9C79C, toneMapped: false, fog: false });
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 9), this.bulbMat);
     bulb.position.set(CABIN.lamp.x, CABIN.lamp.y - 0.055, CABIN.lamp.z);
     g.add(bulb);
     this.bulb = bulb;
     /* 灯光晕（轻量 bloom：加色 sprite） */
     this.lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: TX.makeGlowTex(), color: 0xFFC98A, transparent: true, opacity: 0.55,
+      map: TX.makeGlowTex(), color: 0xFFC98A, transparent: true, opacity: 0.42,
       blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true, fog: false, toneMapped: false
     }));
     this.lampGlow.scale.set(1.9, 1.9, 1);
@@ -662,40 +662,40 @@ export class BoardScene {
     this.propMatteMat = new THREE.MeshStandardMaterial({
       map: paper.map, normalMap: paper.normal,
       normalScale: new THREE.Vector2(0.45, 0.45), vertexColors: true,
-      roughness: 0.64, metalness: 0.03, envMapIntensity: 0.42
+      roughness: 0.70, metalness: 0.03, envMapIntensity: 0.34
     });
     this.propPaperMat = new THREE.MeshStandardMaterial({
       map: paper.map, normalMap: paper.normal,
       normalScale: new THREE.Vector2(MAT.paper.normalScale, MAT.paper.normalScale),
-      color: 0xF4E8D4, roughness: MAT.paper.roughness, metalness: 0,
+      color: 0xDCD0BA, roughness: MAT.paper.roughness, metalness: 0,
       envMapIntensity: MAT.paper.envMapIntensity
     });
     this.propPrintMat = new THREE.MeshStandardMaterial({
-      map: atlas, roughness: 0.78, metalness: 0.02, envMapIntensity: 0.38,
+      map: atlas, roughness: 0.82, metalness: 0.02, envMapIntensity: 0.31,
       side: THREE.DoubleSide
     });
     this.propClothMat = new THREE.MeshStandardMaterial({
       map: this._felt.map, normalMap: this._felt.normal,
       normalScale: new THREE.Vector2(1.1, 1.1),
-      color: 0x73303A, roughness: MAT.felt.roughness, metalness: 0,
+      color: 0x622A34, roughness: MAT.felt.roughness, metalness: 0,
       envMapIntensity: MAT.felt.envMapIntensity
     });
     this.propLeafMat = new THREE.MeshStandardMaterial({
-      color: 0x4E6B62, roughness: 0.72, metalness: 0.02,
+      color: 0x435D54, roughness: 0.76, metalness: 0.02,
       envMapIntensity: 0.4, side: THREE.DoubleSide
     });
     this.propDarkMat = new THREE.MeshStandardMaterial({
-      map: this._felt.map, color: 0x2A211B, roughness: 0.72, metalness: 0.05,
+      map: this._felt.map, color: 0x241C17, roughness: 0.76, metalness: 0.05,
       envMapIntensity: 0.35
     });
     this.ceramicMat = new THREE.MeshStandardMaterial({
-      color: 0xE4D8C6, roughness: 0.24, metalness: 0, envMapIntensity: 1.15
+      color: 0xC9BEAC, roughness: 0.32, metalness: 0, envMapIntensity: 0.88
     });
     this.teaMat = new THREE.MeshStandardMaterial({
-      color: 0x7A3B18, roughness: 0.18, metalness: 0, envMapIntensity: 0.9
+      color: 0x66300F, roughness: 0.24, metalness: 0, envMapIntensity: 0.72
     });
     this.lampShadeMat = new THREE.MeshStandardMaterial({
-      color: 0xD8A06A, emissive: 0xFF9A50, emissiveIntensity: 0.55,
+      color: 0xC28A58, emissive: 0xFF9A50, emissiveIntensity: 0.42,
       roughness: 0.52, metalness: 0.35, envMapIntensity: MAT.brass.envMapIntensity,
       side: THREE.DoubleSide
     });
@@ -792,10 +792,10 @@ export class BoardScene {
     const t0 = themeOf(this.theme);
     this.deskPool = makeGlowPlane(2.2, t0.light.lamp);
     this.deskPool.position.set(L.x + 0.11, 0.0078, L.z + 0.24);
-    this.deskPool.material.opacity = 0.16;
+    this.deskPool.material.opacity = 0.12;
     this.deskPool.renderOrder = 1;
     group.add(this.deskPool);
-    this.deskLight = new THREE.PointLight(0xFFB877, 2.8, 4.2, 2);
+    this.deskLight = new THREE.PointLight(0xFFB877, 2.0, 4.2, 2);
     this.deskLight.position.set(L.x + 0.12, 0.43, L.z + 0.20);
     this.scene.add(this.deskLight);
     this.propAnchors.lamp = this._anchor(L.x, 0.42, L.z);
@@ -816,13 +816,13 @@ export class BoardScene {
     this.flame.position.set(C.x, 0.435, C.z);
     group.add(this.flame);
     this.candleGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: TX.makeGlowTex(), color: 0xFFA860, transparent: true, opacity: 0.30,
+      map: TX.makeGlowTex(), color: 0xFFA860, transparent: true, opacity: 0.22,
       blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false
     }));
     this.candleGlow.scale.set(0.70, 0.70, 1);
     this.candleGlow.position.set(C.x, 0.41, C.z);
     group.add(this.candleGlow);
-    this.candleLight = new THREE.PointLight(0xFF9A50, 1.35, 2.8, 2);
+    this.candleLight = new THREE.PointLight(0xFF9A50, 1.05, 2.8, 2);
     this.candleLight.position.set(C.x, 0.46, C.z);
     this.scene.add(this.candleLight);
     this.propAnchors.candle = this._anchor(C.x, 0.36, C.z);
@@ -1016,7 +1016,7 @@ export class BoardScene {
     if (this.steam) this.steam.forEach((s) => { s.visible = !!tier.steam; });
     if (this.motes) this.motes.visible = !!tier.motes;
     if (this.deskLight) this.deskLight.intensity = extraLights ? 2.2 : 0;
-    if (this.candleLight) this.candleLight.intensity = extraLights ? 1.2 : 0;
+    if (this.candleLight) this.candleLight.intensity = extraLights ? 0.9 : 0;
     if (this.deskGlow) this.deskGlow.visible = !!tier.props;
     if (this.candleGlow) this.candleGlow.visible = !!tier.props;
     if (this.flame) this.flame.visible = !!tier.props;
@@ -1051,16 +1051,16 @@ export class BoardScene {
       this.flame.scale.set(0.046 + f1 * 0.012, 0.105 + f2 * 0.028, 1);
       this.flame.material.opacity = 0.82 + f1 * 0.16;
       if (this.candleGlow) {
-        this.candleGlow.material.opacity = 0.24 + f2 * 0.10;
+        this.candleGlow.material.opacity = 0.18 + f2 * 0.07;
         this.candleGlow.scale.set(0.58 + f1 * 0.08, 0.58 + f1 * 0.08, 1);
       }
-      if (this.candleLight && extraLights) this.candleLight.intensity = 1.05 + f1 * 0.35;
+      if (this.candleLight && extraLights) this.candleLight.intensity = 0.85 + f1 * 0.28;
     }
     /* 铜台灯：灯罩自发光呼吸 + 光晕 + 点光 */
     if (tier.props && this.deskShade) {
       const b = 0.5 + 0.5 * Math.sin(now * 0.0013 + 0.6);
-      this.lampShadeMat.emissiveIntensity = 0.34 + b * 0.14;
-      if (this.deskGlow) this.deskGlow.material.opacity = 0.32 + b * 0.10;
+      this.lampShadeMat.emissiveIntensity = 0.26 + b * 0.10;
+      if (this.deskGlow) this.deskGlow.material.opacity = 0.26 + b * 0.08;
       if (this.deskLight && extraLights) this.deskLight.intensity = 2.0 + b * 0.45;
     }
     /* 阅读灯呼吸（在 applyHeat 的基准亮度上做 ±3% + 极轻闪烁） */
@@ -1387,7 +1387,7 @@ export class BoardScene {
       uniforms: {
         uTime: { value: 0 },
         uAspect: { value: 1 },
-        uVig: { value: 0.55 },
+        uVig: { value: 0.62 },
         uGrain: { value: 0.055 }
       },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
@@ -1443,7 +1443,7 @@ export class BoardScene {
     this._applyPropsQuality();
     if (this.fxMat) {
       this.fxMat.uniforms.uGrain.value = tier.grain ? 0.055 : 0.0;
-      this.fxMat.uniforms.uVig.value = tier.glow ? 0.58 : 0.42;
+      this.fxMat.uniforms.uVig.value = tier.glow ? 0.66 : 0.46;
       this.fxQuad.visible = tier.grain || tier.glow;
     }
     if (this.lampGlow) this.lampGlow.visible = tier.bloom;
