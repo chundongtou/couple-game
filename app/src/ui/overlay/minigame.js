@@ -354,8 +354,9 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         if (isThermo || selected < 0 || !wheelState || !wheelState.wheel) return "";
         var card = wheelState.wheel.slots[selected];
         var star = Math.max(1, Math.min(4, (card && card.star) || 1));
+        var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var kick = (wheelKind === "truth" ? "真心话" : "大冒险") + " · " +
-          new Array(star + 1).join("★") + " · 转盘";
+          new Array(star + 1).join("★") + " · " + (left > 0 ? "可换一组" : "换完了");
         return '<p class="mg-top" data-k="' + esc(kick) + '">' +
           esc(card && card.text ? card.text : "") + "</p>";
       }
