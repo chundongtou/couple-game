@@ -937,7 +937,7 @@
               mode: (state && state.mode) || settings().mode || "quick",
               quality: board3dQuality(),
               /* 2K 档锁定高画质，不允许自适应降到 medium/low；标准/流畅仍可自动降。 */
-              adapt: board3dQuality() !== "high",
+              adapt: true,
               sound: soundOn(),
               stageAim: board3dStageAim()   /* cell45/bear 瞄准左侧卡片外区域 */
             });

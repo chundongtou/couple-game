@@ -144,6 +144,17 @@
 }
 .mg-panel .mg-result-num { font-size: 40px; }
 
+/* ---------- 宽屏：主桌套一个居中机身（桌面/平板分享链接时不再被拉满） ---------- */
+@media (min-width: 560px) {
+  body .v6-table {
+    left: 50%;
+    right: auto;
+    width: 520px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 1px rgba(176, 138, 87, .16), 0 40px 90px rgba(0, 0, 0, .62);
+  }
+}
+
 /* ---------- 小屏 ---------- */
 @media (max-height: 700px) {
   .mg-panel .mg-wheel-wrap { width: min(210px, 58vw); height: min(210px, 58vw); margin: 10px auto 6px; }

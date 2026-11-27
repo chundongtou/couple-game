@@ -104,6 +104,16 @@ AUDIO_WAVS = (
     "mus-calm.wav",
 )
 
+# V9.9：预缓存只放"进主桌后几秒内一定会用到"的核心音（掷骰落定 / 题卡 / 钟片 / UI 轻触）。
+# 其余 13 个（走子、起飞、环境、音乐等）仍随产物发布，改走 SW 的 cache-first + 联网回填：
+# 第一次播到才下载，之后离线可播。首装少下约 1.2 MB。
+AUDIO_WAVS_PRECACHE = (
+    "sfx-dice-land.wav",
+    "sfx-card.wav",
+    "sfx-chime.wav",
+    "sfx-ui-tap.wav",
+)
+
 CACHE_PREFIX = "couple-flight-v6-"
 CARDS_PREFIX = "assets/cards"          # 产物名：assets/cards.<hash>.js
 INDEX_GZIP_BUDGET = 140 * 1024          # 首屏 index.html gzip 硬门槛（ADR-012；原 arch §4 PB-2=58KB 已被取代）
@@ -728,6 +738,13 @@ def build(out, release, board, strict, split_screens=False,
         write_text(out / screens_name, screens)
     if app_name:
         write_text(out / app_name, js)
+    # V9.9：小游戏 polish 层（V9.7 起手工挂在生产 index）。只在 --release 产物里注入，
+    # 这样 dev/CI 的首屏门禁口径不变，同时重建时不会再把它丢掉。
+    if release and (ROOT / "mg-polish.css").is_file() and (ROOT / "mg-polish.js").is_file():
+        inject = ('<link rel="stylesheet" href="mg-polish.css">\n'
+                  '<script src="mg-polish.js" defer></script>\n</head>')
+        if "</head>" in html and "mg-polish.css" not in html:
+            html = html.replace("</head>", inject, 1)
     write_text(out / "index.html", html)
 
     # V9 音频 wav：原样拷进 assets/audio/（17 个，名字与 audio.js 的 FILES 一致）
@@ -754,6 +771,17 @@ def build(out, release, board, strict, split_screens=False,
             shutil.copytree(ICONS, dst)
             icon_count = len([p for p in dst.glob("*.png")])
             assets.append("icons/ (%d)" % icon_count)
+    # V9.9：mg-polish 层（V9.7 起手工挂在根 index；模板已收编，构建时一并产出）
+    for name in ("mg-polish.css", "mg-polish.js"):
+        src = ROOT / name
+        if not src.is_file():
+            continue
+        dst = out / name
+        if same_path(src, dst):
+            assets.append(name + "(in-place)")
+        else:
+            shutil.copy2(src, dst)
+            assets.append(name)
     if board == "3d":
         dst = out / "assets" / "board.js"
         if same_path(BOARD_SRC, dst):
@@ -767,7 +795,7 @@ def build(out, release, board, strict, split_screens=False,
     index_path = out / "index.html"
     build_hash = sha8_file(index_path)
     precache = expected_precache(out, html, extra=[three_d["name"]] if three_d else [],
-                                 audio=AUDIO_WAVS)
+                                 audio=AUDIO_WAVS_PRECACHE)
     write_text(out / "sw.js", render_sw(build_hash, precache))
 
     # ---- 摘要（一律对落盘文件统计）----
@@ -1120,7 +1148,7 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
             absent = [e for e in precache if e != "./" and not (out / rel_of(e)).is_file()]
             expect("sw PRECACHE 条目都在磁盘上", not absent, ", ".join(absent))
             expected = expected_precache(out, html, extra=[three_rel] if three_rel else [],
-                                         audio=AUDIO_WAVS)
+                                         audio=AUDIO_WAVS_PRECACHE)
             expect("sw PRECACHE 与产物清单一致",
                    sorted(precache) == sorted(expected) and len(set(precache)) == len(precache),
                    "disk=%s" % sorted(precache))
@@ -1134,14 +1162,24 @@ def run_check(out, board, budget_gz=INDEX_GZIP_BUDGET, budget_raw=INDEX_RAW_BUDG
             expect("音频：sw PRECACHE 含 audio chunk（离线可用）",
                    ("./" + audio_rel) in precache if audio_rel else False,
                    "PRECACHE 缺 ./%s" % (audio_rel or "assets/audio.<hash>.js"))
-            miss_audio = [e for e in ("./" + AUDIO_WAV_REL + "/" + n for n in AUDIO_WAVS)
+            miss_audio = [e for e in ("./" + AUDIO_WAV_REL + "/" + n for n in AUDIO_WAVS_PRECACHE)
                           if e not in precache]
-            expect("音频：sw PRECACHE 含 %d 个 wav（离线可播）" % len(AUDIO_WAVS), not miss_audio,
+            expect("音频：sw PRECACHE 含 %d 个核心 wav（首屏必用）" % len(AUDIO_WAVS_PRECACHE), not miss_audio,
                    ", ".join(miss_audio))
+            extra_audio = []
+            for n in AUDIO_WAVS:
+                if n in AUDIO_WAVS_PRECACHE:
+                    continue
+                entry = "./" + AUDIO_WAV_REL + "/" + n
+                if entry in precache:
+                    extra_audio.append(entry)
+            expect("音频：首装不预缓存其余 %d 个 wav（运行时回填）" %
+                   (len(AUDIO_WAVS) - len(AUDIO_WAVS_PRECACHE)), not extra_audio,
+                   ", ".join(extra_audio))
             pre_bytes = sum((out / rel_of(e)).stat().st_size for e in precache
                             if e != "./" and (out / rel_of(e)).is_file())
-            print("[CHECK]       sw PRECACHE: %d 项，落盘 %.1f KB（含 %d wav）" % (
-                len(precache), kb(pre_bytes), len(AUDIO_WAVS)))
+            print("[CHECK]       sw PRECACHE: %d 项，落盘 %.1f KB（含 %d 核心 wav）" % (
+                len(precache), kb(pre_bytes), len(AUDIO_WAVS_PRECACHE)))
 
     # 7) manifest
     man_path = out / "manifest.webmanifest"
