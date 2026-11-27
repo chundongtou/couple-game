@@ -81,10 +81,6 @@ body.reduce .mg-panel{animation-duration:80ms!important}
 .mg-pointer{position:absolute;left:50%;top:-4px;transform:translateX(-50%);z-index:3;width:0;height:0;
   border-left:9px solid transparent;border-right:9px solid transparent;border-top:18px solid var(--amber,#F3C077)}
 .mg-rotor{width:100%;height:100%;border-radius:50%;position:relative;
-  background:conic-gradient(
-    rgba(243,192,119,.30) 0 60deg, rgba(233,136,122,.28) 60deg 120deg,
-    rgba(142,123,216,.30) 120deg 180deg, rgba(243,192,119,.30) 180deg 240deg,
-    rgba(233,136,122,.28) 240deg 300deg, rgba(142,123,216,.30) 300deg 360deg);
   box-shadow:inset 0 0 0 10px rgba(255,226,196,.10),inset 0 0 0 1px rgba(255,226,196,.14),0 16px 38px rgba(3,2,10,.5);
   border:1px solid rgba(255,226,196,.2)}
 .mg-rotor.spinning{transition:transform 1.25s cubic-bezier(.15,.85,.18,1)}
@@ -154,37 +150,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
     return document.body.classList.contains("reduce");
   }
 
-  function fallbackWheelState(state, wheelKind, seed) {
-    var D = App.FlightDraw;
-    if (!D || !D.take) return null;
-    var pseudo = {
-      scale: state.scale || "warm",
-      maxStarCap: state.maxStarCap || 2,
-      boundaries: state.boundaries || [],
-      names: state.names || { a: "他", b: "她" },
-      usedCards: {},
-      rng: (Number(seed) >>> 0) || 1
-    };
-    var slots = [];
-    var purpose = wheelKind === "truth" ? "cell-truth" : "cell-dare";
-    for (var i = 0; i < 6; i++) {
-      var got = D.take(pseudo, purpose);
-      if (!got || !got.card) return null;
-      pseudo = got.state;
-      slots.push(got.card);
-    }
-    return {
-      kind: "standalone",
-      game: wheelKind,
-      scale: pseudo.scale,
-      maxStarCap: pseudo.maxStarCap,
-      names: pseudo.names,
-      rng: pseudo.rng,
-      usedCards: pseudo.usedCards,
-      rerolls: { truth: 2, dare: 2 },
-      wheel: { kind: wheelKind, slots: slots, index: null, spun: false }
-    };
-  }
+  /* V9.11：引擎缺席时不再伪造牌组，直接走「没备好牌」空态（省首屏字节）。 */
 
   function buildWheelState(state, wheelKind) {
     var seed = (Date.now() % 2147483646) + 1;
@@ -202,8 +168,6 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         if (window.console) console.error("[minigame] newStandalone", e);
       }
     }
-    var fb = fallbackWheelState(state, wheelKind, seed);
-    if (fb) return fb;
     return null;
   }
 
@@ -337,6 +301,27 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         return { pct: Math.round(value * 100), err: err };
       }
 
+      var WHEEL_TINTS = ["rgba(243,192,119,.30)", "rgba(233,136,122,.28)", "rgba(142,123,216,.30)",
+        "rgba(118,186,196,.26)", "rgba(214,150,196,.26)", "rgba(126,186,150,.26)"];
+      var WHEEL_INK = ["#E8B87A", "#E9887A", "#A99BE0", "#7FB6C4", "#D49AC4", "#8FC4A2"];
+
+      function wheelBg() {
+        return "conic-gradient(" + WHEEL_TINTS.map(function (t, i) {
+          return t + " " + (i * 60) + "deg " + (i * 60 + 60) + "deg";
+        }).join(",") + ")";
+      }
+
+      /* V9.11：盘面 6 个扇区各带编号，和下方「今晚的六张」1–6 一一对应；
+       * 转到哪张，对应扇区编号亮成黄铜色。 */
+      function rotorHtml(count) {
+        var segs = "";
+        for (var i = 0; i < count; i++) {
+          segs += '<span class="mg-seg' + (selected === i ? " on" : "") + '" data-test="wheel-seg"' +
+            ' style="--a:' + (i * 60 + 30) + 'deg">' + (i + 1) + "</span>";
+        }
+        return '<div class="mg-rotor" data-rotor style="background:' + wheelBg() + '">' + segs + "</div>";
+      }
+
       function wheelHtml() {
         if (!wheelState) {
           return '<div class="mg-empty">这一格的小游戏没备好牌。<br>先跳过，回棋盘继续。</div>' +
@@ -346,16 +331,19 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var spun = selected >= 0;
         var list = (wheel.slots || []).map(function (c, i) {
+          var ink = WHEEL_INK[i % WHEEL_INK.length];
           return '<li class="mg-slot' + (selected === i ? " on" : "") + '" data-test="wheel-slot">' +
-            '<span class="mg-num">' + (i + 1) + "</span>" +
+            '<span class="mg-num" style="color:' + ink + '">' + (i + 1) + "</span>" +
             '<span class="mg-slot-text">' + esc(c && c.text ? c.text : "这一张没抽出来") + "</span></li>";
         }).join("");
         var result = "";
         if (spun) {
           var card = wheel.slots[selected];
-          result = '<div class="mg-result-title">转盘停在这一张</div>' +
+          result = '<div class="mg-result-title">转盘停在第 ' + (selected + 1) + ' 张</div>' +
             '<p class="mg-card-text" data-test="wheel-result">' + esc(card && card.text ? card.text : "") + "</p>" +
-            (handNote ? '<p class="mg-note">这张交给对方说。</p>' : "");
+            (handNote
+              ? '<p class="mg-note">这张交给对方说。</p>'
+              : '<p class="mg-note">回棋盘会记一笔 · 心动值 +5</p>');
         }
         var acts = spun
           ? '<div class="mg-acts">' +
@@ -370,7 +358,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
                 ">换一组 · 还有 " + left + " 次</button>" +
             "</div>";
         return '<div class="mg-wheel-wrap"><span class="mg-pointer" aria-hidden="true"></span>' +
-          '<div class="mg-rotor" data-rotor></div><div class="mg-hub">转</div></div>' +
+          rotorHtml((wheel.slots || []).length) + '<div class="mg-hub">转</div></div>' +
           '<div class="mg-list-title">今晚的六张</div>' +
           '<ul class="mg-list" data-test="wheel-slots">' + list + "</ul>" +
           result + acts;
