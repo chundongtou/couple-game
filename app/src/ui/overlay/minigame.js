@@ -89,7 +89,8 @@ body.reduce .mg-panel{animation-duration:80ms!important}
   background:radial-gradient(circle at 38% 32%,#FFE6BE,var(--amber,#F3C077) 55%,var(--amber-deep,#E2965E));
   color:#2A140E;font-size:16px;font-weight:800;letter-spacing:.1em;font-family:inherit;
   box-shadow:0 6px 18px rgba(2,1,8,.45)}
-.mg-face{position:absolute;left:50%;top:50%;width:74%;height:74%;transform:translate(-50%,-50%);z-index:4;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:14px;text-align:center;font-size:11px;line-height:1.45;color:#FBF3E7;background:rgba(8,6,16,.93);border:1px solid rgba(255,226,196,.4);box-shadow:0 10px 30px rgba(0,0,0,.55);overflow:hidden}
+.mg-top{position:absolute;left:22px;right:22px;top:9%;margin:0;text-align:center;font-family:var(--font-display,serif);font-size:20px;line-height:1.6;color:var(--ink,#FBF3E7)}
+
 .mg-list-title{margin-top:10px;font-size:11px;letter-spacing:.16em;color:var(--dim2,#8E7C9E);font-weight:700}
 .mg-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .mg-slot{display:flex;gap:8px;padding:8px 10px;border-radius:12px;font-size:12px;line-height:1.5;
@@ -305,16 +306,12 @@ body.reduce .mg-panel{animation-duration:80ms!important}
       /* V9.12：12 格，格子里直接放内容摘要；转到哪一格，那一格亮起、下方给全文。 */
       function segAngle(i, n) { return i * (360 / n) + (180 / n); }
 
-      function teaser(text) {
-        var t = String(text || "").replace(/\s+/g, "");
-        return t.length > 7 ? t.slice(0, 7) + "…" : t;
-      }
-
       function segsHtml(slots, picked) {
         var out = "";
         for (var i = 0; i < slots.length; i++) {
-          out += '<span class="mg-seg' + (picked === i ? " on" : "") + '" data-test="wheel-seg">' +
-            esc(teaser(slots[i] && slots[i].text)) + "</span>";
+          var t = String((slots[i] && slots[i].text) || "").replace(/\s+/g, "");
+          out += '<span class="mg-seg' + (picked === i ? " on" : "") + '">' +
+            esc(t.length > 7 ? t.slice(0, 7) + "…" : t) + "</span>";
         }
         return out;
       }
@@ -348,15 +345,9 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var wheel = wheelState.wheel || { slots: [], index: null, spun: false };
         var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var spun = selected >= 0;
-        var face = "";
-        if (spun) {
-          var card = wheel.slots[selected];
-          /* V9.14：结果写在盘面中央（转盘上面本来就有大片空位），下方只留动作 */
-          face = '<div class="mg-face" data-test="wheel-result">' + esc(card && card.text ? card.text : "") + "</div>";
-        }
         var acts = spun
           ? '<div class="mg-acts">' +
-              '<button class="mg-btn main" type="button" data-act="spin" data-test="spin">再转一次</button>' +
+              '<button class="mg-btn main" type="button" data-act="spin" data-test="spin">再转</button>' +
               '<button class="mg-btn soft" type="button" data-act="done" data-test="minigame-done">回棋盘</button>' +
               '<button class="mg-btn ghost" type="button" data-act="hand" data-test="wheel-hand">交给对方说</button>' +
             "</div>"
@@ -366,12 +357,18 @@ body.reduce .mg-panel{animation-duration:80ms!important}
                 ">换一组 · 还有 " + left + " 次</button>" +
             "</div>";
         return '<div class="mg-wheel-wrap' + (spun ? " on" : "") + '"><span class="mg-pointer" aria-hidden="true"></span>' +
-          rotorHtml(wheel.slots || []) + '<div class="mg-hub">' + (spun ? "" : "12") + "</div>" +
-          face + "</div>" + acts;
+          rotorHtml(wheel.slots || []) + '<div class="mg-hub">' + (spun ? "" : "12") + "</div></div>" + acts;
+      }
+
+      /* V9.15：结果放到面板上方的空白区（大字号、居中） */
+      function topHtml() {
+        if (isThermo || selected < 0 || !wheelState || !wheelState.wheel) return "";
+        var card = wheelState.wheel.slots[selected];
+        return '<p class="mg-top">' + esc(card && card.text ? card.text : "") + "</p>";
       }
 
       function panelHtml() {
-        return '<div class="mg-panel" role="dialog" aria-modal="true" aria-label="' + (isThermo ? "温度计" : wheelTitle) + '">' +
+        return topHtml() + '<div class="mg-panel" role="dialog" aria-modal="true" aria-label="' + (isThermo ? "温度计" : wheelTitle) + '">' +
           headHtml() + (isThermo ? thermoHtml() : wheelHtml()) +
           "</div>";
       }
@@ -416,7 +413,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         selected = idx;
         var rotor = root.querySelector("[data-rotor]");
         var slots = wheelState.wheel.slots;
-        var wait = reduced() ? 0 : 1700;
+        var wait = reduced() ? 0 : 2900;
         if (rotor) {
           /* 先按新的一套重绘扇区，再起转 */
           rotor.innerHTML = segsHtml(slots, -1);
@@ -425,14 +422,15 @@ body.reduce .mg-panel{animation-duration:80ms!important}
           rotor.style.transform = "rotate(0deg)";
           void rotor.offsetWidth;
           if (!reduced()) {
+            rotor.style.transition = "transform " + (wait / 1000) + "s cubic-bezier(.1,.72,.05,1)";
             rotor.classList.add("spinning");
             rotor.style.transform = "rotate(" + spinDeg(idx, slots.length) + "deg)";
             /* 越转越慢的咔哒声 */
             if (App.Audio) {
-              var at = 0;
-              for (var k = 0; k < 15; k++) {
-                at += 46 + k * k * 1.5;
-                (function (d) { later(function () { App.Audio.play("tap"); }, d); })(Math.min(at, wait - 160));
+              var tap = function () { App.Audio.play("tap"); };
+              for (var k = 0, at = 0; k < 16; k++) {
+                at += 42 + k * k * 1.4;
+                later(tap, Math.min(at, wait - 170));
               }
             }
           }
