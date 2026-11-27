@@ -6,8 +6,8 @@
  * V6.1 语义（docs/v6/impl-freeze-v6.1.md，覆盖 impl-freeze.md 冲突处）：
  *   - 结束条件改为飞行棋胜负：任意一方本局全部飞机都到终点（home:*:goal）→ 结束，
  *     写 winnerId、发 win 事件，再发两张收尾卡各给一人。题卡数 / 心动值 / 单架到家都不再结束。
- *   - 起飞保底：仍要 6 起飞；但连续 2 个自己的回合没掷出 6（且所有未到家飞机都在机坪），
- *     第 3 个回合任意点数保底起飞；实际起飞或掷出 6 都清零（takeoffMiss，0..2）。
+ *   - 起飞：所有未到家飞机都在机坪时，任意点数即可起飞；场上已有飞机后仍需 6。
+ *     旧档的 takeoffMiss（0..2）保留为兼容字段，不再影响可走性。
  *   - 合作收尾流程不变：两张收尾卡都可放过，回顾用「先到家」文案，不出现输赢羞辱。
  *   - 放过不惩罚：进航题放过仍进军，叠机题放过仍得奖励步（规则开关见 flight-rules）。
  *   - meta 在 resolvePrompt / resolveMinigame 结算点更新，随 state 落盘。
@@ -265,9 +265,11 @@
     var color = piece.color;
 
     if (loc.type === 'hangar') {
-      /* V6.1 §2.3：6 起飞；连续 2 回合未起飞且该玩家所有未到家飞机都在机坪时，任意点数保底起飞。 */
-      var pity = takeoffMissOf(state, piece.playerId) >= 2 && allUnarrivedInHangar(state, piece.playerId);
-      if (die !== 6 && !pity) {
+      /* V9.10：只要该玩家所有未到家飞机都还在机坪，第一架任意点数即可起飞（不用等 6）；
+       * 已经有一架在场上时，后续起飞仍要 6（或吃两次保底）。 */
+      var allInHangar = allUnarrivedInHangar(state, piece.playerId);
+      var pity = takeoffMissOf(state, piece.playerId) >= 2 && allInHangar;
+      if (die !== 6 && !pity && !allInHangar) {
         plan.blockedReason = 'NEED_SIX_TO_TAKEOFF';
         return plan;
       }

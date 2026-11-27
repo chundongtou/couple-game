@@ -31,7 +31,7 @@
   var MOTION_TYPES = { takeoff: 1, move: 1, jump: 1, fly: 1, capture: 1, stack: 1 };
   /* 图例（copy §2.6 + §2.5 的格名说明；V6.1：起飞规则补保底） */
   var LEGEND = [
-    ["起飞格", "从这里起飞：掷出 6；连续两次没起飞，这一掷任意点数保底起飞"],
+    ["起飞格", "全在机坪任意点数起飞；场上已有飞机后要 6"],
     ["真心话格", "抽一张真心话"],
     ["大冒险格", "抽一张大冒险"],
     ["靠近格", "抽一张靠近的题"],
@@ -2027,7 +2027,7 @@
           else if (r && r !== "NONE") other++;
         });
         if (exact) return "进终点要刚好，这步先停";
-        if (needSix) return "都还在机坪：掷出 6 起飞；连续两次没起飞后，这一掷任意点数保底起飞";
+        if (needSix) return "场上已有飞机：机坪上的要掷出 6 才能起飞";
         if (other) return "这步走不了";
         return "";
       }
@@ -2164,7 +2164,7 @@
       function openRules() {
         try {
           if (App.UI && typeof App.UI.rulesSheet === "function") { App.UI.rulesSheet(); return; }
-          toast("长按右上「先收棋」可以随时停；掷出 6 起飞、6 可再掷");
+          toast("长按右上「先收棋」随时停；全在机坪任意点数起飞，6 可再掷");
         } catch (e) { if (window.console) console.error("[table] rules", e); }
       }
 

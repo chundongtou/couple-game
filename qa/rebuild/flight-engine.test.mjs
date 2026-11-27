@@ -374,7 +374,7 @@ section('3. 起飞与再掷（A1 默认，待确认）');
   const again2 = F.roll(stateOf({}, 21));
   ok(again.events[0].die === again2.events[0].die, '11 同一种子可复现');
 
-  let parked = place(stateOf({}, 2), 'a', { 'a:0': { squareId: 'hangar:red:0' } });
+  let parked = place(stateOf({}, 2), 'a', { 'a:0': { squareId: 'hangar:red:0' }, 'a:1': { squareId: 'home:red:4' } });
   const stay = snap(parked);
   const low = F.roll(parked, 3);
   ok(snap(parked) === stay, '12 roll 不改入参');
@@ -1030,49 +1030,39 @@ section('12. 双方都能起飞并在航线上走');
     return s;
   }
   pairs.forEach(([ca, cb]) => {
+    const board = 'ring:' + Board.TAKEOFF[ca];
+
+    /* A) 全在机坪：任何点数都能起飞，且由玩家选哪一架 */
     let s = stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 9);
-    const parked = F.roll(s, 4);
-    ok(parked.state.turn === 'b'
-      && at(parked.state, 'a:0').squareId.indexOf('hangar:' + ca) === 0
-      && at(parked.state, 'b:0').squareId.indexOf('hangar:' + cb) === 0, '76 ' + ca + '/' + cb + ' 非 6 双方都不起飞');
-    s = stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 9);
-    let rolled = F.roll(s, 6);
-    ok(rolled.state.awaiting.type === 'choose-piece'
-      && rolled.state.awaiting.pieceIds.indexOf('a:0') >= 0
-      && rolled.state.awaiting.pieceIds.every((id) => id.startsWith('a:')), '76 ' + ca + ' 掷 6 只列出己方');
-    let moved = F.move(rolled.state, 'a:0');
-    ok(at(moved.state, 'a:0').squareId === 'ring:' + Board.TAKEOFF[ca], '76 ' + ca + ' 到自己的起飞格');
-    ok(at(moved.state, 'b:0').squareId === 'hangar:' + cb + ':0', '76 ' + cb + ' 仍在自己的机坪');
-    s = settle(moved.state);
-    ok(s.awaiting.type === 'roll' && s.turn === 'a', '76 ' + ca + ' 起飞后可再掷');
-    s = settle(F.roll(s, 1).state);
-    ok(s.turn === 'b', '76 换到 ' + cb);
-    ok(at(s, 'a:0').squareId.indexOf('hangar:') !== 0, '76 ' + ca + ' 已离开机坪 ' + at(s, 'a:0').squareId);
-    const bLow = F.roll(s, 3);
-    ok(at(bLow.state, 'b:0').squareId.indexOf('hangar:') === 0 && bLow.state.turn === 'a', '76 ' + cb + ' 非 6 不起飞');
-    s = bLow.state;
-    if (s.awaiting.type === 'roll' && s.turn === 'a') {
-      s = F.roll(s, 2).state;
-      s = settle(s);
-      if (s.awaiting.type === 'choose-piece') {
-        const id = s.awaiting.pieceIds.filter((x) => x.startsWith('a:'))[0];
-        s = settle(F.move(s, id).state);
-      }
-    }
-    ok(s.turn === 'b' && s.awaiting.type === 'roll', '76 再次轮到 ' + cb);
-    rolled = F.roll(s, 6);
-    ok(rolled.ok && rolled.state.awaiting.type === 'choose-piece'
-      && rolled.state.awaiting.pieceIds.indexOf('b:0') >= 0
-      && rolled.state.awaiting.pieceIds.every((id) => id.startsWith('b:')), '76 ' + cb + ' 掷 6 可以选自己的飞机');
-    moved = F.move(rolled.state, 'b:0');
-    ok(at(moved.state, 'b:0').squareId === 'ring:' + Board.TAKEOFF[cb], '76 ' + cb + ' 到自己的起飞格');
-    ok(at(moved.state, 'a:0').squareId.indexOf('hangar:') !== 0, '76 ' + ca + ' 没有被送回机坪');
-    s = settle(moved.state);
-    ok(s.turn === 'b' && s.awaiting.type === 'roll', '76 ' + cb + ' 起飞后可再掷');
-    s = settle(F.roll(s, 2).state);
-    if (s.awaiting.type === 'choose-piece') s = settle(F.move(s, 'b:0').state);
-    const spot = at(s, 'b:0').squareId;
-    ok(spot.indexOf('hangar:') !== 0, '76 ' + cb + ' 在航线上 ' + spot);
+    const r4 = F.roll(s, 4);
+    ok(r4.state.awaiting.type === 'choose-piece' && r4.state.awaiting.pieceIds.length === 4,
+      '76 ' + ca + ' 非 6 时 4 架都可选');
+    const mv = F.move(r4.state, 'a:0');
+    ok(mv.ok && at(mv.state, 'a:0').squareId === board, '76 ' + ca + ' 非 6 起飞到起飞格');
+    ok(mv.state.turn === 'b', '76 非 6 起飞后换手');
+
+    /* B) 已有一架在场上：机坪上的仍需 6 */
+    const st = place(stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 10), 'a', {
+      'a:0': { squareId: board },
+      'a:1': { squareId: 'hangar:' + ca + ':1' },
+      'a:2': { squareId: 'hangar:' + ca + ':2' },
+      'a:3': { squareId: 'hangar:' + ca + ':3' }
+    });
+    const legal2 = F.legalMoves(st, 2);
+    ok(legal2.pieceIds.indexOf('a:0') >= 0 && legal2.pieceIds.indexOf('a:1') < 0,
+      '76 ' + ca + ' 已有飞机：机坪上的不上棋盘');
+    ok(legal2.blocked['a:1'].blockedReason === 'NEED_SIX_TO_TAKEOFF', '76 ' + ca + ' 机坪上仍需 6');
+
+    /* C) 掷 6 起飞后同一人再掷 */
+    const st6 = place(stateOf({ colors: { a: ca, b: cb }, planeCount: 4 }, 11), 'a', {
+      'a:0': { squareId: board },
+      'a:1': { squareId: 'hangar:' + ca + ':1' },
+      'a:2': { squareId: 'hangar:' + ca + ':2' },
+      'a:3': { squareId: 'hangar:' + ca + ':3' }
+    });
+    const r6 = F.roll(st6, 6);
+    ok(r6.ok && r6.state.turn === 'a' && r6.state.awaiting.type === 'choose-piece',
+      '76 ' + ca + ' 掷 6 仍轮到自己');
   });
 }
 
@@ -1555,28 +1545,25 @@ section('20. V6.1 结束条件与起飞保底（用户试玩反馈：结束太�
   ok(mc.state.cardsProcessed === 21 && mc.state.meta.heat === 100, '107 题卡/心动值仍记录在状态里');
   ok(mc.state.targetCards === 4 && mc.state.targetHeat === 40, '107 目标字段保留（仅历史兼容）');
 
-  /* ---------- ③ 起飞保底：连续 2 回合非 6 → 第 3 回合任意点数 ---------- */
+  /* ---------- ③ V9.10 起飞规则：全在机坪任意点数起飞；已有飞机在场上仍需 6 ---------- */
   let s = place(stateOf({ planeCount: 2 }, 404), 'a', { 'a:0': { squareId: 'hangar:red:0' } });
   ok(s.takeoffMiss && s.takeoffMiss.a === 0 && s.takeoffMiss.b === 0, '108 新局 takeoffMiss={a:0,b:0}');
   const m1 = F.roll(s, 3);
-  ok(m1.state.takeoffMiss.a === 1 && m1.state.turn === 'b', '108 第 1 回合非 6 → miss=1 且换手');
-  const m2 = F.roll(m1.state, 3);
-  ok(m2.state.turn === 'a' && m2.state.takeoffMiss.a === 1 && m2.state.takeoffMiss.b === 1, '108 对方也没 6 → miss.b=1');
-  ok(F.legalMoves(m2.state, 3).blocked['a:0'].blockedReason === 'NEED_SIX_TO_TAKEOFF', '108 miss<2 仍需 6');
-  const m3 = F.roll(m2.state, 3);
-  ok(m3.state.takeoffMiss.a === 2 && m3.state.turn === 'b', '108 第 2 回合非 6 → miss=2 且换手');
-  const m4 = F.roll(m3.state, 3);
-  ok(m4.state.turn === 'a' && m4.state.takeoffMiss.a === 2 && m4.state.takeoffMiss.b === 2, '108 轮到 a，保底就绪');
-  ok(F.view(m4.state).takeoff.pity === true && F.view(m4.state).takeoff.misses.a === 2, '108 view.takeoff.pity=true');
-  const m5 = F.roll(m4.state, 3);
-  ok(m5.ok && at(m5.state, 'a:0').squareId === 'ring:0', '108 第 3 回合任意点数（3）保底起飞');
-  ok(m5.events.some((e) => e.type === 'dice' && e.pity === true), '108 pity 掷骰事件带 pity:true');
-  ok(hasType(m5.events, 'takeoff'), '108 起飞事件');
-  ok(m5.state.takeoffMiss.a === 0, '108 实际起飞后清零');
-  ok(m5.state.takeoffMiss.b === 2, '108 不影响对方计数');
+  ok(m1.ok && at(m1.state, 'a:0').squareId === 'ring:0', '108 全在机坪：3 点直接起飞');
+  ok(hasType(m1.events, 'takeoff'), '108 起飞事件');
+  ok(m1.state.turn === 'b' && m1.state.awaiting.type === 'roll', '108 非 6 起飞后换手');
+  ok(m1.state.takeoffMiss.a === 0, '108 实际起飞后计数清零');
 
-  /* 掷出 6 也清零（仍只在「连续没起飞」时才可能带 pity） */
-  const six = F.roll(m4.state, 6);
+  const withBoard = place(stateOf({ planeCount: 4 }, 406), 'a', {
+    'a:0': { squareId: 'ring:1' },
+    'a:1': { squareId: 'hangar:red:1' }
+  });
+  ok(F.legalMoves(withBoard, 3).blocked['a:1'].blockedReason === 'NEED_SIX_TO_TAKEOFF',
+    '108 已有飞机在场上：机坪上的仍需 6');
+
+  /* 掷 6 起飞后同一人再掷 */
+  const fresh = place(stateOf({ planeCount: 2 }, 407), 'a', { 'a:0': { squareId: 'hangar:red:0' } });
+  const six = F.roll(fresh, 6);
   ok(six.state.takeoffMiss.a === 0 && at(six.state, 'a:0').squareId === 'ring:0', '109 掷 6 起飞清零');
   ok(six.state.turn === 'a' && six.state.awaiting.type === 'roll', '109 掷 6 后同一人再掷');
 
@@ -1595,7 +1582,9 @@ section('20. V6.1 结束条件与起飞保底（用户试玩反馈：结束太�
   ok(ob.state.takeoffMiss.a === 0, '111 未到家飞机不全在机坪 → 不累计');
 
   /* 上限 2：连续非 6 再多也不超过 2 */
-  ok(m3.state.takeoffMiss.a === 2 && m4.state.takeoffMiss.a === 2, '112 miss 上限 2');
+  const capped = place(stateOf({ planeCount: 2 }, 408), 'a', { 'a:0': { squareId: 'hangar:red:0' } });
+  const c1 = F.roll(capped, 2);
+  ok(c1.state.takeoffMiss.a === 0 && at(c1.state, 'a:0').squareId === 'ring:0', '112 全在机坪：2 点直接起飞');
 }
 
 console.log('\n' + passed + ' passed, ' + failed.length + ' failed');
