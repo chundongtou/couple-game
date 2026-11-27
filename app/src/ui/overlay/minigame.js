@@ -89,7 +89,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
   background:radial-gradient(circle at 38% 32%,#FFE6BE,var(--amber,#F3C077) 55%,var(--amber-deep,#E2965E));
   color:#2A140E;font-size:16px;font-weight:800;letter-spacing:.1em;font-family:inherit;
   box-shadow:0 6px 18px rgba(2,1,8,.45)}
-.mg-top{position:absolute;left:22px;right:22px;top:9%;margin:0;text-align:center;font-family:var(--font-display,serif);font-size:20px;line-height:1.6;color:var(--ink,#FBF3E7)}
+.mg-top{position:absolute;left:16px;right:16px;top:8%;max-width:520px;margin:0 auto;text-align:center}
 
 .mg-list-title{margin-top:10px;font-size:11px;letter-spacing:.16em;color:var(--dim2,#8E7C9E);font-weight:700}
 .mg-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}

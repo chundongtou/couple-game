@@ -187,11 +187,25 @@
 .mg-face { animation: mgFaceIn .45s cubic-bezier(.16, 1, .3, 1) both; }
 @keyframes mgFaceIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .mg-face { animation: none; } }
-/* V9.15：结果区（面板上方空白）排版 */
-.mg-top::before { content: "这一张"; display: block; margin-bottom: 8px; font-size: 10.5px;
-  letter-spacing: .22em; color: var(--amber, #F3C077); }
-.mg-top-text { font-family: var(--font-display, serif); font-size: clamp(19px, 5vw, 22px);
-  text-shadow: 0 8px 30px rgba(0, 0, 0, .6); }
+/* V9.16：结果区照搬飞行棋卡片（.pc-dock）的纸面质感 */
+.mg-top {
+  padding: 15px 18px 16px; border-radius: 12px; color: #2A1D14;
+  background: linear-gradient(180deg, #FDF6E6 0%, #F6E7CD 55%, #EFD9B6 100%);
+  border: 1px solid rgba(176, 138, 87, .45);
+  box-shadow: 0 20px 46px rgba(3, 2, 10, .55), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+.mg-top::before {
+  content: "这一张 · 转盘"; display: block; margin-bottom: 9px;
+  font-size: 10.5px; letter-spacing: .16em; font-weight: 700; color: #7A5A38;
+}
+.mg-top::after {
+  content: ""; position: absolute; left: 18px; right: 18px; top: 7px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(176, 138, 87, .75), transparent);
+}
+.mg-top {
+  font-family: var(--font-display, serif); font-size: clamp(17px, 4.7vw, 21px);
+  line-height: 1.62; font-weight: 600; letter-spacing: .02em;
+}
 /* ---------- 宽屏：主桌套一个居中机身（桌面/平板分享链接时不再被拉满） ---------- */
 @media (min-width: 560px) {
   body .v6-table {
