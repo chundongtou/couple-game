@@ -89,6 +89,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
   background:radial-gradient(circle at 38% 32%,#FFE6BE,var(--amber,#F3C077) 55%,var(--amber-deep,#E2965E));
   color:#2A140E;font-size:16px;font-weight:800;letter-spacing:.1em;font-family:inherit;
   box-shadow:0 6px 18px rgba(2,1,8,.45)}
+.mg-face{position:absolute;left:50%;top:50%;width:74%;height:74%;transform:translate(-50%,-50%);z-index:4;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:14px;text-align:center;font-size:11px;line-height:1.45;color:#FBF3E7;background:rgba(8,6,16,.93);border:1px solid rgba(255,226,196,.4);box-shadow:0 10px 30px rgba(0,0,0,.55);overflow:hidden}
 .mg-list-title{margin-top:10px;font-size:11px;letter-spacing:.16em;color:var(--dim2,#8E7C9E);font-weight:700}
 .mg-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .mg-slot{display:flex;gap:8px;padding:8px 10px;border-radius:12px;font-size:12px;line-height:1.5;
@@ -347,14 +348,11 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var wheel = wheelState.wheel || { slots: [], index: null, spun: false };
         var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var spun = selected >= 0;
-        var result = "";
+        var face = "";
         if (spun) {
           var card = wheel.slots[selected];
-          result = '<div class="mg-result-title">这一张</div>' +
-            '<p class="mg-card-text" data-test="wheel-result" aria-live="polite">' + esc(card && card.text ? card.text : "") + "</p>" +
-            (handNote
-              ? '<p class="mg-note">这张交给对方说。</p>'
-              : '<p class="mg-note">心动值 +5 · 回棋盘记一笔</p>');
+          /* V9.14：结果写在盘面中央（转盘上面本来就有大片空位），下方只留动作 */
+          face = '<div class="mg-face" data-test="wheel-result">' + esc(card && card.text ? card.text : "") + "</div>";
         }
         var acts = spun
           ? '<div class="mg-acts">' +
@@ -367,9 +365,9 @@ body.reduce .mg-panel{animation-duration:80ms!important}
               '<button class="mg-btn ghost" type="button" data-act="reroll" data-test="wheel-reroll"' + (left <= 0 ? " disabled" : "") +
                 ">换一组 · 还有 " + left + " 次</button>" +
             "</div>";
-        return '<div class="mg-wheel-wrap"><span class="mg-pointer" aria-hidden="true"></span>' +
-          rotorHtml(wheel.slots || []) + '<div class="mg-hub" aria-hidden="true">12</div></div>' +
-          result + acts;
+        return '<div class="mg-wheel-wrap' + (spun ? " on" : "") + '"><span class="mg-pointer" aria-hidden="true"></span>' +
+          rotorHtml(wheel.slots || []) + '<div class="mg-hub">' + (spun ? "" : "12") + "</div>" +
+          face + "</div>" + acts;
       }
 
       function panelHtml() {
@@ -416,9 +414,9 @@ body.reduce .mg-panel{animation-duration:80ms!important}
           } catch (e) { if (window.console) console.error("[minigame] spin", e); }
         }
         selected = idx;
-        if (App.Audio) App.Audio.play("tick");
         var rotor = root.querySelector("[data-rotor]");
         var slots = wheelState.wheel.slots;
+        var wait = reduced() ? 0 : 1700;
         if (rotor) {
           /* 先按新的一套重绘扇区，再起转 */
           rotor.innerHTML = segsHtml(slots, -1);
@@ -429,11 +427,21 @@ body.reduce .mg-panel{animation-duration:80ms!important}
           if (!reduced()) {
             rotor.classList.add("spinning");
             rotor.style.transform = "rotate(" + spinDeg(idx, slots.length) + "deg)";
+            /* 越转越慢的咔哒声 */
+            if (App.Audio) {
+              var at = 0;
+              for (var k = 0; k < 15; k++) {
+                at += 46 + k * k * 1.5;
+                (function (d) { later(function () { App.Audio.play("tap"); }, d); })(Math.min(at, wait - 160));
+              }
+            }
           }
         }
-        var wait = reduced() ? 0 : 1250;
         root.querySelectorAll(".mg-btn").forEach(function (b) { b.setAttribute("disabled", "disabled"); });
-        later(function () { render(); }, wait);
+        later(function () {
+          if (App.Audio) App.Audio.play("chime");
+          render();
+        }, wait);
       }
 
       function reroll() {
