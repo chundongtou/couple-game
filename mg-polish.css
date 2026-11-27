@@ -145,6 +145,8 @@
 .mg-panel .mg-result-num { font-size: 40px; }
 
 /* ---------- 转盘 12 格：文字沿半径从圆心向外排（V9.13，小游戏 polish 层） ---------- */
+.mg-rotor { background: conic-gradient(rgba(243,192,119,.30) 0deg 30deg, rgba(233,136,122,.28) 30deg 60deg, rgba(142,123,216,.30) 60deg 90deg, rgba(118,186,196,.26) 90deg 120deg, rgba(214,150,196,.26) 120deg 150deg, rgba(126,186,150,.26) 150deg 180deg, rgba(243,192,119,.30) 180deg 210deg, rgba(233,136,122,.28) 210deg 240deg, rgba(142,123,216,.30) 240deg 270deg, rgba(118,186,196,.26) 270deg 300deg, rgba(214,150,196,.26) 300deg 330deg, rgba(126,186,150,.26) 330deg 360deg); }
+
 /* 半径由 JS 按像素计算，见 layoutSegs() */
 .mg-seg {
   position: absolute; left: 50%; top: 50%; max-width: 78px; padding: 0 2px;

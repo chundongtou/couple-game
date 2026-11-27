@@ -301,20 +301,8 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         return { pct: Math.round(value * 100), err: err };
       }
 
-      var WHEEL_TINTS = ["rgba(243,192,119,.30)", "rgba(233,136,122,.28)", "rgba(142,123,216,.30)",
-        "rgba(118,186,196,.26)", "rgba(214,150,196,.26)", "rgba(126,186,150,.26)"];
-
       /* V9.12：12 格，格子里直接放内容摘要；转到哪一格，那一格亮起、下方给全文。 */
       function segAngle(i, n) { return i * (360 / n) + (180 / n); }
-
-      function wheelBg(n) {
-        var step = 360 / Math.max(1, n);
-        var parts = [];
-        for (var i = 0; i < n; i++) {
-          parts.push(WHEEL_TINTS[i % WHEEL_TINTS.length] + " " + (i * step) + "deg " + ((i + 1) * step) + "deg");
-        }
-        return "conic-gradient(" + parts.join(",") + ")";
-      }
 
       function teaser(text) {
         var t = String(text || "").replace(/\s+/g, "");
@@ -330,13 +318,21 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         return out;
       }
 
+      /* 每格沿半径由内向外摆；文字沿半径，左半边翻 180° 避免倒读。
+       * 必须留在主包：外部 polish 层会被 SW 旧缓存挡住，布局不能依赖它。 */
       function layoutSegs() {
-        try { if (window.__mgLayout) window.__mgLayout(root); } catch (e) {}
+        var w = root.querySelector(".mg-wheel-wrap"), r = root.querySelector("[data-rotor]");
+        if (!w || !r) return;
+        var R = w.clientWidth * 0.32, segs = r.querySelectorAll(".mg-seg"), n = segs.length;
+        for (var i = 0; i < n; i++) {
+          var a = segAngle(i, n);
+          segs[i].style.transform = "translate(-50%,-50%) rotate(" + a + "deg) translateY(-" + R +
+            "px) rotate(" + (a > 90 && a < 270 ? 90 : -90) + "deg)";
+        }
       }
 
       function rotorHtml(slots) {
-        return '<div class="mg-rotor" data-rotor style="background:' + wheelBg(slots.length) + '">' +
-          segsHtml(slots, -1) + "</div>";
+        return '<div class="mg-rotor" data-rotor>' + segsHtml(slots, -1) + "</div>";
       }
 
       function spinDeg(idx, n) {
@@ -425,7 +421,6 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var slots = wheelState.wheel.slots;
         if (rotor) {
           /* 先按新的一套重绘扇区，再起转 */
-          rotor.style.background = wheelBg(slots.length);
           rotor.innerHTML = segsHtml(slots, -1);
           layoutSegs();
           rotor.style.transition = "none";
