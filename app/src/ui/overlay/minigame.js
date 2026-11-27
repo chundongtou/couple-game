@@ -91,17 +91,6 @@ body.reduce .mg-panel{animation-duration:80ms!important}
   box-shadow:0 6px 18px rgba(2,1,8,.45)}
 .mg-top{position:absolute;left:16px;right:16px;top:8%;max-width:520px;margin:0 auto;text-align:center}
 
-.mg-list-title{margin-top:10px;font-size:11px;letter-spacing:.16em;color:var(--dim2,#8E7C9E);font-weight:700}
-.mg-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.mg-slot{display:flex;gap:8px;padding:8px 10px;border-radius:12px;font-size:12px;line-height:1.5;
-  background:rgba(255,236,214,.04);border:1px solid transparent;color:var(--dim,#C9B6CE)}
-.mg-slot .mg-num{flex:none;width:16px;color:var(--dim2,#8E7C9E);font-variant-numeric:tabular-nums}
-.mg-slot .mg-slot-text{min-width:0}
-.mg-slot.on{background:rgba(243,192,119,.14);border-color:rgba(243,192,119,.4);color:var(--ink,#FBF3E7)}
-.mg-result-title{margin-top:14px;font-size:11px;letter-spacing:.16em;color:var(--dim2,#8E7C9E);font-weight:700}
-.mg-card-text{margin-top:6px;font-family:var(--font-display,var(--font,"Noto Serif SC","Songti SC",serif));
-  font-size:18px;line-height:1.55;color:var(--ink,#FBF3E7)}
-.mg-note{margin-top:8px;font-size:11.5px;color:var(--dim2,#8E7C9E)}
 .mg-empty{margin-top:16px;padding:14px;border-radius:14px;border:1px dashed rgba(255,226,196,.22);
   font-size:12.5px;line-height:1.6;color:var(--dim2,#8E7C9E)}
 @media (max-width:360px){.mg-title{font-size:20px}.mg-result-num{font-size:36px}}
@@ -364,7 +353,11 @@ body.reduce .mg-panel{animation-duration:80ms!important}
       function topHtml() {
         if (isThermo || selected < 0 || !wheelState || !wheelState.wheel) return "";
         var card = wheelState.wheel.slots[selected];
-        return '<p class="mg-top">' + esc(card && card.text ? card.text : "") + "</p>";
+        var star = Math.max(1, Math.min(4, (card && card.star) || 1));
+        var kick = (wheelKind === "truth" ? "真心话" : "大冒险") + " · " +
+          new Array(star + 1).join("★") + " · 转盘";
+        return '<p class="mg-top" data-k="' + esc(kick) + '">' +
+          esc(card && card.text ? card.text : "") + "</p>";
       }
 
       function panelHtml() {

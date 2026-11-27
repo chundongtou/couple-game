@@ -195,7 +195,7 @@
   box-shadow: 0 20px 46px rgba(3, 2, 10, .55), inset 0 1px 0 rgba(255, 255, 255, .6);
 }
 .mg-top::before {
-  content: "这一张 · 转盘"; display: block; margin-bottom: 9px;
+  content: attr(data-k); display: block; margin-bottom: 9px;
   font-size: 10.5px; letter-spacing: .16em; font-weight: 700; color: #7A5A38;
 }
 .mg-top::after {
