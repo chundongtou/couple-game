@@ -357,8 +357,10 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var kick = (wheelKind === "truth" ? "真心话" : "大冒险") + " · " +
           new Array(star + 1).join("★") + " · " + (left > 0 ? "可换一组" : "换完了");
-        return '<p class="mg-top" data-k="' + esc(kick) + '">' +
-          esc(card && card.text ? card.text : "") + "</p>";
+        var text = (card && card.text) || "";
+        /* 短卡一行大字，长卡自动降一档 */
+        var sz = text.length <= 11 ? " xl" : text.length > 24 ? " sm" : "";
+        return '<p class="mg-top' + sz + '" data-k="' + esc(kick) + '">' + esc(text) + "</p>";
       }
 
       function panelHtml() {

@@ -1,7 +1,7 @@
 /* ===== 今晚飞行棋 V6.1 · 启动装配 ===== */
 (function () {
   var App = (window.App = window.App || {});
-  App.version = "9.17.2";
+  App.version = "9.17.3";
 
   function hashRoute() {
     var h = String(location.hash || "").replace(/^#\/?/, "");
