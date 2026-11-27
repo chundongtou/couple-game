@@ -303,23 +303,41 @@ body.reduce .mg-panel{animation-duration:80ms!important}
 
       var WHEEL_TINTS = ["rgba(243,192,119,.30)", "rgba(233,136,122,.28)", "rgba(142,123,216,.30)",
         "rgba(118,186,196,.26)", "rgba(214,150,196,.26)", "rgba(126,186,150,.26)"];
-      var WHEEL_INK = ["#E8B87A", "#E9887A", "#A99BE0", "#7FB6C4", "#D49AC4", "#8FC4A2"];
 
-      function wheelBg() {
-        return "conic-gradient(" + WHEEL_TINTS.map(function (t, i) {
-          return t + " " + (i * 60) + "deg " + (i * 60 + 60) + "deg";
-        }).join(",") + ")";
+      /* V9.12：12 格，格子里直接放内容摘要；转到哪一格，那一格亮起、下方给全文。 */
+      function segAngle(i, n) { return i * (360 / n) + (180 / n); }
+
+      function wheelBg(n) {
+        var step = 360 / Math.max(1, n);
+        var parts = [];
+        for (var i = 0; i < n; i++) {
+          parts.push(WHEEL_TINTS[i % WHEEL_TINTS.length] + " " + (i * step) + "deg " + ((i + 1) * step) + "deg");
+        }
+        return "conic-gradient(" + parts.join(",") + ")";
       }
 
-      /* V9.11：盘面 6 个扇区各带编号，和下方「今晚的六张」1–6 一一对应；
-       * 转到哪张，对应扇区编号亮成黄铜色。 */
-      function rotorHtml(count) {
-        var segs = "";
-        for (var i = 0; i < count; i++) {
-          segs += '<span class="mg-seg' + (selected === i ? " on" : "") + '" data-test="wheel-seg"' +
-            ' style="--a:' + (i * 60 + 30) + 'deg">' + (i + 1) + "</span>";
+      function teaser(text) {
+        var t = String(text || "").replace(/\s+/g, "");
+        return t.length > 7 ? t.slice(0, 7) + "…" : t;
+      }
+
+      function segsHtml(slots, picked) {
+        var n = slots.length || 1;
+        var out = "";
+        for (var i = 0; i < slots.length; i++) {
+          out += '<span class="mg-seg' + (picked === i ? " on" : "") + '" data-test="wheel-seg"' +
+            ' style="--a:' + segAngle(i, n) + 'deg">' + esc(teaser(slots[i] && slots[i].text)) + "</span>";
         }
-        return '<div class="mg-rotor" data-rotor style="background:' + wheelBg() + '">' + segs + "</div>";
+        return out;
+      }
+
+      function rotorHtml(slots) {
+        return '<div class="mg-rotor" data-rotor style="background:' + wheelBg(slots.length) + '">' +
+          segsHtml(slots, -1) + "</div>";
+      }
+
+      function spinDeg(idx, n) {
+        return 360 * 4 - segAngle(idx, n);
       }
 
       function wheelHtml() {
@@ -330,16 +348,10 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         var wheel = wheelState.wheel || { slots: [], index: null, spun: false };
         var left = (wheelState.rerolls && wheelState.rerolls[wheelKind]) || 0;
         var spun = selected >= 0;
-        var list = (wheel.slots || []).map(function (c, i) {
-          var ink = WHEEL_INK[i % WHEEL_INK.length];
-          return '<li class="mg-slot' + (selected === i ? " on" : "") + '" data-test="wheel-slot">' +
-            '<span class="mg-num" style="color:' + ink + '">' + (i + 1) + "</span>" +
-            '<span class="mg-slot-text">' + esc(c && c.text ? c.text : "这一张没抽出来") + "</span></li>";
-        }).join("");
         var result = "";
         if (spun) {
           var card = wheel.slots[selected];
-          result = '<div class="mg-result-title">转盘停在第 ' + (selected + 1) + ' 张</div>' +
+          result = '<div class="mg-result-title">转盘停在这一张</div>' +
             '<p class="mg-card-text" data-test="wheel-result">' + esc(card && card.text ? card.text : "") + "</p>" +
             (handNote
               ? '<p class="mg-note">这张交给对方说。</p>'
@@ -347,9 +359,8 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         }
         var acts = spun
           ? '<div class="mg-acts">' +
-              '<button class="mg-btn main" type="button" data-act="done" data-test="minigame-done">回棋盘</button>' +
-              '<button class="mg-btn soft" type="button" data-act="reroll" data-test="wheel-reroll"' + (left <= 0 ? " disabled" : "") +
-                ">换一组 · 还有 " + left + " 次</button>" +
+              '<button class="mg-btn main" type="button" data-act="spin" data-test="spin">再转一次</button>' +
+              '<button class="mg-btn soft" type="button" data-act="done" data-test="minigame-done">回棋盘</button>' +
               '<button class="mg-btn ghost" type="button" data-act="hand" data-test="wheel-hand">交给对方说</button>' +
             "</div>"
           : '<div class="mg-acts">' +
@@ -358,9 +369,8 @@ body.reduce .mg-panel{animation-duration:80ms!important}
                 ">换一组 · 还有 " + left + " 次</button>" +
             "</div>";
         return '<div class="mg-wheel-wrap"><span class="mg-pointer" aria-hidden="true"></span>' +
-          rotorHtml((wheel.slots || []).length) + '<div class="mg-hub">转</div></div>' +
-          '<div class="mg-list-title">今晚的六张</div>' +
-          '<ul class="mg-list" data-test="wheel-slots">' + list + "</ul>" +
+          rotorHtml(wheel.slots || []) + '<div class="mg-hub">转</div></div>' +
+          '<p class="mg-hint-line">每次转整套换新</p>' +
           result + acts;
       }
 
@@ -373,9 +383,11 @@ body.reduce .mg-panel{animation-duration:80ms!important}
       function render() {
         root.innerHTML = panelHtml();
         var rotor = root.querySelector("[data-rotor]");
-        if (rotor && selected >= 0 && !reduced()) {
-          rotor.style.transform = "rotate(" + (360 * 4 - (selected * 60 + 30)) + "deg)";
+        if (rotor && selected >= 0) {
+          var n = (wheelState && wheelState.wheel && wheelState.wheel.slots ? wheelState.wheel.slots.length : 12);
+          rotor.style.transform = "rotate(" + spinDeg(selected, n) + "deg)";
           rotor.style.transition = "none";
+          rotor.innerHTML = segsHtml(wheelState.wheel.slots, selected);
         }
       }
 
@@ -392,11 +404,11 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         if (!wheelState) return;
         var wheel = wheelState.wheel;
         if (!wheel || !wheel.slots || !wheel.slots.length) return;
-        var rotor = root.querySelector("[data-rotor]");
-        var idx = Math.floor(Math.random() * wheel.slots.length);
+        var idx = 0;
         if (App.Minigames && App.Minigames.spinWheel) {
           try {
             var ret = App.Minigames.spinWheel(wheelState);
+            /* 第二次起引擎会先换一整套 12 张，这里拿到的是新的一套 */
             if (ret && ret.ok && ret.state && ret.state.wheel) {
               wheelState = ret.state;
               idx = ret.state.wheel.index;
@@ -405,10 +417,19 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         }
         selected = idx;
         if (App.Audio) App.Audio.play("tick");
-        if (rotor && !reduced()) {
-          rotor.classList.add("spinning");
+        var rotor = root.querySelector("[data-rotor]");
+        var slots = wheelState.wheel.slots;
+        if (rotor) {
+          /* 先按新的一套重绘扇区，再起转 */
+          rotor.style.background = wheelBg(slots.length);
+          rotor.innerHTML = segsHtml(slots, -1);
+          rotor.style.transition = "none";
+          rotor.style.transform = "rotate(0deg)";
           void rotor.offsetWidth;
-          rotor.style.transform = "rotate(" + (360 * 4 - (idx * 60 + 30)) + "deg)";
+          if (!reduced()) {
+            rotor.classList.add("spinning");
+            rotor.style.transform = "rotate(" + spinDeg(idx, slots.length) + "deg)";
+          }
         }
         var wait = reduced() ? 0 : 1250;
         root.querySelectorAll(".mg-btn").forEach(function (b) { b.setAttribute("disabled", "disabled"); });

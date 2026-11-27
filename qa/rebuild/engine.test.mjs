@@ -205,7 +205,7 @@ section('6. 厨房转盘与浴室重抽');
   let s = fresh({ maxStar: 4 }, 15);
   s = E.enterRoom(s, 'kitchen').state;
   s = E.dealWheel(s, 'dare').state;
-  ok(s.wheel.slots.length === 6 && s.wheel.kind === 'dare', '厨房发 6 格转盘');
+  ok(s.wheel.slots.length === 12 && s.wheel.kind === 'dare', '厨房发 12 格转盘');
   const spun = E.spinWheel(s);
   s = spun.state;
   ok(s.wheel.spun && s.prompt.card.text === s.wheel.slots[s.wheel.index].text, '转盘停在其中一格');

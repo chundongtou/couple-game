@@ -922,7 +922,7 @@ section('10. 小游戏');
   const revealed = M.thermoReveal(setB.state);
   ok(revealed.ok && revealed.state.thermo.revealed && !('heat' in revealed.state), '68 揭晓不写热度');
   const truth = M.newStandalone('truth', { scale: 'gentle', blacklist: ['束缚'] }, 4);
-  ok(truth.state.wheel.slots.length === 6 && truth.state.wheel.slots.every((c) => c.star === 1), '67 转盘走尺度');
+  ok(truth.state.wheel.slots.length === 12 && truth.state.wheel.slots.every((c) => c.star === 1), '67 转盘走尺度');
   ok(truth.state.wheel.slots.every((c) => String(c.text).indexOf('束缚') < 0), '67 转盘走边界');
   const spun = M.spinWheel(truth.state);
   ok(spun.ok && spun.state.wheel.spun === true, '66 转盘能转');

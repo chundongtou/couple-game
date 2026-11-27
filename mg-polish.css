@@ -144,31 +144,30 @@
 }
 .mg-panel .mg-result-num { font-size: 40px; }
 
-/* ---------- 转盘扇区编号 + 矮屏紧凑（V9.11，小游戏 polish 层） ---------- */
-.mg-wheel-wrap { --seg-r: calc(min(240px, 64vw) * .37); }
+/* ---------- 转盘 12 格：格子里直接写内容摘要 + 落点高亮（V9.12，小游戏 polish 层） ---------- */
+.mg-wheel-wrap { --seg-r: calc(min(240px, 64vw) * .385); }
 .mg-seg {
-  position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px;
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font: 800 11px/1 var(--font-body, sans-serif); font-variant-numeric: tabular-nums;
-  color: rgba(251, 235, 210, .82); background: rgba(8, 6, 16, .55);
-  border: 1px solid rgba(255, 226, 196, .22); pointer-events: none;
-  transform: rotate(var(--a)) translateY(calc(-1 * var(--seg-r))) rotate(calc(-1 * var(--a)));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  position: absolute; left: 50%; top: 50%; max-width: 52px; padding: 2px 4px; border-radius: 6px;
+  font: 600 8px/1.2 var(--font-body, sans-serif); letter-spacing: .01em;
+  color: rgba(251, 235, 210, .88); background: rgba(8, 6, 16, .62);
+  border: 1px solid rgba(255, 226, 196, .18); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(-1 * var(--seg-r))) rotate(calc(-1 * var(--a)));
 }
 .mg-seg.on {
   color: #2A140E; background: linear-gradient(180deg, #FFE6BE, #E2965E);
-  border-color: rgba(255, 226, 196, .8);
+  border-color: rgba(255, 226, 196, .85); font-weight: 800;
   box-shadow: 0 0 0 2px rgba(243, 192, 119, .35), 0 6px 14px rgba(0, 0, 0, .45);
 }
+.mg-hint-line { margin: 6px 0 0; text-align: center; font-size: 10.5px; letter-spacing: .04em; color: var(--dim2, #8E7C9E); }
 
 @media (max-height: 700px) {
-  .mg-wheel-wrap { width: min(180px, 50vw); height: min(180px, 50vw); margin: 8px auto 2px; --seg-r: calc(min(180px, 50vw) * .37); }
-  .mg-seg { width: 19px; height: 19px; margin: -9.5px 0 0 -9.5px; font-size: 10px; }
+  .mg-wheel-wrap { width: min(200px, 54vw); height: min(200px, 54vw); margin: 8px auto 2px; --seg-r: calc(min(200px, 54vw) * .385); }
+  .mg-seg { max-width: 42px; font-size: 7px; padding: 1px 3px; }
   .mg-hub { width: 54px; height: 54px; margin: -27px 0 0 -27px; font-size: 14px; }
-  .mg-list { margin-top: 6px; gap: 4px; }
-  .mg-slot { padding: 6px 9px; font-size: 11.5px; line-height: 1.45; }
   .mg-card-text { font-size: 16px; line-height: 1.5; }
-  .mg-result-title, .mg-list-title { margin-top: 9px; font-size: 10.5px; }
+  .mg-result-title { margin-top: 9px; font-size: 10.5px; }
+  .mg-hint-line { font-size: 10px; margin-top: 4px; }
 }
 
 /* ---------- 宽屏：主桌套一个居中机身（桌面/平板分享链接时不再被拉满） ---------- */

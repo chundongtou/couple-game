@@ -103,21 +103,29 @@
     return ok(s, [{ type: 'reveal', closeness: t.closeness, err: err }]);
   }
 
-  function dealWheel(state, kind) {
-    if (!state) return fail(null, 'NO_SESSION', '没有转盘');
-    if (kind !== 'truth' && kind !== 'dare') return fail(state, 'INVALID_SETUP', '转盘只有真话和动作');
-    var s = stripHeat(clone(state));
+  /* V9.12：转盘 12 格；每次“转”都换一整套 12 张（抽牌走 FlightDraw 的 usedCards，
+   * 池子没抽空前不会重复）。 */
+  var WHEEL_SLOTS = 12;
+
+  function dealSlots(s, kind) {
     var D = draw();
     var purpose = kind === 'truth' ? 'cell-truth' : 'cell-dare';
     var slots = [];
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < WHEEL_SLOTS; i++) {
       var got = D.take(s, purpose);
       s = got.state;
       slots.push(got.card);
     }
     s.wheel = { kind: kind, slots: slots, index: null, spun: false };
     s.prompt = null;
-    return ok(s, [{ type: 'deal', kind: kind, slots: slots.length }]);
+    return s;
+  }
+
+  function dealWheel(state, kind) {
+    if (!state) return fail(null, 'NO_SESSION', '没有转盘');
+    if (kind !== 'truth' && kind !== 'dare') return fail(state, 'INVALID_SETUP', '转盘只有真话和动作');
+    var s = dealSlots(stripHeat(clone(state)), kind);
+    return ok(s, [{ type: 'deal', kind: kind, slots: s.wheel.slots.length }]);
   }
 
   function spinWheel(state) {
@@ -125,6 +133,8 @@
       return fail(state || null, 'AWAITING_OTHER', '转盘还没备好');
     }
     var s = stripHeat(clone(state));
+    /* 上一把已经转过 → 先换一整套新的，再在这 12 张里挑 */
+    if (s.wheel.spun) s = dealSlots(s, s.wheel.kind);
     var rng = createRng(s.rng || 1);
     var idx = Math.floor(rng.next() * s.wheel.slots.length);
     s.rng = rng.state();
@@ -132,7 +142,7 @@
     s.wheel.spun = true;
     var card = s.wheel.slots[idx];
     s.prompt = { card: card, who: null, role: 'wheel', mode: s.wheel.kind };
-    return ok(s, [{ type: 'spin', index: idx, card: card }]);
+    return ok(s, [{ type: 'spin', index: idx, card: card, slots: s.wheel.slots.length }]);
   }
 
   function rerollWheel(state) {
