@@ -203,9 +203,14 @@
   background: linear-gradient(90deg, transparent, rgba(176, 138, 87, .75), transparent);
 }
 .mg-top {
-  font-family: var(--font-display, serif); font-size: clamp(17px, 4.7vw, 21px);
-  line-height: 1.62; font-weight: 600; letter-spacing: .02em;
+  font-family: var(--font-display, serif); font-size: clamp(22px, 6vw, 28px);
+  line-height: 1.5; font-weight: 600; letter-spacing: .01em;
 }
+@media (max-height: 700px) {
+  .mg-top { font-size: 19px; padding: 11px 14px 12px; }
+  .mg-top::before { margin-bottom: 6px; }
+}
+@media (max-width: 340px) { .mg-top { font-size: 18px; } }
 /* ---------- 宽屏：主桌套一个居中机身（桌面/平板分享链接时不再被拉满） ---------- */
 @media (min-width: 560px) {
   body .v6-table {

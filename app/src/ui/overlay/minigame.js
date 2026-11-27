@@ -89,7 +89,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
   background:radial-gradient(circle at 38% 32%,#FFE6BE,var(--amber,#F3C077) 55%,var(--amber-deep,#E2965E));
   color:#2A140E;font-size:16px;font-weight:800;letter-spacing:.1em;font-family:inherit;
   box-shadow:0 6px 18px rgba(2,1,8,.45)}
-.mg-top{position:absolute;left:16px;right:16px;top:8%;max-width:520px;margin:0 auto;text-align:center}
+.mg-top{position:absolute;left:16px;right:16px;top:6%;max-width:520px;margin:0 auto;text-align:center}
 
 .mg-empty{margin-top:16px;padding:14px;border-radius:14px;border:1px dashed rgba(255,226,196,.22);
   font-size:12.5px;line-height:1.6;color:var(--dim2,#8E7C9E)}
