@@ -352,7 +352,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
         if (spun) {
           var card = wheel.slots[selected];
           result = '<div class="mg-result-title">转盘停在这一张</div>' +
-            '<p class="mg-card-text" data-test="wheel-result">' + esc(card && card.text ? card.text : "") + "</p>" +
+            '<p class="mg-card-text" data-test="wheel-result" aria-live="polite">' + esc(card && card.text ? card.text : "") + "</p>" +
             (handNote
               ? '<p class="mg-note">这张交给对方说。</p>'
               : '<p class="mg-note">回棋盘会记一笔 · 心动值 +5</p>');
@@ -369,8 +369,7 @@ body.reduce .mg-panel{animation-duration:80ms!important}
                 ">换一组 · 还有 " + left + " 次</button>" +
             "</div>";
         return '<div class="mg-wheel-wrap"><span class="mg-pointer" aria-hidden="true"></span>' +
-          rotorHtml(wheel.slots || []) + '<div class="mg-hub">转</div></div>' +
-          '<p class="mg-hint-line">每次转整套换新</p>' +
+          rotorHtml(wheel.slots || []) + '<div class="mg-hub" aria-hidden="true">12</div></div>' +
           result + acts;
       }
 
